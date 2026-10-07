@@ -1,0 +1,126 @@
+package com.example.neuronmap.view;
+
+import com.example.neuronmap.model.NeuronType;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.layout.Pane;
+
+import java.net.URL;
+import java.util.function.Consumer;
+
+/** Top-level view. It owns layout composition only. */
+public final class MainView {
+
+    private final RootPane root = new RootPane();
+    private final ToolbarView toolbar;
+    private final WorkspaceView workspace = new WorkspaceView();
+    private final StatusBarView statusBar = new StatusBarView();
+
+    public MainView(
+            Consumer<NeuronType> addNeuron,
+            Runnable group,
+            Runnable ungroup,
+            Runnable exitDelete,
+            Runnable pauseResume,
+            Runnable stopSignals,
+            Consumer<String> speedChanged,
+            double initialSpeedMillis
+    ) {
+        toolbar = new ToolbarView(
+                addNeuron,
+                group,
+                ungroup,
+                exitDelete,
+                pauseResume,
+                stopSignals,
+                speedChanged,
+                initialSpeedMillis
+        );
+
+        root.getStyleClass().add("root");
+        root.getChildren().addAll(
+                toolbar.node(),
+                workspace.node(),
+                statusBar.node()
+        );
+
+        root.setPickOnBounds(true);
+        root.requestLayout();
+    }
+
+    public Scene createScene(double width, double height) {
+        Scene scene = new Scene(root, width, height);
+
+        URL css = getClass().getResource("/app.css");
+        if (css == null) {
+            throw new IllegalStateException("app.css is missing");
+        }
+
+        scene.getStylesheets().add(css.toExternalForm());
+        root.layout();
+        return scene;
+    }
+
+    public WorkspaceView workspace() {
+        return workspace;
+    }
+
+    public ToolbarView toolbar() {
+        return toolbar;
+    }
+
+    public void setStatus(String text) {
+        statusBar.setText(text);
+    }
+
+    private static final class RootPane extends Pane {
+        @Override
+        protected void layoutChildren() {
+            double width = getWidth();
+            double height = getHeight();
+
+            if (width <= 0.0 || height <= 0.0) {
+                return;
+            }
+
+            double toolbarHeight = Math.min(
+                    ToolbarView.HEIGHT,
+                    height
+            );
+
+            double statusHeight = Math.min(
+                    StatusBarView.HEIGHT,
+                    Math.max(0.0, height - toolbarHeight)
+            );
+
+            double statusY = height - statusHeight;
+            double viewportHeight = Math.max(
+                    0.0,
+                    statusY - toolbarHeight
+            );
+
+            Pane toolbar = (Pane) getChildren().get(0);
+            Pane viewport = (Pane) getChildren().get(1);
+            Pane status = (Pane) getChildren().get(2);
+
+            toolbar.resizeRelocate(
+                    0.0,
+                    0.0,
+                    width,
+                    toolbarHeight
+            );
+            viewport.resizeRelocate(
+                    0.0,
+                    toolbarHeight,
+                    width,
+                    viewportHeight
+            );
+            status.resizeRelocate(
+                    0.0,
+                    statusY,
+                    width,
+                    statusHeight
+            );
+        }
+    }
+}

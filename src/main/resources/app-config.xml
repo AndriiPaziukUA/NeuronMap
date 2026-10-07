@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<app>
+    <!-- Base application settings. User-specific window position/size is still persisted separately. -->
+    <window
+            title="NeuronMap"
+            width="1280"
+            height="720"
+            stateFile="neuronmap-window.properties"/>
+
+    <!-- Camera behavior, not the persisted current camera position. -->
+    <camera
+            zoomFactor="1.12"/>
+
+    <!-- Signal transmission timing in milliseconds per simulation tick. -->
+    <simulation
+            defaultTickMs="650"
+            minTickMs="50"
+            maxTickMs="5000"/>
+</app>

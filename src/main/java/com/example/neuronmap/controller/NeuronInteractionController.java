@@ -1,0 +1,346 @@
+package com.example.neuronmap.controller;
+
+import com.example.neuronmap.application.EditorState;
+import com.example.neuronmap.application.NeuronMapApplicationService;
+import com.example.neuronmap.model.Neuron;
+import com.example.neuronmap.service.GroupService;
+import com.example.neuronmap.service.NeuronService;
+import com.example.neuronmap.view.NeuronView;
+import com.example.neuronmap.view.RotationHandleView;
+import com.example.neuronmap.view.WorkspaceView;
+import javafx.scene.Node;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
+
+import java.util.Collection;
+import java.util.Map;
+import java.util.Objects;
+
+/** Owns neuron view wiring while delegating menu, rotation and domain work to specialists. */
+public final class NeuronInteractionController {
+
+    private final NeuronService neuronService;
+    private final GroupService groupService;
+    private final NeuronMapApplicationService application;
+    private final EditorState state;
+    private final WorkspaceView workspace;
+    private final Map<String, NeuronView> neuronViews;
+    private final Map<String, RotationHandleView> rotationHandles;
+    private final ConnectionController connections;
+    private final SimulationController simulation;
+    private final Runnable save;
+    private final Runnable refreshConnections;
+    private final java.util.function.Consumer<String> status;
+    private final NeuronMenuCustomizer menuCustomizer;
+    private final NeuronClipboardController clipboardController;
+    private final NeuronDeletionController deletionController;
+    private final NeuronMenuController menuController;
+    private final NeuronRotationController rotationController;
+
+    public NeuronInteractionController(
+            NeuronMapApplicationService application,
+            EditorState state,
+            WorkspaceView workspace,
+            Map<String, NeuronView> neuronViews,
+            Map<String, RotationHandleView> rotationHandles,
+            ConnectionController connections,
+            SimulationController simulation,
+            Runnable save,
+            Runnable refreshConnections,
+            java.util.function.Consumer<String> status,
+            NeuronMenuCustomizer menuCustomizer
+    ) {
+        this(
+                application,
+                state,
+                application.groups(),
+                workspace,
+                neuronViews,
+                rotationHandles,
+                connections,
+                simulation,
+                save,
+                refreshConnections,
+                status,
+                menuCustomizer
+        );
+    }
+
+    public NeuronInteractionController(
+            NeuronMapApplicationService application,
+            EditorState state,
+            GroupService groupService,
+            WorkspaceView workspace,
+            Map<String, NeuronView> neuronViews,
+            Map<String, RotationHandleView> rotationHandles,
+            ConnectionController connections,
+            SimulationController simulation,
+            Runnable save,
+            Runnable refreshConnections,
+            java.util.function.Consumer<String> status,
+            NeuronMenuCustomizer menuCustomizer
+    ) {
+        this.application = Objects.requireNonNull(application, "application");
+        this.neuronService = application.neurons();
+        this.groupService = Objects.requireNonNull(groupService, "groupService");
+        this.state = Objects.requireNonNull(state, "state");
+        this.workspace = Objects.requireNonNull(workspace, "workspace");
+        this.neuronViews = Objects.requireNonNull(neuronViews, "neuronViews");
+        this.rotationHandles = Objects.requireNonNull(rotationHandles, "rotationHandles");
+        this.connections = Objects.requireNonNull(connections, "connections");
+        this.simulation = Objects.requireNonNull(simulation, "simulation");
+        this.save = Objects.requireNonNull(save, "save");
+        this.refreshConnections = Objects.requireNonNull(refreshConnections, "refreshConnections");
+        this.status = Objects.requireNonNull(status, "status");
+        this.menuCustomizer = Objects.requireNonNull(menuCustomizer, "menuCustomizer");
+        this.clipboardController = new NeuronClipboardController(
+                application,
+                state,
+                workspace,
+                this::hideMenu,
+                this::addViewForNeuron,
+                refreshConnections,
+                save,
+                status
+        );
+        this.deletionController = new NeuronDeletionController(
+                application,
+                state,
+                workspace,
+                neuronViews,
+                rotationHandles,
+                this::hideMenu,
+                this::refreshVisuals,
+                refreshConnections,
+                connections::refreshDeleteHighlights,
+                save,
+                status
+        );
+        this.menuController = new NeuronMenuController(
+                neuronService,
+                state,
+                workspace,
+                connections,
+                simulation,
+                deletionController,
+                menuCustomizer,
+                this::refreshVisuals,
+                refreshConnections,
+                this::refreshOverlayPositions,
+                save,
+                status
+        );
+        this.rotationController = new NeuronRotationController(
+                neuronService,
+                state,
+                workspace,
+                neuronViews,
+                rotationHandles,
+                this::hideMenu,
+                this::refreshVisuals,
+                refreshConnections,
+                this::refreshOverlayPositions,
+                save
+        );
+    }
+
+    public void loadViews() {
+        for (Neuron neuron : neuronService.neurons()) {
+            createView(neuron);
+        }
+        refreshVisuals();
+        refreshOverlayPositions();
+    }
+
+    public void addViewForNeuron(Neuron neuron) {
+        if (neuronViews.containsKey(neuron.id())) {
+            return;
+        }
+        createView(neuron);
+        refreshVisuals();
+        refreshOverlayPositions();
+    }
+
+    public Collection<NeuronView> views() {
+        return neuronViews.values();
+    }
+
+    public boolean isInteractiveTarget(Object target) {
+        Node node = target instanceof Node targetNode ? targetNode : null;
+        while (node != null) {
+            if (node instanceof NeuronView
+                    || node instanceof RotationHandleView
+                    || node == menuController.node()
+                    || node instanceof javafx.scene.control.Control) {
+                return true;
+            }
+            node = node.getParent();
+        }
+        return false;
+    }
+
+    public void refreshVisuals() {
+        for (NeuronView neuronView : neuronViews.values()) {
+            neuronView.refreshVisuals(
+                    state.selectedNeuronIds().contains(neuronView.model().id())
+            );
+        }
+    }
+
+    public void refreshOverlayPositions() {
+        for (NeuronView neuronView : neuronViews.values()) {
+            if (menuController.isVisible()
+                    && state.selectedNeuronForMenu() != null
+                    && state.selectedNeuronForMenu().equals(neuronView.model().id())) {
+                menuController.refreshPosition(neuronView);
+            }
+        }
+        rotationController.refreshPosition();
+    }
+
+    public void selectOnly(String neuronId) {
+        state.selectOnly(neuronId);
+        refreshVisuals();
+    }
+
+    public void toggleSelection(String neuronId) {
+        state.toggleSelection(neuronId);
+        refreshVisuals();
+    }
+
+    public void clearSelection() {
+        state.clearSelection();
+        refreshVisuals();
+    }
+
+    public void showMenu(NeuronView neuronView) {
+        rotationController.hideAll();
+        menuController.show(neuronView);
+    }
+
+    public void hideMenu() {
+        menuController.hide();
+        rotationController.hideAll();
+    }
+
+    public boolean deleteSelectedNeurons() {
+        return deletionController.deleteSelectedNeurons();
+    }
+
+    public void dispose() {
+        clipboardController.clear();
+        hideMenu();
+    }
+
+    private void createView(Neuron neuron) {
+        var presentation = neuronService.presentation(neuron.id());
+        if (presentation == null) {
+            throw new IllegalStateException("Missing presentation for neuron " + neuron.id());
+        }
+
+        NeuronView neuronView = new NeuronView(presentation);
+        neuronViews.put(neuron.id(), neuronView);
+        workspace.nodeLayer().getChildren().add(neuronView);
+        rotationController.createHandle(neuronView);
+
+        neuronView.addEventHandler(MouseEvent.MOUSE_PRESSED, event -> handleNeuronPressed(neuronView, event));
+        neuronView.addEventHandler(MouseEvent.MOUSE_DRAGGED, event -> handleNeuronDragged(neuronView, event));
+        neuronView.addEventHandler(MouseEvent.MOUSE_RELEASED, event -> handleNeuronReleased(neuronView, event));
+        neuronView.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> handleNeuronClicked(neuronView, event));
+    }
+
+    private void handleNeuronPressed(NeuronView neuronView, MouseEvent event) {
+        if (event.getButton() == MouseButton.SECONDARY) {
+            if (!state.isIdle()) {
+                return;
+            }
+            hideMenu();
+            event.consume();
+            return;
+        }
+
+        if (event.getButton() != MouseButton.PRIMARY || !state.isIdle()) {
+            return;
+        }
+
+        hideMenu();
+        String neuronId = neuronView.model().id();
+        if (event.isControlDown()) {
+            toggleSelection(neuronId);
+        } else if (!state.selectedNeuronIds().contains(neuronId)) {
+            selectOnly(neuronId);
+        }
+
+        boolean grouped = groupService.containing(neuronId) != null;
+        neuronView.beginDrag(
+                event.getSceneX(),
+                event.getSceneY(),
+                event.isAltDown(),
+                grouped
+        );
+        rotationController.show(neuronId);
+        event.consume();
+    }
+
+    private void handleNeuronDragged(NeuronView neuronView, MouseEvent event) {
+        if (!neuronView.isDragging()) {
+            return;
+        }
+
+        neuronView.updateDraggedState(event.getSceneX(), event.getSceneY());
+        double dx = neuronView.dragDeltaX(event.getSceneX()) / state.zoom();
+        double dy = neuronView.dragDeltaY(event.getSceneY()) / state.zoom();
+        String neuronId = neuronView.model().id();
+
+        if (neuronView.isDraggingGroup()) {
+            groupService.moveContaining(neuronId, dx, dy);
+        } else {
+            neuronService.move(neuronId, dx, dy);
+        }
+
+        refreshVisuals();
+        refreshConnections.run();
+        refreshOverlayPositions();
+        event.consume();
+    }
+
+    private void handleNeuronReleased(NeuronView neuronView, MouseEvent event) {
+        boolean dragged = neuronView.wasDragged();
+        neuronView.endDrag();
+        if (dragged) {
+            refreshOverlayPositions();
+            save.run();
+        }
+    }
+
+    private void handleNeuronClicked(NeuronView neuronView, MouseEvent event) {
+        if (event.getButton() == MouseButton.SECONDARY) {
+            if (!state.isIdle()) {
+                return;
+            }
+            selectOnly(neuronView.model().id());
+            showMenu(neuronView);
+            event.consume();
+            return;
+        }
+
+        if (event.getButton() != MouseButton.PRIMARY) {
+            return;
+        }
+
+        if (event.getClickCount() == 2
+                && !neuronView.wasDragged()
+                && state.isIdle()) {
+            simulation.emitPulse(neuronView.model().id());
+            event.consume();
+            return;
+        }
+
+        if (!state.isIdle() || neuronView.wasDragged()) {
+            return;
+        }
+
+        rotationController.show(neuronView.model().id());
+        event.consume();
+    }
+}

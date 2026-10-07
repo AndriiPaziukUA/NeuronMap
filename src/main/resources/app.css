@@ -1,0 +1,242 @@
+.root {
+    -fx-font-family: "Segoe UI", "Inter", sans-serif;
+    -fx-font-size: 13px;
+    -fx-background-color: #17191d;
+}
+
+.topbar {
+    -fx-background-color: #22252a;
+    -fx-border-color: #30343b;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 8 10 8 10;
+    -fx-spacing: 8;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+.toolbar-title {
+    -fx-text-fill: #e8eaed;
+    -fx-font-size: 16px;
+    -fx-font-weight: 700;
+    -fx-padding: 0 12 0 0;
+}
+
+.toolbar-hint {
+    -fx-text-fill: #9299a4;
+    -fx-padding: 0 0 0 12;
+}
+
+.toolbar-speed-label {
+    -fx-text-fill: #8e96a2;
+    -fx-font-size: 12px;
+    -fx-padding: 0 0 0 6;
+}
+
+.toolbar-speed-field {
+    -fx-background-color: #1a1d22;
+    -fx-text-fill: #e8eaed;
+    -fx-prompt-text-fill: #666d78;
+    -fx-background-radius: 6;
+    -fx-border-color: #3b414a;
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+    -fx-padding: 6 9 6 9;
+    -fx-font-size: 12px;
+    -fx-alignment: center-right;
+}
+
+.toolbar-speed-field:hover {
+    -fx-background-color: #1e2228;
+    -fx-border-color: #4a515c;
+}
+
+.toolbar-speed-field:focused {
+    -fx-background-color: #1e2228;
+    -fx-border-color: #687484;
+    -fx-background-insets: 0;
+    -fx-background-radius: 6;
+    -fx-border-radius: 6;
+}
+
+.tool-button {
+    -fx-background-color: #2c3037;
+    -fx-text-fill: #e8eaed;
+    -fx-background-radius: 7;
+    -fx-border-color: #3b414a;
+    -fx-border-radius: 7;
+    -fx-cursor: hand;
+    -fx-padding: 7 11 7 11;
+}
+
+.tool-button:hover {
+    -fx-background-color: #363b43;
+}
+
+.tool-button-danger {
+    -fx-background-color: #542d32;
+    -fx-border-color: #754047;
+}
+
+.tool-button-danger:hover {
+    -fx-background-color: #6b373f;
+}
+
+.simulation-icon-button,
+.simulation-icon-button-danger {
+    -fx-min-width: 31px;
+    -fx-pref-width: 31px;
+    -fx-max-width: 31px;
+    -fx-min-height: 31px;
+    -fx-pref-height: 31px;
+    -fx-max-height: 31px;
+    -fx-padding: 0;
+    -fx-font-size: 14px;
+    -fx-font-weight: 700;
+    -fx-background-radius: 7;
+    -fx-border-radius: 7;
+    -fx-cursor: hand;
+}
+
+.simulation-icon-button {
+    -fx-background-color: #2c3037;
+    -fx-text-fill: #e1e5ea;
+    -fx-border-color: #3b414a;
+}
+
+.simulation-icon-button:hover {
+    -fx-background-color: #363b43;
+}
+
+.simulation-icon-button-danger {
+    -fx-background-color: #3a2c30;
+    -fx-text-fill: #e3d5d8;
+    -fx-border-color: #554046;
+}
+
+.simulation-icon-button-danger:hover {
+    -fx-background-color: #493238;
+}
+
+.canvas {
+    -fx-background-color: #13161a;
+}
+
+.content {
+    -fx-background-color: transparent;
+}
+
+.status-bar {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.status-label {
+    -fx-background-color: rgba(28, 32, 38, 0.96);
+    -fx-text-fill: #c1c8d2;
+    -fx-background-radius: 7;
+    -fx-border-color: #3a4049;
+    -fx-border-width: 1;
+    -fx-border-radius: 7;
+    -fx-padding: 5 10 5 10;
+    -fx-font-size: 12px;
+}
+
+.menu-button {
+    -fx-background-color: #242830;
+    -fx-text-fill: #e8eaed;
+    -fx-border-color: #454b55;
+    -fx-border-radius: 5;
+    -fx-background-radius: 5;
+    -fx-padding: 5 8 5 8;
+    -fx-cursor: hand;
+}
+
+.menu-button:hover {
+    -fx-background-color: #343943;
+}
+
+.neuron-card {
+    -fx-background-radius: 14;
+    -fx-border-radius: 14;
+    -fx-border-width: 2;
+}
+
+.neuron-activation {
+    -fx-text-fill: white;
+    -fx-font-size: 22px;
+    -fx-font-weight: 800;
+}
+
+.neuron-subtitle {
+    -fx-text-fill: rgba(255,255,255,0.78);
+    -fx-font-size: 10px;
+}
+
+.port {
+    -fx-fill: #d6d9de;
+    -fx-stroke: #17191d;
+    -fx-stroke-width: 1.5;
+}
+
+.connection-menu {
+    -fx-background-color: #20242b;
+    -fx-border-color: #454b55;
+    -fx-border-width: 1;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-padding: 6;
+    -fx-spacing: 4;
+    -fx-effect: dropshadow(
+        gaussian,
+        rgba(0,0,0,0.42),
+        12,
+        0.25,
+        0,
+        3
+    );
+}
+
+.rotation-handle {
+    -fx-fill: #2d333c;
+    -fx-stroke: #aeb7c4;
+    -fx-stroke-width: 1.5;
+}
+
+.rotation-handle-glyph {
+    -fx-text-fill: #eef1f4;
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+}
+
+.rotation-hint {
+    -fx-font-size: 11px;
+    -fx-text-fill: #aeb6c1;
+}
+
+.group-rect {
+    -fx-fill: rgba(95, 108, 128, 0.08);
+    -fx-stroke: #687185;
+    -fx-stroke-width: 1.5;
+    -fx-stroke-dash-array: 8 5;
+}
+
+.rotation-handle-button {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-background-radius: 0;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-border-insets: 0;
+    -fx-padding: 0;
+    -fx-cursor: hand;
+}
+
+.rotation-handle-button:hover {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.rotation-handle-button:focused {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
