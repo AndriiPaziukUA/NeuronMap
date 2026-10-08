@@ -1,5 +1,6 @@
 package com.example.neuronmap.simulation;
 
+import java.math.BigInteger;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -7,14 +8,14 @@ import java.util.Map;
 import java.util.Set;
 
 public record SimulationStep(
-        int tick,
+        BigInteger tick,
         Map<String, Integer> inputSums,
         Set<String> activatedNeuronIds,
         Map<String, Integer> nextInputSums
 ) {
 
     public SimulationStep(
-            int tick,
+            BigInteger tick,
             Map<String, Integer> inputSums,
             Set<String> activatedNeuronIds
     ) {

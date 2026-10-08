@@ -4,84 +4,76 @@ import com.example.neuronmap.model.Connection;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronMapModel;
 
+import java.math.BigInteger;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
-/** One live synchronous simulation run. */
+/** One global synchronous simulation timeline shared by all manual starts. */
 public final class SimulationSession {
 
     private final NeuronMapModel model;
-    private final int maxTicks;
     private final Map<String, Integer> pendingSignals =
             new LinkedHashMap<>();
-    private final String manualSourceNeuronId;
-    private boolean manualStartPending;
+    private final Set<String> pendingManualStarts =
+            new LinkedHashSet<>();
 
-    private int tick;
+    private BigInteger tick = BigInteger.ZERO;
     private boolean finished;
 
-    SimulationSession(
-            NeuronMapModel model,
-            String sourceNeuronId,
-            int maxTicks
-    ) {
+    private SimulationSession(NeuronMapModel model) {
         this.model = model;
-        this.maxTicks = maxTicks;
-        this.manualSourceNeuronId = null;
-        pendingSignals.put(sourceNeuronId, 1);
-    }
-
-    private SimulationSession(
-            NeuronMapModel model,
-            String sourceNeuronId,
-            int maxTicks,
-            boolean manualStart
-    ) {
-        this.model = model;
-        this.maxTicks = maxTicks;
-        this.manualSourceNeuronId = sourceNeuronId;
-        this.manualStartPending = manualStart;
     }
 
     public static SimulationSession manual(
             NeuronMapModel model,
-            String sourceNeuronId,
-            int maxTicks
+            String sourceNeuronId
     ) {
         if (model == null) {
             throw new IllegalArgumentException("model must not be null");
         }
+
+        SimulationSession session = new SimulationSession(model);
+        session.queueManualStart(sourceNeuronId);
+        return session;
+    }
+
+    /**
+     * Queues a manually triggered source for the next global simulation tick.
+     * Multiple distinct sources queued before that tick are activated together.
+     * Re-queuing the same source does not duplicate its outgoing signal.
+     */
+    public boolean queueManualStart(String sourceNeuronId) {
         if (sourceNeuronId == null || sourceNeuronId.isBlank()) {
-            throw new IllegalArgumentException(
-                    "sourceNeuronId must not be blank"
-            );
-        }
-        if (maxTicks <= 0) {
-            throw new IllegalArgumentException(
-                    "maxTicks must be positive"
-            );
+            return false;
         }
 
-        return new SimulationSession(
-                model,
-                sourceNeuronId,
-                maxTicks,
-                true
-        );
+        if (model.neuron(sourceNeuronId) == null) {
+            return false;
+        }
+
+        pendingManualStarts.add(sourceNeuronId);
+        finished = false;
+        return true;
     }
 
     public boolean isFinished() {
         return finished;
     }
 
-    public int tick() {
+    public BigInteger tick() {
         return tick;
     }
 
+    /** Returns whether there is work that can be processed on the next tick. */
+    public boolean hasPendingWork() {
+        return !pendingSignals.isEmpty()
+                || !pendingManualStarts.isEmpty();
+    }
+
     public SimulationStep nextStep() {
-        if (finished || (pendingSignals.isEmpty() && !manualStartPending)) {
+        if (finished || !hasPendingWork()) {
             finished = true;
             return null;
         }
@@ -90,18 +82,19 @@ public final class SimulationSession {
                 new LinkedHashMap<>(pendingSignals);
         pendingSignals.clear();
 
+        Set<String> manualStarts =
+                new LinkedHashSet<>(pendingManualStarts);
+        pendingManualStarts.clear();
+
         Set<String> activatedNeuronIds =
                 new LinkedHashSet<>();
         Map<String, Integer> nextSignals =
                 new LinkedHashMap<>();
 
-        if (manualStartPending) {
-            manualStartPending = false;
-
-            Neuron neuron = model.neuron(manualSourceNeuronId);
+        for (String neuronId : manualStarts) {
+            Neuron neuron = model.neuron(neuronId);
             if (neuron != null) {
                 activatedNeuronIds.add(neuron.id());
-                collectOutgoingSignals(neuron, nextSignals);
             }
         }
 
@@ -114,14 +107,18 @@ public final class SimulationSession {
                 continue;
             }
 
-            int sum = entry.getValue();
-
-            if (sum < neuron.activationThreshold()) {
-                continue;
+            if (entry.getValue() >= neuron.activationThreshold()) {
+                activatedNeuronIds.add(neuron.id());
             }
+        }
 
-            activatedNeuronIds.add(neuron.id());
-            collectOutgoingSignals(neuron, nextSignals);
+        // Each activated neuron emits once per global tick, even when it was
+        // both manually started and activated by an incoming signal.
+        for (String neuronId : activatedNeuronIds) {
+            Neuron neuron = model.neuron(neuronId);
+            if (neuron != null) {
+                collectOutgoingSignals(neuron, nextSignals);
+            }
         }
 
         SimulationStep step = new SimulationStep(
@@ -131,12 +128,13 @@ public final class SimulationSession {
                 nextSignals
         );
 
-        tick++;
+        tick = tick.add(BigInteger.ONE);
 
-        if (nextSignals.isEmpty() || tick >= maxTicks) {
+        if (nextSignals.isEmpty()) {
             finished = true;
         } else {
             pendingSignals.putAll(nextSignals);
+            finished = false;
         }
 
         return step;

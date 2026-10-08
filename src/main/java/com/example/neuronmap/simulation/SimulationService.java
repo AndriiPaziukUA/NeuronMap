@@ -4,8 +4,6 @@ import com.example.neuronmap.model.NeuronMapModel;
 
 public final class SimulationService {
 
-    public static final int MAX_TICKS = 256;
-
     public SimulationSession start(
             NeuronMapModel model,
             String sourceNeuronId
@@ -14,10 +12,9 @@ public final class SimulationService {
             return null;
         }
 
-        return new SimulationSession(
+        return SimulationSession.manual(
                 model,
-                sourceNeuronId,
-                MAX_TICKS
+                sourceNeuronId
         );
     }
 }

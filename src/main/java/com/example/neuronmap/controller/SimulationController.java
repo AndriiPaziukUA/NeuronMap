@@ -1,7 +1,6 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.service.NeuronService;
-import com.example.neuronmap.simulation.SimulationService;
 import com.example.neuronmap.simulation.SimulationSession;
 import com.example.neuronmap.simulation.SimulationSpeed;
 import com.example.neuronmap.simulation.SimulationStep;
@@ -11,10 +10,11 @@ import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.util.Duration;
 
+import java.math.BigInteger;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-/** Coordinates simulation lifecycle while delegating step rendering to a presenter. */
+/** Coordinates one global synchronous simulation timeline. */
 public final class SimulationController {
 
     private final NeuronService neuronService;
@@ -59,6 +59,11 @@ public final class SimulationController {
         this.finishDelay = new PauseTransition(Duration.millis(tickMillis));
 
         finishDelay.setOnFinished(event -> {
+            if (session != null && session.hasPendingWork()) {
+                startTimelineIfNeeded();
+                return;
+            }
+
             stepPresenter.clearRuntime();
             session = null;
             timeline = null;
@@ -77,31 +82,41 @@ public final class SimulationController {
             return;
         }
 
-        resetRuntime();
-        paused = false;
-        notifyPausedState();
-
-        session = SimulationSession.manual(
-                neuronService.model(),
-                sourceNeuronId,
-                SimulationService.MAX_TICKS
-        );
-        updateSimulationControlsVisibility();
-
-        processNextStep();
-
         if (session == null) {
+            session = SimulationSession.manual(
+                    neuronService.model(),
+                    sourceNeuronId
+            );
+            paused = false;
+            notifyPausedState();
+            finishDelay.stop();
+
+            updateSimulationControlsVisibility();
+            processNextStep();
+
+            if (session == null) {
+                updateSimulationControlsVisibility();
+                return;
+            }
+
+            if (!session.isFinished()) {
+                startTimelineIfNeeded();
+            }
+
             updateSimulationControlsVisibility();
             return;
         }
 
-        if (session.isFinished()) {
-            finishSimulation();
-            return;
+        // A running or finishing simulation keeps its global clock. A newly
+        // requested source waits for the next global tick instead of creating
+        // a second timeline or cancelling existing signals.
+        session.queueManualStart(sourceNeuronId);
+        finishDelay.stop();
+
+        if (!paused) {
+            startTimelineIfNeeded();
         }
 
-        createTimeline();
-        timeline.play();
         updateSimulationControlsVisibility();
     }
 
@@ -196,9 +211,7 @@ public final class SimulationController {
 
     private void resume() {
         paused = false;
-        if (timeline != null) {
-            timeline.play();
-        }
+        startTimelineIfNeeded();
         if (finishDelay.getStatus() == Animation.Status.PAUSED) {
             finishDelay.play();
         }
@@ -222,7 +235,7 @@ public final class SimulationController {
         stepPresenter.apply(step);
 
         status.accept(
-                "Такт " + (step.tick() + 1)
+                "Такт " + step.tick().add(BigInteger.ONE)
                         + ": сигнали підсумовано одночасно."
         );
 
@@ -263,6 +276,20 @@ public final class SimulationController {
                 )
         );
         timeline.setCycleCount(Timeline.INDEFINITE);
+    }
+
+    private void startTimelineIfNeeded() {
+        if (session == null || paused || !session.hasPendingWork()) {
+            return;
+        }
+
+        if (timeline == null) {
+            createTimeline();
+        }
+
+        if (timeline.getStatus() != Animation.Status.RUNNING) {
+            timeline.play();
+        }
     }
 
     private void notifyPausedState() {
