@@ -44,6 +44,7 @@ public final class PulseAnimationController {
         PulseAnimationView animation =
                 new PulseAnimationView(
                         snapshot,
+                        connectionView::capturePulseSnapshot,
                         this::handleAnimationFinished
                 );
 
