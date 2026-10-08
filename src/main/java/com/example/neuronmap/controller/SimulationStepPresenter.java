@@ -46,29 +46,9 @@ public final class SimulationStepPresenter {
             }
 
             neuronService.setActivation(neuronId, sum);
-            NeuronView neuronView = neuronViews.get(neuronId);
-            if (neuronView != null) {
-                neuronView.showInputSignal(sum);
-            }
         });
 
-        step.nextInputSums().forEach((neuronId, sum) -> {
-            if (step.inputSums().containsKey(neuronId)) {
-                return;
-            }
-
-            NeuronView neuronView = neuronViews.get(neuronId);
-            if (neuronView != null) {
-                neuronView.showInputSignal(sum);
-            }
-        });
-
-        for (String neuronId : step.activatedNeuronIds()) {
-            NeuronView neuronView = neuronViews.get(neuronId);
-            if (neuronView != null) {
-                neuronView.hideInputSignal();
-            }
-        }
+        showIncomingSignals(step.nextInputSums());
 
         refreshNeuronViews.run();
 
@@ -99,6 +79,14 @@ public final class SimulationStepPresenter {
         pulseAnimations.resumeAll();
     }
 
+    private void showIncomingSignals(Map<String, Integer> inputSums) {
+        inputSums.forEach((neuronId, sum) -> {
+            NeuronView neuronView = neuronViews.get(neuronId);
+            if (neuronView != null) {
+                neuronView.showInputSignal(sum);
+            }
+        });
+    }
 
     private void clearDisplayedInputSignals() {
         for (NeuronView neuronView : neuronViews.values()) {
