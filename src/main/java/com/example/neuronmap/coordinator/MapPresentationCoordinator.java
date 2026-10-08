@@ -3,10 +3,10 @@ package com.example.neuronmap.coordinator;
 import com.example.neuronmap.controller.ConnectionController;
 import com.example.neuronmap.controller.NeuronInteractionController;
 import com.example.neuronmap.controller.NeuronLayerOrderController;
-import com.example.neuronmap.controller.SelectionController;
-import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.model.Connection;
+import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.view.ConnectionView;
+import com.example.neuronmap.view.GroupView;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.RotationHandleView;
 import com.example.neuronmap.view.WorkspaceView;
@@ -26,7 +26,6 @@ public final class MapPresentationCoordinator {
     private final Map<String, ConnectionView> connectionViews;
     private final Map<String, RotationHandleView> rotationHandles;
     private final NeuronInteractionController neuronController;
-    private final SelectionController selectionController;
     private final ConnectionController connectionController;
     private final NeuronLayerOrderController layerOrderController;
 
@@ -37,7 +36,6 @@ public final class MapPresentationCoordinator {
             Map<String, ConnectionView> connectionViews,
             Map<String, RotationHandleView> rotationHandles,
             NeuronInteractionController neuronController,
-            SelectionController selectionController,
             ConnectionController connectionController,
             NeuronLayerOrderController layerOrderController
     ) {
@@ -47,7 +45,6 @@ public final class MapPresentationCoordinator {
         this.connectionViews = java.util.Objects.requireNonNull(connectionViews, "connectionViews");
         this.rotationHandles = java.util.Objects.requireNonNull(rotationHandles, "rotationHandles");
         this.neuronController = java.util.Objects.requireNonNull(neuronController, "neuronController");
-        this.selectionController = java.util.Objects.requireNonNull(selectionController, "selectionController");
         this.connectionController = java.util.Objects.requireNonNull(connectionController, "connectionController");
         this.layerOrderController = java.util.Objects.requireNonNull(layerOrderController, "layerOrderController");
     }
@@ -55,7 +52,7 @@ public final class MapPresentationCoordinator {
     public void refreshAll() {
         refreshNeurons();
         refreshConnections();
-        selectionController.refreshGroups();
+        refreshGroups();
         connectionController.refreshDeleteHighlights();
         neuronController.refreshOverlayPositions();
         bringRotationHandlesToFront();
@@ -72,10 +69,7 @@ public final class MapPresentationCoordinator {
     }
 
     public void bringClickedNeuronToFront(MouseEvent event) {
-        Node node = event.getTarget() instanceof Node targetNode
-                ? targetNode
-                : null;
-
+        Node node = event.getTarget() instanceof Node targetNode ? targetNode : null;
         while (node != null) {
             if (node instanceof NeuronView neuronView) {
                 layerOrderController.bringNeuronToFront(neuronView.model().id());
@@ -152,6 +146,15 @@ public final class MapPresentationCoordinator {
 
         neuronController.loadViews();
         refreshAll();
+    }
+
+    private void refreshGroups() {
+        workspace.groupLayer().getChildren().clear();
+        neuronService.model().groups().forEach(group ->
+                workspace.groupLayer().getChildren().add(
+                        new GroupView(group, neuronViews)
+                )
+        );
     }
 
     private static void removeFromParent(Node node) {

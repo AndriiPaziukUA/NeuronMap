@@ -1,11 +1,8 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
-import com.example.neuronmap.application.NeuronMapApplicationService;
-import com.example.neuronmap.application.clipboard.NeuronClipboard;
 import com.example.neuronmap.model.Neuron;
-import com.example.neuronmap.model.NeuronGroup;
-import com.example.neuronmap.model.NeuronPresentation;
+import com.example.neuronmap.service.NeuronClipboardService;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.WorkspaceView;
 import javafx.event.EventHandler;
@@ -22,10 +19,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
 
-/** Coordinates the in-memory neuron clipboard and Ctrl+C/Ctrl+V actions. */
+/** Coordinates keyboard/mouse clipboard events and delegates copy/paste use cases. */
 public final class NeuronClipboardController {
 
-    private final NeuronMapApplicationService application;
+    private final NeuronClipboardService clipboardService;
     private final EditorState state;
     private final WorkspaceView workspace;
     private final Runnable hideMenu;
@@ -33,19 +30,16 @@ public final class NeuronClipboardController {
     private final Runnable refreshPresentation;
     private final Runnable save;
     private final Consumer<String> status;
-    private final NeuronClipboard clipboard = new NeuronClipboard();
 
-    private final EventHandler<KeyEvent> keyHandler =
-            this::handleKeyPressed;
-    private final EventHandler<WindowEvent> windowHiddenHandler =
-            event -> clipboard.clear();
+    private final EventHandler<KeyEvent> keyHandler;
+    private final EventHandler<WindowEvent> windowHiddenHandler;
 
     private boolean mouseInsideWorkspace;
     private double lastMouseX;
     private double lastMouseY;
 
     public NeuronClipboardController(
-            NeuronMapApplicationService application,
+            NeuronClipboardService clipboardService,
             EditorState state,
             WorkspaceView workspace,
             Runnable hideMenu,
@@ -54,7 +48,7 @@ public final class NeuronClipboardController {
             Runnable save,
             Consumer<String> status
     ) {
-        this.application = application;
+        this.clipboardService = clipboardService;
         this.state = state;
         this.workspace = workspace;
         this.hideMenu = hideMenu;
@@ -62,13 +56,15 @@ public final class NeuronClipboardController {
         this.refreshPresentation = refreshPresentation;
         this.save = save;
         this.status = status;
+        this.keyHandler = this::handleKeyPressed;
+        this.windowHiddenHandler = event -> this.clipboardService.clear();
 
         installMouseTracking();
         installSceneKeyHandler();
     }
 
     public void clear() {
-        clipboard.clear();
+        clipboardService.clear();
     }
 
     private void installMouseTracking() {
@@ -100,10 +96,7 @@ public final class NeuronClipboardController {
         workspace.node().sceneProperty().addListener(
                 (observable, oldScene, newScene) -> {
                     if (oldScene != null) {
-                        oldScene.removeEventFilter(
-                                KeyEvent.KEY_PRESSED,
-                                keyHandler
-                        );
+                        oldScene.removeEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
                         oldScene.removeEventHandler(
                                 WindowEvent.WINDOW_HIDDEN,
                                 windowHiddenHandler
@@ -111,10 +104,7 @@ public final class NeuronClipboardController {
                     }
 
                     if (newScene != null) {
-                        newScene.addEventFilter(
-                                KeyEvent.KEY_PRESSED,
-                                keyHandler
-                        );
+                        newScene.addEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
                         newScene.addEventHandler(
                                 WindowEvent.WINDOW_HIDDEN,
                                 windowHiddenHandler
@@ -125,11 +115,7 @@ public final class NeuronClipboardController {
     }
 
     private void handleKeyPressed(KeyEvent event) {
-        if (isTextInputTarget(event.getTarget())) {
-            return;
-        }
-
-        if (!event.isControlDown()) {
+        if (isTextInputTarget(event.getTarget()) || !event.isControlDown()) {
             return;
         }
 
@@ -145,20 +131,6 @@ public final class NeuronClipboardController {
         }
     }
 
-    private boolean isTextInputTarget(Object target) {
-        Node node = target instanceof Node targetNode
-                ? targetNode
-                : null;
-
-        while (node != null) {
-            if (node instanceof TextInputControl) {
-                return true;
-            }
-            node = node.getParent();
-        }
-        return false;
-    }
-
     private boolean copySelection() {
         Set<String> selectedIds = new LinkedHashSet<>(
                 state.selectedNeuronIds()
@@ -172,96 +144,22 @@ public final class NeuronClipboardController {
         }
 
         if (selectedIds.isEmpty()) {
-            clipboard.clear();
+            clipboardService.clear();
             status.accept("Немає вибраного нейрона для копіювання.");
             return false;
         }
 
-        boolean grouped = false;
-        Set<String> idsToCopy;
-
-        if (selectedIds.size() == 1) {
-            String neuronId = selectedIds.iterator().next();
-            NeuronGroup group = application.model().groupContaining(neuronId);
-            if (group != null) {
-                idsToCopy = new LinkedHashSet<>(group.memberIds());
-                grouped = true;
-            } else {
-                idsToCopy = new LinkedHashSet<>(selectedIds);
-            }
-        } else {
-            idsToCopy = new LinkedHashSet<>(selectedIds);
-            Set<String> idsForGroupCheck = Set.copyOf(idsToCopy);
-            grouped = application.model().groups().stream()
-                    .anyMatch(group ->
-                            group.memberIds().equals(idsForGroupCheck)
-                    );
-        }
-
-        Set<String> copiedIds = Set.copyOf(idsToCopy);
-
-        List<Neuron> neurons = copiedIds.stream()
-                .map(application.model()::neuron)
-                .filter(java.util.Objects::nonNull)
-                .toList();
-
-        if (neurons.isEmpty()) {
-            clipboard.clear();
+        if (!clipboardService.copy(selectedIds)) {
             return false;
         }
 
-        double minX = Double.POSITIVE_INFINITY;
-        double maxX = Double.NEGATIVE_INFINITY;
-        double minY = Double.POSITIVE_INFINITY;
-        double maxY = Double.NEGATIVE_INFINITY;
+        NeuronClipboardService.ClipboardContent content =
+                clipboardService.content().orElseThrow();
 
-        for (Neuron neuron : neurons) {
-            NeuronPresentation presentation =
-                    application.model().presentation(neuron.id());
-            if (presentation == null) {
-                continue;
-            }
-
-            double centerX = presentation.x() + NeuronView.WIDTH / 2.0;
-            double centerY = presentation.y() + NeuronView.HEIGHT / 2.0;
-            minX = Math.min(minX, centerX);
-            maxX = Math.max(maxX, centerX);
-            minY = Math.min(minY, centerY);
-            maxY = Math.max(maxY, centerY);
-        }
-
-        if (!Double.isFinite(minX) || !Double.isFinite(minY)) {
-            clipboard.clear();
-            return false;
-        }
-
-        double anchorX = (minX + maxX) / 2.0;
-        double anchorY = (minY + maxY) / 2.0;
-
-        List<NeuronClipboard.NeuronData> items = neurons.stream()
-                .map(neuron -> {
-                    NeuronPresentation presentation =
-                            application.model().presentation(neuron.id());
-                    double centerX = presentation.x() + NeuronView.WIDTH / 2.0;
-                    double centerY = presentation.y() + NeuronView.HEIGHT / 2.0;
-
-                    return new NeuronClipboard.NeuronData(
-                            neuron.type(),
-                            neuron.signalStrength(),
-                            neuron.activationThreshold(),
-                            centerX - anchorX,
-                            centerY - anchorY,
-                            presentation.rotationDegrees(),
-                            presentation.directionReversed()
-                    );
-                })
-                .toList();
-
-        clipboard.copy(items, grouped);
         status.accept(
-                grouped
+                content.grouped()
                         ? "Групу нейронів скопійовано."
-                        : neurons.size() == 1
+                        : content.items().size() == 1
                         ? "Нейрон скопійовано."
                         : "Вибрані нейрони скопійовано."
         );
@@ -269,56 +167,47 @@ public final class NeuronClipboardController {
     }
 
     private boolean pasteAtMouse() {
-        if (!mouseInsideWorkspace || !clipboard.hasContent()) {
+        if (!mouseInsideWorkspace || !clipboardService.hasContent()) {
             return false;
         }
 
-        NeuronClipboard.ClipboardContent content = clipboard.content();
         double worldX = (lastMouseX - state.panX()) / state.zoom();
         double worldY = (lastMouseY - state.panY()) / state.zoom();
 
         hideMenu.run();
         state.clearSelection();
 
-        LinkedHashSet<String> pastedIds = new LinkedHashSet<>();
+        List<Neuron> pasted = clipboardService.paste(
+                worldX - NeuronView.WIDTH / 2.0,
+                worldY - NeuronView.HEIGHT / 2.0
+        );
 
-        for (NeuronClipboard.NeuronData item : content.items()) {
-            double centerX = worldX + item.offsetX();
-            double centerY = worldY + item.offsetY();
-
-            Neuron neuron = application.createNeuron(
-                    item.type(),
-                    centerX - NeuronView.WIDTH / 2.0,
-                    centerY - NeuronView.HEIGHT / 2.0
-            );
-
-            neuron.setSignalStrength(item.signalStrength());
-            neuron.setActivationThreshold(item.activationThreshold());
-
-            NeuronPresentation presentation =
-                    application.model().presentation(neuron.id());
-            presentation.setRotationDegrees(item.rotationDegrees());
-            presentation.setDirectionReversed(item.directionReversed());
-
+        for (Neuron neuron : pasted) {
             addView.accept(neuron);
-            pastedIds.add(neuron.id());
-        }
-
-        if (content.grouped() && pastedIds.size() >= 2) {
-            application.createGroup(pastedIds);
         }
 
         state.clearSelection();
-        pastedIds.forEach(state::toggleSelection);
+        pasted.forEach(neuron -> state.toggleSelection(neuron.id()));
 
         refreshPresentation.run();
         save.run();
 
         status.accept(
-                pastedIds.size() == 1
+                pasted.size() == 1
                         ? "Нейрон вставлено."
                         : "Нейрони вставлено."
         );
-        return !pastedIds.isEmpty();
+        return !pasted.isEmpty();
+    }
+
+    private boolean isTextInputTarget(Object target) {
+        Node node = target instanceof Node targetNode ? targetNode : null;
+        while (node != null) {
+            if (node instanceof TextInputControl) {
+                return true;
+            }
+            node = node.getParent();
+        }
+        return false;
     }
 }

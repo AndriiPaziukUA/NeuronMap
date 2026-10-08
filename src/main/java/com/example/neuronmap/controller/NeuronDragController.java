@@ -1,9 +1,8 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
-import com.example.neuronmap.application.NeuronMapApplicationService;
-import com.example.neuronmap.model.NeuronGroup;
-import com.example.neuronmap.model.NeuronPresentation;
+import com.example.neuronmap.service.GroupService;
+import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.WorkspaceView;
 import javafx.scene.Cursor;
@@ -16,7 +15,9 @@ import java.util.function.Consumer;
 /** Handles dragging an existing neuron or an entire neuron group. */
 public final class NeuronDragController {
 
-    private final NeuronMapApplicationService application;
+    private final NeuronService neuronService;
+    private final GroupService groupService;
+    private final SelectionController selectionController;
     private final EditorState state;
     private final WorkspaceView workspace;
     private final Runnable hideMenu;
@@ -27,7 +28,9 @@ public final class NeuronDragController {
     private final Runnable save;
 
     public NeuronDragController(
-            NeuronMapApplicationService application,
+            NeuronService neuronService,
+            GroupService groupService,
+            SelectionController selectionController,
             EditorState state,
             WorkspaceView workspace,
             Runnable hideMenu,
@@ -37,7 +40,9 @@ public final class NeuronDragController {
             Runnable refreshOverlayPositions,
             Runnable save
     ) {
-        this.application = Objects.requireNonNull(application, "application");
+        this.neuronService = Objects.requireNonNull(neuronService, "neuronService");
+        this.groupService = Objects.requireNonNull(groupService, "groupService");
+        this.selectionController = Objects.requireNonNull(selectionController, "selectionController");
         this.state = Objects.requireNonNull(state, "state");
         this.workspace = Objects.requireNonNull(workspace, "workspace");
         this.hideMenu = Objects.requireNonNull(hideMenu, "hideMenu");
@@ -53,7 +58,6 @@ public final class NeuronDragController {
             if (!state.isIdle()) {
                 return;
             }
-
             hideMenu.run();
             event.consume();
             return;
@@ -64,24 +68,19 @@ public final class NeuronDragController {
         }
 
         hideMenu.run();
+        selectionController.selectForPrimaryPress(
+                neuronView.model().id(),
+                event.isControlDown()
+        );
 
-        String neuronId = neuronView.model().id();
-        if (event.isControlDown()) {
-            state.toggleSelection(neuronId);
-        } else if (!state.selectedNeuronIds().contains(neuronId)) {
-            state.selectOnly(neuronId);
-        }
-        refreshVisuals.run();
-
-        showRotationHandle.accept(neuronId);
-
-        NeuronGroup group = application.model().groupContaining(neuronId);
+        boolean grouped = groupService.containing(neuronView.model().id()) != null;
         neuronView.beginDrag(
                 event.getSceneX(),
                 event.getSceneY(),
                 event.isAltDown(),
-                group != null
+                grouped
         );
+        showRotationHandle.accept(neuronView.model().id());
         event.consume();
     }
 
@@ -90,28 +89,16 @@ public final class NeuronDragController {
             return;
         }
 
-        neuronView.updateDraggedState(
-                event.getSceneX(),
-                event.getSceneY()
-        );
+        neuronView.updateDraggedState(event.getSceneX(), event.getSceneY());
 
         double dx = neuronView.dragDeltaX(event.getSceneX()) / state.zoom();
         double dy = neuronView.dragDeltaY(event.getSceneY()) / state.zoom();
         String neuronId = neuronView.model().id();
 
         if (neuronView.isDraggingGroup()) {
-            NeuronGroup group = application.model().groupContaining(neuronId);
-            if (group != null) {
-                for (String memberId : group.memberIds()) {
-                    NeuronPresentation presentation =
-                            application.model().presentation(memberId);
-                    if (presentation != null) {
-                        presentation.moveBy(dx, dy);
-                    }
-                }
-            }
+            groupService.moveContaining(neuronId, dx, dy);
         } else {
-            neuronView.presentation().moveBy(dx, dy);
+            neuronService.move(neuronId, dx, dy);
         }
 
         refreshVisuals.run();

@@ -1,9 +1,9 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
-import com.example.neuronmap.application.NeuronMapApplicationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.service.GroupService;
+import com.example.neuronmap.service.NeuronClipboardService;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.RotationHandleView;
@@ -15,61 +15,34 @@ import javafx.scene.input.MouseEvent;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 
-/** Owns neuron view wiring while delegating menu, rotation and domain work to specialists. */
+/** Wires neuron view events and delegates each feature to its specialist. */
 public final class NeuronInteractionController {
 
     private final NeuronService neuronService;
-    private final GroupService groupService;
-    private final NeuronMapApplicationService application;
     private final EditorState state;
     private final WorkspaceView workspace;
     private final Map<String, NeuronView> neuronViews;
     private final Map<String, RotationHandleView> rotationHandles;
+    private final SelectionController selectionController;
     private final ConnectionController connections;
     private final SimulationController simulation;
     private final Runnable save;
     private final Runnable refreshConnections;
-    private final java.util.function.Consumer<String> status;
     private final NeuronMenuCustomizer menuCustomizer;
     private final NeuronClipboardController clipboardController;
     private final NeuronDeletionController deletionController;
     private final NeuronMenuController menuController;
     private final NeuronRotationController rotationController;
+    private final NeuronDragController dragController;
 
     public NeuronInteractionController(
-            NeuronMapApplicationService application,
-            EditorState state,
-            WorkspaceView workspace,
-            Map<String, NeuronView> neuronViews,
-            Map<String, RotationHandleView> rotationHandles,
-            ConnectionController connections,
-            SimulationController simulation,
-            Runnable save,
-            Runnable refreshConnections,
-            java.util.function.Consumer<String> status,
-            NeuronMenuCustomizer menuCustomizer
-    ) {
-        this(
-                application,
-                state,
-                application.groups(),
-                workspace,
-                neuronViews,
-                rotationHandles,
-                connections,
-                simulation,
-                save,
-                refreshConnections,
-                status,
-                menuCustomizer
-        );
-    }
-
-    public NeuronInteractionController(
-            NeuronMapApplicationService application,
-            EditorState state,
+            NeuronService neuronService,
             GroupService groupService,
+            SelectionController selectionController,
+            NeuronClipboardService clipboardService,
+            EditorState state,
             WorkspaceView workspace,
             Map<String, NeuronView> neuronViews,
             Map<String, RotationHandleView> rotationHandles,
@@ -77,24 +50,24 @@ public final class NeuronInteractionController {
             SimulationController simulation,
             Runnable save,
             Runnable refreshConnections,
-            java.util.function.Consumer<String> status,
+            Consumer<String> status,
             NeuronMenuCustomizer menuCustomizer
     ) {
-        this.application = Objects.requireNonNull(application, "application");
-        this.neuronService = application.neurons();
-        this.groupService = Objects.requireNonNull(groupService, "groupService");
+        this.neuronService = Objects.requireNonNull(neuronService, "neuronService");
+        Objects.requireNonNull(groupService, "groupService");
         this.state = Objects.requireNonNull(state, "state");
         this.workspace = Objects.requireNonNull(workspace, "workspace");
         this.neuronViews = Objects.requireNonNull(neuronViews, "neuronViews");
         this.rotationHandles = Objects.requireNonNull(rotationHandles, "rotationHandles");
+        this.selectionController = Objects.requireNonNull(selectionController, "selectionController");
         this.connections = Objects.requireNonNull(connections, "connections");
         this.simulation = Objects.requireNonNull(simulation, "simulation");
         this.save = Objects.requireNonNull(save, "save");
         this.refreshConnections = Objects.requireNonNull(refreshConnections, "refreshConnections");
-        this.status = Objects.requireNonNull(status, "status");
         this.menuCustomizer = Objects.requireNonNull(menuCustomizer, "menuCustomizer");
+
         this.clipboardController = new NeuronClipboardController(
-                application,
+                clipboardService,
                 state,
                 workspace,
                 this::hideMenu,
@@ -103,8 +76,9 @@ public final class NeuronInteractionController {
                 save,
                 status
         );
+
         this.deletionController = new NeuronDeletionController(
-                application,
+                neuronService,
                 state,
                 workspace,
                 neuronViews,
@@ -116,6 +90,7 @@ public final class NeuronInteractionController {
                 save,
                 status
         );
+
         this.menuController = new NeuronMenuController(
                 neuronService,
                 state,
@@ -130,6 +105,7 @@ public final class NeuronInteractionController {
                 save,
                 status
         );
+
         this.rotationController = new NeuronRotationController(
                 neuronService,
                 state,
@@ -137,6 +113,20 @@ public final class NeuronInteractionController {
                 neuronViews,
                 rotationHandles,
                 this::hideMenu,
+                this::refreshVisuals,
+                refreshConnections,
+                this::refreshOverlayPositions,
+                save
+        );
+
+        this.dragController = new NeuronDragController(
+                neuronService,
+                groupService,
+                selectionController,
+                state,
+                workspace,
+                this::hideMenu,
+                rotationController::show,
                 this::refreshVisuals,
                 refreshConnections,
                 this::refreshOverlayPositions,
@@ -198,21 +188,6 @@ public final class NeuronInteractionController {
         rotationController.refreshPosition();
     }
 
-    public void selectOnly(String neuronId) {
-        state.selectOnly(neuronId);
-        refreshVisuals();
-    }
-
-    public void toggleSelection(String neuronId) {
-        state.toggleSelection(neuronId);
-        refreshVisuals();
-    }
-
-    public void clearSelection() {
-        state.clearSelection();
-        refreshVisuals();
-    }
-
     public void showMenu(NeuronView neuronView) {
         rotationController.hideAll();
         menuController.show(neuronView);
@@ -243,74 +218,22 @@ public final class NeuronInteractionController {
         workspace.nodeLayer().getChildren().add(neuronView);
         rotationController.createHandle(neuronView);
 
-        neuronView.addEventHandler(MouseEvent.MOUSE_PRESSED, event -> handleNeuronPressed(neuronView, event));
-        neuronView.addEventHandler(MouseEvent.MOUSE_DRAGGED, event -> handleNeuronDragged(neuronView, event));
-        neuronView.addEventHandler(MouseEvent.MOUSE_RELEASED, event -> handleNeuronReleased(neuronView, event));
-        neuronView.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> handleNeuronClicked(neuronView, event));
-    }
-
-    private void handleNeuronPressed(NeuronView neuronView, MouseEvent event) {
-        if (event.getButton() == MouseButton.SECONDARY) {
-            if (!state.isIdle()) {
-                return;
-            }
-            hideMenu();
-            event.consume();
-            return;
-        }
-
-        if (event.getButton() != MouseButton.PRIMARY || !state.isIdle()) {
-            return;
-        }
-
-        hideMenu();
-        String neuronId = neuronView.model().id();
-        if (event.isControlDown()) {
-            toggleSelection(neuronId);
-        } else if (!state.selectedNeuronIds().contains(neuronId)) {
-            selectOnly(neuronId);
-        }
-
-        boolean grouped = groupService.containing(neuronId) != null;
-        neuronView.beginDrag(
-                event.getSceneX(),
-                event.getSceneY(),
-                event.isAltDown(),
-                grouped
+        neuronView.addEventHandler(
+                MouseEvent.MOUSE_PRESSED,
+                event -> dragController.handlePressed(neuronView, event)
         );
-        rotationController.show(neuronId);
-        event.consume();
-    }
-
-    private void handleNeuronDragged(NeuronView neuronView, MouseEvent event) {
-        if (!neuronView.isDragging()) {
-            return;
-        }
-
-        neuronView.updateDraggedState(event.getSceneX(), event.getSceneY());
-        double dx = neuronView.dragDeltaX(event.getSceneX()) / state.zoom();
-        double dy = neuronView.dragDeltaY(event.getSceneY()) / state.zoom();
-        String neuronId = neuronView.model().id();
-
-        if (neuronView.isDraggingGroup()) {
-            groupService.moveContaining(neuronId, dx, dy);
-        } else {
-            neuronService.move(neuronId, dx, dy);
-        }
-
-        refreshVisuals();
-        refreshConnections.run();
-        refreshOverlayPositions();
-        event.consume();
-    }
-
-    private void handleNeuronReleased(NeuronView neuronView, MouseEvent event) {
-        boolean dragged = neuronView.wasDragged();
-        neuronView.endDrag();
-        if (dragged) {
-            refreshOverlayPositions();
-            save.run();
-        }
+        neuronView.addEventHandler(
+                MouseEvent.MOUSE_DRAGGED,
+                event -> dragController.handleDragged(neuronView, event)
+        );
+        neuronView.addEventHandler(
+                MouseEvent.MOUSE_RELEASED,
+                event -> dragController.handleReleased(neuronView, event)
+        );
+        neuronView.addEventHandler(
+                MouseEvent.MOUSE_CLICKED,
+                event -> handleNeuronClicked(neuronView, event)
+        );
     }
 
     private void handleNeuronClicked(NeuronView neuronView, MouseEvent event) {
@@ -318,7 +241,7 @@ public final class NeuronInteractionController {
             if (!state.isIdle()) {
                 return;
             }
-            selectOnly(neuronView.model().id());
+            selectionController.selectOnly(neuronView.model().id());
             showMenu(neuronView);
             event.consume();
             return;

@@ -16,6 +16,7 @@ import javafx.stage.Stage;
 
 import java.nio.file.Path;
 
+
 /** JavaFX application bootstrap and window lifecycle. */
 public final class NeuronMapApp extends Application {
 
@@ -58,7 +59,14 @@ public final class NeuronMapApp extends Application {
         }
 
         stage.setOnCloseRequest(event -> {
-            windowStateStore.save(stage);
+            windowStateStore.save(
+                    new WindowState(
+                            stage.getWidth(),
+                            stage.getHeight(),
+                            stage.getX(),
+                            stage.getY()
+                    )
+            );
             controller.shutdown();
         });
 

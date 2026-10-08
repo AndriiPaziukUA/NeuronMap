@@ -1,16 +1,14 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
-import com.example.neuronmap.application.NeuronMapApplicationService;
-import com.example.neuronmap.model.Connection;
+import com.example.neuronmap.service.ConnectionService;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.NeuronVisualGeometry;
 import com.example.neuronmap.view.WorkspaceView;
 import javafx.geometry.Point2D;
 import javafx.scene.Cursor;
-import javafx.scene.Node;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 
@@ -21,7 +19,7 @@ import java.util.function.Consumer;
 /** Owns only the create-connection mode and its preview line. */
 final class ConnectionCreationController {
 
-    private final NeuronMapApplicationService application;
+    private final ConnectionService connectionService;
     private final EditorState state;
     private final WorkspaceView workspace;
     private final Map<String, NeuronView> neuronViews;
@@ -35,7 +33,7 @@ final class ConnectionCreationController {
     private double lastCursorY;
 
     ConnectionCreationController(
-            NeuronMapApplicationService application,
+            ConnectionService connectionService,
             EditorState state,
             WorkspaceView workspace,
             Map<String, NeuronView> neuronViews,
@@ -44,7 +42,7 @@ final class ConnectionCreationController {
             Consumer<String> status,
             Runnable exitDelete
     ) {
-        this.application = Objects.requireNonNull(application, "application");
+        this.connectionService = Objects.requireNonNull(connectionService, "connectionService");
         this.state = Objects.requireNonNull(state, "state");
         this.workspace = Objects.requireNonNull(workspace, "workspace");
         this.neuronViews = Objects.requireNonNull(neuronViews, "neuronViews");
@@ -99,7 +97,7 @@ final class ConnectionCreationController {
             return;
         }
 
-        NeuronView target = findNeuronView(event.getTarget());
+        NeuronView target = JavaFxNodeLookup.findAncestor(event.getTarget(), NeuronView.class);
         if (target == null) {
             cancelCreate();
             status.accept("Створення зв'язку скасовано.");
@@ -116,7 +114,7 @@ final class ConnectionCreationController {
             return;
         }
 
-        if (application.createConnection(sourceId, targetId)) {
+        if (connectionService.create(sourceId, targetId)) {
             refresh.run();
             save.run();
             status.accept("Зв'язок створено.");
@@ -155,16 +153,4 @@ final class ConnectionCreationController {
         previewLine.setEndY(screenY);
     }
 
-    private static NeuronView findNeuronView(Object target) {
-        Node node = target instanceof Node targetNode ? targetNode : null;
-
-        while (node != null) {
-            if (node instanceof NeuronView neuronView) {
-                return neuronView;
-            }
-            node = node.getParent();
-        }
-
-        return null;
-    }
 }

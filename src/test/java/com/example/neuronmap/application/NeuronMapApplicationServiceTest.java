@@ -16,27 +16,26 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 final class NeuronMapApplicationServiceTest {
 
     @Test
-    void createsNeuronAndSavesCameraState() {
+    void exposesSpecializedServicesAndSavesCameraState() {
         FakeRepository repository = new FakeRepository();
+        NeuronMapModel model = new NeuronMapModel();
         NeuronMapApplicationService service =
-                new NeuronMapApplicationService(new NeuronMapModel(), repository);
+                new NeuronMapApplicationService(model, repository);
 
-        service.load();
+        service.map().load();
 
-        Neuron neuron = service.createNeuron(
+        Neuron neuron = service.neurons().create(
                 NeuronType.EXCITATORY,
                 100,
                 200
         );
 
-        NeuronMapModel model = service.model();
-
         assertNotNull(neuron);
-        assertSame(model, service.model());
+        assertSame(model, service.neurons().model());
         assertEquals(1, model.neurons().size());
 
         EditorState state = new EditorState(1.5, -10, 25);
-        service.save(state);
+        service.map().save(state);
 
         assertNotNull(repository.savedModel);
         assertEquals(
@@ -46,16 +45,25 @@ final class NeuronMapApplicationServiceTest {
     }
 
     @Test
-    void delegatesSimulationTickPersistence() {
+    void delegatesSimulationTickPersistenceThroughMapService() {
         FakeRepository repository = new FakeRepository();
         NeuronMapApplicationService service =
-                new NeuronMapApplicationService(new NeuronMapModel(), repository);
+                new NeuronMapApplicationService(
+                        new NeuronMapModel(),
+                        repository
+                );
 
-        assertEquals(123.0, service.loadSimulationTickMillis(123.0));
+        assertEquals(
+                123.0,
+                service.map().loadSimulationTickMillis(123.0)
+        );
 
-        service.saveSimulationTickMillis(75.0);
+        service.map().saveSimulationTickMillis(75.0);
 
-        assertEquals(75.0, repository.savedSimulationTickMillis);
+        assertEquals(
+                75.0,
+                repository.savedSimulationTickMillis
+        );
     }
 
     private static final class FakeRepository implements MapRepository {

@@ -1,7 +1,6 @@
 package com.example.neuronmap.view;
 
 import com.example.neuronmap.model.NeuronType;
-import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.layout.Pane;
 
@@ -124,3 +123,4 @@ public final class MainView {
         }
     }
 }
+

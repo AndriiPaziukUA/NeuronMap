@@ -5,7 +5,6 @@ import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.geometry.Point2D;
 import javafx.scene.layout.Pane;
-import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Polygon;
 import javafx.util.Duration;
@@ -155,3 +154,4 @@ public final class PulseAnimationView extends Pane {
         onFinished.run();
     }
 }
+

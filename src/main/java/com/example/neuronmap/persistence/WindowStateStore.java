@@ -1,7 +1,5 @@
 package com.example.neuronmap.persistence;
 
-import javafx.stage.Stage;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -10,10 +8,7 @@ import java.nio.file.Path;
 import java.util.Optional;
 import java.util.Properties;
 
-/**
- * Persists the window geometry independently from the SQLite map data.
- * Missing or invalid state is treated as absent, so application defaults stay intact.
- */
+/** Persists window geometry independently from the SQLite map data. */
 public final class WindowStateStore {
 
     private static final String WIDTH = "width";
@@ -59,19 +54,6 @@ public final class WindowStateStore {
         }
     }
 
-    public void save(Stage stage) {
-        if (stage == null) {
-            throw new IllegalArgumentException("stage must not be null");
-        }
-
-        save(new WindowState(
-                stage.getWidth(),
-                stage.getHeight(),
-                stage.getX(),
-                stage.getY()
-        ));
-    }
-
     public void save(WindowState state) {
         if (state == null) {
             throw new IllegalArgumentException("state must not be null");
@@ -93,10 +75,7 @@ public final class WindowStateStore {
             properties.setProperty(Y, Double.toString(state.y()));
 
             try (OutputStream output = Files.newOutputStream(file)) {
-                properties.store(
-                        output,
-                        "NeuronMap window geometry"
-                );
+                properties.store(output, "NeuronMap window geometry");
             }
         } catch (IOException ignored) {
             // Window persistence is best-effort and must never block shutdown.

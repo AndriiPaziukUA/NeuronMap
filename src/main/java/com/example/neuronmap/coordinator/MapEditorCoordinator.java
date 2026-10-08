@@ -10,6 +10,7 @@ import com.example.neuronmap.controller.NeuronLayerOrderController;
 import com.example.neuronmap.controller.NeuronMenuCustomizer;
 import com.example.neuronmap.controller.SelectionController;
 import com.example.neuronmap.controller.SimulationController;
+import com.example.neuronmap.controller.SimulationStepPresenter;
 import com.example.neuronmap.controller.StatusMessagePresenter;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronType;
@@ -18,6 +19,7 @@ import com.example.neuronmap.service.ConnectionService;
 import com.example.neuronmap.service.GroupService;
 import com.example.neuronmap.service.HistoryService;
 import com.example.neuronmap.service.MapService;
+import com.example.neuronmap.service.NeuronClipboardService;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.simulation.SimulationSpeed;
 import com.example.neuronmap.view.ImmediateTooltipManager;
@@ -25,7 +27,6 @@ import com.example.neuronmap.view.MainView;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.RotationHandleView;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
 
@@ -120,12 +121,15 @@ public final class MapEditorCoordinator {
         historyService.initialize();
         historyInitialized = true;
 
-        simulationController = new SimulationController(
+        SimulationStepPresenter stepPresenter = new SimulationStepPresenter(
                 neuronService,
-                new com.example.neuronmap.simulation.SimulationService(),
                 view.workspace(),
                 neuronViews,
-                this::refreshNeuronVisuals,
+                this::refreshNeuronVisuals
+        );
+        simulationController = new SimulationController(
+                neuronService,
+                stepPresenter,
                 this::saveNow,
                 this::updateStatus,
                 view.toolbar()::setSimulationPaused,
@@ -146,19 +150,23 @@ public final class MapEditorCoordinator {
         );
 
         selectionController = new SelectionController(
-                application,
+                groupService,
                 state,
-                view.workspace(),
-                neuronViews,
                 this::refreshNeuronVisuals,
                 this::saveNow,
                 this::updateStatus
         );
 
+        NeuronClipboardService clipboardService = new NeuronClipboardService(
+                neuronService,
+                groupService
+        );
         neuronController = new NeuronInteractionController(
-                application,
-                state,
+                neuronService,
                 groupService,
+                selectionController,
+                clipboardService,
+                state,
                 view.workspace(),
                 neuronViews,
                 rotationHandles,
@@ -177,7 +185,6 @@ public final class MapEditorCoordinator {
                 connectionViews,
                 rotationHandles,
                 neuronController,
-                selectionController,
                 connectionController,
                 layerOrderController
         );
@@ -191,7 +198,6 @@ public final class MapEditorCoordinator {
                 neuronController,
                 simulationController,
                 presentation,
-                neuronViews,
                 this::saveNow,
                 this::updateStatus
         );
@@ -358,13 +364,9 @@ public final class MapEditorCoordinator {
         presentation.refreshNeurons();
     }
 
-    private boolean hasHistoryState() {
-        return historyInitialized;
-    }
-
     private void saveNow() {
         mapService.save(state);
-        if (hasHistoryState()) {
+        if (historyInitialized) {
             historyService.commitSavedState();
         }
     }

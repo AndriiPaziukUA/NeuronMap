@@ -1,11 +1,12 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
-import com.example.neuronmap.application.NeuronMapApplicationService;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronType;
-import com.example.neuronmap.persistence.CameraState;
-import com.example.neuronmap.persistence.MapRepository;
+import com.example.neuronmap.service.ConnectionService;
+import com.example.neuronmap.service.GroupService;
+import com.example.neuronmap.service.NeuronClipboardService;
+import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.RotationHandleView;
 import com.example.neuronmap.view.WorkspaceView;
@@ -19,7 +20,6 @@ import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -48,11 +48,7 @@ final class NeuronInteractionControllerMouseButtonTest {
     void leftClickShowsRotationHandleWithoutMenu() throws Exception {
         runOnFxThread(() -> {
             Fixture fixture = fixture();
-            click(
-                    fixture.neuronView(),
-                    MouseButton.PRIMARY
-            );
-
+            click(fixture.neuronView(), MouseButton.PRIMARY);
             assertTrue(fixture.handle().isVisible());
             assertFalse(hasVisibleMenu(fixture.workspace()));
         });
@@ -63,16 +59,10 @@ final class NeuronInteractionControllerMouseButtonTest {
         runOnFxThread(() -> {
             Fixture fixture = fixture();
 
-            click(
-                    fixture.neuronView(),
-                    MouseButton.PRIMARY
-            );
+            click(fixture.neuronView(), MouseButton.PRIMARY);
             assertTrue(fixture.handle().isVisible());
 
-            click(
-                    fixture.neuronView(),
-                    MouseButton.SECONDARY
-            );
+            click(fixture.neuronView(), MouseButton.SECONDARY);
 
             assertTrue(hasVisibleMenu(fixture.workspace()));
             assertFalse(fixture.handle().isVisible());
@@ -87,23 +77,31 @@ final class NeuronInteractionControllerMouseButtonTest {
                 80.0
         );
 
-        NeuronMapApplicationService application =
-                new NeuronMapApplicationService(
-                        model,
-                        new InMemoryRepository()
-                );
-
+        NeuronService neuronService = new NeuronService(model);
+        GroupService groupService = new GroupService(model);
+        ConnectionService connectionService = new ConnectionService(model);
         EditorState state = new EditorState(1.0, 0.0, 0.0);
         WorkspaceView workspace = new WorkspaceView();
         Map<String, NeuronView> neuronViews = new HashMap<>();
         Map<String, RotationHandleView> rotationHandles = new HashMap<>();
 
-        SimulationController simulation = new SimulationController(
-                application,
-                new com.example.neuronmap.simulation.SimulationService(),
+        SelectionController selectionController = new SelectionController(
+                groupService,
+                state,
+                () -> { },
+                () -> { },
+                ignored -> { }
+        );
+
+        SimulationStepPresenter stepPresenter = new SimulationStepPresenter(
+                neuronService,
                 workspace,
                 neuronViews,
-                () -> { },
+                () -> { }
+        );
+        SimulationController simulation = new SimulationController(
+                neuronService,
+                stepPresenter,
                 () -> { },
                 ignored -> { },
                 ignored -> { },
@@ -114,7 +112,7 @@ final class NeuronInteractionControllerMouseButtonTest {
         );
 
         ConnectionController connections = new ConnectionController(
-                application,
+                connectionService,
                 state,
                 workspace,
                 neuronViews,
@@ -124,27 +122,28 @@ final class NeuronInteractionControllerMouseButtonTest {
         );
 
         HBox toolbar = new HBox();
-        NeuronMenuCustomizer menuCustomizer =
-                new NeuronMenuCustomizer(
-                        toolbar,
-                        state::selectedNeuronForMenu,
-                        ignored -> { }
-                );
+        NeuronMenuCustomizer menuCustomizer = new NeuronMenuCustomizer(
+                toolbar,
+                state::selectedNeuronForMenu,
+                ignored -> { }
+        );
 
-        NeuronInteractionController controller =
-                new NeuronInteractionController(
-                        application,
-                        state,
-                        workspace,
-                        neuronViews,
-                        rotationHandles,
-                        connections,
-                        simulation,
-                        () -> { },
-                        () -> { },
-                        ignored -> { },
-                        menuCustomizer
-                );
+        NeuronInteractionController controller = new NeuronInteractionController(
+                neuronService,
+                groupService,
+                selectionController,
+                new NeuronClipboardService(neuronService, groupService),
+                state,
+                workspace,
+                neuronViews,
+                rotationHandles,
+                connections,
+                simulation,
+                () -> { },
+                () -> { },
+                ignored -> { },
+                menuCustomizer
+        );
 
         Pane root = new Pane(workspace.node());
         Scene scene = new Scene(root, 1000.0, 700.0);
@@ -165,10 +164,7 @@ final class NeuronInteractionControllerMouseButtonTest {
         );
     }
 
-    private static void click(
-            NeuronView neuronView,
-            MouseButton button
-    ) {
+    private static void click(NeuronView neuronView, MouseButton button) {
         fire(neuronView, MouseEvent.MOUSE_PRESSED, button);
         fire(neuronView, MouseEvent.MOUSE_RELEASED, button);
         fire(neuronView, MouseEvent.MOUSE_CLICKED, button);
@@ -237,41 +233,5 @@ final class NeuronInteractionControllerMouseButtonTest {
             RotationHandleView handle,
             Scene scene
     ) {
-    }
-
-    private static final class InMemoryRepository implements MapRepository {
-        @Override
-        public Path databasePath() {
-            return Path.of("test.db");
-        }
-
-        @Override
-        public CameraState loadCameraState() {
-            return CameraState.defaultState();
-        }
-
-        @Override
-        public double loadSimulationTickMillis(double fallbackMillis) {
-            return fallbackMillis;
-        }
-
-        @Override
-        public void loadInto(NeuronMapModel model) {
-        }
-
-        @Override
-        public void saveSimulationTickMillis(double millis) {
-        }
-
-        @Override
-        public void save(
-                NeuronMapModel model,
-                CameraState cameraState
-        ) {
-        }
-
-        @Override
-        public void close() {
-        }
     }
 }

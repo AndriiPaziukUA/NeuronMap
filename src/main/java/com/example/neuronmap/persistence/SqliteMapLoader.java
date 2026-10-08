@@ -2,7 +2,6 @@ package com.example.neuronmap.persistence;
 
 import com.example.neuronmap.model.Connection;
 import com.example.neuronmap.model.Neuron;
-import com.example.neuronmap.model.NeuronGroup;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.model.NeuronType;
@@ -153,3 +152,4 @@ public final class SqliteMapLoader {
         membersByGroup.forEach(model::addGroup);
     }
 }
+

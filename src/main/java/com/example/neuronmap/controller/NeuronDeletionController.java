@@ -1,12 +1,13 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
-import com.example.neuronmap.application.NeuronMapApplicationService;
+import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.RotationHandleView;
 import com.example.neuronmap.view.WorkspaceView;
 import javafx.event.EventHandler;
 import javafx.scene.Cursor;
+import javafx.scene.Node;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -17,10 +18,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
-/** Deletes the current neuron selection without depending on the context menu. */
+/** Adapts delete-key/context-menu actions to the neuron removal use case. */
 public final class NeuronDeletionController {
 
-    private final NeuronMapApplicationService application;
+    private final NeuronService neuronService;
     private final EditorState state;
     private final WorkspaceView workspace;
     private final Map<String, NeuronView> neuronViews;
@@ -31,11 +32,10 @@ public final class NeuronDeletionController {
     private final Runnable refreshDeleteHighlights;
     private final Runnable save;
     private final Consumer<String> status;
-    private final EventHandler<KeyEvent> keyHandler =
-            this::handleKeyPressed;
+    private final EventHandler<KeyEvent> keyHandler = this::handleKeyPressed;
 
     public NeuronDeletionController(
-            NeuronMapApplicationService application,
+            NeuronService neuronService,
             EditorState state,
             WorkspaceView workspace,
             Map<String, NeuronView> neuronViews,
@@ -47,7 +47,7 @@ public final class NeuronDeletionController {
             Runnable save,
             Consumer<String> status
     ) {
-        this.application = application;
+        this.neuronService = neuronService;
         this.state = state;
         this.workspace = workspace;
         this.neuronViews = neuronViews;
@@ -65,17 +65,10 @@ public final class NeuronDeletionController {
         workspace.node().sceneProperty().addListener(
                 (observable, oldScene, newScene) -> {
                     if (oldScene != null) {
-                        oldScene.removeEventFilter(
-                                KeyEvent.KEY_PRESSED,
-                                keyHandler
-                        );
+                        oldScene.removeEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
                     }
-
                     if (newScene != null) {
-                        newScene.addEventFilter(
-                                KeyEvent.KEY_PRESSED,
-                                keyHandler
-                        );
+                        newScene.addEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
                     }
                 }
         );
@@ -92,21 +85,6 @@ public final class NeuronDeletionController {
         }
     }
 
-    private boolean isTextInputTarget(Object target) {
-        javafx.scene.Node node = target instanceof javafx.scene.Node targetNode
-                ? targetNode
-                : null;
-
-        while (node != null) {
-            if (node instanceof TextInputControl) {
-                return true;
-            }
-            node = node.getParent();
-        }
-
-        return false;
-    }
-
     public boolean deleteSelectedNeurons() {
         LinkedHashSet<String> selectedIds =
                 new LinkedHashSet<>(state.selectedNeuronIds());
@@ -118,10 +96,7 @@ public final class NeuronDeletionController {
             }
         }
 
-        selectedIds.removeIf(
-                id -> application.model().neuron(id) == null
-        );
-
+        selectedIds.removeIf(id -> neuronService.find(id) == null);
         if (selectedIds.isEmpty()) {
             return false;
         }
@@ -134,7 +109,6 @@ public final class NeuronDeletionController {
         if (neuronId == null || neuronId.isBlank()) {
             return;
         }
-
         deleteNeurons(Set.of(neuronId));
     }
 
@@ -145,7 +119,7 @@ public final class NeuronDeletionController {
         hideMenu.run();
 
         for (String neuronId : ids) {
-            if (application.removeNeuron(neuronId) == null) {
+            if (neuronService.remove(neuronId) == null) {
                 continue;
             }
 
@@ -165,9 +139,7 @@ public final class NeuronDeletionController {
 
         workspace.nodeLayer().getChildren().removeIf(
                 node -> node instanceof NeuronView neuronView
-                        && application.model().neuron(
-                                neuronView.model().id()
-                        ) == null
+                        && neuronService.find(neuronView.model().id()) == null
         );
 
         state.clearSelection();
@@ -184,5 +156,16 @@ public final class NeuronDeletionController {
                         ? "Нейрон та його зв'язки видалено."
                         : "Вибрані нейрони та їх зв'язки видалено."
         );
+    }
+
+    private boolean isTextInputTarget(Object target) {
+        Node node = target instanceof Node targetNode ? targetNode : null;
+        while (node != null) {
+            if (node instanceof TextInputControl) {
+                return true;
+            }
+            node = node.getParent();
+        }
+        return false;
     }
 }

@@ -1,42 +1,30 @@
-
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.service.NeuronService;
-import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.simulation.SimulationService;
 import com.example.neuronmap.simulation.SimulationSession;
 import com.example.neuronmap.simulation.SimulationSpeed;
 import com.example.neuronmap.simulation.SimulationStep;
-import com.example.neuronmap.view.ConnectionView;
-import com.example.neuronmap.view.NeuronView;
-import com.example.neuronmap.view.WorkspaceView;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
-import javafx.scene.Node;
 import javafx.util.Duration;
 
-import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-/** Coordinates the synchronous simulation and detached pulse visuals. */
+/** Coordinates simulation lifecycle while delegating step rendering to a presenter. */
 public final class SimulationController {
 
     private final NeuronService neuronService;
-    private final SimulationService simulationService;
-    private final WorkspaceView workspace;
-    private final Map<String, NeuronView> neuronViews;
-    private final Runnable refreshNeuronViews;
+    private final SimulationStepPresenter stepPresenter;
     private final Runnable save;
     private final Consumer<String> status;
     private final Consumer<Boolean> pausedStateConsumer;
     private final Consumer<Boolean> simulationActivityConsumer;
-    private final PulseAnimationController pulseAnimations;
     private final double minTickMillis;
     private final double maxTickMillis;
-
     private final PauseTransition finishDelay;
 
     private Timeline timeline;
@@ -44,46 +32,9 @@ public final class SimulationController {
     private double tickMillis;
     private boolean paused;
 
-    /**
-     * Compatibility constructor for existing callers/tests that still depend
-     * on the application facade. New code should pass NeuronService directly.
-     */
-    public SimulationController(
-            com.example.neuronmap.application.NeuronMapApplicationService application,
-            SimulationService simulationService,
-            WorkspaceView workspace,
-            Map<String, NeuronView> neuronViews,
-            Runnable refreshNeuronViews,
-            Runnable save,
-            Consumer<String> status,
-            Consumer<Boolean> pausedStateConsumer,
-            Consumer<Boolean> simulationActivityConsumer,
-            double initialTickMillis,
-            double minTickMillis,
-            double maxTickMillis
-    ) {
-        this(
-                Objects.requireNonNull(application, "application").neurons(),
-                simulationService,
-                workspace,
-                neuronViews,
-                refreshNeuronViews,
-                save,
-                status,
-                pausedStateConsumer,
-                simulationActivityConsumer,
-                initialTickMillis,
-                minTickMillis,
-                maxTickMillis
-        );
-    }
-
     public SimulationController(
             NeuronService neuronService,
-            SimulationService simulationService,
-            WorkspaceView workspace,
-            Map<String, NeuronView> neuronViews,
-            Runnable refreshNeuronViews,
+            SimulationStepPresenter stepPresenter,
             Runnable save,
             Consumer<String> status,
             Consumer<Boolean> pausedStateConsumer,
@@ -93,29 +44,11 @@ public final class SimulationController {
             double maxTickMillis
     ) {
         this.neuronService = Objects.requireNonNull(neuronService, "neuronService");
-        this.simulationService = Objects.requireNonNull(
-                simulationService,
-                "simulationService"
-        );
-        this.workspace = Objects.requireNonNull(workspace, "workspace");
-        this.neuronViews = Objects.requireNonNull(
-                neuronViews,
-                "neuronViews"
-        );
-        this.refreshNeuronViews = Objects.requireNonNull(
-                refreshNeuronViews,
-                "refreshNeuronViews"
-        );
+        this.stepPresenter = Objects.requireNonNull(stepPresenter, "stepPresenter");
         this.save = Objects.requireNonNull(save, "save");
         this.status = Objects.requireNonNull(status, "status");
-        this.pausedStateConsumer = Objects.requireNonNull(
-                pausedStateConsumer,
-                "pausedStateConsumer"
-        );
-        this.simulationActivityConsumer = Objects.requireNonNull(
-                simulationActivityConsumer,
-                "simulationActivityConsumer"
-        );
+        this.pausedStateConsumer = Objects.requireNonNull(pausedStateConsumer, "pausedStateConsumer");
+        this.simulationActivityConsumer = Objects.requireNonNull(simulationActivityConsumer, "simulationActivityConsumer");
         this.minTickMillis = minTickMillis;
         this.maxTickMillis = maxTickMillis;
         this.tickMillis = SimulationSpeed.requireMillis(
@@ -123,20 +56,13 @@ public final class SimulationController {
                 minTickMillis,
                 maxTickMillis
         );
-        this.pulseAnimations = new PulseAnimationController(
-                workspace,
-                this::updateSimulationControlsVisibility
-        );
-        this.finishDelay = new PauseTransition(
-                Duration.millis(tickMillis)
-        );
+        this.finishDelay = new PauseTransition(Duration.millis(tickMillis));
 
         finishDelay.setOnFinished(event -> {
-            neuronService.model().clearActivations();
-            clearDisplayedInputSignals();
+            stepPresenter.clearRuntime();
             session = null;
             timeline = null;
-            refreshNeuronViews.run();
+            stepPresenter.refresh();
             save.run();
             status.accept("Імпульс завершено.");
             updateSimulationControlsVisibility();
@@ -147,7 +73,7 @@ public final class SimulationController {
     }
 
     public void emitPulse(String sourceNeuronId) {
-        if (neuronService.model().neuron(sourceNeuronId) == null) {
+        if (neuronService.find(sourceNeuronId) == null) {
             return;
         }
 
@@ -183,7 +109,6 @@ public final class SimulationController {
         if (!hasActiveSimulation()) {
             return;
         }
-
         if (paused) {
             resume();
         } else {
@@ -199,21 +124,19 @@ public final class SimulationController {
         return session != null
                 || timeline != null
                 || finishDelay.getStatus() != Animation.Status.STOPPED
-                || pulseAnimations.hasActiveAnimations();
+                || stepPresenter.hasActiveAnimations();
     }
 
-    /** Fully cancels the current signal chain and every active pulse visual. */
     public void stopSignals() {
         resetRuntime();
         paused = false;
         notifyPausedState();
-        refreshNeuronViews.run();
+        stepPresenter.refresh();
         save.run();
         updateSimulationControlsVisibility();
         status.accept("Передачу імпульсів повністю зупинено.");
     }
 
-    /** Changes the interval between synchronous simulation ticks. */
     public void setTickDurationMillis(double millis) {
         tickMillis = SimulationSpeed.requireMillis(
                 millis,
@@ -246,7 +169,7 @@ public final class SimulationController {
         resetRuntime();
         paused = false;
         notifyPausedState();
-        refreshNeuronViews.run();
+        stepPresenter.refresh();
         updateSimulationControlsVisibility();
     }
 
@@ -259,15 +182,13 @@ public final class SimulationController {
 
     private void pause() {
         paused = true;
-
         if (timeline != null) {
             timeline.pause();
         }
         if (finishDelay.getStatus() == Animation.Status.RUNNING) {
             finishDelay.pause();
         }
-
-        pulseAnimations.pauseAll();
+        stepPresenter.pauseAnimations();
         notifyPausedState();
         updateSimulationControlsVisibility();
         status.accept("Передачу імпульсів призупинено.");
@@ -275,15 +196,13 @@ public final class SimulationController {
 
     private void resume() {
         paused = false;
-
         if (timeline != null) {
             timeline.play();
         }
         if (finishDelay.getStatus() == Animation.Status.PAUSED) {
             finishDelay.play();
         }
-
-        pulseAnimations.resumeAll();
+        stepPresenter.resumeAnimations();
         notifyPausedState();
         updateSimulationControlsVisibility();
         status.accept("Передачу імпульсів продовжено.");
@@ -295,90 +214,20 @@ public final class SimulationController {
         }
 
         SimulationStep step = session.nextStep();
-
         if (step == null) {
             finishSimulation();
             return;
         }
 
-        applyStep(step);
+        stepPresenter.apply(step);
 
-        if (session.isFinished()) {
-            finishSimulation();
-        }
-    }
-
-    private void applyStep(SimulationStep step) {
-        neuronService.model().clearActivations();
-        clearDisplayedInputSignals();
-
-        step.inputSums().forEach(
-                (neuronId, sum) -> {
-                    Neuron neuron =
-                            neuronService.model().neuron(neuronId);
-
-                    if (neuron == null) {
-                        return;
-                    }
-
-                    neuronService.setActivation(neuronId, sum);
-
-                    NeuronView neuronView =
-                            neuronViews.get(neuronId);
-
-                    if (neuronView != null) {
-                        neuronView.showInputSignal(sum);
-                    }
-                }
-        );
-
-        step.nextInputSums().forEach(
-                (neuronId, sum) -> {
-                    if (step.inputSums().containsKey(neuronId)) {
-                        return;
-                    }
-
-                    NeuronView neuronView =
-                            neuronViews.get(neuronId);
-
-                    if (neuronView != null) {
-                        neuronView.showInputSignal(sum);
-                    }
-                }
-        );
-
-        for (String neuronId : step.activatedNeuronIds()) {
-            NeuronView neuronView = neuronViews.get(neuronId);
-            if (neuronView != null) {
-                neuronView.hideInputSignal();
-            }
-        }
-
-        refreshNeuronViews.run();
-
-        for (String neuronId : step.activatedNeuronIds()) {
-            animateOutgoingConnections(neuronId);
-        }
-
-        updateSimulationControlsVisibility();
         status.accept(
                 "Такт " + (step.tick() + 1)
                         + ": сигнали підсумовано одночасно."
         );
-    }
 
-    private void clearDisplayedInputSignals() {
-        for (NeuronView neuronView : neuronViews.values()) {
-            neuronView.clearDisplayedInputSignal();
-        }
-    }
-
-    private void animateOutgoingConnections(String neuronId) {
-        for (Node node : workspace.edgeLayer().getChildren()) {
-            if (node instanceof ConnectionView connectionView
-                    && connectionView.model().sourceId().equals(neuronId)) {
-                pulseAnimations.play(connectionView);
-            }
+        if (session.isFinished()) {
+            finishSimulation();
         }
     }
 
@@ -400,14 +249,10 @@ public final class SimulationController {
         if (timeline != null) {
             timeline.stop();
         }
-
         finishDelay.stop();
         timeline = null;
         session = null;
-        pulseAnimations.stopAll();
-
-        neuronService.model().clearActivations();
-        clearDisplayedInputSignals();
+        stepPresenter.clearRuntime();
     }
 
     private void createTimeline() {

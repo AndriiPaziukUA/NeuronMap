@@ -1,6 +1,5 @@
 package com.example.neuronmap.view;
 
-import com.example.neuronmap.model.NeuronType;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -9,8 +8,10 @@ import javafx.scene.control.TextField;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -40,7 +41,11 @@ final class ToolbarViewTest {
             TextField field = speedField(toolbar);
 
             assertEquals(Pos.CENTER_LEFT, field.getAlignment());
-            assertTrue(field.getStyle().contains("-fx-alignment: CENTER-LEFT;"));
+            assertTrue(
+                    field.getStyle().contains(
+                            "-fx-alignment: CENTER-LEFT;"
+                    )
+            );
 
             field.clear();
             field.replaceText(0, 0, "12abc");
@@ -58,12 +63,18 @@ final class ToolbarViewTest {
     }
 
     @Test
-    void speedFieldStaysBeforeDynamicSimulationControls() throws Exception {
+    void speedFieldStaysBeforeDynamicSimulationControls()
+            throws Exception {
         runOnFxThread(() -> {
             ToolbarView toolbar = toolbar();
+
             int speedIndex = indexOfSpeedField(toolbar);
             int pauseIndex = indexOfButton(toolbar, "❚❚");
             int stopIndex = indexOfButton(toolbar, "■");
+
+            assertTrue(speedIndex >= 0);
+            assertTrue(pauseIndex >= 0);
+            assertTrue(stopIndex >= 0);
 
             assertTrue(speedIndex < pauseIndex);
             assertTrue(speedIndex < stopIndex);
@@ -109,14 +120,15 @@ final class ToolbarViewTest {
     }
 
     private static int indexOf(
-            java.util.List<Node> nodes,
-            java.util.function.Predicate<Node> predicate
+            List<Node> nodes,
+            Predicate<Node> predicate
     ) {
         for (int index = 0; index < nodes.size(); index++) {
             if (predicate.test(nodes.get(index))) {
                 return index;
             }
         }
+
         return -1;
     }
 
@@ -139,7 +151,10 @@ final class ToolbarViewTest {
         }
 
         if (failure[0] != null) {
-            throw new AssertionError("JavaFX test failed", failure[0]);
+            throw new AssertionError(
+                    "JavaFX test failed",
+                    failure[0]
+            );
         }
     }
 }

@@ -1,8 +1,8 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
-import com.example.neuronmap.application.NeuronMapApplicationService;
 import com.example.neuronmap.model.Connection;
+import com.example.neuronmap.service.ConnectionService;
 import com.example.neuronmap.view.ConnectionView;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.WorkspaceView;
@@ -21,7 +21,7 @@ import java.util.function.Consumer;
 /** Owns only the delete-connection mode and its highlights. */
 final class ConnectionDeletionController {
 
-    private final NeuronMapApplicationService application;
+    private final ConnectionService connectionService;
     private final EditorState state;
     private final WorkspaceView workspace;
     private final Map<String, NeuronView> neuronViews;
@@ -30,7 +30,7 @@ final class ConnectionDeletionController {
     private final Consumer<String> status;
 
     ConnectionDeletionController(
-            NeuronMapApplicationService application,
+            ConnectionService connectionService,
             EditorState state,
             WorkspaceView workspace,
             Map<String, NeuronView> neuronViews,
@@ -38,7 +38,7 @@ final class ConnectionDeletionController {
             Runnable save,
             Consumer<String> status
     ) {
-        this.application = Objects.requireNonNull(application, "application");
+        this.connectionService = Objects.requireNonNull(connectionService, "connectionService");
         this.state = Objects.requireNonNull(state, "state");
         this.workspace = Objects.requireNonNull(workspace, "workspace");
         this.neuronViews = Objects.requireNonNull(neuronViews, "neuronViews");
@@ -61,18 +61,6 @@ final class ConnectionDeletionController {
                 "Клацни по нейрону або по лінії зв'язку, який треба видалити. "
                         + "Права кнопка миші скасовує режим."
         );
-    }
-
-    boolean hasConnections(String neuronId) {
-        if (neuronId == null || neuronId.isBlank()) {
-            return false;
-        }
-
-        return application.model().connections().stream()
-                .anyMatch(connection ->
-                        neuronId.equals(connection.sourceId())
-                                || neuronId.equals(connection.targetId())
-                );
     }
 
     void exitDelete() {
@@ -117,7 +105,7 @@ final class ConnectionDeletionController {
             return;
         }
 
-        NeuronView target = findNeuronView(event.getTarget());
+        NeuronView target = JavaFxNodeLookup.findAncestor(event.getTarget(), NeuronView.class);
         if (target != null) {
             String sourceId = state.deleteConnectionNeuronId();
             String targetId = target.model().id();
@@ -128,7 +116,7 @@ final class ConnectionDeletionController {
                 return;
             }
 
-            int removed = application.removeConnectionsBetween(sourceId, targetId);
+            int removed = connectionService.removeBetween(sourceId, targetId);
             if (removed > 0) {
                 refresh.run();
                 save.run();
@@ -141,13 +129,13 @@ final class ConnectionDeletionController {
             return;
         }
 
-        ConnectionView connectionView = findConnectionView(event.getTarget());
+        ConnectionView connectionView = JavaFxNodeLookup.findAncestor(event.getTarget(), ConnectionView.class);
         if (connectionView == null) {
             connectionView = findConnectionViewAt(event.getSceneX(), event.getSceneY());
         }
 
         if (connectionView != null && connectionView.isDeleteHighlighted()) {
-            if (application.removeConnection(connectionView.model().id())) {
+            if (connectionService.remove(connectionView.model().id())) {
                 refresh.run();
                 save.run();
                 status.accept("Зв'язок видалено.");
@@ -156,12 +144,11 @@ final class ConnectionDeletionController {
             return;
         }
 
-        // Left click on empty space intentionally does not cancel delete mode.
         event.consume();
     }
 
-    void statusCancelMode() {
-        status.accept("Режим видалення зв'язків вимкнено.");
+    boolean hasConnections(String neuronId) {
+        return connectionService.hasConnections(neuronId);
     }
 
     private ConnectionView findConnectionViewAt(double sceneX, double sceneY) {
@@ -206,29 +193,4 @@ final class ConnectionDeletionController {
         return false;
     }
 
-    private static NeuronView findNeuronView(Object target) {
-        Node node = target instanceof Node targetNode ? targetNode : null;
-
-        while (node != null) {
-            if (node instanceof NeuronView neuronView) {
-                return neuronView;
-            }
-            node = node.getParent();
-        }
-
-        return null;
-    }
-
-    private static ConnectionView findConnectionView(Object target) {
-        Node node = target instanceof Node targetNode ? targetNode : null;
-
-        while (node != null) {
-            if (node instanceof ConnectionView connectionView) {
-                return connectionView;
-            }
-            node = node.getParent();
-        }
-
-        return null;
-    }
 }

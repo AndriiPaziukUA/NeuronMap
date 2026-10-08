@@ -3,32 +3,27 @@ package com.example.neuronmap.coordinator;
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.controller.ConnectionController;
 import com.example.neuronmap.controller.NeuronInteractionController;
+import com.example.neuronmap.controller.JavaFxNodeLookup;
+import com.example.neuronmap.controller.NeuronToolDragController;
 import com.example.neuronmap.controller.SelectionController;
 import com.example.neuronmap.controller.SimulationController;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.view.ConnectionView;
-import com.example.neuronmap.view.NeuronDragPreviewFactory;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.WorkspaceView;
 import javafx.geometry.Point2D;
 import javafx.scene.Cursor;
-import javafx.scene.Node;
 import javafx.scene.control.Button;
-import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.DragEvent;
-import javafx.scene.input.Dragboard;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.input.TransferMode;
-import javafx.scene.transform.Scale;
 
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-/** Owns canvas input, toolbar neuron drag/drop and transient map interaction state. */
+/** Coordinates canvas-level map interaction and composes the toolbar drag controller. */
 public final class MapInteractionCoordinator {
 
     private final NeuronService neuronService;
@@ -41,11 +36,7 @@ public final class MapInteractionCoordinator {
     private final MapPresentationCoordinator presentation;
     private final Runnable save;
     private final Consumer<String> status;
-    private final Map<String, NeuronView> neuronViews;
-
-    private Node dragPreview;
-    private NeuronType dragPreviewType;
-    private Scale dragPreviewScale;
+    private final NeuronToolDragController toolDragController;
 
     public MapInteractionCoordinator(
             NeuronService neuronService,
@@ -56,7 +47,6 @@ public final class MapInteractionCoordinator {
             NeuronInteractionController neuronController,
             SimulationController simulationController,
             MapPresentationCoordinator presentation,
-            Map<String, NeuronView> neuronViews,
             Runnable save,
             Consumer<String> status
     ) {
@@ -68,15 +58,18 @@ public final class MapInteractionCoordinator {
         this.neuronController = Objects.requireNonNull(neuronController, "neuronController");
         this.simulationController = Objects.requireNonNull(simulationController, "simulationController");
         this.presentation = Objects.requireNonNull(presentation, "presentation");
-        this.neuronViews = Objects.requireNonNull(neuronViews, "neuronViews");
         this.save = Objects.requireNonNull(save, "save");
         this.status = Objects.requireNonNull(status, "status");
+        this.toolDragController = new NeuronToolDragController(
+                state,
+                workspace,
+                this::handleToolDrop
+        );
     }
 
     public void install() {
         workspace.node().addEventFilter(MouseEvent.MOUSE_CLICKED, this::handleCanvasClick);
-        installDropHandlers();
-        configureNeuronToolDragSources();
+        toolDragController.install();
     }
 
     public void beginAddNeuronMode(NeuronType type) {
@@ -91,7 +84,7 @@ public final class MapInteractionCoordinator {
     }
 
     public void cancelInteractions() {
-        removeDragPreview();
+        toolDragController.clearPreview();
         connectionController.cancelCreate();
         connectionController.exitDelete();
         neuronController.hideMenu();
@@ -128,28 +121,16 @@ public final class MapInteractionCoordinator {
     }
 
     public void dispose() {
-        removeDragPreview();
+        toolDragController.clearPreview();
     }
 
     private void handleCanvasClick(MouseEvent event) {
-        if (event.getButton() == MouseButton.SECONDARY) {
-            if (state.mode() == EditorState.Mode.DELETE_CONNECTION) {
-                connectionController.exitDelete();
-                status.accept("Режим видалення зв'язків вимкнено.");
-                event.consume();
-            }
-            return;
-        }
-
         if (event.getButton() != MouseButton.PRIMARY) {
             return;
         }
 
-        if (neuronController.isInteractiveTarget(event.getTarget())) {
-            return;
-        }
-
-        if (findConnectionView(event.getTarget()) != null) {
+        if (neuronController.isInteractiveTarget(event.getTarget())
+                || JavaFxNodeLookup.findAncestor(event.getTarget(), ConnectionView.class) != null) {
             return;
         }
 
@@ -173,129 +154,16 @@ public final class MapInteractionCoordinator {
         }
     }
 
-    private void configureNeuronToolDragSources() {
-        // Toolbar buttons are wired explicitly through configureToolbarButtons().
-    }
-
-    private void configureDragSource(Button button, NeuronType type) {
-        if (button == null || type == null) {
-            return;
-        }
-
-        button.setOnDragDetected(event -> {
-            Dragboard dragboard = button.startDragAndDrop(TransferMode.COPY);
-            ClipboardContent content = new ClipboardContent();
-            content.putString(type.name());
-            dragboard.setContent(content);
-
-            dragPreviewType = type;
-            removeDragPreview();
-            button.setCursor(Cursor.CLOSED_HAND);
-            event.consume();
-        });
-
-        button.setOnMouseReleased(event -> button.setCursor(Cursor.HAND));
-        button.addEventHandler(DragEvent.DRAG_DONE, event -> {
-            removeDragPreview();
-            dragPreviewType = null;
-            button.setCursor(Cursor.HAND);
-            event.consume();
-        });
-    }
-
-    private void installDropHandlers() {
-        workspace.node().addEventHandler(DragEvent.DRAG_OVER, event -> {
-            NeuronType type = dragNeuronType(event.getDragboard());
-            if (type == null) {
-                return;
-            }
-            event.acceptTransferModes(TransferMode.COPY);
-            updateDragPreview(type, event.getSceneX(), event.getSceneY());
-            event.consume();
-        });
-
-        workspace.node().addEventHandler(DragEvent.DRAG_EXITED, event -> removeDragPreview());
-
-        workspace.node().addEventHandler(DragEvent.DRAG_DROPPED, event -> {
-            boolean success = false;
-            try {
-                NeuronType type = dragNeuronType(event.getDragboard());
-                if (type != null) {
-                    Point2D viewportPoint = workspace.node().sceneToLocal(
-                            event.getSceneX(),
-                            event.getSceneY()
-                    );
-                    Point2D worldPoint = screenToWorld(
-                            viewportPoint.getX(),
-                            viewportPoint.getY()
-                    );
-                    addNeuronAt(
-                            type,
-                            worldPoint.getX() - NeuronView.WIDTH / 2.0,
-                            worldPoint.getY() - NeuronView.HEIGHT / 2.0
-                    );
-                    success = true;
-                }
-                event.setDropCompleted(success);
-            } finally {
-                removeDragPreview();
-                dragPreviewType = null;
-            }
-            event.consume();
-        });
-    }
-
-    public void configureToolbarButtons(
-            Button excitatoryButton,
-            Button inhibitoryButton
-    ) {
-        configureDragSource(excitatoryButton, NeuronType.EXCITATORY);
-        configureDragSource(inhibitoryButton, NeuronType.INHIBITORY);
-    }
-
-    private void updateDragPreview(NeuronType type, double sceneX, double sceneY) {
-        if (dragPreview == null || dragPreviewType != type) {
-            removeDragPreview();
-            dragPreview = NeuronDragPreviewFactory.create(type);
-            dragPreviewType = type;
-            dragPreviewScale = new Scale(
-                    state.zoom(),
-                    state.zoom(),
-                    NeuronView.WIDTH / 2.0,
-                    NeuronView.HEIGHT / 2.0
-            );
-            dragPreview.getTransforms().add(dragPreviewScale);
-            workspace.overlayLayer().getChildren().add(dragPreview);
-        }
-
-        Point2D cursor = workspace.overlayLayer().sceneToLocal(sceneX, sceneY);
-        dragPreviewScale.setX(state.zoom());
-        dragPreviewScale.setY(state.zoom());
-        dragPreview.relocate(
-                cursor.getX() - NeuronView.WIDTH / 2.0,
-                cursor.getY() - NeuronView.HEIGHT / 2.0
+    private void handleToolDrop(NeuronType type, Point2D worldPoint) {
+        addNeuronAt(
+                type,
+                worldPoint.getX() - NeuronView.WIDTH / 2.0,
+                worldPoint.getY() - NeuronView.HEIGHT / 2.0
         );
-        dragPreview.toFront();
     }
 
-    private NeuronType dragNeuronType(Dragboard dragboard) {
-        if (dragboard == null || !dragboard.hasString()) {
-            return null;
-        }
-        try {
-            return NeuronType.valueOf(dragboard.getString());
-        } catch (IllegalArgumentException exception) {
-            return null;
-        }
-    }
-
-    private void removeDragPreview() {
-        if (dragPreview != null) {
-            workspace.overlayLayer().getChildren().remove(dragPreview);
-        }
-        dragPreview = null;
-        dragPreviewType = null;
-        dragPreviewScale = null;
+    public void configureToolbarButtons(Button excitatoryButton, Button inhibitoryButton) {
+        toolDragController.configureToolbarButtons(excitatoryButton, inhibitoryButton);
     }
 
     private Point2D screenToWorld(double screenX, double screenY) {
@@ -305,14 +173,4 @@ public final class MapInteractionCoordinator {
         );
     }
 
-    private ConnectionView findConnectionView(Object target) {
-        Node node = target instanceof Node targetNode ? targetNode : null;
-        while (node != null) {
-            if (node instanceof ConnectionView connectionView) {
-                return connectionView;
-            }
-            node = node.getParent();
-        }
-        return null;
-    }
 }
