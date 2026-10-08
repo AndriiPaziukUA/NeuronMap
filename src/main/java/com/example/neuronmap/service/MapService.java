@@ -12,7 +12,7 @@ import java.util.Objects;
 public final class MapService {
 
     private final NeuronMapModel model;
-    private final MapRepository repository;
+    private MapRepository repository;
 
     public MapService(
             NeuronMapModel model,
@@ -32,6 +32,10 @@ public final class MapService {
 
     public boolean isEmpty() {
         return model.isEmpty();
+    }
+
+    public boolean isPersistent() {
+        return repository.isPersistent();
     }
 
     public CameraState loadCameraState() {
@@ -60,6 +64,15 @@ public final class MapService {
 
     public void saveSimulationTickMillis(double millis) {
         repository.saveSimulationTickMillis(millis);
+    }
+
+    /** Replaces the backing project without replacing the in-memory domain model. */
+    public void switchRepository(MapRepository newRepository) {
+        Objects.requireNonNull(newRepository, "newRepository");
+
+        MapRepository oldRepository = repository;
+        repository = newRepository;
+        oldRepository.close();
     }
 
     public void close() {

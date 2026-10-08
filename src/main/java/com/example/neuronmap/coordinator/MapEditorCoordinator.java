@@ -2,9 +2,11 @@ package com.example.neuronmap.coordinator;
 
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.application.NeuronMapApplicationService;
+import com.example.neuronmap.application.project.ProjectDescriptor;
 import com.example.neuronmap.config.AppConfig;
 import com.example.neuronmap.controller.CameraController;
 import com.example.neuronmap.controller.ConnectionController;
+import com.example.neuronmap.controller.MainMenuController;
 import com.example.neuronmap.controller.NeuronInteractionController;
 import com.example.neuronmap.controller.NeuronLayerOrderController;
 import com.example.neuronmap.controller.NeuronMenuCustomizer;
@@ -12,15 +14,20 @@ import com.example.neuronmap.controller.SelectionController;
 import com.example.neuronmap.controller.SimulationController;
 import com.example.neuronmap.controller.SimulationStepPresenter;
 import com.example.neuronmap.controller.StatusMessagePresenter;
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.persistence.CameraState;
+import com.example.neuronmap.persistence.MapRepository;
+import com.example.neuronmap.persistence.SqliteMapRepository;
+import com.example.neuronmap.persistence.TransientProjectRepository;
 import com.example.neuronmap.service.ConnectionService;
 import com.example.neuronmap.service.GroupService;
 import com.example.neuronmap.service.HistoryService;
 import com.example.neuronmap.service.MapService;
 import com.example.neuronmap.service.NeuronClipboardService;
 import com.example.neuronmap.service.NeuronService;
+import com.example.neuronmap.service.ProjectCatalogService;
 import com.example.neuronmap.simulation.SimulationSpeed;
 import com.example.neuronmap.view.ImmediateTooltipManager;
 import com.example.neuronmap.view.MainView;
@@ -31,6 +38,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -42,11 +50,15 @@ public final class MapEditorCoordinator {
     private final ConnectionService connectionService;
     private final GroupService groupService;
     private final HistoryService historyService;
+    private final ProjectCatalogService projectCatalog;
+    private final LocalizationService localization;
     private final EditorState state;
     private final MainView view;
     private final StatusMessagePresenter statusMessagePresenter;
     private final double minSimulationTickMillis;
     private final double maxSimulationTickMillis;
+    private final double defaultSimulationTickMillis;
+    private final Runnable exitApplication;
     private double simulationTickMillis;
 
     private final Map<String, NeuronView> neuronViews = new HashMap<>();
@@ -63,23 +75,52 @@ public final class MapEditorCoordinator {
     private final MapPresentationCoordinator presentation;
     private final MapInteractionCoordinator interaction;
     private final EditorHistoryCoordinator historyCoordinator;
+    private final MainMenuController mainMenuController;
     private ImmediateTooltipManager tooltipManager;
+    private ProjectDescriptor currentProject;
     private boolean historyInitialized;
+    private boolean modalSimulationWasRunning;
+    private Scene scene;
 
     public MapEditorCoordinator(
             NeuronMapApplicationService application,
             AppConfig config
     ) {
+        this(
+                application,
+                config,
+                new LocalizationService(java.util.Locale.forLanguageTag("uk")),
+                () -> { }
+        );
+    }
+
+    public MapEditorCoordinator(
+            NeuronMapApplicationService application,
+            AppConfig config,
+            LocalizationService localization,
+            Runnable exitApplication
+    ) {
         Objects.requireNonNull(application, "application");
         Objects.requireNonNull(config, "config");
 
+        this.localization = Objects.requireNonNull(localization, "localization");
+        this.exitApplication = Objects.requireNonNull(exitApplication, "exitApplication");
         this.mapService = application.map();
         this.neuronService = application.neurons();
         this.connectionService = application.connections();
         this.groupService = application.groups();
+        this.projectCatalog = new ProjectCatalogService(mapService.databasePath());
+        projectCatalog.ensureLegacyProject(localization.text("project.legacy_name"));
+        this.currentProject = projectCatalog
+                .findProject(ProjectCatalogService.LEGACY_PROJECT_ID)
+                .orElseGet(() -> projectCatalog.legacyDescriptor(
+                        localization.text("project.legacy_name")
+                ));
+
         this.historyService = new HistoryService(neuronService.model());
         this.minSimulationTickMillis = config.simulation().minTickMillis();
         this.maxSimulationTickMillis = config.simulation().maxTickMillis();
+        this.defaultSimulationTickMillis = config.simulation().defaultTickMillis();
         this.simulationTickMillis = resolveInitialSimulationTickMillis(
                 mapService.loadSimulationTickMillis(config.simulation().defaultTickMillis()),
                 config.simulation().defaultTickMillis(),
@@ -98,7 +139,8 @@ public final class MapEditorCoordinator {
                 this::toggleSimulationPause,
                 this::stopSimulationSignals,
                 this::changeSimulationSpeed,
-                simulationTickMillis
+                simulationTickMillis,
+                localization
         );
 
         statusMessagePresenter = new StatusMessagePresenter(view::setStatus);
@@ -113,11 +155,16 @@ public final class MapEditorCoordinator {
         menuCustomizer = new NeuronMenuCustomizer(
                 view.toolbar().node(),
                 state::selectedNeuronForMenu,
-                this::toggleNeuronDirection
+                this::toggleNeuronDirection,
+                localization
         );
         menuCustomizer.removeDeleteConnectionModeExitButton();
 
-        loadMap();
+        mapService.load();
+        if (neuronService.model().isEmpty()) {
+            createDemoMap();
+            saveNow();
+        }
         historyService.initialize();
         historyInitialized = true;
 
@@ -136,7 +183,8 @@ public final class MapEditorCoordinator {
                 view.toolbar()::setSimulationControlsVisible,
                 simulationTickMillis,
                 config.simulation().minTickMillis(),
-                config.simulation().maxTickMillis()
+                config.simulation().maxTickMillis(),
+                localization
         );
 
         connectionController = new ConnectionController(
@@ -146,7 +194,8 @@ public final class MapEditorCoordinator {
                 neuronViews,
                 this::refreshMapPresentation,
                 this::saveNow,
-                this::updateStatus
+                this::updateStatus,
+                localization
         );
 
         selectionController = new SelectionController(
@@ -154,7 +203,8 @@ public final class MapEditorCoordinator {
                 state,
                 this::refreshNeuronVisuals,
                 this::saveNow,
-                this::updateStatus
+                this::updateStatus,
+                localization
         );
 
         NeuronClipboardService clipboardService = new NeuronClipboardService(
@@ -175,7 +225,8 @@ public final class MapEditorCoordinator {
                 this::saveNow,
                 this::refreshMapPresentation,
                 this::updateStatus,
-                menuCustomizer
+                menuCustomizer,
+                localization
         );
 
         presentation = new MapPresentationCoordinator(
@@ -199,7 +250,8 @@ public final class MapEditorCoordinator {
                 simulationController,
                 presentation,
                 this::saveNow,
-                this::updateStatus
+                this::updateStatus,
+                localization
         );
         interaction.configureToolbarButtons(
                 view.toolbar().addExcitatoryButton(),
@@ -216,7 +268,8 @@ public final class MapEditorCoordinator {
                 interaction::dispose,
                 presentation,
                 this::saveNow,
-                this::updateStatus
+                this::updateStatus,
+                localization
         );
 
         cameraController = new CameraController(
@@ -228,7 +281,21 @@ public final class MapEditorCoordinator {
                 neuronController::isInteractiveTarget,
                 this::updateStatus,
                 point -> view.toolbar().setCameraCoordinates(point.getX(), point.getY()),
-                config.camera().zoomFactor()
+                config.camera().zoomFactor(),
+                localization
+        );
+
+        mainMenuController = new MainMenuController(
+                view.mainMenu(),
+                localization,
+                projectCatalog::listProjects,
+                this::createNewProject,
+                this::openProject,
+                this::renameProject,
+                this::deleteProject,
+                exitApplication,
+                this::pauseForMenu,
+                this::resumeAfterMenu
         );
 
         neuronController.loadViews();
@@ -236,10 +303,12 @@ public final class MapEditorCoordinator {
         interaction.install();
         cameraController.install();
         connectionController.install();
+
+        restoreLastProject();
     }
 
     public Scene createScene(double width, double height) {
-        Scene scene = view.createScene(width, height);
+        scene = view.createScene(width, height);
 
         scene.setOnKeyPressed(event -> {
             if (event.isControlDown() && event.getCode() == KeyCode.Z) {
@@ -266,7 +335,11 @@ public final class MapEditorCoordinator {
             }
         });
 
-        scene.addEventFilter(MouseEvent.MOUSE_PRESSED, presentation::bringClickedNeuronToFront);
+        scene.addEventFilter(
+                MouseEvent.MOUSE_PRESSED,
+                presentation::bringClickedNeuronToFront
+        );
+        mainMenuController.install(scene);
         statusMessagePresenter.attach(scene);
         tooltipManager = ImmediateTooltipManager.install(scene);
         return scene;
@@ -277,16 +350,18 @@ public final class MapEditorCoordinator {
     }
 
     public void shutdown() {
+        mainMenuController.dispose(scene);
         simulationController.shutdown();
+        connectionController.clearDeleteHighlights();
         interaction.dispose();
         neuronController.dispose();
+        cameraController.cancelPendingSave();
         statusMessagePresenter.dispose();
         if (tooltipManager != null) {
             tooltipManager.dispose();
             tooltipManager = null;
         }
         saveNow();
-        mapService.saveSimulationTickMillis(simulationTickMillis);
         mapService.close();
     }
 
@@ -310,18 +385,185 @@ public final class MapEditorCoordinator {
             simulationController.setTickDurationMillis(millis);
             simulationTickMillis = millis;
             mapService.saveSimulationTickMillis(millis);
+            if (mapService.isPersistent() && currentProject != null) {
+                currentProject = projectCatalog.register(currentProject);
+            }
             view.toolbar().setSimulationSpeedMillis(millis);
         } catch (RuntimeException exception) {
-            updateStatus("Некоректна швидкість. Введи додатне число мілісекунд.");
+            updateStatus(localization.text("status.speed_invalid"));
         }
     }
 
-    private void loadMap() {
-        mapService.load();
-        if (neuronService.model().isEmpty()) {
-            createDemoMap();
-            saveNow();
+    private void pauseForMenu() {
+        modalSimulationWasRunning = simulationController.pauseForModal();
+        connectionController.pauseAnimations();
+    }
+
+    private void resumeAfterMenu() {
+        connectionController.resumeAnimations();
+        if (modalSimulationWasRunning) {
+            modalSimulationWasRunning = false;
+            simulationController.resumeFromModal();
         }
+    }
+
+    private void createNewProject() {
+        prepareForProjectSwitch();
+        ProjectDescriptor project = projectCatalog.createTransientProject(
+                localization.text("project.default_name")
+        );
+        TransientProjectRepository repository = new TransientProjectRepository(
+                project.databasePath(),
+                () -> registerProject(project)
+        );
+        activateProject(project, repository, false);
+    }
+
+    private void openProject(ProjectDescriptor project) {
+        if (project == null) {
+            return;
+        }
+        if (currentProject != null
+                && currentProject.id().equals(project.id())) {
+            return;
+        }
+
+        prepareForProjectSwitch();
+        SqliteMapRepository repository = new SqliteMapRepository(
+                project.databasePath()
+        );
+        try {
+            activateProject(project, repository, true);
+        } catch (RuntimeException exception) {
+            repository.close();
+            throw exception;
+        }
+    }
+
+    private ProjectDescriptor renameProject(
+            ProjectDescriptor project,
+            String name
+    ) {
+        if (project == null || name == null || name.isBlank()) {
+            return project;
+        }
+        ProjectDescriptor renamed = projectCatalog.rename(project, name);
+        if (currentProject != null
+                && currentProject.id().equals(project.id())) {
+            currentProject = renamed;
+        }
+        return renamed;
+    }
+
+    private void deleteProject(ProjectDescriptor project) {
+        if (project == null) {
+            return;
+        }
+
+        boolean active = currentProject != null
+                && currentProject.id().equals(project.id());
+
+        if (!active) {
+            projectCatalog.delete(project);
+            return;
+        }
+
+        prepareForProjectSwitch();
+        ProjectDescriptor replacement = projectCatalog.createTransientProject(
+                localization.text("project.default_name")
+        );
+        TransientProjectRepository repository = new TransientProjectRepository(
+                replacement.databasePath(),
+                () -> registerProject(replacement)
+        );
+        activateProject(replacement, repository, false);
+        projectCatalog.delete(project);
+
+        List<ProjectDescriptor> remaining = projectCatalog.listProjects();
+        if (!remaining.isEmpty()) {
+            openProject(remaining.get(0));
+        }
+    }
+
+    private void prepareForProjectSwitch() {
+        simulationController.stop();
+        connectionController.clearDeleteHighlights();
+        interaction.cancelInteractions();
+        neuronController.hideMenu();
+        cameraController.cancelPendingSave();
+        saveNow();
+
+        state.clearSelection();
+        state.resetToIdle();
+        modalSimulationWasRunning = false;
+    }
+
+    private void activateProject(
+            ProjectDescriptor project,
+            MapRepository repository,
+            boolean loadExisting
+    ) {
+        Objects.requireNonNull(project, "project");
+        Objects.requireNonNull(repository, "repository");
+
+        repository.loadInto(neuronService.model());
+
+        CameraState camera = loadExisting
+                ? repository.loadCameraState()
+                : CameraState.defaultState();
+        double fallbackSpeed = loadExisting
+                ? simulationTickMillis
+                : defaultSimulationTickMillis;
+        double speed = resolveInitialSimulationTickMillis(
+                loadExisting
+                        ? repository.loadSimulationTickMillis(fallbackSpeed)
+                        : fallbackSpeed,
+                fallbackSpeed,
+                minSimulationTickMillis,
+                maxSimulationTickMillis
+        );
+
+        mapService.switchRepository(repository);
+        currentProject = project;
+        simulationTickMillis = speed;
+        simulationController.setTickDurationMillis(speed);
+        view.toolbar().setSimulationSpeedMillis(speed);
+
+        state.setZoom(camera.zoom());
+        state.setPanX(camera.panX());
+        state.setPanY(camera.panY());
+        state.clearSelection();
+        state.resetToIdle();
+
+        historyService.clear();
+        historyService.initialize();
+        historyInitialized = true;
+
+        presentation.synchronizeViewsWithModel();
+        cameraController.apply();
+        projectCatalog.markLastOpened(project.isPersisted() ? project : null);
+        modalSimulationWasRunning = false;
+        view.mainMenu().showMainPage();
+    }
+
+    private void restoreLastProject() {
+        ProjectDescriptor last = projectCatalog.lastOpenedProject();
+        if (last == null) {
+            return;
+        }
+        if (currentProject != null
+                && currentProject.id().equals(last.id())) {
+            currentProject = last;
+            return;
+        }
+        openProject(last);
+    }
+
+    private void registerProject(ProjectDescriptor project) {
+        projectCatalog.register(project);
+        projectCatalog.markLastOpened(project);
+        currentProject = projectCatalog.findProject(project.id())
+                .orElse(project);
     }
 
     private void createDemoMap() {
@@ -330,7 +572,7 @@ public final class MapEditorCoordinator {
         Neuron third = neuronService.create(NeuronType.EXCITATORY, 790, 210);
         connectionService.create(first.id(), second.id());
         connectionService.create(second.id(), third.id());
-        updateStatus("Створено початкову демо-схему.");
+        updateStatus(localization.text("status.demo_created"));
     }
 
     private void beginAddNeuronMode(NeuronType type) {
@@ -353,7 +595,7 @@ public final class MapEditorCoordinator {
         neuronService.toggleDirection(neuronId);
         refreshMapPresentation();
         saveNow();
-        updateStatus("Напрямок нейрона змінено.");
+        updateStatus(localization.text("status.direction_changed"));
     }
 
     private void refreshMapPresentation() {
@@ -365,7 +607,26 @@ public final class MapEditorCoordinator {
     }
 
     private void saveNow() {
-        mapService.save(state);
+        boolean wasPersistent = mapService.isPersistent();
+        boolean shouldSave = currentProject == null
+                || currentProject.isPersisted()
+                || !currentProject.id().equals(ProjectCatalogService.LEGACY_PROJECT_ID)
+                || java.nio.file.Files.isRegularFile(mapService.databasePath());
+
+        if (shouldSave) {
+            mapService.save(state);
+        }
+
+        boolean projectWasAlreadyPersisted = wasPersistent
+                && currentProject != null
+                && (currentProject.isPersisted()
+                || java.nio.file.Files.isRegularFile(mapService.databasePath()));
+
+        if (projectWasAlreadyPersisted) {
+            currentProject = projectCatalog.register(currentProject);
+            projectCatalog.markLastOpened(currentProject);
+        }
+
         if (historyInitialized) {
             historyService.commitSavedState();
         }

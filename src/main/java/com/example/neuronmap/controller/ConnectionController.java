@@ -1,9 +1,12 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.service.ConnectionService;
+import com.example.neuronmap.view.ConnectionView;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.WorkspaceView;
+import javafx.scene.Node;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 
@@ -28,9 +31,33 @@ public final class ConnectionController {
             Runnable save,
             Consumer<String> status
     ) {
+        this(
+                connectionService,
+                state,
+                workspace,
+                neuronViews,
+                refresh,
+                save,
+                status,
+                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
+        );
+    }
+
+    public ConnectionController(
+            ConnectionService connectionService,
+            EditorState state,
+            WorkspaceView workspace,
+            Map<String, NeuronView> neuronViews,
+            Runnable refresh,
+            Runnable save,
+            Consumer<String> status,
+            LocalizationService localization
+    ) {
         Objects.requireNonNull(connectionService, "connectionService");
         this.state = Objects.requireNonNull(state, "state");
         this.workspace = Objects.requireNonNull(workspace, "workspace");
+        LocalizationService sharedLocalization =
+                Objects.requireNonNull(localization, "localization");
 
         this.deletionController = new ConnectionDeletionController(
                 connectionService,
@@ -39,7 +66,8 @@ public final class ConnectionController {
                 neuronViews,
                 refresh,
                 save,
-                status
+                status,
+                sharedLocalization
         );
         this.creationController = new ConnectionCreationController(
                 connectionService,
@@ -49,7 +77,8 @@ public final class ConnectionController {
                 refresh,
                 save,
                 status,
-                deletionController::exitDelete
+                deletionController::exitDelete,
+                sharedLocalization
         );
     }
 
@@ -94,6 +123,22 @@ public final class ConnectionController {
 
     public void refreshPreviewAfterCameraChange() {
         creationController.refreshPreviewAfterCameraChange();
+    }
+
+    public void pauseAnimations() {
+        for (Node node : workspace.edgeLayer().getChildren()) {
+            if (node instanceof ConnectionView connectionView) {
+                connectionView.pauseDeleteHighlight();
+            }
+        }
+    }
+
+    public void resumeAnimations() {
+        for (Node node : workspace.edgeLayer().getChildren()) {
+            if (node instanceof ConnectionView connectionView) {
+                connectionView.resumeDeleteHighlight();
+            }
+        }
     }
 
     private void handleCanvasClick(MouseEvent event) {

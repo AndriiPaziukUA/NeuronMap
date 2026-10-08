@@ -1,5 +1,6 @@
 package com.example.neuronmap.controller;
 
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.view.TooltipFactory;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -14,9 +15,15 @@ public final class NeuronMenuCustomizer {
     private final Node toolbarRoot;
     private final Supplier<String> selectedNeuronIdSupplier;
     private final Consumer<String> directionAction;
+    private final LocalizationService localization;
 
     public NeuronMenuCustomizer(Node toolbarRoot) {
-        this(toolbarRoot, () -> null, null);
+        this(
+                toolbarRoot,
+                () -> null,
+                null,
+                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
+        );
     }
 
     public NeuronMenuCustomizer(
@@ -24,10 +31,22 @@ public final class NeuronMenuCustomizer {
             Supplier<String> selectedNeuronIdSupplier,
             Consumer<String> directionAction
     ) {
+        this(
+                toolbarRoot,
+                selectedNeuronIdSupplier,
+                directionAction,
+                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
+        );
+    }
+
+    public NeuronMenuCustomizer(
+            Node toolbarRoot,
+            Supplier<String> selectedNeuronIdSupplier,
+            Consumer<String> directionAction,
+            LocalizationService localization
+    ) {
         if (toolbarRoot == null) {
-            throw new IllegalArgumentException(
-                    "toolbarRoot must not be null"
-            );
+            throw new IllegalArgumentException("toolbarRoot must not be null");
         }
 
         this.toolbarRoot = toolbarRoot;
@@ -36,6 +55,9 @@ public final class NeuronMenuCustomizer {
                         ? () -> null
                         : selectedNeuronIdSupplier;
         this.directionAction = directionAction;
+        this.localization = localization == null
+                ? new LocalizationService(java.util.Locale.forLanguageTag("uk"))
+                : localization;
     }
 
     public void customizeMenuButton(Button button) {
@@ -50,7 +72,7 @@ public final class NeuronMenuCustomizer {
             );
             TooltipFactory.install(
                     button,
-                    "Відправити імпульс"
+                    localization.text("neuron.menu.fire")
             );
             return;
         }
@@ -63,10 +85,6 @@ public final class NeuronMenuCustomizer {
         }
     }
 
-    /**
-     * Creates the direction button before the menu is added to the overlay.
-     * This guarantees that the initial menu width is already final.
-     */
     public Button createDirectionButton() {
         if (directionAction == null) {
             return null;
@@ -91,7 +109,7 @@ public final class NeuronMenuCustomizer {
         });
         TooltipFactory.install(
                 directionButton,
-                "Змінити напрямок"
+                localization.text("neuron.menu.direction")
         );
         return directionButton;
     }

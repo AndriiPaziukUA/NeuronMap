@@ -1,6 +1,7 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.service.GroupService;
 import com.example.neuronmap.service.NeuronClipboardService;
@@ -53,6 +54,42 @@ public final class NeuronInteractionController {
             Consumer<String> status,
             NeuronMenuCustomizer menuCustomizer
     ) {
+        this(
+                neuronService,
+                groupService,
+                selectionController,
+                clipboardService,
+                state,
+                workspace,
+                neuronViews,
+                rotationHandles,
+                connections,
+                simulation,
+                save,
+                refreshConnections,
+                status,
+                menuCustomizer,
+                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
+        );
+    }
+
+    public NeuronInteractionController(
+            NeuronService neuronService,
+            GroupService groupService,
+            SelectionController selectionController,
+            NeuronClipboardService clipboardService,
+            EditorState state,
+            WorkspaceView workspace,
+            Map<String, NeuronView> neuronViews,
+            Map<String, RotationHandleView> rotationHandles,
+            ConnectionController connections,
+            SimulationController simulation,
+            Runnable save,
+            Runnable refreshConnections,
+            Consumer<String> status,
+            NeuronMenuCustomizer menuCustomizer,
+            LocalizationService localization
+    ) {
         this.neuronService = Objects.requireNonNull(neuronService, "neuronService");
         Objects.requireNonNull(groupService, "groupService");
         this.state = Objects.requireNonNull(state, "state");
@@ -66,6 +103,11 @@ public final class NeuronInteractionController {
         this.refreshConnections = Objects.requireNonNull(refreshConnections, "refreshConnections");
         this.menuCustomizer = Objects.requireNonNull(menuCustomizer, "menuCustomizer");
 
+        LocalizationService sharedLocalization = Objects.requireNonNull(
+                localization,
+                "localization"
+        );
+
         this.clipboardController = new NeuronClipboardController(
                 clipboardService,
                 state,
@@ -74,7 +116,8 @@ public final class NeuronInteractionController {
                 this::addViewForNeuron,
                 refreshConnections,
                 save,
-                status
+                status,
+                sharedLocalization
         );
 
         this.deletionController = new NeuronDeletionController(
@@ -88,7 +131,8 @@ public final class NeuronInteractionController {
                 refreshConnections,
                 connections::refreshDeleteHighlights,
                 save,
-                status
+                status,
+                sharedLocalization
         );
 
         this.menuController = new NeuronMenuController(
@@ -103,7 +147,8 @@ public final class NeuronInteractionController {
                 refreshConnections,
                 this::refreshOverlayPositions,
                 save,
-                status
+                status,
+                sharedLocalization
         );
 
         this.rotationController = new NeuronRotationController(

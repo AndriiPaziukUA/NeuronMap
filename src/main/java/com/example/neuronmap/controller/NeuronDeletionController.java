@@ -1,6 +1,7 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.RotationHandleView;
@@ -32,6 +33,7 @@ public final class NeuronDeletionController {
     private final Runnable refreshDeleteHighlights;
     private final Runnable save;
     private final Consumer<String> status;
+    private final LocalizationService localization;
     private final EventHandler<KeyEvent> keyHandler = this::handleKeyPressed;
 
     public NeuronDeletionController(
@@ -47,6 +49,36 @@ public final class NeuronDeletionController {
             Runnable save,
             Consumer<String> status
     ) {
+        this(
+                neuronService,
+                state,
+                workspace,
+                neuronViews,
+                rotationHandles,
+                hideMenu,
+                refreshVisuals,
+                refreshPresentation,
+                refreshDeleteHighlights,
+                save,
+                status,
+                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
+        );
+    }
+
+    public NeuronDeletionController(
+            NeuronService neuronService,
+            EditorState state,
+            WorkspaceView workspace,
+            Map<String, NeuronView> neuronViews,
+            Map<String, RotationHandleView> rotationHandles,
+            Runnable hideMenu,
+            Runnable refreshVisuals,
+            Runnable refreshPresentation,
+            Runnable refreshDeleteHighlights,
+            Runnable save,
+            Consumer<String> status,
+            LocalizationService localization
+    ) {
         this.neuronService = neuronService;
         this.state = state;
         this.workspace = workspace;
@@ -58,6 +90,7 @@ public final class NeuronDeletionController {
         this.refreshDeleteHighlights = refreshDeleteHighlights;
         this.save = save;
         this.status = status;
+        this.localization = localization;
         installSceneKeyHandler();
     }
 
@@ -153,8 +186,8 @@ public final class NeuronDeletionController {
 
         status.accept(
                 ids.size() == 1
-                        ? "Нейрон та його зв'язки видалено."
-                        : "Вибрані нейрони та їх зв'язки видалено."
+                        ? localization.text("status.delete_neuron")
+                        : localization.text("status.delete_neurons")
         );
     }
 

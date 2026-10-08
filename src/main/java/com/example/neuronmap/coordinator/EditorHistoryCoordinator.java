@@ -4,6 +4,7 @@ import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.controller.ConnectionController;
 import com.example.neuronmap.controller.NeuronInteractionController;
 import com.example.neuronmap.controller.SimulationController;
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.service.HistoryService;
 import com.example.neuronmap.view.WorkspaceView;
 import javafx.scene.Cursor;
@@ -24,6 +25,7 @@ public final class EditorHistoryCoordinator {
     private final MapPresentationCoordinator presentation;
     private final Runnable save;
     private final Consumer<String> status;
+    private final LocalizationService localization;
 
     public EditorHistoryCoordinator(
             HistoryService historyService,
@@ -37,6 +39,34 @@ public final class EditorHistoryCoordinator {
             Runnable save,
             Consumer<String> status
     ) {
+        this(
+                historyService,
+                simulationController,
+                connectionController,
+                neuronController,
+                state,
+                workspace,
+                removeDragPreview,
+                presentation,
+                save,
+                status,
+                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
+        );
+    }
+
+    public EditorHistoryCoordinator(
+            HistoryService historyService,
+            SimulationController simulationController,
+            ConnectionController connectionController,
+            NeuronInteractionController neuronController,
+            EditorState state,
+            WorkspaceView workspace,
+            Runnable removeDragPreview,
+            MapPresentationCoordinator presentation,
+            Runnable save,
+            Consumer<String> status,
+            LocalizationService localization
+    ) {
         this.historyService = Objects.requireNonNull(historyService, "historyService");
         this.simulationController = Objects.requireNonNull(simulationController, "simulationController");
         this.connectionController = Objects.requireNonNull(connectionController, "connectionController");
@@ -47,6 +77,7 @@ public final class EditorHistoryCoordinator {
         this.presentation = Objects.requireNonNull(presentation, "presentation");
         this.save = Objects.requireNonNull(save, "save");
         this.status = Objects.requireNonNull(status, "status");
+        this.localization = Objects.requireNonNull(localization, "localization");
     }
 
     public boolean undo() {
@@ -57,7 +88,7 @@ public final class EditorHistoryCoordinator {
         resetEditorAfterHistoryChange();
         presentation.synchronizeViewsWithModel();
         save.run();
-        status.accept("Зміни скасовано.");
+        status.accept(localization.text("status.undo"));
         return true;
     }
 
@@ -69,7 +100,7 @@ public final class EditorHistoryCoordinator {
         resetEditorAfterHistoryChange();
         presentation.synchronizeViewsWithModel();
         save.run();
-        status.accept("Зміни повторено.");
+        status.accept(localization.text("status.redo"));
         return true;
     }
 

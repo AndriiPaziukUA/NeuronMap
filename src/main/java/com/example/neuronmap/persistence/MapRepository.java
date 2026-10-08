@@ -8,6 +8,11 @@ public interface MapRepository extends AutoCloseable {
 
     Path databasePath();
 
+    /** Whether this repository currently has durable project storage. */
+    default boolean isPersistent() {
+        return true;
+    }
+
     CameraState loadCameraState();
 
     double loadSimulationTickMillis(double fallbackMillis);

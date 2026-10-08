@@ -1,6 +1,7 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.service.NeuronClipboardService;
 import com.example.neuronmap.view.NeuronView;
@@ -30,6 +31,7 @@ public final class NeuronClipboardController {
     private final Runnable refreshPresentation;
     private final Runnable save;
     private final Consumer<String> status;
+    private final LocalizationService localization;
 
     private final EventHandler<KeyEvent> keyHandler;
     private final EventHandler<WindowEvent> windowHiddenHandler;
@@ -48,6 +50,30 @@ public final class NeuronClipboardController {
             Runnable save,
             Consumer<String> status
     ) {
+        this(
+                clipboardService,
+                state,
+                workspace,
+                hideMenu,
+                addView,
+                refreshPresentation,
+                save,
+                status,
+                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
+        );
+    }
+
+    public NeuronClipboardController(
+            NeuronClipboardService clipboardService,
+            EditorState state,
+            WorkspaceView workspace,
+            Runnable hideMenu,
+            Consumer<Neuron> addView,
+            Runnable refreshPresentation,
+            Runnable save,
+            Consumer<String> status,
+            LocalizationService localization
+    ) {
         this.clipboardService = clipboardService;
         this.state = state;
         this.workspace = workspace;
@@ -56,6 +82,7 @@ public final class NeuronClipboardController {
         this.refreshPresentation = refreshPresentation;
         this.save = save;
         this.status = status;
+        this.localization = localization;
         this.keyHandler = this::handleKeyPressed;
         this.windowHiddenHandler = event -> this.clipboardService.clear();
 
@@ -145,7 +172,7 @@ public final class NeuronClipboardController {
 
         if (selectedIds.isEmpty()) {
             clipboardService.clear();
-            status.accept("Немає вибраного нейрона для копіювання.");
+            status.accept(localization.text("status.copy_none"));
             return false;
         }
 
@@ -158,10 +185,10 @@ public final class NeuronClipboardController {
 
         status.accept(
                 content.grouped()
-                        ? "Групу нейронів скопійовано."
+                        ? localization.text("status.copy_group")
                         : content.items().size() == 1
-                        ? "Нейрон скопійовано."
-                        : "Вибрані нейрони скопійовано."
+                        ? localization.text("status.copy_neuron")
+                        : localization.text("status.copy_selection")
         );
         return true;
     }
@@ -194,8 +221,8 @@ public final class NeuronClipboardController {
 
         status.accept(
                 pasted.size() == 1
-                        ? "Нейрон вставлено."
-                        : "Нейрони вставлено."
+                        ? localization.text("status.paste_neuron")
+                        : localization.text("status.paste_neurons")
         );
         return !pasted.isEmpty();
     }

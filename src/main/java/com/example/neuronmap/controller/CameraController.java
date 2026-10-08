@@ -1,6 +1,7 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.util.CameraWorldCenter;
 import com.example.neuronmap.util.GeometryUtils;
 import com.example.neuronmap.view.WorkspaceView;
@@ -27,6 +28,7 @@ public final class CameraController {
     private final Predicate<Object> interactiveTarget;
     private final Consumer<String> status;
     private final Consumer<Point2D> cameraCenterWorldConsumer;
+    private final LocalizationService localization;
     private final double zoomFactor;
 
     private final PauseTransition saveDebounce =
@@ -47,6 +49,32 @@ public final class CameraController {
             Consumer<Point2D> cameraCenterWorldConsumer,
             double zoomFactor
     ) {
+        this(
+                state,
+                workspace,
+                refreshOverlay,
+                save,
+                interactionActive,
+                interactiveTarget,
+                status,
+                cameraCenterWorldConsumer,
+                zoomFactor,
+                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
+        );
+    }
+
+    public CameraController(
+            EditorState state,
+            WorkspaceView workspace,
+            Runnable refreshOverlay,
+            Runnable save,
+            BooleanSupplier interactionActive,
+            Predicate<Object> interactiveTarget,
+            Consumer<String> status,
+            Consumer<Point2D> cameraCenterWorldConsumer,
+            double zoomFactor,
+            LocalizationService localization
+    ) {
         this.state = state;
         this.workspace = workspace;
         this.refreshOverlay = refreshOverlay;
@@ -55,6 +83,9 @@ public final class CameraController {
         this.interactiveTarget = interactiveTarget;
         this.status = status;
         this.cameraCenterWorldConsumer = cameraCenterWorldConsumer;
+        this.localization = localization == null
+                ? new LocalizationService(java.util.Locale.forLanguageTag("uk"))
+                : localization;
         if (!Double.isFinite(zoomFactor) || zoomFactor <= 1.0) {
             throw new IllegalArgumentException("zoomFactor must be > 1");
         }
@@ -97,6 +128,12 @@ public final class CameraController {
         );
         refreshOverlay.run();
         refreshCameraCoordinates();
+    }
+
+    /** Cancels a pending debounced persistence callback before a project switch. */
+    public void cancelPendingSave() {
+        saveDebounce.stop();
+        panning = false;
     }
 
     private void handlePressed(MouseEvent event) {
@@ -172,7 +209,7 @@ public final class CameraController {
 
         apply();
         scheduleSave();
-        status.accept("Масштаб: " + formatZoom(newZoom));
+        status.accept(localization.text("status.scale", formatZoom(newZoom)));
         event.consume();
     }
 

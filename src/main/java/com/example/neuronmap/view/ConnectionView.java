@@ -96,14 +96,8 @@ public final class ConnectionView extends Pane {
             return null;
         }
 
-        Point2D start = new Point2D(
-                line.getStartX(),
-                line.getStartY()
-        );
-        Point2D end = new Point2D(
-                line.getEndX(),
-                line.getEndY()
-        );
+        Point2D start = new Point2D(line.getStartX(), line.getStartY());
+        Point2D end = new Point2D(line.getEndX(), line.getEndY());
 
         if (start.distance(end) == 0.0) {
             return null;
@@ -149,6 +143,20 @@ public final class ConnectionView extends Pane {
         blinkTimeline.setAutoReverse(true);
         blinkTimeline.setCycleCount(Animation.INDEFINITE);
         blinkTimeline.play();
+    }
+
+    public void pauseDeleteHighlight() {
+        if (blinkTimeline != null
+                && blinkTimeline.getStatus() == Animation.Status.RUNNING) {
+            blinkTimeline.pause();
+        }
+    }
+
+    public void resumeDeleteHighlight() {
+        if (blinkTimeline != null
+                && blinkTimeline.getStatus() == Animation.Status.PAUSED) {
+            blinkTimeline.play();
+        }
     }
 
     public void stopDeleteHighlight() {

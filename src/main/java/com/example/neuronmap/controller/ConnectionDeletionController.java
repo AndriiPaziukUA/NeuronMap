@@ -1,6 +1,7 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Connection;
 import com.example.neuronmap.service.ConnectionService;
 import com.example.neuronmap.view.ConnectionView;
@@ -28,6 +29,7 @@ final class ConnectionDeletionController {
     private final Runnable refresh;
     private final Runnable save;
     private final Consumer<String> status;
+    private final LocalizationService localization;
 
     ConnectionDeletionController(
             ConnectionService connectionService,
@@ -38,6 +40,28 @@ final class ConnectionDeletionController {
             Runnable save,
             Consumer<String> status
     ) {
+        this(
+                connectionService,
+                state,
+                workspace,
+                neuronViews,
+                refresh,
+                save,
+                status,
+                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
+        );
+    }
+
+    ConnectionDeletionController(
+            ConnectionService connectionService,
+            EditorState state,
+            WorkspaceView workspace,
+            Map<String, NeuronView> neuronViews,
+            Runnable refresh,
+            Runnable save,
+            Consumer<String> status,
+            LocalizationService localization
+    ) {
         this.connectionService = Objects.requireNonNull(connectionService, "connectionService");
         this.state = Objects.requireNonNull(state, "state");
         this.workspace = Objects.requireNonNull(workspace, "workspace");
@@ -45,22 +69,20 @@ final class ConnectionDeletionController {
         this.refresh = Objects.requireNonNull(refresh, "refresh");
         this.save = Objects.requireNonNull(save, "save");
         this.status = Objects.requireNonNull(status, "status");
+        this.localization = Objects.requireNonNull(localization, "localization");
     }
 
     void beginDelete(String sourceNeuronId) {
         if (!hasConnections(sourceNeuronId)) {
             exitDelete();
-            status.accept("У цього нейрона немає зв'язків для видалення.");
+            status.accept(localization.text("status.no_connections_to_delete"));
             return;
         }
 
         state.enterDeleteConnectionMode(sourceNeuronId);
         refreshDeleteHighlights();
         workspace.node().setCursor(Cursor.CROSSHAIR);
-        status.accept(
-                "Клацни по нейрону або по лінії зв'язку, який треба видалити. "
-                        + "Права кнопка миші скасовує режим."
-        );
+        status.accept(localization.text("status.connection_delete_hint"));
     }
 
     void exitDelete() {
@@ -111,7 +133,7 @@ final class ConnectionDeletionController {
             String targetId = target.model().id();
 
             if (sourceId != null && sourceId.equals(targetId)) {
-                status.accept("Не можна видалити самозв'язок.");
+                status.accept(localization.text("status.self_connection_delete_forbidden"));
                 event.consume();
                 return;
             }
@@ -120,9 +142,9 @@ final class ConnectionDeletionController {
             if (removed > 0) {
                 refresh.run();
                 save.run();
-                status.accept("Контакт між нейронами розірвано.");
+                status.accept(localization.text("status.contact_broken"));
             } else {
-                status.accept("Між цими нейронами немає зв'язку.");
+                status.accept(localization.text("status.no_connection_between"));
             }
 
             event.consume();
@@ -138,7 +160,7 @@ final class ConnectionDeletionController {
             if (connectionService.remove(connectionView.model().id())) {
                 refresh.run();
                 save.run();
-                status.accept("Зв'язок видалено.");
+                status.accept(localization.text("status.connection_deleted"));
             }
             event.consume();
             return;
@@ -192,5 +214,4 @@ final class ConnectionDeletionController {
 
         return false;
     }
-
 }

@@ -2,11 +2,12 @@ package com.example.neuronmap.coordinator;
 
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.controller.ConnectionController;
-import com.example.neuronmap.controller.NeuronInteractionController;
 import com.example.neuronmap.controller.JavaFxNodeLookup;
+import com.example.neuronmap.controller.NeuronInteractionController;
 import com.example.neuronmap.controller.NeuronToolDragController;
 import com.example.neuronmap.controller.SelectionController;
 import com.example.neuronmap.controller.SimulationController;
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.service.NeuronService;
@@ -36,6 +37,7 @@ public final class MapInteractionCoordinator {
     private final MapPresentationCoordinator presentation;
     private final Runnable save;
     private final Consumer<String> status;
+    private final LocalizationService localization;
     private final NeuronToolDragController toolDragController;
 
     public MapInteractionCoordinator(
@@ -50,6 +52,34 @@ public final class MapInteractionCoordinator {
             Runnable save,
             Consumer<String> status
     ) {
+        this(
+                neuronService,
+                state,
+                workspace,
+                selectionController,
+                connectionController,
+                neuronController,
+                simulationController,
+                presentation,
+                save,
+                status,
+                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
+        );
+    }
+
+    public MapInteractionCoordinator(
+            NeuronService neuronService,
+            EditorState state,
+            WorkspaceView workspace,
+            SelectionController selectionController,
+            ConnectionController connectionController,
+            NeuronInteractionController neuronController,
+            SimulationController simulationController,
+            MapPresentationCoordinator presentation,
+            Runnable save,
+            Consumer<String> status,
+            LocalizationService localization
+    ) {
         this.neuronService = Objects.requireNonNull(neuronService, "neuronService");
         this.state = Objects.requireNonNull(state, "state");
         this.workspace = Objects.requireNonNull(workspace, "workspace");
@@ -60,6 +90,7 @@ public final class MapInteractionCoordinator {
         this.presentation = Objects.requireNonNull(presentation, "presentation");
         this.save = Objects.requireNonNull(save, "save");
         this.status = Objects.requireNonNull(status, "status");
+        this.localization = Objects.requireNonNull(localization, "localization");
         this.toolDragController = new NeuronToolDragController(
                 state,
                 workspace,
@@ -80,7 +111,7 @@ public final class MapInteractionCoordinator {
 
         state.enterAddNeuronMode(type);
         workspace.node().setCursor(Cursor.CROSSHAIR);
-        status.accept("Клацни на вільному місці дошки, щоб створити нейрон.");
+        status.accept(localization.text("status.add_neuron_hint"));
     }
 
     public void cancelInteractions() {
@@ -90,7 +121,7 @@ public final class MapInteractionCoordinator {
         neuronController.hideMenu();
         state.resetToIdle();
         workspace.node().setCursor(Cursor.DEFAULT);
-        status.accept("Готово.");
+        status.accept(localization.text("status.ready"));
     }
 
     public void addNeuronAt(NeuronType type, double x, double y) {
@@ -102,7 +133,7 @@ public final class MapInteractionCoordinator {
         neuronController.addViewForNeuron(neuron);
         presentation.refreshAll();
         save.run();
-        status.accept("Додано нейрон.");
+        status.accept(localization.text("status.new_neuron"));
     }
 
     public void groupSelection() {
@@ -117,7 +148,7 @@ public final class MapInteractionCoordinator {
 
     public void exitDeleteConnectionMode() {
         connectionController.exitDelete();
-        status.accept("Режим видалення зв'язків вимкнено.");
+        status.accept(localization.text("status.delete_mode_exit"));
     }
 
     public void dispose() {
@@ -172,5 +203,4 @@ public final class MapInteractionCoordinator {
                 (screenY - state.panY()) / state.zoom()
         );
     }
-
 }

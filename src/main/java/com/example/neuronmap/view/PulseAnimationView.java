@@ -122,12 +122,14 @@ public final class PulseAnimationView extends Pane {
 
     public void pause() {
         if (!finished) {
+            geometryUpdater.stop();
             timeline.pause();
         }
     }
 
     public void resume() {
         if (!finished) {
+            geometryUpdater.start();
             timeline.play();
         }
     }

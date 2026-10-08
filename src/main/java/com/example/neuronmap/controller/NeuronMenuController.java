@@ -1,6 +1,7 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.view.NeuronOverlayPositioner;
 import com.example.neuronmap.view.NeuronSettingsDialog;
@@ -31,6 +32,7 @@ public final class NeuronMenuController {
     private final Runnable refreshOverlays;
     private final Runnable save;
     private final Consumer<String> status;
+    private final LocalizationService localization;
 
     private VBox menu;
     private String activeNeuronId;
@@ -49,6 +51,38 @@ public final class NeuronMenuController {
             Runnable save,
             Consumer<String> status
     ) {
+        this(
+                neuronService,
+                state,
+                workspace,
+                connections,
+                simulation,
+                deletionController,
+                menuCustomizer,
+                refreshVisuals,
+                refreshConnections,
+                refreshOverlays,
+                save,
+                status,
+                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
+        );
+    }
+
+    public NeuronMenuController(
+            NeuronService neuronService,
+            EditorState state,
+            WorkspaceView workspace,
+            ConnectionController connections,
+            SimulationController simulation,
+            NeuronDeletionController deletionController,
+            NeuronMenuCustomizer menuCustomizer,
+            Runnable refreshVisuals,
+            Runnable refreshConnections,
+            Runnable refreshOverlays,
+            Runnable save,
+            Consumer<String> status,
+            LocalizationService localization
+    ) {
         this.neuronService = Objects.requireNonNull(neuronService, "neuronService");
         this.state = Objects.requireNonNull(state, "state");
         this.workspace = Objects.requireNonNull(workspace, "workspace");
@@ -62,6 +96,7 @@ public final class NeuronMenuController {
         this.refreshOverlays = Objects.requireNonNull(refreshOverlays, "refreshOverlays");
         this.save = Objects.requireNonNull(save, "save");
         this.status = Objects.requireNonNull(status, "status");
+        this.localization = Objects.requireNonNull(localization, "localization");
     }
 
     public boolean isVisible() {
@@ -85,16 +120,16 @@ public final class NeuronMenuController {
         HBox actions = new HBox(4);
         actions.setAlignment(Pos.CENTER);
 
-        Button fire = menuButton("⚡", "Відправити імпульс", "neuron-menu-activate");
-        Button addConnection = menuButton("↗", "Додати зв'язок", "");
-        Button settings = menuButton("⚙", "Налаштувати силу сигналу та поріг активації", "");
+        Button fire = menuButton("⚡", localization.text("neuron.menu.fire"), "neuron-menu-activate");
+        Button addConnection = menuButton("↗", localization.text("neuron.menu.add_connection"), "");
+        Button settings = menuButton("⚙", localization.text("neuron.menu.settings"), "");
         Button deleteConnection = null;
         if (connections.hasConnections(neuronId)) {
-            deleteConnection = menuButton("⛓", "Режим видалення зв'язків", "");
+            deleteConnection = menuButton("⛓", localization.text("neuron.menu.delete_connection"), "");
         }
         Button direction = menuCustomizer.createDirectionButton();
-        Button toggleType = menuButton("⇄", "Змінити тип нейрона", "");
-        Button deleteNeuron = menuButton("✕", "Видалити нейрон", "neuron-menu-delete");
+        Button toggleType = menuButton("⇄", localization.text("neuron.menu.toggle_type"), "");
+        Button deleteNeuron = menuButton("✕", localization.text("neuron.menu.delete"), "neuron-menu-delete");
 
         fire.setOnAction(event -> {
             simulation.emitPulse(neuronId);
@@ -114,7 +149,8 @@ public final class NeuronMenuController {
                         workspace.node().getScene() == null
                                 ? null
                                 : workspace.node().getScene().getWindow(),
-                        neuron
+                        neuron,
+                        localization
                 ).ifPresent(values -> {
                     neuronService.updateSettings(
                             neuronId,
@@ -122,7 +158,7 @@ public final class NeuronMenuController {
                             values.activationThreshold()
                     );
                     save.run();
-                    status.accept("Налаштування нейрона збережено.");
+                    status.accept(localization.text("neuron.settings.saved"));
                 });
             }
             event.consume();

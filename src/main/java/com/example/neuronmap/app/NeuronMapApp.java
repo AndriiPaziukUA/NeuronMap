@@ -16,7 +16,6 @@ import javafx.stage.Stage;
 
 import java.nio.file.Path;
 
-
 /** JavaFX application bootstrap and window lifecycle. */
 public final class NeuronMapApp extends Application {
 
@@ -38,7 +37,11 @@ public final class NeuronMapApp extends Application {
         NeuronMapApplicationService application =
                 new NeuronMapApplicationService(model, repository);
         NeuronMapController controller =
-                new NeuronMapController(application, config);
+                new NeuronMapController(
+                        application,
+                        config,
+                        stage::close
+                );
 
         Scene scene = controller.createScene(
                 config.window().defaultWidth(),

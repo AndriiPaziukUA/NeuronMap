@@ -1,5 +1,6 @@
 package com.example.neuronmap.view;
 
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.NeuronType;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -25,57 +26,24 @@ public final class ToolbarView {
     public static final double HEIGHT = 54.0;
 
     private final HBox root = new HBox();
+    private final LocalizationService localization;
 
-    private final Button addExcitatoryButton =
-            toolButton(
-                    "Активуючий",
-                    "Додати активуючий нейрон"
-            );
-
-    private final Button addInhibitoryButton =
-            toolButton(
-                    "Гальмуючий",
-                    "Додати гальмуючий нейрон"
-            );
-
-    private final Button groupButton =
-            toolButton(
-                    "Групувати",
-                    "Групувати вибрані нейрони"
-            );
-
-    private final Button ungroupButton =
-            toolButton(
-                    "Розгрупувати",
-                    "Розгрупувати вибрані нейрони"
-            );
-
-    private final Button exitDeleteButton =
-            toolButton(
-                    "Вийти з видалення зв'язків",
-                    "Вийти з режиму видалення зв'язків"
-            );
-
-    private final Button pauseResumeButton =
-            iconButton(
-                    "❚❚",
-                    "Поставити передачу імпульсів на паузу"
-            );
-
-    private final Button stopSignalsButton =
-            iconButton(
-                    "■",
-                    "Повністю зупинити передачу імпульсів"
-            );
-
+    private final Button addExcitatoryButton = toolButton();
+    private final Button addInhibitoryButton = toolButton();
+    private final Button groupButton = toolButton();
+    private final Button ungroupButton = toolButton();
+    private final Button exitDeleteButton = toolButton();
+    private final Button pauseResumeButton = iconButton("❚❚");
+    private final Button stopSignalsButton = iconButton("■");
     private final Separator simulationSeparator = new Separator();
-    private final Label speedLabel = new Label("мс/такт:");
+    private final Label speedLabel = new Label();
     private final TextField speedField = new TextField();
-    private final Label cameraCoordinatesLabel = new Label("X: 0, Y: 0");
+    private final Label cameraCoordinatesLabel = new Label();
 
     private final Consumer<String> speedChanged;
     private final EventHandler<MouseEvent> sceneMousePressedHandler =
             this::handleSceneMousePressed;
+    private final Consumer<Locale> localizationListener = ignored -> refreshTexts();
     private boolean committingSpeed;
 
     public ToolbarView(
@@ -88,7 +56,32 @@ public final class ToolbarView {
             Consumer<String> speedChanged,
             double initialSpeedMillis
     ) {
+        this(
+                addNeuron,
+                group,
+                ungroup,
+                exitDelete,
+                pauseResume,
+                stopSignals,
+                speedChanged,
+                initialSpeedMillis,
+                new LocalizationService(Locale.forLanguageTag("uk"))
+        );
+    }
+
+    public ToolbarView(
+            Consumer<NeuronType> addNeuron,
+            Runnable group,
+            Runnable ungroup,
+            Runnable exitDelete,
+            Runnable pauseResume,
+            Runnable stopSignals,
+            Consumer<String> speedChanged,
+            double initialSpeedMillis,
+            LocalizationService localization
+    ) {
         this.speedChanged = speedChanged;
+        this.localization = localization;
 
         root.getStyleClass().add("topbar");
         root.setAlignment(Pos.CENTER_LEFT);
@@ -107,9 +100,7 @@ public final class ToolbarView {
         exitDeleteButton.setManaged(false);
 
         pauseResumeButton.getStyleClass().add("simulation-icon-button");
-        stopSignalsButton.getStyleClass().add(
-                "simulation-icon-button-danger"
-        );
+        stopSignalsButton.getStyleClass().add("simulation-icon-button-danger");
         pauseResumeButton.setVisible(false);
         pauseResumeButton.setManaged(false);
         stopSignalsButton.setVisible(false);
@@ -117,67 +108,47 @@ public final class ToolbarView {
         simulationSeparator.setVisible(false);
         simulationSeparator.setManaged(false);
 
-        pauseResumeButton.setOnAction(
-                event -> pauseResume.run()
-        );
-        stopSignalsButton.setOnAction(
-                event -> stopSignals.run()
-        );
+        pauseResumeButton.setOnAction(event -> pauseResume.run());
+        stopSignalsButton.setOnAction(event -> stopSignals.run());
 
         speedLabel.getStyleClass().add("toolbar-speed-label");
         speedField.getStyleClass().add("toolbar-speed-field");
         speedField.setPrefWidth(88.0);
         speedField.setText(formatSpeed(initialSpeedMillis));
-        speedField.setPromptText("650");
         speedField.setAlignment(Pos.CENTER_LEFT);
         speedField.setStyle("-fx-alignment: CENTER-LEFT;");
-        speedField.setTextFormatter(
-                new TextFormatter<>(
-                        numericSpeedFilter()
-                )
-        );
-
+        speedField.setTextFormatter(new TextFormatter<>(numericSpeedFilter()));
         speedField.setOnAction(event -> {
             commitSpeedEdit();
             event.consume();
         });
+        speedField.focusedProperty().addListener((observable, oldFocused, focused) -> {
+            if (!focused && !committingSpeed) {
+                commitSpeedEdit();
+            }
+        });
 
-        speedField.focusedProperty().addListener(
-                (observable, oldFocused, focused) -> {
-                    if (!focused && !committingSpeed) {
-                        commitSpeedEdit();
-                    }
-                }
-        );
-
-        root.sceneProperty().addListener(
-                (observable, oldScene, newScene) -> {
-                    if (oldScene != null) {
-                        oldScene.removeEventFilter(
-                                MouseEvent.MOUSE_PRESSED,
-                                sceneMousePressedHandler
-                        );
-                    }
-
-                    if (newScene != null) {
-                        newScene.addEventFilter(
-                                MouseEvent.MOUSE_PRESSED,
-                                sceneMousePressedHandler
-                        );
-                    }
-                }
-        );
+        root.sceneProperty().addListener((observable, oldScene, newScene) -> {
+            if (oldScene != null) {
+                oldScene.removeEventFilter(
+                        MouseEvent.MOUSE_PRESSED,
+                        sceneMousePressedHandler
+                );
+            }
+            if (newScene != null) {
+                newScene.addEventFilter(
+                        MouseEvent.MOUSE_PRESSED,
+                        sceneMousePressedHandler
+                );
+            }
+        });
 
         cameraCoordinatesLabel.getStyleClass().add("toolbar-hint");
         cameraCoordinatesLabel.setMinWidth(140.0);
         cameraCoordinatesLabel.setAlignment(Pos.CENTER_RIGHT);
 
-        addExcitatoryButton.setOnAction(
-                event -> addNeuron.accept(NeuronType.EXCITATORY)
-        );
-        addInhibitoryButton.setOnAction(
-                event -> addNeuron.accept(NeuronType.INHIBITORY)
-        );
+        addExcitatoryButton.setOnAction(event -> addNeuron.accept(NeuronType.EXCITATORY));
+        addInhibitoryButton.setOnAction(event -> addNeuron.accept(NeuronType.INHIBITORY));
         groupButton.setOnAction(event -> group.run());
         ungroupButton.setOnAction(event -> ungroup.run());
         exitDeleteButton.setOnAction(event -> exitDelete.run());
@@ -185,10 +156,6 @@ public final class ToolbarView {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        /*
-         * Speed is deliberately placed before the dynamic simulation controls.
-         * Showing/hiding pause/stop therefore never shifts the speed field.
-         */
         root.getChildren().addAll(
                 title,
                 addExcitatoryButton,
@@ -205,6 +172,9 @@ public final class ToolbarView {
                 spacer,
                 cameraCoordinatesLabel
         );
+
+        localization.addListener(localizationListener);
+        refreshTexts();
     }
 
     public HBox node() {
@@ -234,16 +204,12 @@ public final class ToolbarView {
     }
 
     public void setSimulationPaused(boolean paused) {
-        pauseResumeButton.setText(
-                paused ? "▶" : "❚❚"
-        );
-        pauseResumeButton.setTooltip(
-                new Tooltip(
-                        paused
-                                ? "Продовжити передачу імпульсів"
-                                : "Поставити передачу імпульсів на паузу"
+        pauseResumeButton.setText(paused ? "▶" : "❚❚");
+        pauseResumeButton.setTooltip(new Tooltip(
+                localization.text(
+                        paused ? "toolbar.resume.tooltip" : "toolbar.pause.tooltip"
                 )
-        );
+        ));
     }
 
     public void setSimulationSpeedMillis(double millis) {
@@ -257,19 +223,31 @@ public final class ToolbarView {
         );
     }
 
+    private void refreshTexts() {
+        addExcitatoryButton.setText(localization.text("toolbar.excitatory"));
+        addExcitatoryButton.setTooltip(new Tooltip(localization.text("toolbar.excitatory.tooltip")));
+        addInhibitoryButton.setText(localization.text("toolbar.inhibitory"));
+        addInhibitoryButton.setTooltip(new Tooltip(localization.text("toolbar.inhibitory.tooltip")));
+        groupButton.setText(localization.text("toolbar.group"));
+        groupButton.setTooltip(new Tooltip(localization.text("toolbar.group.tooltip")));
+        ungroupButton.setText(localization.text("toolbar.ungroup"));
+        ungroupButton.setTooltip(new Tooltip(localization.text("toolbar.ungroup.tooltip")));
+        exitDeleteButton.setText(localization.text("toolbar.exit_delete"));
+        exitDeleteButton.setTooltip(new Tooltip(localization.text("toolbar.exit_delete.tooltip")));
+        stopSignalsButton.setTooltip(new Tooltip(localization.text("toolbar.stop.tooltip")));
+        speedLabel.setText(localization.text("toolbar.speed"));
+        speedField.setPromptText(localization.text("toolbar.speed.prompt"));
+        setSimulationPaused(pauseResumeButton.getText().equals("▶"));
+    }
+
     private void handleSceneMousePressed(MouseEvent event) {
         if (!speedField.isFocused()) {
             return;
         }
-
-        Node target = event.getTarget() instanceof Node node
-                ? node
-                : null;
-
+        Node target = event.getTarget() instanceof Node node ? node : null;
         if (isDescendantOrSelf(target, speedField)) {
             return;
         }
-
         commitSpeedEdit();
     }
 
@@ -277,7 +255,6 @@ public final class ToolbarView {
         if (committingSpeed) {
             return;
         }
-
         committingSpeed = true;
         try {
             speedChanged.accept(speedField.getText());
@@ -290,50 +267,33 @@ public final class ToolbarView {
     private static UnaryOperator<TextFormatter.Change> numericSpeedFilter() {
         return change -> {
             String text = change.getControlNewText();
-
             if (text.isEmpty()) {
                 return change;
             }
-
-            return text.matches("\\d+(\\.\\d*)?")
-                    ? change
-                    : null;
+            return text.matches("\\d+(\\.\\d*)?") ? change : null;
         };
     }
 
-    private static boolean isDescendantOrSelf(
-            Node target,
-            Node parent
-    ) {
+    private static boolean isDescendantOrSelf(Node target, Node parent) {
         Node current = target;
-
         while (current != null) {
             if (current == parent) {
                 return true;
             }
             current = current.getParent();
         }
-
         return false;
     }
 
-    private static Button toolButton(
-            String text,
-            String tooltipText
-    ) {
-        Button button = new Button(text);
+    private static Button toolButton() {
+        Button button = new Button();
         button.getStyleClass().add("tool-button");
-        button.setTooltip(new Tooltip(tooltipText));
         return button;
     }
 
-    private static Button iconButton(
-            String text,
-            String tooltipText
-    ) {
+    private static Button iconButton(String text) {
         Button button = new Button(text);
         button.getStyleClass().add("tool-button");
-        button.setTooltip(new Tooltip(tooltipText));
         return button;
     }
 
@@ -345,17 +305,8 @@ public final class ToolbarView {
 
     private static String formatCoordinate(double value) {
         if (Math.abs(value - Math.rint(value)) < 0.0001) {
-            return String.format(
-                    Locale.ROOT,
-                    "%.0f",
-                    value
-            );
+            return String.format(Locale.ROOT, "%.0f", value);
         }
-
-        return String.format(
-                Locale.ROOT,
-                "%.1f",
-                value
-        );
+        return String.format(Locale.ROOT, "%.1f", value);
     }
 }

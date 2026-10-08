@@ -1,6 +1,7 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.service.GroupService;
 
 import java.util.HashSet;
@@ -15,6 +16,7 @@ public final class SelectionController {
     private final Runnable refreshNeuronViews;
     private final Runnable save;
     private final Consumer<String> status;
+    private final LocalizationService localization;
 
     public SelectionController(
             GroupService groupService,
@@ -23,11 +25,30 @@ public final class SelectionController {
             Runnable save,
             Consumer<String> status
     ) {
+        this(
+                groupService,
+                state,
+                refreshNeuronViews,
+                save,
+                status,
+                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
+        );
+    }
+
+    public SelectionController(
+            GroupService groupService,
+            EditorState state,
+            Runnable refreshNeuronViews,
+            Runnable save,
+            Consumer<String> status,
+            LocalizationService localization
+    ) {
         this.groupService = groupService;
         this.state = state;
         this.refreshNeuronViews = refreshNeuronViews;
         this.save = save;
         this.status = status;
+        this.localization = localization;
     }
 
     public void selectForPrimaryPress(String neuronId, boolean additive) {
@@ -57,9 +78,7 @@ public final class SelectionController {
 
     public void groupSelection() {
         if (state.selectedNeuronIds().size() < 2) {
-            status.accept(
-                    "Для групи вибери щонайменше два нейрони через Ctrl+клік."
-            );
+            status.accept(localization.text("status.group_min"));
             return;
         }
 
@@ -68,9 +87,10 @@ public final class SelectionController {
         );
         save.run();
         status.accept(
-                "Створено групу з "
-                        + state.selectedNeuronIds().size()
-                        + " нейронів."
+                localization.text(
+                        "status.group_created",
+                        state.selectedNeuronIds().size()
+                )
         );
     }
 
@@ -79,6 +99,6 @@ public final class SelectionController {
                 new HashSet<>(state.selectedNeuronIds())
         );
         save.run();
-        status.accept("Вибрані нейрони розгруповано.");
+        status.accept(localization.text("status.ungrouped"));
     }
 }

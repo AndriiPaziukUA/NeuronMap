@@ -1,8 +1,11 @@
 package com.example.neuronmap.view;
 
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.NeuronType;
 import javafx.scene.Scene;
+import javafx.scene.effect.GaussianBlur;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 
 import java.net.URL;
 import java.util.function.Consumer;
@@ -10,10 +13,12 @@ import java.util.function.Consumer;
 /** Top-level view. It owns layout composition only. */
 public final class MainView {
 
-    private final RootPane root = new RootPane();
+    private final StackPane root = new StackPane();
+    private final RootPane content = new RootPane();
     private final ToolbarView toolbar;
     private final WorkspaceView workspace = new WorkspaceView();
     private final StatusBarView statusBar = new StatusBarView();
+    private final MainMenuView mainMenu;
 
     public MainView(
             Consumer<NeuronType> addNeuron,
@@ -25,6 +30,30 @@ public final class MainView {
             Consumer<String> speedChanged,
             double initialSpeedMillis
     ) {
+        this(
+                addNeuron,
+                group,
+                ungroup,
+                exitDelete,
+                pauseResume,
+                stopSignals,
+                speedChanged,
+                initialSpeedMillis,
+                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
+        );
+    }
+
+    public MainView(
+            Consumer<NeuronType> addNeuron,
+            Runnable group,
+            Runnable ungroup,
+            Runnable exitDelete,
+            Runnable pauseResume,
+            Runnable stopSignals,
+            Consumer<String> speedChanged,
+            double initialSpeedMillis,
+            LocalizationService localization
+    ) {
         toolbar = new ToolbarView(
                 addNeuron,
                 group,
@@ -33,18 +62,27 @@ public final class MainView {
                 pauseResume,
                 stopSignals,
                 speedChanged,
-                initialSpeedMillis
+                initialSpeedMillis,
+                localization
         );
 
-        root.getStyleClass().add("root");
-        root.getChildren().addAll(
+        mainMenu = new MainMenuView(
+                localization,
+                this::setMainMenuVisualState
+        );
+
+        content.getStyleClass().add("root");
+        content.getChildren().addAll(
                 toolbar.node(),
                 workspace.node(),
                 statusBar.node()
         );
+        content.setPickOnBounds(true);
+        content.requestLayout();
 
+        root.getStyleClass().add("root");
+        root.getChildren().addAll(content, mainMenu);
         root.setPickOnBounds(true);
-        root.requestLayout();
     }
 
     public Scene createScene(double width, double height) {
@@ -60,6 +98,10 @@ public final class MainView {
         return scene;
     }
 
+    public StackPane node() {
+        return root;
+    }
+
     public WorkspaceView workspace() {
         return workspace;
     }
@@ -68,8 +110,19 @@ public final class MainView {
         return toolbar;
     }
 
+    public MainMenuView mainMenu() {
+        return mainMenu;
+    }
+
     public void setStatus(String text) {
         statusBar.setText(text);
+    }
+
+    private void setMainMenuVisualState(boolean visible) {
+        content.setDisable(visible);
+        content.setEffect(
+                visible ? new GaussianBlur(7.0) : null
+        );
     }
 
     private static final class RootPane extends Pane {
@@ -123,4 +176,3 @@ public final class MainView {
         }
     }
 }
-
