@@ -48,9 +48,12 @@ public final class TransientProjectRepository implements MapRepository {
 
     @Override
     public double loadSimulationTickMillis(double fallbackMillis) {
-        return delegate == null || pendingSimulationTickMillis == null
-                ? fallbackMillis
-                : pendingSimulationTickMillis;
+        if (delegate == null) {
+            return pendingSimulationTickMillis == null
+                    ? fallbackMillis
+                    : pendingSimulationTickMillis;
+        }
+        return delegate.loadSimulationTickMillis(fallbackMillis);
     }
 
     @Override

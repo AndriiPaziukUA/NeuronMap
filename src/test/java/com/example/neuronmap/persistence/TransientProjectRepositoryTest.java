@@ -62,6 +62,8 @@ final class TransientProjectRepositoryTest {
         CameraState camera = new CameraState(1.5, 20, -10);
 
         repository.save(model, camera);
+        assertEquals(650.0, repository.loadSimulationTickMillis(650.0));
+
         repository.saveSimulationTickMillis(275.0);
 
         assertFalse(repository.isPersistent());
