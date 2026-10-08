@@ -5,6 +5,7 @@ import com.example.neuronmap.config.AppConfig;
 import com.example.neuronmap.coordinator.MapEditorCoordinator;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.persistence.GlobalSettingsStore;
+import com.example.neuronmap.persistence.ProjectStorageDirectoryResolver;
 import javafx.scene.Scene;
 
 import java.nio.file.Path;
@@ -34,11 +35,11 @@ public final class NeuronMapController {
         Objects.requireNonNull(application, "application");
         Objects.requireNonNull(config, "config");
 
-        Path globalSettingsPath = application.map()
-                .databasePath()
-                .resolveSibling("neuronmap-global.properties");
+        Path storageDirectory = ProjectStorageDirectoryResolver.resolve();
         LocalizationService localization = new LocalizationService(
-                new GlobalSettingsStore(globalSettingsPath)
+                new GlobalSettingsStore(
+                        storageDirectory.resolve("neuronmap-global.properties")
+                )
         );
 
         this.coordinator = new MapEditorCoordinator(

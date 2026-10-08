@@ -18,6 +18,12 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.persistence.CameraState;
+import com.example.neuronmap.persistence.GlobalSettingsStore;
+import com.example.neuronmap.persistence.ProjectDirectoryWatcher;
+import com.example.neuronmap.persistence.ProjectStorageDirectoryResolver;
+import com.example.neuronmap.persistence.GlobalSettingsStore;
+import com.example.neuronmap.persistence.ProjectDirectoryWatcher;
+import com.example.neuronmap.persistence.ProjectStorageDirectoryResolver;
 import com.example.neuronmap.persistence.MapRepository;
 import com.example.neuronmap.persistence.SqliteMapRepository;
 import com.example.neuronmap.persistence.TransientProjectRepository;
@@ -39,6 +45,8 @@ import javafx.scene.input.MouseEvent;
 
 import java.util.HashMap;
 import java.util.List;
+import java.nio.file.Path;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.Objects;
 
@@ -76,6 +84,7 @@ public final class MapEditorCoordinator {
     private final MapInteractionCoordinator interaction;
     private final EditorHistoryCoordinator historyCoordinator;
     private final MainMenuController mainMenuController;
+    private final ProjectDirectoryWatcher projectDirectoryWatcher;
     private ImmediateTooltipManager tooltipManager;
     private ProjectDescriptor currentProject;
     private boolean historyInitialized;
@@ -109,13 +118,17 @@ public final class MapEditorCoordinator {
         this.neuronService = application.neurons();
         this.connectionService = application.connections();
         this.groupService = application.groups();
-        this.projectCatalog = new ProjectCatalogService(mapService.databasePath());
-        projectCatalog.ensureLegacyProject(localization.text("project.legacy_name"));
-        this.currentProject = projectCatalog
-                .findProject(ProjectCatalogService.LEGACY_PROJECT_ID)
-                .orElseGet(() -> projectCatalog.legacyDescriptor(
-                        localization.text("project.legacy_name")
-                ));
+        Path storageDirectory = ProjectStorageDirectoryResolver.resolve();
+        GlobalSettingsStore globalSettings = new GlobalSettingsStore(
+                storageDirectory.resolve("neuronmap-global.properties")
+        );
+        this.projectCatalog = new ProjectCatalogService(
+                storageDirectory,
+                globalSettings
+        );
+        this.currentProject = projectCatalog.descriptorForDatabasePath(
+                mapService.databasePath()
+        );
 
         this.historyService = new HistoryService(neuronService.model());
         this.minSimulationTickMillis = config.simulation().minTickMillis();
@@ -161,7 +174,8 @@ public final class MapEditorCoordinator {
         menuCustomizer.removeDeleteConnectionModeExitButton();
 
         mapService.load();
-        if (neuronService.model().isEmpty()) {
+        if (neuronService.model().isEmpty()
+                && !currentProject.isPersisted()) {
             createDemoMap();
             saveNow();
         }
@@ -298,13 +312,18 @@ public final class MapEditorCoordinator {
                 this::resumeAfterMenu
         );
 
+        projectDirectoryWatcher = new ProjectDirectoryWatcher(
+                projectCatalog.storageDirectory(),
+                mainMenuController::refreshProjects
+        );
+        projectDirectoryWatcher.start();
+
         neuronController.loadViews();
         presentation.refreshAll();
         interaction.install();
         cameraController.install();
         connectionController.install();
 
-        restoreLastProject();
     }
 
     public Scene createScene(double width, double height) {
@@ -350,6 +369,7 @@ public final class MapEditorCoordinator {
     }
 
     public void shutdown() {
+        projectDirectoryWatcher.close();
         mainMenuController.dispose(scene);
         simulationController.shutdown();
         connectionController.clearDeleteHighlights();
@@ -385,8 +405,11 @@ public final class MapEditorCoordinator {
             simulationController.setTickDurationMillis(millis);
             simulationTickMillis = millis;
             mapService.saveSimulationTickMillis(millis);
-            if (mapService.isPersistent() && currentProject != null) {
-                currentProject = projectCatalog.register(currentProject);
+            if (mapService.isPersistent()) {
+                currentProject = projectCatalog.descriptorForDatabasePath(
+                        mapService.databasePath()
+                );
+                projectCatalog.markLastOpened(currentProject);
             }
             view.toolbar().setSimulationSpeedMillis(millis);
         } catch (RuntimeException exception) {
@@ -413,8 +436,7 @@ public final class MapEditorCoordinator {
                 localization.text("project.default_name")
         );
         TransientProjectRepository repository = new TransientProjectRepository(
-                project.databasePath(),
-                () -> registerProject(project)
+                project.databasePath()
         );
         activateProject(project, repository, false);
     }
@@ -447,12 +469,37 @@ public final class MapEditorCoordinator {
         if (project == null || name == null || name.isBlank()) {
             return project;
         }
-        ProjectDescriptor renamed = projectCatalog.rename(project, name);
-        if (currentProject != null
-                && currentProject.id().equals(project.id())) {
-            currentProject = renamed;
+
+        boolean active = currentProject != null
+                && currentProject.databasePath().equals(project.databasePath());
+        if (!active) {
+            return projectCatalog.rename(project, name);
         }
-        return renamed;
+
+        saveNow();
+        mapService.close();
+
+        try {
+            ProjectDescriptor renamed = projectCatalog.rename(project, name);
+            mapService.switchRepository(
+                    new SqliteMapRepository(renamed.databasePath())
+            );
+            currentProject = renamed;
+            projectCatalog.markLastOpened(renamed);
+            return renamed;
+        } catch (RuntimeException exception) {
+            try {
+                mapService.switchRepository(
+                        new SqliteMapRepository(project.databasePath())
+                );
+                currentProject = projectCatalog.descriptorForDatabasePath(
+                        project.databasePath()
+                );
+            } catch (RuntimeException ignored) {
+                // Preserve the original rename failure.
+            }
+            throw exception;
+        }
     }
 
     private void deleteProject(ProjectDescriptor project) {
@@ -473,8 +520,7 @@ public final class MapEditorCoordinator {
                 localization.text("project.default_name")
         );
         TransientProjectRepository repository = new TransientProjectRepository(
-                replacement.databasePath(),
-                () -> registerProject(replacement)
+                replacement.databasePath()
         );
         activateProject(replacement, repository, false);
         projectCatalog.delete(project);
@@ -546,25 +592,8 @@ public final class MapEditorCoordinator {
         view.mainMenu().showMainPage();
     }
 
-    private void restoreLastProject() {
-        ProjectDescriptor last = projectCatalog.lastOpenedProject();
-        if (last == null) {
-            return;
-        }
-        if (currentProject != null
-                && currentProject.id().equals(last.id())) {
-            currentProject = last;
-            return;
-        }
-        openProject(last);
-    }
 
-    private void registerProject(ProjectDescriptor project) {
-        projectCatalog.register(project);
-        projectCatalog.markLastOpened(project);
-        currentProject = projectCatalog.findProject(project.id())
-                .orElse(project);
-    }
+
 
     private void createDemoMap() {
         Neuron first = neuronService.create(NeuronType.EXCITATORY, 250, 220);
@@ -607,23 +636,12 @@ public final class MapEditorCoordinator {
     }
 
     private void saveNow() {
-        boolean wasPersistent = mapService.isPersistent();
-        boolean shouldSave = currentProject == null
-                || currentProject.isPersisted()
-                || !currentProject.id().equals(ProjectCatalogService.LEGACY_PROJECT_ID)
-                || java.nio.file.Files.isRegularFile(mapService.databasePath());
+        mapService.save(state);
 
-        if (shouldSave) {
-            mapService.save(state);
-        }
-
-        boolean projectWasAlreadyPersisted = wasPersistent
-                && currentProject != null
-                && (currentProject.isPersisted()
-                || java.nio.file.Files.isRegularFile(mapService.databasePath()));
-
-        if (projectWasAlreadyPersisted) {
-            currentProject = projectCatalog.register(currentProject);
+        if (mapService.isPersistent()) {
+            currentProject = projectCatalog.descriptorForDatabasePath(
+                    mapService.databasePath()
+            );
             projectCatalog.markLastOpened(currentProject);
         }
 

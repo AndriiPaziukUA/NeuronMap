@@ -13,6 +13,7 @@ public final class SqliteMapRepository implements MapRepository {
     private final SqliteSettingsStore settings;
     private final SqliteMapLoader loader;
     private final SqliteMapWriter writer;
+    private boolean closed;
 
     public SqliteMapRepository() {
         this(DatabasePathResolver.resolve());
@@ -24,13 +25,17 @@ public final class SqliteMapRepository implements MapRepository {
         }
 
         this.databasePath = databasePath.toAbsolutePath().normalize();
-        LegacyDatabaseMigrator.migrateIfNeeded(this.databasePath);
         this.connection = SqliteConnectionFactory.open(this.databasePath);
         SqliteSchema.migrate(this.connection);
 
         this.settings = new SqliteSettingsStore(this.connection);
         this.loader = new SqliteMapLoader(this.connection);
         this.writer = new SqliteMapWriter(this.connection, settings);
+    }
+
+    @Override
+    public boolean isPersistent() {
+        return !closed;
     }
 
     @Override
@@ -45,11 +50,14 @@ public final class SqliteMapRepository implements MapRepository {
 
     @Override
     public synchronized void saveSimulationTickMillis(double millis) {
+        ensureOpen();
         settings.saveSimulationTickMillis(millis);
+        touchDatabaseFile();
     }
 
     @Override
     public CameraState loadCameraState() {
+        ensureOpen();
         try {
             String zoom = settings.load("zoom");
             String panX = settings.load("panX");
@@ -67,6 +75,7 @@ public final class SqliteMapRepository implements MapRepository {
 
     @Override
     public void loadInto(NeuronMapModel model) {
+        ensureOpen();
         try {
             loader.loadInto(model);
         } catch (SQLException exception) {
@@ -82,10 +91,12 @@ public final class SqliteMapRepository implements MapRepository {
             NeuronMapModel model,
             CameraState cameraState
     ) {
+        ensureOpen();
         try {
             connection.setAutoCommit(false);
             writer.save(model, cameraState);
             connection.commit();
+            touchDatabaseFile();
         } catch (SQLException exception) {
             rollbackQuietly();
             throw failure(
@@ -98,11 +109,35 @@ public final class SqliteMapRepository implements MapRepository {
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
+        if (closed) {
+            return;
+        }
+        closed = true;
         try {
             connection.close();
         } catch (SQLException exception) {
             throw failure("Не вдалося закрити SQLite.", exception);
+        }
+    }
+
+    private void touchDatabaseFile() {
+        try {
+            java.nio.file.Files.setLastModifiedTime(
+                    databasePath,
+                    java.nio.file.attribute.FileTime.from(java.time.Instant.now())
+            );
+        } catch (java.io.IOException exception) {
+            throw failure(
+                    "Не вдалося оновити час зміни SQLite.",
+                    exception
+            );
+        }
+    }
+
+    private void ensureOpen() {
+        if (closed) {
+            throw new IllegalStateException("SQLite repository is closed");
         }
     }
 

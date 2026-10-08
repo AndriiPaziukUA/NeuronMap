@@ -1,6 +1,7 @@
 package com.example.neuronmap.service;
 
 import com.example.neuronmap.application.project.ProjectDescriptor;
+import com.example.neuronmap.persistence.GlobalSettingsStore;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -10,85 +11,169 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class ProjectCatalogServiceTest {
 
     @Test
-    void catalogTracksNamesAndLastOpenedProjects(@TempDir Path tempDir) throws Exception {
-        Path legacy = tempDir.resolve("neuronmap.db");
-        Files.writeString(legacy, "legacy");
+    void listsOnlyDirectoriesContainingProjectDatabase(@TempDir Path tempDir)
+            throws Exception {
+        Path root = tempDir.resolve("NeuronMap");
+        GlobalSettingsStore settings = new GlobalSettingsStore(
+                root.resolve("neuronmap-global.properties")
+        );
+        ProjectCatalogService catalog = new ProjectCatalogService(root, settings);
 
-        ProjectCatalogService catalog = new ProjectCatalogService(legacy);
-        catalog.ensureLegacyProject("NeuronMap");
-
-        List<ProjectDescriptor> initial = catalog.listProjects();
-        assertEquals(1, initial.size());
-        assertEquals("NeuronMap", initial.get(0).name());
-
-        ProjectDescriptor second = catalog.createTransientProject("Project");
-        Files.createDirectories(second.databasePath().getParent());
-        Files.writeString(second.databasePath(), "project");
-        ProjectDescriptor persisted = catalog.register(second);
-        catalog.markLastOpened(persisted);
-
-        assertEquals(persisted.id(), catalog.lastOpenedProject().id());
-
-        ProjectDescriptor renamed = catalog.rename(persisted, "Experiment");
-        assertEquals("Experiment", renamed.name());
-        assertEquals("Experiment", catalog.findProject(second.id()).orElseThrow().name());
-        assertNotNull(catalog.findProject(second.id()).orElseThrow().modifiedAt());
+        Files.createDirectories(root.resolve("Visible"));
+        Files.writeString(root.resolve("Visible").resolve("project.db"), "db");
+        Files.createDirectories(root.resolve("Empty"));
+        Files.writeString(root.resolve("ignored.txt"), "ignored");
 
         List<ProjectDescriptor> projects = catalog.listProjects();
-        assertTrue(projects.stream().anyMatch(p -> "Experiment".equals(p.name())));
 
-        catalog.delete(renamed);
-        assertFalse(Files.exists(second.databasePath()));
-        assertTrue(catalog.findProject(second.id()).isEmpty());
+        assertEquals(1, projects.size());
+        assertEquals("Visible", projects.getFirst().name());
+        assertFalse(projects.stream().anyMatch(
+                project -> project.name().equals("Empty")
+        ));
     }
 
     @Test
-    void generatedNamesUseProjectThenFirstAvailableSuffix(@TempDir Path tempDir) throws Exception {
-        Path legacy = tempDir.resolve("neuronmap.db");
-        Files.writeString(legacy, "legacy");
-        ProjectCatalogService catalog = new ProjectCatalogService(legacy);
+    void generatedNamesReuseFoldersWithoutProjectDatabase(@TempDir Path tempDir)
+            throws Exception {
+        Path root = tempDir.resolve("NeuronMap");
+        ProjectCatalogService catalog = new ProjectCatalogService(
+                root,
+                new GlobalSettingsStore(root.resolve("settings.properties"))
+        );
 
-        ProjectDescriptor first = catalog.createTransientProject("Project");
-        materialize(catalog, first);
-        ProjectDescriptor second = catalog.createTransientProject("Project");
-        materialize(catalog, second);
-        ProjectDescriptor third = catalog.createTransientProject("Project");
+        Files.createDirectories(root.resolve("Project"));
+        Files.writeString(root.resolve("Project").resolve("junk.txt"), "junk");
 
-        assertEquals("Project", first.name());
-        assertEquals("Project 1", second.name());
-        assertEquals("Project 2", third.name());
+        ProjectDescriptor project = catalog.createTransientProject("Project");
+
+        assertEquals("Project", project.name());
+        assertTrue(Files.exists(root.resolve("Project").resolve("junk.txt")));
+        assertFalse(catalog.listProjects().stream()
+                .anyMatch(saved -> saved.name().equals("Project")));
     }
 
     @Test
-    void renamedProjectMovesToTopByModificationTime(@TempDir Path tempDir) throws Exception {
-        Path legacy = tempDir.resolve("neuronmap.db");
-        Files.writeString(legacy, "legacy");
-        ProjectCatalogService catalog = new ProjectCatalogService(legacy);
-        catalog.ensureLegacyProject("Legacy");
+    void generatedNamesUseFirstAvailableSuffix(@TempDir Path tempDir)
+            throws Exception {
+        Path root = tempDir.resolve("NeuronMap");
+        ProjectCatalogService catalog = new ProjectCatalogService(
+                root,
+                new GlobalSettingsStore(root.resolve("settings.properties"))
+        );
+        Files.createDirectories(root.resolve("Project"));
+        Files.writeString(root.resolve("Project/project.db"), "1");
+        Files.createDirectories(root.resolve("Project 1"));
+        Files.writeString(root.resolve("Project 1/project.db"), "2");
 
-        ProjectDescriptor first = catalog.createTransientProject("Project");
-        ProjectDescriptor second = catalog.createTransientProject("Project");
-        first = materialize(catalog, first);
-        second = materialize(catalog, second);
+        ProjectDescriptor next = catalog.createTransientProject("Project");
 
-        assertEquals(second.id(), catalog.listProjects().get(0).id());
-
-        catalog.rename(first, "Renamed");
-        assertEquals(first.id(), catalog.listProjects().get(0).id());
+        assertEquals("Project 2", next.name());
     }
 
-    private static ProjectDescriptor materialize(
-            ProjectCatalogService catalog,
-            ProjectDescriptor project
+    @Test
+    void renameReusesAndCleansDirectoryWithoutProjectDatabase(
+            @TempDir Path tempDir
     ) throws Exception {
-        Files.createDirectories(project.databasePath().getParent());
-        Files.writeString(project.databasePath(), "project-" + project.id());
-        return catalog.register(project);
+        Path root = tempDir.resolve("NeuronMap");
+        ProjectCatalogService catalog = new ProjectCatalogService(
+                root,
+                new GlobalSettingsStore(root.resolve("settings.properties"))
+        );
+        Path source = root.resolve("Project");
+        Path target = root.resolve("Experiment");
+        Files.createDirectories(source);
+        Files.writeString(source.resolve("project.db"), "db");
+        Files.createDirectories(target);
+        Files.writeString(target.resolve("junk.txt"), "junk");
+
+        ProjectDescriptor renamed = catalog.rename(
+                catalog.listProjects().getFirst(),
+                "Experiment"
+        );
+
+        assertEquals("Experiment", renamed.name());
+        assertTrue(Files.isRegularFile(target.resolve("project.db")));
+        assertFalse(Files.exists(target.resolve("junk.txt")));
+    }
+
+    @Test
+    void renameMovesTheProjectFolderAndKeepsDatabase(@TempDir Path tempDir)
+            throws Exception {
+        Path root = tempDir.resolve("NeuronMap");
+        ProjectCatalogService catalog = new ProjectCatalogService(
+                root,
+                new GlobalSettingsStore(root.resolve("settings.properties"))
+        );
+        Path source = root.resolve("Project");
+        Files.createDirectories(source);
+        Files.writeString(source.resolve("project.db"), "db");
+
+        ProjectDescriptor project = catalog.listProjects().getFirst();
+        ProjectDescriptor renamed = catalog.rename(project, "Experiment");
+
+        assertEquals("Experiment", renamed.name());
+        assertTrue(Files.isRegularFile(
+                root.resolve("Experiment").resolve("project.db")
+        ));
+        assertFalse(Files.exists(source));
+    }
+
+    @Test
+    void externalProjectIsDiscoverableWithoutCatalogMetadata(@TempDir Path tempDir)
+            throws Exception {
+        Path root = tempDir.resolve("NeuronMap");
+        ProjectCatalogService catalog = new ProjectCatalogService(
+                root,
+                new GlobalSettingsStore(root.resolve("settings.properties"))
+        );
+        Path database = root.resolve("Copied").resolve("project.db");
+        Files.createDirectories(database.getParent());
+        Files.writeString(database, "copied");
+
+        assertEquals("Copied", catalog.listProjects().getFirst().name());
+    }
+
+    @Test
+    void projectsAreOrderedByModificationTime(@TempDir Path tempDir)
+            throws Exception {
+        Path root = tempDir.resolve("NeuronMap");
+        ProjectCatalogService catalog = new ProjectCatalogService(
+                root,
+                new GlobalSettingsStore(root.resolve("settings.properties"))
+        );
+        Path older = root.resolve("Older").resolve("project.db");
+        Path newer = root.resolve("Newer").resolve("project.db");
+        Files.createDirectories(older.getParent());
+        Files.createDirectories(newer.getParent());
+        Files.writeString(older, "old");
+        Thread.sleep(20);
+        Files.writeString(newer, "new");
+
+        assertEquals("Newer", catalog.listProjects().getFirst().name());
+    }
+
+    @Test
+    void lastOpenedProjectIsStoredOutsideProjectFiles(@TempDir Path tempDir)
+            throws Exception {
+        Path root = tempDir.resolve("NeuronMap");
+        GlobalSettingsStore settings = new GlobalSettingsStore(
+                root.resolve("settings.properties")
+        );
+        ProjectCatalogService catalog = new ProjectCatalogService(root, settings);
+        Path database = root.resolve("Experiment").resolve("project.db");
+        Files.createDirectories(database.getParent());
+        Files.writeString(database, "db");
+        ProjectDescriptor project = catalog.listProjects().getFirst();
+
+        catalog.markLastOpened(project);
+
+        ProjectCatalogService reloaded = new ProjectCatalogService(root, settings);
+        assertEquals("Experiment", reloaded.lastOpenedProject().name());
     }
 }

@@ -5,28 +5,23 @@ import com.example.neuronmap.model.NeuronMapModel;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
 
 /** Keeps a new project in memory until its first real board element is persisted. */
 public final class TransientProjectRepository implements MapRepository {
 
     private final Path databasePath;
-    private final Runnable onMaterialized;
     private MapRepository delegate;
     private CameraState pendingCameraState = CameraState.defaultState();
     private Double pendingSimulationTickMillis;
+    private boolean closed;
 
-    public TransientProjectRepository(
-            Path databasePath,
-            Runnable onMaterialized
-    ) {
+    public TransientProjectRepository(Path databasePath) {
         this.databasePath = Objects.requireNonNull(databasePath, "databasePath")
                 .toAbsolutePath()
                 .normalize();
-        this.onMaterialized = Objects.requireNonNull(
-                onMaterialized,
-                "onMaterialized"
-        );
     }
 
     @Override
@@ -58,6 +53,9 @@ public final class TransientProjectRepository implements MapRepository {
 
     @Override
     public void loadInto(NeuronMapModel model) {
+        if (model == null) {
+            throw new IllegalArgumentException("model must not be null");
+        }
         if (delegate == null) {
             model.clear();
             return;
@@ -67,6 +65,7 @@ public final class TransientProjectRepository implements MapRepository {
 
     @Override
     public void saveSimulationTickMillis(double millis) {
+        ensureOpen();
         if (delegate == null) {
             pendingSimulationTickMillis = millis;
             return;
@@ -75,10 +74,11 @@ public final class TransientProjectRepository implements MapRepository {
     }
 
     @Override
-    public void save(
+    public synchronized void save(
             NeuronMapModel model,
             CameraState cameraState
     ) {
+        ensureOpen();
         if (model == null) {
             throw new IllegalArgumentException("model must not be null");
         }
@@ -91,52 +91,82 @@ public final class TransientProjectRepository implements MapRepository {
             return;
         }
 
-        boolean wasTransient = delegate == null;
-        MapRepository active = materialize();
-        active.save(model, pendingCameraState);
-
-        if (pendingSimulationTickMillis != null) {
-            active.saveSimulationTickMillis(pendingSimulationTickMillis);
+        if (delegate == null) {
+            materialize();
         }
 
-        if (wasTransient) {
-            notifyMaterialized();
+        delegate.save(model, pendingCameraState);
+        if (pendingSimulationTickMillis != null) {
+            delegate.saveSimulationTickMillis(pendingSimulationTickMillis);
         }
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
+        if (closed) {
+            return;
+        }
+        closed = true;
+
         if (delegate != null) {
             delegate.close();
             delegate = null;
+            pendingSimulationTickMillis = null;
+            return;
         }
+
         pendingCameraState = CameraState.defaultState();
         pendingSimulationTickMillis = null;
     }
 
-    private MapRepository materialize() {
-        if (delegate != null) {
-            return delegate;
-        }
-
+    private void materialize() {
         try {
+            prepareProjectDirectory();
             delegate = new SqliteMapRepository(databasePath);
-            return delegate;
-        } catch (RuntimeException exception) {
-            deleteDatabaseQuietly();
-            throw exception;
+        } catch (IOException exception) {
+            throw new PersistenceException(
+                    "Не вдалося підготувати папку проєкту.",
+                    exception
+            );
         }
     }
 
-    private void notifyMaterialized() {
-        onMaterialized.run();
+    private void prepareProjectDirectory() throws IOException {
+        Path directory = databasePath.getParent();
+        if (directory == null) {
+            throw new IOException("Project database has no parent directory");
+        }
+
+        if (Files.isRegularFile(databasePath)) {
+            throw new IOException(
+                    "Project database already exists: " + databasePath
+            );
+        }
+
+        if (Files.notExists(directory)) {
+            Files.createDirectories(directory);
+            return;
+        }
+
+        clearDirectory(directory);
     }
 
-    private void deleteDatabaseQuietly() {
-        try {
-            Files.deleteIfExists(databasePath);
-        } catch (IOException ignored) {
-            // Preserve the original persistence failure.
+    private static void clearDirectory(Path directory) throws IOException {
+        List<Path> paths;
+        try (var stream = Files.walk(directory)) {
+            paths = stream.sorted(Comparator.reverseOrder()).toList();
+        }
+
+        for (Path path : paths) {
+            if (!path.equals(directory)) {
+                Files.deleteIfExists(path);
+            }
+        }
+    }
+
+    private void ensureOpen() {
+        if (closed) {
+            throw new IllegalStateException("Project repository is closed");
         }
     }
 }

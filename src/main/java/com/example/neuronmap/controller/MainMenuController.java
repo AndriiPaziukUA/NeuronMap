@@ -3,6 +3,7 @@ package com.example.neuronmap.controller;
 import com.example.neuronmap.application.project.ProjectDescriptor;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.view.MainMenuView;
+import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -88,6 +89,22 @@ public final class MainMenuController {
 
     public void close() {
         requestCloseMenu();
+    }
+
+    /** Refreshes the saved-project list from the filesystem watcher. */
+    public void refreshProjects() {
+        Runnable refresh = () -> {
+            if (!view.isLoadPage() || view.hasUnsavedChanges()) {
+                return;
+            }
+            view.showLoadPage(projectsSupplier.get());
+        };
+
+        if (Platform.isFxApplicationThread()) {
+            refresh.run();
+        } else {
+            Platform.runLater(refresh);
+        }
     }
 
     public boolean isOpen() {
