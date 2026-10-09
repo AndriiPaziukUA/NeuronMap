@@ -8,14 +8,12 @@ import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Перевіряє збереження параметрів симуляції та значення за замовчуванням.
+ * Перевіряє збереження та повторне читання тривалості такту симуляції з таблиці налаштувань.
  */
 class SqliteSimulationSettingsTest {
 
     /**
-     * Перевіряє очікувану поведінку: такт налаштування таблиця.
-     *
-     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
+     * Перевіряє цикл запису й читання тривалості такту симуляції з таблиці налаштувань.
      */
     @Test
     void simulationTickMillisRoundTripsThroughSettingsTable(
@@ -42,11 +40,6 @@ class SqliteSimulationSettingsTest {
         }
     }
 
-    /**
-     * Перевіряє очікувану поведінку: некоректний такт до.
-     *
-     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
-     */
     @Test
     void invalidPersistedSimulationTickMillisFallsBackToDefault(
             @TempDir Path tempDir
@@ -54,7 +47,7 @@ class SqliteSimulationSettingsTest {
         Path db = tempDir.resolve("invalid-simulation-settings.db");
 
         try (MapRepository repository = new SqliteMapRepository(db)) {
-            // Create the settings table before writing the malformed value.
+
         }
 
         try (java.sql.Connection connection =

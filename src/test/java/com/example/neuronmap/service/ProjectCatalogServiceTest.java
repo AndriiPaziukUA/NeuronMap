@@ -14,15 +14,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє пошук проєктів за папками, назви, перейменування та порядок списку.
+ * Перевіряє керування каталогом проєктів, зокрема унікальність назв і операції над метаданими проєктів.
  */
 final class ProjectCatalogServiceTest {
 
-    /**
-     * Перевіряє очікувану поведінку: лише каталоги проєкт база даних.
-     *
-     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
-     */
     @Test
     void listsOnlyDirectoriesContainingProjectDatabase(@TempDir Path tempDir)
             throws Exception {
@@ -46,11 +41,6 @@ final class ProjectCatalogServiceTest {
         ));
     }
 
-    /**
-     * Перевіряє очікувану поведінку: папки без проєкт база даних.
-     *
-     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
-     */
     @Test
     void generatedNamesReuseFoldersWithoutProjectDatabase(@TempDir Path tempDir)
             throws Exception {
@@ -71,11 +61,6 @@ final class ProjectCatalogServiceTest {
                 .anyMatch(saved -> saved.name().equals("Project")));
     }
 
-    /**
-     * Перевіряє очікувану поведінку: використати перший доступний.
-     *
-     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
-     */
     @Test
     void generatedNamesUseFirstAvailableSuffix(@TempDir Path tempDir)
             throws Exception {
@@ -94,11 +79,6 @@ final class ProjectCatalogServiceTest {
         assertEquals("Project 2", next.name());
     }
 
-    /**
-     * Перевіряє очікувану поведінку: і каталог без проєкт база даних.
-     *
-     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
-     */
     @Test
     void renameReusesAndCleansDirectoryWithoutProjectDatabase(
             @TempDir Path tempDir
@@ -125,11 +105,6 @@ final class ProjectCatalogServiceTest {
         assertFalse(Files.exists(target.resolve("junk.txt")));
     }
 
-    /**
-     * Перевіряє очікувану поведінку: рухається проєкт папка і зберігає база даних.
-     *
-     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
-     */
     @Test
     void renameMovesTheProjectFolderAndKeepsDatabase(@TempDir Path tempDir)
             throws Exception {
@@ -152,11 +127,6 @@ final class ProjectCatalogServiceTest {
         assertFalse(Files.exists(source));
     }
 
-    /**
-     * Перевіряє очікувану поведінку: зовнішній проєкт без.
-     *
-     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
-     */
     @Test
     void externalProjectIsDiscoverableWithoutCatalogMetadata(@TempDir Path tempDir)
             throws Exception {
@@ -172,11 +142,6 @@ final class ProjectCatalogServiceTest {
         assertEquals("Copied", catalog.listProjects().getFirst().name());
     }
 
-    /**
-     * Перевіряє очікувану поведінку: проєкти за.
-     *
-     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
-     */
     @Test
     void projectsAreOrderedByModificationTime(@TempDir Path tempDir)
             throws Exception {
@@ -196,11 +161,6 @@ final class ProjectCatalogServiceTest {
         assertEquals("Newer", catalog.listProjects().getFirst().name());
     }
 
-    /**
-     * Перевіряє очікувану поведінку: останній проєкт проєкт файли.
-     *
-     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
-     */
     @Test
     void lastOpenedProjectIsStoredOutsideProjectFiles(@TempDir Path tempDir)
             throws Exception {

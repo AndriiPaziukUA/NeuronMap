@@ -9,27 +9,25 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Виконує операції над групами нейронів.
+ * Керує групами нейронів і забезпечує переміщення всіх учасників групи як одного об’єкта.
  */
 public final class GroupService {
 
     private final NeuronMapModel model;
 
     /**
-     * Повертає результат операції «група служба».
+     * Створює екземпляр GroupService та зберігає передані залежності, потрібні для його роботи.
      *
      * @param model модель карти нейронів.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
      */
     public GroupService(NeuronMapModel model) {
         this.model = Objects.requireNonNull(model, "model");
     }
 
     /**
-     * Створює обʼєкт із переданих даних «потрібні дані».
+     * Створює  з переданих параметрів.
      *
-     * @param memberIds значення, що визначає ідентифікатори для цієї операції.
+     * @param memberIds ідентифікатори нейронів, які мають увійти до групи.
      */
     public void create(Set<String> memberIds) {
         if (memberIds == null) {
@@ -39,9 +37,9 @@ public final class GroupService {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Вилучає вказані нейрони з групи та видаляє групу, якщо після цього вона спорожніла.
      *
-     * @param memberIds значення, що визначає ідентифікатори для цієї операції.
+     * @param memberIds ідентифікатори нейронів, які мають увійти до групи.
      */
     public void ungroup(Set<String> memberIds) {
         if (memberIds == null) {
@@ -51,15 +49,11 @@ public final class GroupService {
     }
 
     /**
-     * Переміщує обʼєкт «відповідну операцію» відповідно до переданого зміщення.
+     * Переміщує всі нейрони групи на однакове зміщення, якщо нейрон належить групі.
      *
      * @param neuronId ідентифікатор нейрона.
-     *
-     * @param dx зміщення по горизонталі.
-     *
-     * @param dy зміщення по вертикалі.
-     *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @param dx значення «dx», яке використовується в цьому методі.
+     * @param dy значення «dy», яке використовується в цьому методі.
      */
     public boolean moveContaining(String neuronId, double dx, double dy) {
         NeuronGroup group = containing(neuronId);
@@ -80,11 +74,9 @@ public final class GroupService {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Знаходить групу, яка містить указаний нейрон.
      *
      * @param neuronId ідентифікатор нейрона.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
      */
     public NeuronGroup containing(String neuronId) {
         if (neuronId == null || neuronId.isBlank()) {

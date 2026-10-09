@@ -6,7 +6,7 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
- * Представляє групу нейронів і зберігає її склад та дані, спільні для групи.
+ * Представляє групу нейронів і зберігає ідентифікатори її учасників.
  */
 public final class NeuronGroup {
 
@@ -14,24 +14,17 @@ public final class NeuronGroup {
     private final Set<String> memberIds;
 
     /**
-     * Повертає результат операції «нейрон група».
+     * Створює екземпляр NeuronGroup та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param id ідентифікатор обʼєкта.
-     *
-     * @param memberIds значення, що визначає ідентифікатори для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param id унікальний ідентифікатор елемента.
+     * @param memberIds ідентифікатори нейронів, які мають увійти до групи.
      */
     public NeuronGroup(
             String id,
             Collection<String> memberIds
     ) {
         if (id == null || id.isBlank()) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException(
                     "Group id must not be blank."
             );
@@ -44,18 +37,18 @@ public final class NeuronGroup {
     }
 
     /**
-     * Повертає результат операції «ідентифікатор».
+     * Повертає ідентифікатор об’єкта.
      *
-     * @return текстове значення, сформоване або знайдене методом.
+     * @return ідентифікатор об’єкта.
      */
     public String id() {
         return id;
     }
 
 /**
- * Повертає результат операції «ідентифікатори».
+ * Повертає ідентифікатори учасників групи.
  *
- * @return колекцію результатів; якщо елементів немає, колекція порожня.
+ * @return ідентифікатори учасників групи.
  */
 public Set<String> memberIds() {
         return Collections.unmodifiableSet(
@@ -64,7 +57,7 @@ public Set<String> memberIds() {
     }
 
     /**
-     * Видаляє або скидає дані, повʼязані з «відповідну операцію».
+     * Видаляє member з поточної моделі або подання.
      *
      * @param neuronId ідентифікатор нейрона.
      */
@@ -73,9 +66,9 @@ public Set<String> memberIds() {
     }
 
     /**
-     * Видаляє або скидає дані, повʼязані з «відповідну операцію».
+     * Видаляє members з поточної моделі або подання.
      *
-     * @param neuronIds ідентифікатори нейронів.
+     * @param neuronIds ідентифікатори нейронів, які потрібно обробити.
      */
     void removeMembers(Collection<String> neuronIds) {
         memberIds.removeAll(neuronIds);

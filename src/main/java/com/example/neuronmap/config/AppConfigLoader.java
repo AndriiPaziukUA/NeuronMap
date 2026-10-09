@@ -7,50 +7,29 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.InputStream;
 
 /**
- * Читає конфігурацію застосунку та перевіряє, чи містить вона допустимі значення.
+ * Зчитує XML-конфігурацію застосунку, перевіряє обов’язкові значення й перетворює числові параметри на типізовані налаштування.
  */
 public final class AppConfigLoader {
 
     public static final String RESOURCE = "/app-config.xml";
 
-    /**
-     * Повертає результат операції «конфігурація».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
-     */
     private AppConfigLoader() {
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «потрібні дані».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * Завантажує конфігурацію з вбудованого ресурсу застосунку.
      */
     public static AppConfig load() {
         InputStream input = AppConfigLoader.class.getResourceAsStream(RESOURCE);
         if (input == null) {
-            /**
-             * Повертає результат операції «стан виняток».
-             *
-             * @param RESOURCE значення, що визначає відповідну операцію для цієї операції.
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalStateException("Missing application configuration: " + RESOURCE);
         }
 
         try (input) {
             return parse(input);
         } catch (Exception exception) {
-            /**
-             * Повертає результат операції «стан виняток».
-             *
-             * @param RESOURCE значення, що визначає відповідну операцію для цієї операції.
-             *
-             * @param exception помилка, яку потрібно обробити.
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalStateException(
                     "Cannot load application configuration: " + RESOURCE,
                     exception
@@ -59,19 +38,13 @@ public final class AppConfigLoader {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Розбирає XML-потік і створює типізований об’єкт конфігурації.
      *
-     * @param input значення, що визначає вхід для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param input потік XML-конфігурації, який потрібно розібрати.
      */
     static AppConfig parse(InputStream input) throws Exception {
         if (input == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("input must not be null");
         }
 
@@ -87,11 +60,7 @@ public final class AppConfigLoader {
         Element root = document.getDocumentElement();
 
         if (root == null || !"app".equals(root.getTagName())) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("Root element must be <app>");
         }
 
@@ -118,13 +87,10 @@ public final class AppConfigLoader {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Знаходить дочірній XML-елемент із заданою назвою.
      *
-     * @param parent батьківський графічний вузол.
-     *
-     * @param name назва або текстове імʼя обʼєкта.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param parent батьківський XML-елемент або вузол, у якому виконується пошук.
+     * @param name назва, яку потрібно перевірити або зберегти.
      */
     private static Element child(Element parent, String name) {
         for (int index = 0; index < parent.getChildNodes().getLength(); index++) {
@@ -133,22 +99,15 @@ public final class AppConfigLoader {
                 return element;
             }
         }
-        /**
-         * Повертає результат операції «виняток».
-         *
-         * @return значення або обʼєкт, визначений описаною операцією.
-         */
+
         throw new IllegalArgumentException("Missing <" + name + "> configuration section");
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Читає обов’язковий атрибут XML-елемента та відхиляє порожнє значення.
      *
-     * @param element значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param name назва або текстове імʼя обʼєкта.
-     *
-     * @return текстове значення, сформоване або знайдене методом.
+     * @param element XML-елемент, атрибут або вузол, який потрібно перевірити.
+     * @param name назва, яку потрібно перевірити або зберегти.
      */
     private static String required(Element element, String name) {
         String value = element.getAttribute(name);
@@ -161,26 +120,17 @@ public final class AppConfigLoader {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Читає обов’язковий атрибут і перетворює його на число.
      *
-     * @param element значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param name назва або текстове імʼя обʼєкта.
-     *
-     * @return числове значення, визначене методом.
+     * @param element XML-елемент, атрибут або вузол, який потрібно перевірити.
+     * @param name назва, яку потрібно перевірити або зберегти.
      */
     private static double number(Element element, String name) {
         String value = required(element, name);
         try {
             return Double.parseDouble(value);
         } catch (NumberFormatException exception) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @param exception помилка, яку потрібно обробити.
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException(
                     "Attribute '" + name + "' must be numeric",
                     exception

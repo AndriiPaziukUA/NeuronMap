@@ -8,7 +8,7 @@ import com.example.neuronmap.service.MapService;
 import com.example.neuronmap.service.NeuronService;
 
 /**
- * Створює та надає служби, через які інші компоненти виконують операції над картою.
+ * Об’єднує прикладні служби карти, нейронів, зв’язків і груп та надає контролерам єдину точку доступу до них.
  */
 public final class NeuronMapApplicationService {
 
@@ -18,32 +18,21 @@ public final class NeuronMapApplicationService {
     private final GroupService groupService;
 
     /**
-     * Повертає результат операції «нейрон карта служба».
+     * Створює екземпляр NeuronMapApplicationService та зберігає передані залежності, потрібні для його роботи.
      *
      * @param model модель карти нейронів.
-     *
-     * @param repository значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param repository сховище, через яке читають і зберігають карту.
      */
     public NeuronMapApplicationService(
             NeuronMapModel model,
             MapRepository repository
     ) {
         if (model == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("model must not be null");
         }
         if (repository == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("repository must not be null");
         }
 
@@ -54,36 +43,36 @@ public final class NeuronMapApplicationService {
     }
 
     /**
-     * Повертає результат операції «карта».
+     * Повертає службу, яка завантажує та зберігає карту й налаштування її камери.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return службу, яка завантажує та зберігає карту й налаштування її камери.
      */
     public MapService map() {
         return mapService;
     }
 
     /**
-     * Повертає результат операції «нейрони».
+     * Повертає службу операцій над нейронами.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return службу операцій над нейронами.
      */
     public NeuronService neurons() {
         return neuronService;
     }
 
     /**
-     * Повертає результат операції «звʼязки».
+     * Повертає службу створення, пошуку й видалення зв’язків.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return службу створення, пошуку й видалення зв’язків.
      */
     public ConnectionService connections() {
         return connectionService;
     }
 
     /**
-     * Повертає результат операції «групи».
+     * Повертає службу групування та переміщення груп нейронів.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return службу групування та переміщення груп нейронів.
      */
     public GroupService groups() {
         return groupService;

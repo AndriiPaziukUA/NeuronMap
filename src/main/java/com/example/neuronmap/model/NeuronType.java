@@ -1,7 +1,7 @@
 package com.example.neuronmap.model;
 
 /**
- * Визначає тип нейрона та знак сигналу, який він створює.
+ * Описує типи нейронів та вагу сигналу, яку кожен тип передає наступному нейрону.
  */
 public enum NeuronType {
     EXCITATORY("Активуючий", 1),
@@ -10,40 +10,33 @@ public enum NeuronType {
     private final String label;
     private final int signalWeight;
 
-    /**
-     * Створює обʼєкт NeuronType та ініціалізує його початковий стан.
-     *
-     * @param label значення, що визначає підпис для цієї операції.
-     *
-     * @param signalWeight значення, що визначає сигнал вага для цієї операції.
-     */
     NeuronType(String label, int signalWeight) {
         this.label = label;
         this.signalWeight = signalWeight;
     }
 
     /**
-     * Повертає результат операції «підпис».
+     * Повертає мітку типу нейрона.
      *
-     * @return текстове значення, сформоване або знайдене методом.
+     * @return мітку типу нейрона.
      */
     public String label() {
         return label;
     }
 
     /**
-     * Повертає результат операції «сигнал вага».
+     * Повертає вагу сигналу, яку передає нейрон.
      *
-     * @return числове значення, визначене методом.
+     * @return вагу сигналу, яку передає нейрон.
      */
     public int signalWeight() {
         return signalWeight;
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Повертає альтернативний тип нейрона: збуджувальний для гальмівного й навпаки.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return альтернативний тип нейрона: збуджувальний для гальмівного й навпаки.
      */
     public NeuronType toggled() {
         return this == EXCITATORY ? INHIBITORY : EXCITATORY;

@@ -6,12 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє збереження та зміну напрямку нейрона.
+ * Перевіряє типовий напрямок нейрона та збереження перемкнутого напрямку.
  */
 class NeuronPresentationDirectionTest {
 
     /**
-     * Перевіряє очікувану поведінку: напрямок до.
+     * Перевіряє, що напрямок нейрона за замовчуванням не розвернутий.
      */
     @Test
     void directionDefaultsToNormal() {
@@ -35,7 +35,7 @@ class NeuronPresentationDirectionTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: напрямок і.
+     * Перевіряє зміну напрямку та зберігання нового значення в поданні.
      */
     @Test
     void directionCanBeToggledAndStored() {

@@ -8,12 +8,12 @@ import java.util.Locale;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Перевіряє переклади, зміну мови, сповіщення та порядок варіантів мови.
+ * Перевіряє порядок назв мов, сповіщення слухачів і тимчасовий перегляд мови без збереження налаштування.
  */
 final class LocalizationServiceTest {
 
     /**
-     * Перевіряє очікувану поведінку: мова поточний мова.
+     * Перевіряє сортування назв мов відповідно до поточної локалі.
      */
     @Test
     void languageNamesAreSortedUsingCurrentLanguage() {
@@ -46,7 +46,7 @@ final class LocalizationServiceTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: мова слухачі.
+     * Перевіряє, що зміна мови сповіщає зареєстрованих слухачів.
      */
     @Test
     void switchingLanguageNotifiesListeners() {
@@ -62,7 +62,7 @@ final class LocalizationServiceTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: попередній перегляд мова не зберігати і.
+     * Перевіряє, що попередній перегляд мови не записує її в налаштування й може бути скасований.
      */
     @Test
     void previewLanguageDoesNotPersistAndCanBeReverted() {

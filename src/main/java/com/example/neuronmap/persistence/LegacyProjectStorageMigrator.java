@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Properties;
 
 /**
- * Переносить дані зі старого формату зберігання, якщо вони ще є в середовищі користувача.
+ * Переносить дані проєктів зі старого формату сховища до поточної структури каталогів, не перезаписуючи наявні проєкти.
  */
 public final class LegacyProjectStorageMigrator {
 
@@ -20,28 +20,18 @@ public final class LegacyProjectStorageMigrator {
     private static final String FILE_SUFFIX = ".file";
     private static final String LAST_PROJECT_KEY = "last_project_id";
 
-    /**
-     * Повертає результат операції «старий формат проєкт».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
-     */
     private LegacyProjectStorageMigrator() {
     }
 
     /**
-     * Виконує операцію «якщо».
+     * Перевіряє наявність старого сховища й запускає потрібну міграцію до поточної структури каталогу проєктів.
      *
-     * @param storageDirectory значення, що визначає каталог для цієї операції.
-     *
-     * @param legacyDatabasePath значення, що визначає старий формат база даних шлях для цієї операції.
-     *
-     * @param legacyProjectsDirectory значення, що визначає старий формат проєкти каталог для цієї операції.
-     *
-     * @param legacyCatalogPath значення, що визначає старий формат шлях для цієї операції.
-     *
-     * @param legacyProjectName значення, що визначає старий формат проєкт для цієї операції.
-     *
-     * @param globalSettings значення, що визначає загальний налаштування для цієї операції.
+     * @param storageDirectory значення «storage directory», яке використовується в цьому методі.
+     * @param legacyDatabasePath значення «legacy database path», яке використовується в цьому методі.
+     * @param legacyProjectsDirectory значення «legacy projects directory», яке використовується в цьому методі.
+     * @param legacyCatalogPath значення «legacy catalog path», яке використовується в цьому методі.
+     * @param legacyProjectName значення «legacy project name», яке використовується в цьому методі.
+     * @param globalSettings значення «global settings», яке використовується в цьому методі.
      */
     public static void migrateIfNeeded(
             Path storageDirectory,
@@ -56,11 +46,7 @@ public final class LegacyProjectStorageMigrator {
                 || legacyProjectsDirectory == null
                 || legacyCatalogPath == null
                 || globalSettings == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("Migration paths must not be null");
         }
 
@@ -84,13 +70,7 @@ public final class LegacyProjectStorageMigrator {
             );
             Files.createFile(marker);
         } catch (IOException exception) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @param exception помилка, яку потрібно обробити.
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new PersistenceException(
                     "Не вдалося перенести старі проєкти NeuronMap.",
                     exception
@@ -99,15 +79,12 @@ public final class LegacyProjectStorageMigrator {
     }
 
     /**
-     * Виконує операцію «проєкти».
+     * Переносить записи каталогу проєктів зі старого розташування до поточного каталогу та оновлює глобальні налаштування.
      *
-     * @param storageDirectory значення, що визначає каталог для цієї операції.
-     *
-     * @param legacyProjectsDirectory значення, що визначає старий формат проєкти каталог для цієї операції.
-     *
-     * @param legacyCatalogPath значення, що визначає старий формат шлях для цієї операції.
-     *
-     * @param globalSettings значення, що визначає загальний налаштування для цієї операції.
+     * @param storageDirectory значення «storage directory», яке використовується в цьому методі.
+     * @param legacyProjectsDirectory значення «legacy projects directory», яке використовується в цьому методі.
+     * @param legacyCatalogPath значення «legacy catalog path», яке використовується в цьому методі.
+     * @param globalSettings значення «global settings», яке використовується в цьому методі.
      */
     private static void migrateCatalogProjects(
             Path storageDirectory,
@@ -174,13 +151,11 @@ public final class LegacyProjectStorageMigrator {
     }
 
     /**
-     * Виконує операцію «старий формат база даних».
+     * Переносить застарілу базу даних проєкту в каталог сховища, якщо цільовий файл ще не створено.
      *
-     * @param storageDirectory значення, що визначає каталог для цієї операції.
-     *
-     * @param legacyDatabasePath значення, що визначає старий формат база даних шлях для цієї операції.
-     *
-     * @param legacyProjectName значення, що визначає старий формат проєкт для цієї операції.
+     * @param storageDirectory значення «storage directory», яке використовується в цьому методі.
+     * @param legacyDatabasePath значення «legacy database path», яке використовується в цьому методі.
+     * @param legacyProjectName значення «legacy project name», яке використовується в цьому методі.
      */
     private static void migrateLegacyDatabase(
             Path storageDirectory,
@@ -207,13 +182,10 @@ public final class LegacyProjectStorageMigrator {
     }
 
     /**
-     * Повертає результат операції «перенесення».
+     * Підбирає унікальну назву для проєкту, який переноситься зі старого сховища.
      *
-     * @param storageDirectory значення, що визначає каталог для цієї операції.
-     *
-     * @param requestedName значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return текстове значення, сформоване або знайдене методом.
+     * @param storageDirectory значення «storage directory», яке використовується в цьому методі.
+     * @param requestedName значення «requested name», яке використовується в цьому методі.
      */
     private static String uniqueMigrationName(
             Path storageDirectory,
@@ -234,9 +206,9 @@ public final class LegacyProjectStorageMigrator {
     }
 
     /**
-     * Виконує операцію «кінцевий каталог».
+     * Створює цільовий каталог міграції або перевіряє, що він придатний для запису.
      *
-     * @param directory каталог для пошуку чи збереження.
+     * @param directory каталог, який потрібно обробити.
      */
     private static void prepareTargetDirectory(Path directory)
             throws IOException {
@@ -247,13 +219,7 @@ public final class LegacyProjectStorageMigrator {
 
         Path database = directory.resolve("project.db");
         if (Files.isRegularFile(database)) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @param directory каталог для пошуку чи збереження.
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IOException(
                     "Migration target already contains project.db: " + directory
             );
@@ -263,9 +229,9 @@ public final class LegacyProjectStorageMigrator {
     }
 
     /**
-     * Видаляє або скидає дані, повʼязані з «каталог».
+     * Очищає directory від тимчасових або застарілих значень.
      *
-     * @param directory каталог для пошуку чи збереження.
+     * @param directory каталог, який потрібно обробити.
      */
     private static void clearDirectory(Path directory) throws IOException {
         List<Path> paths = new ArrayList<>();
@@ -285,11 +251,10 @@ public final class LegacyProjectStorageMigrator {
     }
 
     /**
-     * Виконує операцію «копіювання останній».
+     * Копіює часову мітку останньої зміни з вихідного файла або каталогу на цільовий.
      *
-     * @param source значення, що визначає джерело для цієї операції.
-     *
-     * @param target значення, що визначає кінцевий для цієї операції.
+     * @param source значення «source», яке використовується в цьому методі.
+     * @param target цільовий вузол або об’єкт інтерфейсу, який потрібно перевірити чи знайти.
      */
     private static void copyLastModified(Path source, Path target)
             throws IOException {
@@ -300,11 +265,9 @@ public final class LegacyProjectStorageMigrator {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Нормалізує назву проєкту перед створенням або перейменуванням.
      *
-     * @param name назва або текстове імʼя обʼєкта.
-     *
-     * @return текстове значення, сформоване або знайдене методом.
+     * @param name назва, яку потрібно перевірити або зберегти.
      */
     private static String normalizeName(String name) {
         if (name == null || name.isBlank()) {

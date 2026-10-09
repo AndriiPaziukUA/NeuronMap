@@ -12,7 +12,7 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
- * Змінює порядок відображення нейронів у графічному шарі.
+ * Керує порядком шарів нейронів і зв’язків, щоб потрібний нейрон або елемент взаємодії відображався поверх інших.
  */
 public final class NeuronLayerOrderController {
 
@@ -22,17 +22,12 @@ public final class NeuronLayerOrderController {
     private final Supplier<Iterable<Connection>> connections;
 
     /**
-     * Повертає результат операції «нейрон».
+     * Створює екземпляр NeuronLayerOrderController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param neuronViews значення, що визначає нейрон для цієї операції.
-     *
-     * @param connectionViews значення, що визначає звʼязок для цієї операції.
-     *
-     * @param connections значення, що визначає звʼязки для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param workspace полотно редактора.
+     * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
+     * @param connectionViews мапа візуальних подань зв’язків за ідентифікаторами.
+     * @param connections набір напрямлених зв’язків моделі.
      */
     public NeuronLayerOrderController(
             WorkspaceView workspace,
@@ -50,7 +45,7 @@ public final class NeuronLayerOrderController {
     }
 
 /**
- * Виконує операцію «нейрон до».
+ * Переміщує neuron to front на передній план у порядку шарів.
  *
  * @param neuronId ідентифікатор нейрона.
  */
@@ -75,9 +70,9 @@ public void bringNeuronToFront(String neuronId) {
     }
 
     /**
-     * Переміщує обʼєкт «до» відповідно до переданого зміщення.
+     * Переміщує to end на задане зміщення.
      *
-     * @param node графічний вузол JavaFX.
+     * @param node вузол JavaFX, який потрібно перевірити або змінити.
      */
     private static void moveToEnd(Node node) {
         if (node == null || !(node.getParent() instanceof Pane layer)) {

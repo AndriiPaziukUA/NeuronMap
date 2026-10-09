@@ -3,7 +3,7 @@ package com.example.neuronmap.i18n;
 import java.util.Locale;
 
 /**
- * Перелічує мови, які доступні в застосунку, та їхні властивості.
+ * Перелічує мови інтерфейсу, підтримувані застосунком, та пов’язує кожну мову з локаллю й ключем назви.
  */
 public enum SupportedLanguage {
     ENGLISH(Locale.ENGLISH, "language.english"),
@@ -13,42 +13,33 @@ public enum SupportedLanguage {
     private final Locale locale;
     private final String displayKey;
 
-    /**
-     * Створює обʼєкт SupportedLanguage та ініціалізує його початковий стан.
-     *
-     * @param locale значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param displayKey значення, що визначає відображати ключ для цієї операції.
-     */
     SupportedLanguage(Locale locale, String displayKey) {
         this.locale = locale;
         this.displayKey = displayKey;
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Повертає поточну локаль інтерфейсу.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return поточну локаль інтерфейсу.
      */
     public Locale locale() {
         return locale;
     }
 
     /**
-     * Відображає «ключ» в інтерфейсі.
+     * Повертає ключ локалізованої назви мови.
      *
-     * @return текстове значення, сформоване або знайдене методом.
+     * @return ключ локалізованої назви мови.
      */
     public String displayKey() {
         return displayKey;
     }
 
     /**
-     * Повертає результат операції «із».
+     * Визначає підтримувану мову за локаллю; якщо точного збігу немає, повертає мову за замовчуванням.
      *
-     * @param locale значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param locale локаль, для якої потрібно завантажити або показати текст.
      */
     public static SupportedLanguage fromLocale(Locale locale) {
         if (locale == null) {

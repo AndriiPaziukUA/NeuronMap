@@ -18,7 +18,7 @@ import javafx.util.Duration;
 import java.util.function.Function;
 
 /**
- * Відображає звʼязок між нейронами та оновлює його графічну геометрію.
+ * Відображає напрямлений зв’язок між двома нейронами та керує його геометрією, стрілкою й підсвічуванням для видалення.
  */
 public final class ConnectionView extends Pane {
 
@@ -34,15 +34,11 @@ public final class ConnectionView extends Pane {
     private boolean deleteHighlighted;
 
     /**
-     * Повертає результат операції «звʼязок відображення».
+     * Створює екземпляр ConnectionView та зберігає передані залежності, потрібні для його роботи.
      *
      * @param model модель карти нейронів.
-     *
-     * @param viewLookup значення, що визначає відображення пошук для цієї операції.
-     *
-     * @param neuronLookup значення, що визначає нейрон пошук для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param viewLookup функція пошуку подання нейрона.
+     * @param neuronLookup функція пошуку нейрона в моделі.
      */
     public ConnectionView(
             Connection model,
@@ -72,25 +68,25 @@ public final class ConnectionView extends Pane {
     }
 
     /**
-     * Повертає результат операції «модель».
+     * Повертає модель карти нейронів.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return модель карти нейронів.
      */
     public Connection model() {
         return model;
     }
 
     /**
-     * Перевіряє, чи виконується умова «видалити».
+     * Перевіряє, чи delete highlighted за поточного стану компонента.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public boolean isDeleteHighlighted() {
         return deleteHighlighted;
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «геометрія».
+     * Перераховує початкову й кінцеву точки зв’язку за поточними положеннями нейронів.
      */
     public void updateGeometry() {
         NeuronView source = viewLookup.apply(model.sourceId());
@@ -117,9 +113,7 @@ public final class ConnectionView extends Pane {
     }
 
 /**
- * Повертає результат операції «імпульс знімок».
- *
- * @return значення або обʼєкт, визначений описаною операцією.
+ * Створює знімок геометрії зв’язку для анімації імпульсу.
  */
 public ConnectionPulseSnapshot capturePulseSnapshot() {
         Neuron source = neuronLookup.apply(model.sourceId());
@@ -147,9 +141,9 @@ public ConnectionPulseSnapshot capturePulseSnapshot() {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «видалити».
+     * Установлює delete highlight для поточного об’єкта.
      *
-     * @param highlighted значення, що визначає відповідну операцію для цієї операції.
+     * @param highlighted значення «highlighted», яке використовується в цьому методі.
      */
     public void setDeleteHighlight(boolean highlighted) {
         deleteHighlighted = highlighted;
@@ -182,7 +176,7 @@ public ConnectionPulseSnapshot capturePulseSnapshot() {
     }
 
     /**
-     * Виконує операцію «видалити».
+     * Призупиняє «delete highlight», зберігаючи можливість подальшого відновлення.
      */
     public void pauseDeleteHighlight() {
         if (blinkTimeline != null
@@ -192,7 +186,7 @@ public ConnectionPulseSnapshot capturePulseSnapshot() {
     }
 
     /**
-     * Виконує операцію «видалити».
+     * Відновлює «delete highlight» після призупинення.
      */
     public void resumeDeleteHighlight() {
         if (blinkTimeline != null
@@ -202,7 +196,7 @@ public ConnectionPulseSnapshot capturePulseSnapshot() {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «видалити».
+     * Зупиняє delete highlight та очищає пов’язаний активний стан.
      */
     public void stopDeleteHighlight() {
         if (blinkTimeline != null) {
@@ -217,11 +211,10 @@ public ConnectionPulseSnapshot capturePulseSnapshot() {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «відповідну операцію».
+     * Розташовує наконечник стрілки за напрямком лінії зв’язку.
      *
-     * @param start значення, що визначає запуск для цієї операції.
-     *
-     * @param end значення, що визначає відповідну операцію для цієї операції.
+     * @param start початкова точка зв’язку у координатах сцени.
+     * @param end кінцева точка зв’язку у координатах сцени.
      */
     private void updateArrow(Point2D start, Point2D end) {
         Point2D direction = end.subtract(start);
@@ -251,9 +244,9 @@ public ConnectionPulseSnapshot capturePulseSnapshot() {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Повертає базовий колір зв’язку відповідно до кольору, заданого його поданням.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return базовий колір зв’язку відповідно до кольору, заданого його поданням.
      */
     private Color baseColor() {
         Neuron source = neuronLookup.apply(model.sourceId());

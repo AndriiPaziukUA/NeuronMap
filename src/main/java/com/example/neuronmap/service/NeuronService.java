@@ -9,43 +9,39 @@ import java.util.Collection;
 import java.util.Objects;
 
 /**
- * Надає операції створення, пошуку, налаштування, переміщення та видалення нейронів.
+ * Надає операції над нейронами: створення, пошук, переміщення, обертання, зміну типу, напрямку й параметрів сигналу.
  */
 public final class NeuronService {
 
     private final NeuronMapModel model;
 
     /**
-     * Повертає результат операції «нейрон служба».
+     * Створює екземпляр NeuronService та зберігає передані залежності, потрібні для його роботи.
      *
      * @param model модель карти нейронів.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
      */
     public NeuronService(NeuronMapModel model) {
         this.model = Objects.requireNonNull(model, "model");
     }
 
     /**
-     * Повертає модель карти, з якою працює служба.
+     * Повертає модель карти нейронів.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return модель карти нейронів.
      */
     public NeuronMapModel model() { return model; }
 
     /**
-     * Повертає нейрони, наявні в моделі карти.
+     * Повертає службу операцій над нейронами.
      *
-     * @return колекцію результатів; якщо елементів немає, колекція порожня.
+     * @return службу операцій над нейронами.
      */
     public Collection<Neuron> neurons() { return model.neurons(); }
 
     /**
-     * Знаходить нейрон за ідентифікатором; повертає null, якщо його немає.
+     * Знаходить  за заданими координатами або критеріями пошуку.
      *
      * @param neuronId ідентифікатор нейрона.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
      */
     public Neuron find(String neuronId) {
         if (neuronId == null || neuronId.isBlank()) return null;
@@ -53,11 +49,11 @@ public final class NeuronService {
     }
 
     /**
-     * Знаходить дані відображення нейрона; повертає null, якщо нейрона немає.
+     * Повертає візуальне подання нейрона.
      *
      * @param neuronId ідентифікатор нейрона.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return візуальне подання нейрона.
      */
     public NeuronPresentation presentation(String neuronId) {
         if (neuronId == null || neuronId.isBlank()) return null;
@@ -65,26 +61,20 @@ public final class NeuronService {
     }
 
     /**
-     * Створює нейрон заданого типу в указаних координатах.
+     * Створює нейрон указаного типу в заданих координатах.
      *
-     * @param type тип обʼєкта.
-     *
-     * @param x координата по горизонталі.
-     *
-     * @param y координата по вертикалі.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param type тип нейрона або елемента.
+     * @param x координата X.
+     * @param y координата Y.
      */
     public Neuron create(NeuronType type, double x, double y) {
         return model.createNeuron(type, x, y);
     }
 
     /**
-     * Видаляє нейрон за ідентифікатором і повертає його, якщо його знайдено.
+     * Видаляє нейрон і пов’язані з ним дані.
      *
      * @param neuronId ідентифікатор нейрона.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
      */
     public Neuron remove(String neuronId) {
         if (neuronId == null || neuronId.isBlank()) return null;
@@ -92,11 +82,9 @@ public final class NeuronService {
     }
 
     /**
-     * Перемикає нейрон між збуджувальним і гальмівним типами.
+     * Перемикає тип нейрона та повертає ознаку успішної зміни.
      *
      * @param neuronId ідентифікатор нейрона.
-     *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
      */
     public boolean toggleType(String neuronId) {
         Neuron neuron = find(neuronId);
@@ -110,11 +98,9 @@ public final class NeuronService {
     }
 
     /**
-     * Перемикає напрямок відображення нейрона.
+     * Розвертає напрямок вхідного й вихідного портів нейрона.
      *
      * @param neuronId ідентифікатор нейрона.
-     *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
      */
     public boolean toggleDirection(String neuronId) {
         NeuronPresentation presentation = presentation(neuronId);
@@ -127,12 +113,8 @@ public final class NeuronService {
      * Оновлює силу сигналу та поріг активації нейрона.
      *
      * @param neuronId ідентифікатор нейрона.
-     *
      * @param signalStrength сила сигналу нейрона.
-     *
-     * @param activationThreshold поріг активації нейрона.
-     *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @param activationThreshold поріг суми вхідних сигналів для активації нейрона.
      */
     public boolean updateSettings(String neuronId, int signalStrength, int activationThreshold) {
         Neuron neuron = find(neuronId);
@@ -143,15 +125,11 @@ public final class NeuronService {
     }
 
     /**
-     * Зміщує нейрон на задану різницю координат.
+     * Переміщує нейрон на задане зміщення.
      *
      * @param neuronId ідентифікатор нейрона.
-     *
-     * @param dx зміщення по горизонталі.
-     *
-     * @param dy зміщення по вертикалі.
-     *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @param dx значення «dx», яке використовується в цьому методі.
+     * @param dy значення «dy», яке використовується в цьому методі.
      */
     public boolean move(String neuronId, double dx, double dy) {
         NeuronPresentation presentation = presentation(neuronId);
@@ -161,13 +139,10 @@ public final class NeuronService {
     }
 
     /**
-     * Задає кут повороту нейрона в градусах.
+     * Установлює кут обертання нейрона.
      *
      * @param neuronId ідентифікатор нейрона.
-     *
-     * @param degrees кут повороту в градусах.
-     *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @param degrees кут у градусах.
      */
     public boolean setRotation(String neuronId, double degrees) {
         NeuronPresentation presentation = presentation(neuronId);
@@ -177,18 +152,15 @@ public final class NeuronService {
     }
 
     /**
-     * Скидає значення активації всіх нейронів карти.
+     * Очищає activations від тимчасових або застарілих значень.
      */
     public void clearActivations() { model.clearActivations(); }
 
     /**
-     * Задає значення активації нейрона за його ідентифікатором.
+     * Оновлює поточне значення активації нейрона.
      *
      * @param neuronId ідентифікатор нейрона.
-     *
-     * @param activation значення активації нейрона.
-     *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @param activation значення «activation», яке використовується в цьому методі.
      */
     public boolean setActivation(String neuronId, int activation) {
         Neuron neuron = find(neuronId);

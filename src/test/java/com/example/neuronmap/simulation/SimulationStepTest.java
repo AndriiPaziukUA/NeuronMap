@@ -7,12 +7,12 @@ import java.math.BigInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Перевіряє представлення номера такту за межами типу long.
+ * Перевіряє збереження номера такту, що перевищує максимальне значення long.
  */
 class SimulationStepTest {
 
     /**
-     * Перевіряє очікувану поведінку: зберігає такт long.
+     * Перевіряє збереження такту, номер якого перевищує максимальне значення long.
      */
     @Test
     void storesTickBeyondLongMaximum() {

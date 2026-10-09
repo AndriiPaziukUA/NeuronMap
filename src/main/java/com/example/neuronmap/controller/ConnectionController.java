@@ -15,7 +15,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * Обробляє взаємодію користувача зі звʼязками між нейронами.
+ * Координує створення й видалення зв’язків на полотні та оновлення їхнього візуального стану.
  */
 public final class ConnectionController {
 
@@ -25,23 +25,15 @@ public final class ConnectionController {
     private final ConnectionDeletionController deletionController;
 
     /**
-     * Повертає результат операції «звʼязок».
+     * Створює екземпляр ConnectionController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param connectionService значення, що визначає звʼязок служба для цієї операції.
-     *
-     * @param state стан обʼєкта або редактора.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param neuronViews значення, що визначає нейрон для цієї операції.
-     *
-     * @param refresh значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param status стан операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param connectionService служба операцій над зв’язками.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param workspace полотно редактора.
+     * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
+     * @param refresh callback для оновлення інтерфейсу після зміни моделі.
+     * @param save функція зворотного виклику для відповідної дії.
+     * @param status callback для показу повідомлення в рядку стану.
      */
     public ConnectionController(
             ConnectionService connectionService,
@@ -65,25 +57,16 @@ public final class ConnectionController {
     }
 
     /**
-     * Повертає результат операції «звʼязок».
+     * Створює екземпляр ConnectionController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param connectionService значення, що визначає звʼязок служба для цієї операції.
-     *
-     * @param state стан обʼєкта або редактора.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param neuronViews значення, що визначає нейрон для цієї операції.
-     *
-     * @param refresh значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param status стан операції.
-     *
-     * @param localization значення, що визначає локалізація для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param connectionService служба операцій над зв’язками.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param workspace полотно редактора.
+     * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
+     * @param refresh callback для оновлення інтерфейсу після зміни моделі.
+     * @param save функція зворотного виклику для відповідної дії.
+     * @param status callback для показу повідомлення в рядку стану.
+     * @param localization служба локалізації інтерфейсу.
      */
     public ConnectionController(
             ConnectionService connectionService,
@@ -125,7 +108,7 @@ public final class ConnectionController {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Під’єднує обробники полотна для створення, скасування та видалення зв’язків.
      */
     public void install() {
         workspace.node().addEventFilter(
@@ -139,7 +122,7 @@ public final class ConnectionController {
     }
 
     /**
-     * Запускає або планує дію, повʼязану з «створити».
+     * Вмикає режим створення зв’язку від указаного нейрона.
      *
      * @param sourceNeuronId ідентифікатор початкового нейрона.
      */
@@ -148,14 +131,16 @@ public final class ConnectionController {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «створити».
+     * Скасовує незавершене створення зв’язку та прибирає його попередній перегляд.
+     *
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public void cancelCreate() {
         creationController.cancelCreate();
     }
 
     /**
-     * Запускає або планує дію, повʼязану з «видалити».
+     * Вмикає режим вибору зв’язку для видалення від указаного нейрона.
      *
      * @param sourceNeuronId ідентифікатор початкового нейрона.
      */
@@ -164,46 +149,46 @@ public final class ConnectionController {
     }
 
     /**
-     * Перевіряє, чи виконується умова «звʼязки».
+     * Перевіряє, чи має нейрон зв’язки, доступні для дії в поточному режимі.
      *
      * @param neuronId ідентифікатор нейрона.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public boolean hasConnections(String neuronId) {
         return deletionController.hasConnections(neuronId);
     }
 
     /**
-     * Виконує операцію «видалити».
+     * Завершує режим видалення зв’язку та прибирає його підсвічування.
      */
     public void exitDelete() {
         deletionController.exitDelete();
     }
 
     /**
-     * Обробляє «видалити».
+     * Оновлює підсвічування зв’язків, доступних для видалення.
      */
     public void refreshDeleteHighlights() {
         deletionController.refreshDeleteHighlights();
     }
 
     /**
-     * Видаляє або скидає дані, повʼязані з «видалити».
+     * Прибирає підсвічування всіх зв’язків, установлене режимом видалення.
      */
     public void clearDeleteHighlights() {
         deletionController.clearDeleteHighlights();
     }
 
     /**
-     * Обробляє «попередній перегляд після камера змінити».
+     * Перераховує кінцеві координати тимчасового зв’язку після панорамування або масштабування камери.
      */
     public void refreshPreviewAfterCameraChange() {
         creationController.refreshPreviewAfterCameraChange();
     }
 
     /**
-     * Виконує операцію «анімації».
+     * Призупиняє анімації імпульсів на зв’язках.
      */
     public void pauseAnimations() {
         for (Node node : workspace.edgeLayer().getChildren()) {
@@ -214,7 +199,7 @@ public final class ConnectionController {
     }
 
     /**
-     * Виконує операцію «анімації».
+     * Відновлює анімації імпульсів на зв’язках.
      */
     public void resumeAnimations() {
         for (Node node : workspace.edgeLayer().getChildren()) {
@@ -225,9 +210,9 @@ public final class ConnectionController {
     }
 
     /**
-     * Обробляє «відповідну операцію».
+     * Передає клацання полотном активному обробнику створення або видалення зв’язку.
      *
-     * @param event подія інтерфейсу.
+     * @param event подія інтерфейсу, яку потрібно обробити.
      */
     private void handleCanvasClick(MouseEvent event) {
         if (event.getButton() == MouseButton.SECONDARY) {

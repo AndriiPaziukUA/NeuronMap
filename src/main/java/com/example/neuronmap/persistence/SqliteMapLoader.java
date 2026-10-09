@@ -15,33 +15,27 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Читає з SQLite нейрони, їхні представлення, звʼязки та інші дані карти.
+ * Зчитує з SQLite нейрони, їхнє подання, зв’язки й групи та відновлює ними модель карти.
  */
 public final class SqliteMapLoader {
 
     private final java.sql.Connection connection;
 
     /**
-     * Повертає результат операції «SQLite карта».
+     * Створює екземпляр SqliteMapLoader та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param connection звʼязок між нейронами.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param connection напрямлений зв’язок між нейронами.
      */
     public SqliteMapLoader(java.sql.Connection connection) {
         if (connection == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("connection must not be null");
         }
         this.connection = connection;
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «відповідну операцію».
+     * Відновлює модель карти, послідовно завантажуючи її нейрони, подання, зв’язки й групи.
      *
      * @param model модель карти нейронів.
      */
@@ -54,7 +48,7 @@ public final class SqliteMapLoader {
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «нейрони».
+     * Завантажує neurons із відповідного джерела даних.
      *
      * @param model модель карти нейронів.
      */
@@ -96,7 +90,7 @@ public final class SqliteMapLoader {
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «відповідну операцію».
+     * Завантажує presentations із відповідного джерела даних.
      *
      * @param model модель карти нейронів.
      */
@@ -137,7 +131,7 @@ public final class SqliteMapLoader {
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «звʼязки».
+     * Завантажує connections із відповідного джерела даних.
      *
      * @param model модель карти нейронів.
      */
@@ -162,7 +156,7 @@ public final class SqliteMapLoader {
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «групи».
+     * Завантажує groups із відповідного джерела даних.
      *
      * @param model модель карти нейронів.
      */
@@ -191,4 +185,3 @@ public final class SqliteMapLoader {
         membersByGroup.forEach(model::addGroup);
     }
 }
-

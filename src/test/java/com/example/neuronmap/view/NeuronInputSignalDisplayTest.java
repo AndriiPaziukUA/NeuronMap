@@ -14,13 +14,10 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Перевіряє відображення суми вхідних сигналів і її скидання.
+ * Перевіряє показ і очищення позначення вхідного сигналу на нейроні.
  */
 final class NeuronInputSignalDisplayTest {
 
-    /**
-     * Запускає або планує дію, повʼязану з «відповідну операцію».
-     */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -32,20 +29,13 @@ final class NeuronInputSignalDisplayTest {
         }
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
-            /**
-             * Повертає результат операції «стан виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalStateException(
                     "JavaFX startup timed out"
             );
         }
     }
 
-    /**
-     * Перевіряє очікувану поведінку: вхід сигнал повертає до коли тимчасовий стан.
-     */
     @Test
     void inputSignalReturnsToZeroWhenTemporaryStateIsCleared()
             throws Exception {
@@ -83,9 +73,6 @@ final class NeuronInputSignalDisplayTest {
         });
     }
 
-    /**
-     * Перевіряє очікувану поведінку: очистити вхід сигнал значення.
-     */
     @Test
     void clearDisplayedInputSignalAlsoLeavesActualZeroValue()
             throws Exception {
@@ -116,11 +103,6 @@ final class NeuronInputSignalDisplayTest {
         });
     }
 
-    /**
-     * Запускає або планує дію, повʼязану з «відповідну операцію».
-     *
-     * @param action дія, яку потрібно виконати.
-     */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];
@@ -136,22 +118,14 @@ final class NeuronInputSignalDisplayTest {
         });
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
-            /**
-             * Повертає результат операції «стан виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalStateException(
                     "JavaFX test timed out"
             );
         }
 
         if (failure[0] != null) {
-            /**
-             * Повертає результат операції «відповідну операцію».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new AssertionError(
                     "JavaFX test failed",
                     failure[0]

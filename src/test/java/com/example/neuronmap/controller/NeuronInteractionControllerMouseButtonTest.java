@@ -30,13 +30,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє обробку натискань різних кнопок миші.
+ * Перевіряє реакцію взаємодії з нейроном на різні кнопки миші та видимість контекстного меню.
  */
 final class NeuronInteractionControllerMouseButtonTest {
 
-    /**
-     * Запускає або планує дію, повʼязану з «відповідну операцію».
-     */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -46,18 +43,11 @@ final class NeuronInteractionControllerMouseButtonTest {
             latch.countDown();
         }
         if (!latch.await(5, TimeUnit.SECONDS)) {
-            /**
-             * Повертає результат операції «стан виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalStateException("JavaFX startup timed out");
         }
     }
 
-    /**
-     * Перевіряє очікувану поведінку: показує обертання обробити без меню.
-     */
     @Test
     void leftClickShowsRotationHandleWithoutMenu() throws Exception {
         runOnFxThread(() -> {
@@ -68,9 +58,6 @@ final class NeuronInteractionControllerMouseButtonTest {
         });
     }
 
-    /**
-     * Перевіряє очікувану поведінку: показує меню і приховує обертання обробити.
-     */
     @Test
     void rightClickShowsMenuAndHidesRotationHandle() throws Exception {
         runOnFxThread(() -> {
@@ -87,9 +74,7 @@ final class NeuronInteractionControllerMouseButtonTest {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * Перевіряє сценарій «fixture» і відповідність результату очікуваній поведінці.
      */
     private static Fixture fixture() {
         NeuronMapModel model = new NeuronMapModel();
@@ -187,11 +172,7 @@ final class NeuronInteractionControllerMouseButtonTest {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
-     *
-     * @param neuronView значення, що визначає нейрон відображення для цієї операції.
-     *
-     * @param button значення, що визначає кнопка для цієї операції.
+     * Перевіряє сценарій «click» і відповідність результату очікуваній поведінці.
      */
     private static void click(NeuronView neuronView, MouseButton button) {
         fire(neuronView, MouseEvent.MOUSE_PRESSED, button);
@@ -200,13 +181,7 @@ final class NeuronInteractionControllerMouseButtonTest {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
-     *
-     * @param neuronView значення, що визначає нейрон відображення для цієї операції.
-     *
-     * @param type тип обʼєкта.
-     *
-     * @param button значення, що визначає кнопка для цієї операції.
+     * Перевіряє сценарій «fire» і відповідність результату очікуваній поведінці.
      */
     private static void fire(
             NeuronView neuronView,
@@ -237,11 +212,7 @@ final class NeuronInteractionControllerMouseButtonTest {
     }
 
     /**
-     * Перевіряє, чи виконується умова «меню».
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * Перевіряє сценарій «has visible menu» і відповідність результату очікуваній поведінці.
      */
     private static boolean hasVisibleMenu(WorkspaceView workspace) {
         return workspace.overlayLayer().getChildren().stream()
@@ -249,11 +220,6 @@ final class NeuronInteractionControllerMouseButtonTest {
                         && node.isVisible());
     }
 
-    /**
-     * Запускає або планує дію, повʼязану з «відповідну операцію».
-     *
-     * @param action дія, яку потрібно виконати.
-     */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];
@@ -269,41 +235,15 @@ final class NeuronInteractionControllerMouseButtonTest {
         });
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
-            /**
-             * Повертає результат операції «стан виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalStateException("JavaFX test timed out");
         }
         if (failure[0] != null) {
-            /**
-             * Повертає результат операції «відповідну операцію».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new AssertionError("JavaFX test failed", failure[0]);
         }
     }
 
-    /**
-     * Повертає результат операції «відповідну операцію».
-     *
-     * @param controller значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param neuronView значення, що визначає нейрон відображення для цієї операції.
-     *
-     * @param handle значення, що визначає обробити для цієї операції.
-     *
-     * @param scene значення, що визначає сцена для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
-     */
-    /**
-     * Набір модульних тестів типу Fixture. Перевіряє його основну поведінку та обробку некоректних або крайових даних.
-     */
     private record Fixture(
             NeuronInteractionController controller,
             WorkspaceView workspace,

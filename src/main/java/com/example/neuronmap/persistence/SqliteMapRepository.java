@@ -6,7 +6,7 @@ import java.nio.file.Path;
 import java.sql.SQLException;
 
 /**
- * Реалізує контракт сховища карти за допомогою бази даних SQLite.
+ * Реалізує постійне сховище карти на SQLite та керує транзакціями, параметрами камери й налаштуваннями симуляції.
  */
 public final class SqliteMapRepository implements MapRepository {
 
@@ -18,28 +18,19 @@ public final class SqliteMapRepository implements MapRepository {
     private boolean closed;
 
     /**
-     * Повертає результат операції «SQLite карта».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * Створює екземпляр SqliteMapRepository та зберігає передані залежності, потрібні для його роботи.
      */
     public SqliteMapRepository() {
         this(DatabasePathResolver.resolve());
     }
 
     /**
-     * Повертає результат операції «SQLite карта».
+     * Створює екземпляр SqliteMapRepository та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param databasePath значення, що визначає база даних шлях для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param databasePath шлях до файлу бази даних проєкту.
      */
     public SqliteMapRepository(Path databasePath) {
         if (databasePath == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
             throw new IllegalArgumentException("databasePath must not be null");
         }
 
@@ -53,9 +44,9 @@ public final class SqliteMapRepository implements MapRepository {
     }
 
     /**
-     * Перевіряє, чи виконується умова «відповідну операцію».
+     * Перевіряє, чи persistent за поточного стану компонента.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     @Override
     public boolean isPersistent() {
@@ -63,9 +54,9 @@ public final class SqliteMapRepository implements MapRepository {
     }
 
     /**
-     * Повертає результат операції «база даних шлях».
+     * Повертає шлях до файлу бази даних.
      *
-     * @return шлях до відповідного файлу або каталогу.
+     * @return шлях до файлу бази даних.
      */
     @Override
     public Path databasePath() {
@@ -73,11 +64,9 @@ public final class SqliteMapRepository implements MapRepository {
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «такт».
+     * Завантажує simulation tick millis із відповідного джерела даних.
      *
-     * @param fallbackMillis значення, що визначає резервний варіант для цієї операції.
-     *
-     * @return числове значення, визначене методом.
+     * @param fallbackMillis резервна тривалість такту, якщо збереженого значення немає.
      */
     @Override
     public double loadSimulationTickMillis(double fallbackMillis) {
@@ -85,9 +74,9 @@ public final class SqliteMapRepository implements MapRepository {
     }
 
     /**
-     * Зберігає дані, повʼязані з «такт», у відповідному сховищі.
+     * Зберігає simulation tick millis у відповідному сховищі.
      *
-     * @param millis значення, що визначає відповідну операцію для цієї операції.
+     * @param millis тривалість такту в мілісекундах.
      */
     @Override
     public synchronized void saveSimulationTickMillis(double millis) {
@@ -97,9 +86,7 @@ public final class SqliteMapRepository implements MapRepository {
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «камера стан».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * Завантажує з бази даних останні збережені параметри камери.
      */
     @Override
     public CameraState loadCameraState() {
@@ -120,7 +107,7 @@ public final class SqliteMapRepository implements MapRepository {
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «відповідну операцію».
+     * Завантажує вміст бази даних у передану модель карти.
      *
      * @param model модель карти нейронів.
      */
@@ -138,11 +125,10 @@ public final class SqliteMapRepository implements MapRepository {
     }
 
     /**
-     * Зберігає дані, повʼязані з «потрібні дані», у відповідному сховищі.
+     * Зберігає модель карти та стан камери в транзакції.
      *
      * @param model модель карти нейронів.
-     *
-     * @param cameraState значення, що визначає камера стан для цієї операції.
+     * @param cameraState стан камери, який потрібно зберегти разом із картою.
      */
     @Override
     public synchronized void save(
@@ -167,7 +153,7 @@ public final class SqliteMapRepository implements MapRepository {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     * Закриває з’єднання SQLite та звільняє ресурси репозиторію.
      */
     @Override
     public synchronized void close() {
@@ -183,7 +169,7 @@ public final class SqliteMapRepository implements MapRepository {
     }
 
     /**
-     * Виконує операцію «база даних файл».
+     * Забезпечує наявність файлу бази даних і оновлює його часову мітку за потреби.
      */
     private void touchDatabaseFile() {
         try {
@@ -200,32 +186,27 @@ public final class SqliteMapRepository implements MapRepository {
     }
 
     /**
-     * Виконує операцію «відкрити».
+     * Перевіряє, що репозиторій не закрито перед зверненням до бази даних.
      */
     private void ensureOpen() {
         if (closed) {
-            /**
-             * Повертає результат операції «стан виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
             throw new IllegalStateException("SQLite repository is closed");
         }
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Виконує відкат незавершеної транзакції, не маскуючи первинну помилку.
      */
     private void rollbackQuietly() {
         try {
             connection.rollback();
         } catch (SQLException ignored) {
-            // Preserve the original persistence error.
+
         }
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «відповідну операцію».
+     * Відновлює початковий режим автоматичного підтвердження транзакцій.
      */
     private void restoreAutoCommit() {
         try {
@@ -239,27 +220,15 @@ public final class SqliteMapRepository implements MapRepository {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Створює PersistenceException із повідомленням і першопричиною помилки SQLite.
      *
-     * @param message повідомлення для показу чи журналювання.
-     *
-     * @param cause значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param message значення «message», яке використовується в цьому методі.
+     * @param cause першопричина помилки, яку потрібно передати разом із повідомленням.
      */
     private PersistenceException failure(
             String message,
             Throwable cause
     ) {
-        /**
-         * Повертає результат операції «виняток».
-         *
-         * @param databasePath значення, що визначає база даних шлях для цієї операції.
-         *
-         * @param cause значення, що визначає відповідну операцію для цієї операції.
-         *
-         * @return значення або обʼєкт, визначений описаною операцією.
-         */
         return new PersistenceException(
                 message + " Database: " + databasePath,
                 cause

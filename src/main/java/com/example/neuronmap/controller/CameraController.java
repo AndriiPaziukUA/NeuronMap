@@ -18,7 +18,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
- * Керує рухом і масштабом камери редактора у відповідь на дії користувача.
+ * Обробляє панорамування та масштабування полотна, підтримує координати камери й зберігає зміни після завершення взаємодії.
  */
 public final class CameraController {
 
@@ -41,27 +41,17 @@ public final class CameraController {
     private double lastMouseY;
 
     /**
-     * Повертає результат операції «камера».
+     * Створює екземпляр CameraController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param state стан обʼєкта або редактора.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param refreshOverlay значення, що визначає накладка для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param interactionActive значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param interactiveTarget значення, що визначає кінцевий для цієї операції.
-     *
-     * @param status стан операції.
-     *
-     * @param cameraCenterWorldConsumer значення, що визначає камера центр карта для цієї операції.
-     *
-     * @param zoomFactor значення, що визначає масштаб для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param workspace полотно редактора.
+     * @param refreshOverlay callback для оновлення положення накладок.
+     * @param save функція зворотного виклику для відповідної дії.
+     * @param interactionActive ознака, що зараз виконується активна взаємодія мишею.
+     * @param interactiveTarget перевірка, чи належить ціль до інтерактивного елемента інтерфейсу.
+     * @param status callback для показу повідомлення в рядку стану.
+     * @param cameraCenterWorldConsumer callback, який отримує координати центра камери у світовій системі.
+     * @param zoomFactor коефіцієнт, на який змінюється масштаб за один крок прокручування.
      */
     public CameraController(
             EditorState state,
@@ -89,29 +79,18 @@ public final class CameraController {
     }
 
     /**
-     * Повертає результат операції «камера».
+     * Створює екземпляр CameraController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param state стан обʼєкта або редактора.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param refreshOverlay значення, що визначає накладка для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param interactionActive значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param interactiveTarget значення, що визначає кінцевий для цієї операції.
-     *
-     * @param status стан операції.
-     *
-     * @param cameraCenterWorldConsumer значення, що визначає камера центр карта для цієї операції.
-     *
-     * @param zoomFactor значення, що визначає масштаб для цієї операції.
-     *
-     * @param localization значення, що визначає локалізація для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param workspace полотно редактора.
+     * @param refreshOverlay callback для оновлення положення накладок.
+     * @param save функція зворотного виклику для відповідної дії.
+     * @param interactionActive ознака, що зараз виконується активна взаємодія мишею.
+     * @param interactiveTarget перевірка, чи належить ціль до інтерактивного елемента інтерфейсу.
+     * @param status callback для показу повідомлення в рядку стану.
+     * @param cameraCenterWorldConsumer callback, який отримує координати центра камери у світовій системі.
+     * @param zoomFactor коефіцієнт, на який змінюється масштаб за один крок прокручування.
+     * @param localization служба локалізації інтерфейсу.
      */
     public CameraController(
             EditorState state,
@@ -137,11 +116,7 @@ public final class CameraController {
                 ? new LocalizationService(java.util.Locale.forLanguageTag("uk"))
                 : localization;
         if (!Double.isFinite(zoomFactor) || zoomFactor <= 1.0) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("zoomFactor must be > 1");
         }
         this.zoomFactor = zoomFactor;
@@ -150,7 +125,7 @@ public final class CameraController {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Реєструє обробники миші та прокручування, які керують панорамуванням і масштабуванням камери.
      */
     public void install() {
         workspace.node().addEventFilter(
@@ -179,7 +154,7 @@ public final class CameraController {
     }
 
     /**
-     * Обробляє «потрібні дані».
+     * Застосовує поточний масштаб і зміщення зі стану редактора до полотна.
      */
     public void apply() {
         workspace.setWorldTransform(
@@ -192,7 +167,9 @@ public final class CameraController {
     }
 
 /**
- * Завершує або скасовує дію, повʼязану з «очікуваний».
+ * Скасовує відкладене збереження змін камери, якщо воно ще не виконалося.
+ *
+ * @return {@code true}, якщо умову виконано; інакше {@code false}.
  */
 public void cancelPendingSave() {
         saveDebounce.stop();
@@ -200,9 +177,9 @@ public void cancelPendingSave() {
     }
 
     /**
-     * Обробляє «відповідну операцію».
+     * Обробляє подію «pressed» і передає її до відповідної операції редактора.
      *
-     * @param event подія інтерфейсу.
+     * @param event подія інтерфейсу, яку потрібно обробити.
      */
     private void handlePressed(MouseEvent event) {
         if (event.getButton() != MouseButton.PRIMARY) {
@@ -223,9 +200,9 @@ public void cancelPendingSave() {
     }
 
     /**
-     * Обробляє «відповідну операцію».
+     * Обробляє подію «dragged» і передає її до відповідної операції редактора.
      *
-     * @param event подія інтерфейсу.
+     * @param event подія інтерфейсу, яку потрібно обробити.
      */
     private void handleDragged(MouseEvent event) {
         if (!panning) {
@@ -246,9 +223,9 @@ public void cancelPendingSave() {
     }
 
     /**
-     * Обробляє «відповідну операцію».
+     * Обробляє подію «released» і передає її до відповідної операції редактора.
      *
-     * @param event подія інтерфейсу.
+     * @param event подія інтерфейсу, яку потрібно обробити.
      */
     private void handleReleased(MouseEvent event) {
         if (!panning) {
@@ -261,9 +238,9 @@ public void cancelPendingSave() {
     }
 
     /**
-     * Обробляє «масштаб».
+     * Обробляє подію «zoom» і передає її до відповідної операції редактора.
      *
-     * @param event подія інтерфейсу.
+     * @param event подія інтерфейсу, яку потрібно обробити.
      */
     private void handleZoom(ScrollEvent event) {
         if (event.getDeltaY() == 0.0) {
@@ -297,7 +274,7 @@ public void cancelPendingSave() {
     }
 
     /**
-     * Обробляє «камера координати».
+     * Оновлює показані координати центра камери після масштабування або панорамування.
      */
     private void refreshCameraCoordinates() {
         if (cameraCenterWorldConsumer == null) {
@@ -323,18 +300,16 @@ public void cancelPendingSave() {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Планує збереження змін камери після завершення швидкої серії взаємодій.
      */
     private void scheduleSave() {
         saveDebounce.playFromStart();
     }
 
     /**
-     * Повертає результат операції «масштаб».
+     * Форматує zoom для показу користувачеві.
      *
-     * @param zoom значення, що визначає масштаб для цієї операції.
-     *
-     * @return текстове значення, сформоване або знайдене методом.
+     * @param zoom коефіцієнт масштабування.
      */
     private static String formatZoom(double zoom) {
         double percent = zoom * 100.0;

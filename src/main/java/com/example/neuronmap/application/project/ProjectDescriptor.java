@@ -5,20 +5,11 @@ import java.time.Instant;
 import java.util.Objects;
 
 /**
- * Повертає результат операції «проєкт».
- *
- * @param id ідентифікатор обʼєкта.
- *
- * @param name назва або текстове імʼя обʼєкта.
- *
- * @param databasePath значення, що визначає база даних шлях для цієї операції.
- *
- * @param modifiedAt значення, що визначає відповідну операцію для цієї операції.
- *
- * @return значення або обʼєкт, визначений описаною операцією.
- */
-/**
- * Описує збережений проєкт: його назву, розташування та повʼязані метадані.
+ * Описує проєкт у каталозі застосунку та вказує на його файл даних.
+ * @param id унікальний ідентифікатор проєкту.
+ * @param name назва, яку показують у списку проєктів.
+ * @param databasePath абсолютний шлях до файлу бази даних проєкту.
+ * @param modifiedAt час останньої зміни збереженого проєкту; null для незбереженого проєкту.
  */
 public record ProjectDescriptor(
         String id,
@@ -26,21 +17,21 @@ public record ProjectDescriptor(
         Path databasePath,
         Instant modifiedAt
 ) {
+    /**
+     * Створює опис проєкту та нормалізує шлях до його файла бази даних.
+     *
+     * @param id унікальний ідентифікатор елемента.
+     * @param name назва, яку потрібно перевірити або зберегти.
+     * @param databasePath шлях до файлу бази даних проєкту.
+     * @param modifiedAt час останньої зміни збереженого проєкту або null, якщо проєкт ще не збережено.
+     */
     public ProjectDescriptor {
         if (id == null || id.isBlank()) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("project id must not be blank");
         }
         if (name == null || name.isBlank()) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("project name must not be blank");
         }
         databasePath = Objects.requireNonNull(databasePath, "databasePath")
@@ -48,11 +39,6 @@ public record ProjectDescriptor(
                 .normalize();
     }
 
-    /**
-     * Перевіряє, чи виконується умова «відповідну операцію».
-     *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
-     */
     public boolean isPersisted() {
         return modifiedAt != null;
     }

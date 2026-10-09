@@ -25,7 +25,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * Узгоджує дії користувача, що залучають кілька контролерів редактора.
+ * Об’єднує обробники подій полотна, вибору, створення нейронів, групування та створення зв’язків.
  */
 public final class MapInteractionCoordinator {
 
@@ -43,29 +43,18 @@ public final class MapInteractionCoordinator {
     private final NeuronToolDragController toolDragController;
 
     /**
-     * Повертає результат операції «карта».
+     * Створює екземпляр MapInteractionCoordinator та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param neuronService значення, що визначає нейрон служба для цієї операції.
-     *
-     * @param state стан обʼєкта або редактора.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param selectionController значення, що визначає вибір для цієї операції.
-     *
-     * @param connectionController значення, що визначає звʼязок для цієї операції.
-     *
-     * @param neuronController значення, що визначає нейрон для цієї операції.
-     *
-     * @param simulationController значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param presentation значення, що визначає представлення для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param status стан операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param neuronService служба операцій над нейронами.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param workspace полотно редактора.
+     * @param selectionController контролер вибору нейронів.
+     * @param connectionController значення «connection controller», яке використовується в цьому методі.
+     * @param neuronController значення «neuron controller», яке використовується в цьому методі.
+     * @param simulationController значення «simulation controller», яке використовується в цьому методі.
+     * @param presentation візуальне подання нейрона.
+     * @param save функція зворотного виклику для відповідної дії.
+     * @param status callback для показу повідомлення в рядку стану.
      */
     public MapInteractionCoordinator(
             NeuronService neuronService,
@@ -95,31 +84,19 @@ public final class MapInteractionCoordinator {
     }
 
     /**
-     * Повертає результат операції «карта».
+     * Створює екземпляр MapInteractionCoordinator та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param neuronService значення, що визначає нейрон служба для цієї операції.
-     *
-     * @param state стан обʼєкта або редактора.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param selectionController значення, що визначає вибір для цієї операції.
-     *
-     * @param connectionController значення, що визначає звʼязок для цієї операції.
-     *
-     * @param neuronController значення, що визначає нейрон для цієї операції.
-     *
-     * @param simulationController значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param presentation значення, що визначає представлення для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param status стан операції.
-     *
-     * @param localization значення, що визначає локалізація для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param neuronService служба операцій над нейронами.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param workspace полотно редактора.
+     * @param selectionController контролер вибору нейронів.
+     * @param connectionController значення «connection controller», яке використовується в цьому методі.
+     * @param neuronController значення «neuron controller», яке використовується в цьому методі.
+     * @param simulationController значення «simulation controller», яке використовується в цьому методі.
+     * @param presentation візуальне подання нейрона.
+     * @param save функція зворотного виклику для відповідної дії.
+     * @param status callback для показу повідомлення в рядку стану.
+     * @param localization служба локалізації інтерфейсу.
      */
     public MapInteractionCoordinator(
             NeuronService neuronService,
@@ -153,7 +130,7 @@ public final class MapInteractionCoordinator {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Реєструє обробники подій полотна й кнопок інструментів.
      */
     public void install() {
         workspace.node().addEventFilter(MouseEvent.MOUSE_CLICKED, this::handleCanvasClick);
@@ -161,9 +138,9 @@ public final class MapInteractionCoordinator {
     }
 
     /**
-     * Запускає або планує дію, повʼязану з «додати нейрон».
+     * Починає операцію add neuron mode та готує стан взаємодії.
      *
-     * @param type тип обʼєкта.
+     * @param type тип нейрона або елемента.
      */
     public void beginAddNeuronMode(NeuronType type) {
         simulationController.stop();
@@ -177,7 +154,9 @@ public final class MapInteractionCoordinator {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «відповідну операцію».
+     * Скасовує незавершені режими взаємодії, включно зі створенням зв’язку та перетягуванням.
+     *
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public void cancelInteractions() {
         toolDragController.clearPreview();
@@ -190,13 +169,11 @@ public final class MapInteractionCoordinator {
     }
 
     /**
-     * Виконує операцію «додати нейрон».
+     * Створює нейрон обраного типу в заданих координатах карти.
      *
-     * @param type тип обʼєкта.
-     *
-     * @param x координата по горизонталі.
-     *
-     * @param y координата по вертикалі.
+     * @param type тип нейрона або елемента.
+     * @param x координата X.
+     * @param y координата Y.
      */
     public void addNeuronAt(NeuronType type, double x, double y) {
         if (type == null) {
@@ -211,7 +188,7 @@ public final class MapInteractionCoordinator {
     }
 
     /**
-     * Виконує операцію «група вибір».
+     * Створює групу з вибраних нейронів через службу групування.
      */
     public void groupSelection() {
         selectionController.groupSelection();
@@ -219,7 +196,7 @@ public final class MapInteractionCoordinator {
     }
 
     /**
-     * Виконує операцію «вибір».
+     * Знімає групування з вибраних нейронів.
      */
     public void ungroupSelection() {
         selectionController.ungroupSelection();
@@ -227,7 +204,7 @@ public final class MapInteractionCoordinator {
     }
 
     /**
-     * Виконує операцію «видалити звʼязок».
+     * Завершує режим видалення зв’язків і очищає тимчасове підсвічування.
      */
     public void exitDeleteConnectionMode() {
         connectionController.exitDelete();
@@ -235,16 +212,16 @@ public final class MapInteractionCoordinator {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     * Від’єднує обробники подій і звільняє ресурси, якими керує компонент.
      */
     public void dispose() {
         toolDragController.clearPreview();
     }
 
     /**
-     * Обробляє «відповідну операцію».
+     * Обробляє клацання по полотну відповідно до активного режиму редактора.
      *
-     * @param event подія інтерфейсу.
+     * @param event подія інтерфейсу, яку потрібно обробити.
      */
     private void handleCanvasClick(MouseEvent event) {
         if (event.getButton() != MouseButton.PRIMARY) {
@@ -277,11 +254,10 @@ public final class MapInteractionCoordinator {
     }
 
     /**
-     * Обробляє «відповідну операцію».
+     * Створює нейрон у світових координатах, куди користувач відпустив інструмент.
      *
-     * @param type тип обʼєкта.
-     *
-     * @param worldPoint значення, що визначає карта для цієї операції.
+     * @param type тип нейрона або елемента.
+     * @param worldPoint точка у світових координатах карти.
      */
     private void handleToolDrop(NeuronType type, Point2D worldPoint) {
         addNeuronAt(
@@ -292,24 +268,20 @@ public final class MapInteractionCoordinator {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «панель інструментів».
+     * Під’єднує перетягування до кнопок додавання збуджувального й гальмівного нейронів.
      *
-     * @param excitatoryButton значення, що визначає кнопка для цієї операції.
-     *
-     * @param inhibitoryButton значення, що визначає кнопка для цієї операції.
+     * @param excitatoryButton кнопка додавання збуджувального нейрона.
+     * @param inhibitoryButton кнопка додавання гальмівного нейрона.
      */
     public void configureToolbarButtons(Button excitatoryButton, Button inhibitoryButton) {
         toolDragController.configureToolbarButtons(excitatoryButton, inhibitoryButton);
     }
 
     /**
-     * Повертає результат операції «до карта».
+     * Перетворює екранні координати на координати карти з урахуванням поточної камери.
      *
-     * @param screenX значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param screenY значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param screenX горизонтальна екранна координата.
+     * @param screenY вертикальна екранна координата.
      */
     private Point2D screenToWorld(double screenX, double screenY) {
         return new Point2D(

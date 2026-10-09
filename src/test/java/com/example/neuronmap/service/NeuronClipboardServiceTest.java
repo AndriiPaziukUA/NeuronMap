@@ -12,12 +12,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє копіювання й вставлення нейронів і груп.
+ * Перевіряє копіювання й вставлення стану нейронів та копіювання всієї групи після вибору одного її учасника.
  */
 final class NeuronClipboardServiceTest {
 
     /**
-     * Перевіряє очікувану поведінку: копіює і вставляє нейрон стан.
+     * Перевіряє копіювання параметрів нейронів і вставлення відносно заданої опорної точки.
      */
     @Test
     void copiesAndPastesNeuronStateAtRequestedAnchor() {
@@ -48,7 +48,7 @@ final class NeuronClipboardServiceTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: копіює цілий група коли вибраний.
+     * Перевіряє, що вибір одного учасника групи копіює всю групу.
      */
     @Test
     void copiesWholeGroupWhenOneMemberIsSelected() {

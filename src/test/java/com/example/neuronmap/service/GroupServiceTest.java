@@ -11,12 +11,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє операції з групами та переміщення їхніх елементів.
+ * Перевіряє, що переміщення одного учасника групи пересуває всіх учасників групи.
  */
 class GroupServiceTest {
 
     /**
-     * Перевіряє очікувану поведінку: рухається усі група.
+     * Перевіряє, що переміщення групи змінює позиції всіх її нейронів.
      */
     @Test
     void movesAllMembersOfContainingGroup() {

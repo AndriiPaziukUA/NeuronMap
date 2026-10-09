@@ -15,7 +15,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * Керує сторінками головного меню, переходами між ними та діями зі списком проєктів.
+ * Керує відкриттям і закриттям головного меню, діями над проєктами та обробкою клавіатурних команд меню.
  */
 public final class MainMenuController {
 
@@ -33,29 +33,18 @@ public final class MainMenuController {
     private boolean installed;
 
     /**
-     * Повертає результат операції «меню».
+     * Створює екземпляр MainMenuController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param view значення, що визначає відображення для цієї операції.
-     *
-     * @param localization значення, що визначає локалізація для цієї операції.
-     *
-     * @param projectsSupplier значення, що визначає проєкти для цієї операції.
-     *
-     * @param newProjectAction значення, що визначає новий проєкт для цієї операції.
-     *
-     * @param openProjectAction значення, що визначає відкрити проєкт для цієї операції.
-     *
-     * @param renameProjectAction значення, що визначає проєкт для цієї операції.
-     *
-     * @param deleteProjectAction значення, що визначає видалити проєкт для цієї операції.
-     *
-     * @param exitAction значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param pauseForMenuAction значення, що визначає для меню для цієї операції.
-     *
-     * @param resumeAfterMenuAction значення, що визначає після меню для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param view візуальний компонент, яким керує контролер.
+     * @param localization служба локалізації інтерфейсу.
+     * @param projectsSupplier функція, що надає поточний перелік проєктів.
+     * @param newProjectAction callback для створення проєкту.
+     * @param openProjectAction callback для відкриття проєкту.
+     * @param renameProjectAction callback для перейменування проєкту.
+     * @param deleteProjectAction callback для видалення проєкту.
+     * @param exitAction callback для завершення роботи застосунку.
+     * @param pauseForMenuAction callback для призупинення симуляції на час відкритого меню.
+     * @param resumeAfterMenuAction callback для відновлення симуляції після закриття меню.
      */
     public MainMenuController(
             MainMenuView view,
@@ -97,9 +86,9 @@ public final class MainMenuController {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Реєструє обробники клавіатури та взаємодії головного меню на сцені.
      *
-     * @param scene значення, що визначає сцена для цієї операції.
+     * @param scene сцена JavaFX, до якої приєднують компонент.
      */
     public void install(Scene scene) {
         Objects.requireNonNull(scene, "scene");
@@ -111,7 +100,7 @@ public final class MainMenuController {
     }
 
     /**
-     * Виконує операцію «відкрити».
+     * Відкриває головне меню та призупиняє дії редактора, які не повинні працювати за відкритого меню.
      */
     public void open() {
         if (view.isMenuVisible()) {
@@ -123,14 +112,14 @@ public final class MainMenuController {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     * Закриває меню й відновлює пов’язаний із ним стан взаємодії.
      */
     public void close() {
         requestCloseMenu();
     }
 
 /**
- * Обробляє «проєкти».
+ * Оновлює список проєктів у меню з актуального каталогу.
  */
 public void refreshProjects() {
         Runnable refresh = () -> {
@@ -148,18 +137,18 @@ public void refreshProjects() {
     }
 
     /**
-     * Перевіряє, чи виконується умова «відкрити».
+     * Перевіряє, чи відкрите головне меню.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public boolean isOpen() {
         return view.isMenuVisible();
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     * Прибирає обробники меню зі сцени та звільняє пов’язані ресурси.
      *
-     * @param scene значення, що визначає сцена для цієї операції.
+     * @param scene сцена JavaFX, до якої приєднують компонент.
      */
     public void dispose(Scene scene) {
         if (scene != null && installed) {
@@ -174,9 +163,9 @@ public void refreshProjects() {
     }
 
     /**
-     * Обробляє «відкрити проєкт».
+     * Викликає дію відкриття вибраного проєкту й закриває меню після успішного переходу.
      *
-     * @param project опис проєкту.
+     * @param project опис проєкту, над яким виконується дія.
      */
     private void handleOpenProject(ProjectDescriptor project) {
         requestLeave(() -> {
@@ -186,13 +175,10 @@ public void refreshProjects() {
     }
 
     /**
-     * Обробляє «проєкт».
+     * Передає перейменування проєкту сервісу каталогу й повідомляє інтерфейс про оновлені дані.
      *
-     * @param project опис проєкту.
-     *
-     * @param name назва або текстове імʼя обʼєкта.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param project опис проєкту, над яким виконується дія.
+     * @param name назва, яку потрібно перевірити або зберегти.
      */
     private ProjectDescriptor handleRenameProject(
             ProjectDescriptor project,
@@ -202,9 +188,9 @@ public void refreshProjects() {
     }
 
     /**
-     * Обробляє «видалити проєкт».
+     * Передає видалення проєкту до прикладної дії та оновлює список проєктів.
      *
-     * @param project опис проєкту.
+     * @param project опис проєкту, над яким виконується дія.
      */
     private void handleDeleteProject(ProjectDescriptor project) {
         requestLeave(() -> {
@@ -216,7 +202,9 @@ public void refreshProjects() {
     }
 
     /**
-     * Обробляє «відповідну операцію».
+     * Повертає меню з поточної сторінки до головної сторінки.
+     *
+     * @return меню з поточної сторінки до головної сторінки.
      */
     private void handleBack() {
         if (view.isLoadPage() || view.isSettingsPage()) {
@@ -227,9 +215,9 @@ public void refreshProjects() {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Запитує вихід із меню або активного сценарію, враховуючи наявність незбережених змін.
      *
-     * @param action дія, яку потрібно виконати.
+     * @param action функція зворотного виклику для відповідної дії.
      */
     private void requestLeave(Runnable action) {
         if (!view.hasUnsavedChanges()) {
@@ -250,9 +238,9 @@ public void refreshProjects() {
     }
 
     /**
-     * Виконує операцію «закриття».
+     * Запитує закриття меню або вікна після перевірки незбережених змін.
      *
-     * @param action дія, яку потрібно виконати.
+     * @param action функція зворотного виклику для відповідної дії.
      */
     private void requestClose(Runnable action) {
         requestLeave(() -> {
@@ -263,7 +251,7 @@ public void refreshProjects() {
     }
 
     /**
-     * Виконує операцію «закриття меню».
+     * Запитує закриття меню та викликає відповідну дію після підтвердження.
      */
     private void requestCloseMenu() {
         if (!view.isMenuVisible()) {
@@ -273,7 +261,7 @@ public void refreshProjects() {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «меню».
+     * Негайно закриває меню без повторного показу діалогу підтвердження.
      */
     private void closeMenuImmediately() {
         if (!view.isMenuVisible()) {
@@ -284,9 +272,9 @@ public void refreshProjects() {
     }
 
     /**
-     * Обробляє «ключ».
+     * Обробляє подію «key pressed» і передає її до відповідної операції редактора.
      *
-     * @param event подія інтерфейсу.
+     * @param event подія інтерфейсу, яку потрібно обробити.
      */
     private void handleKeyPressed(KeyEvent event) {
         if (event.getCode() == KeyCode.ESCAPE) {

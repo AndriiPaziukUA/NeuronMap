@@ -16,7 +16,7 @@ import javafx.scene.input.MouseEvent;
 import java.util.Map;
 
 /**
- * Координує оновлення графічного представлення карти після змін даних.
+ * Синхронізує візуальні подання нейронів, зв’язків, груп і накладок із поточним станом моделі карти.
  */
 public final class MapPresentationCoordinator {
 
@@ -32,25 +32,16 @@ public final class MapPresentationCoordinator {
     private final NeuronLayerOrderController layerOrderController;
 
     /**
-     * Повертає результат операції «карта представлення».
+     * Створює екземпляр MapPresentationCoordinator та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param neuronService значення, що визначає нейрон служба для цієї операції.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param neuronViews значення, що визначає нейрон для цієї операції.
-     *
-     * @param connectionViews значення, що визначає звʼязок для цієї операції.
-     *
-     * @param rotationHandles значення, що визначає обертання обробляє для цієї операції.
-     *
-     * @param neuronController значення, що визначає нейрон для цієї операції.
-     *
-     * @param connectionController значення, що визначає звʼязок для цієї операції.
-     *
-     * @param layerOrderController значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param neuronService служба операцій над нейронами.
+     * @param workspace полотно редактора.
+     * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
+     * @param connectionViews мапа візуальних подань зв’язків за ідентифікаторами.
+     * @param rotationHandles мапа ручок обертання нейронів за ідентифікаторами.
+     * @param neuronController значення «neuron controller», яке використовується в цьому методі.
+     * @param connectionController значення «connection controller», яке використовується в цьому методі.
+     * @param layerOrderController контролер, який керує порядком шарів елементів полотна.
      */
     public MapPresentationCoordinator(
             NeuronService neuronService,
@@ -73,7 +64,7 @@ public final class MapPresentationCoordinator {
     }
 
     /**
-     * Обробляє «усі».
+     * Оновлює всі візуальні подання карти та розташування накладок.
      */
     public void refreshAll() {
         refreshNeurons();
@@ -85,7 +76,7 @@ public final class MapPresentationCoordinator {
     }
 
     /**
-     * Обробляє «накладки».
+     * Перераховує накладки, положення яких залежить від екранних координат.
      */
     public void refreshScreenSpaceOverlays() {
         neuronController.refreshOverlayPositions();
@@ -94,16 +85,16 @@ public final class MapPresentationCoordinator {
     }
 
     /**
-     * Обробляє «нейрони».
+     * Оновлює всі подання нейронів за поточними даними моделі.
      */
     public void refreshNeurons() {
         neuronController.refreshVisuals();
     }
 
     /**
-     * Виконує операцію «нейрон до».
+     * Переміщує клацнутий нейрон вище в порядку шарів, якщо цього вимагає взаємодія.
      *
-     * @param event подія інтерфейсу.
+     * @param event подія інтерфейсу, яку потрібно обробити.
      */
     public void bringClickedNeuronToFront(MouseEvent event) {
         Node node = event.getTarget() instanceof Node targetNode ? targetNode : null;
@@ -117,7 +108,7 @@ public final class MapPresentationCoordinator {
     }
 
     /**
-     * Виконує операцію «обертання обробляє до».
+     * Переміщує ручки обертання на передній план, щоб вони залишалися доступними для миші.
      */
     public void bringRotationHandlesToFront() {
         for (RotationHandleView handle : rotationHandles.values()) {
@@ -128,7 +119,7 @@ public final class MapPresentationCoordinator {
     }
 
     /**
-     * Обробляє «звʼязки».
+     * Оновлює геометрію та відображення всіх зв’язків.
      */
     public void refreshConnections() {
         for (Connection connection : neuronService.model().connections()) {
@@ -156,11 +147,9 @@ public final class MapPresentationCoordinator {
     }
 
     /**
-     * Створює обʼєкт із переданих даних «звʼязок відображення».
+     * Створює видиме подання для напрямленого зв’язку.
      *
-     * @param connection звʼязок між нейронами.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param connection напрямлений зв’язок між нейронами.
      */
     public ConnectionView createConnectionView(Connection connection) {
         ConnectionView connectionView = new ConnectionView(
@@ -173,7 +162,7 @@ public final class MapPresentationCoordinator {
     }
 
     /**
-     * Виконує операцію «із модель».
+     * Додає відсутні й прибирає застарілі подання так, щоб інтерфейс відповідав моделі.
      */
     public void synchronizeViewsWithModel() {
         for (NeuronView neuronView : neuronViews.values()) {
@@ -202,7 +191,7 @@ public final class MapPresentationCoordinator {
     }
 
     /**
-     * Обробляє «групи».
+     * Оновлює візуальні області груп за положеннями нейронів-учасників.
      */
     private void refreshGroups() {
         workspace.groupLayer().getChildren().clear();
@@ -214,9 +203,9 @@ public final class MapPresentationCoordinator {
     }
 
     /**
-     * Видаляє або скидає дані, повʼязані з «із».
+     * Видаляє from parent з поточної моделі або подання.
      *
-     * @param node графічний вузол JavaFX.
+     * @param node вузол JavaFX, який потрібно перевірити або змінити.
      */
     private static void removeFromParent(Node node) {
         Node parent = node.getParent();

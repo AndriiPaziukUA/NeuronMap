@@ -22,13 +22,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє структуру головного меню та поведінку редагування налаштувань.
+ * Перевіряє переходи сторінок меню, дії користувача й обробку незбережених змін.
  */
 final class MainMenuViewTest {
 
-    /**
-     * Запускає або планує дію, повʼязану з «відповідну операцію».
-     */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -40,9 +37,6 @@ final class MainMenuViewTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
     }
 
-    /**
-     * Перевіряє очікувану поведінку: містить і кнопка.
-     */
     @Test
     void mainPageContainsFourVerticalActionsAndBackButton() throws Exception {
         runOnFxThread(() -> {
@@ -69,9 +63,6 @@ final class MainMenuViewTest {
         });
     }
 
-    /**
-     * Перевіряє очікувану поведінку: налаштування мова змінити.
-     */
     @Test
     void settingsLanguageChangeIsImmediateButCanBeDiscarded() throws Exception {
         runOnFxThread(() -> {
@@ -93,9 +84,6 @@ final class MainMenuViewTest {
         });
     }
 
-    /**
-     * Перевіряє очікувану поведінку: проєкт створює очікуваний змінити.
-     */
     @Test
     void renamingProjectCreatesPendingChangeUntilCommitted() throws Exception {
         runOnFxThread(() -> {
@@ -144,11 +132,6 @@ final class MainMenuViewTest {
         });
     }
 
-    /**
-     * Запускає або планує дію, повʼязану з «відповідну операцію».
-     *
-     * @param action дія, яку потрібно виконати.
-     */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];
@@ -165,11 +148,7 @@ final class MainMenuViewTest {
 
         assertTrue(latch.await(5, TimeUnit.SECONDS));
         if (failure[0] != null) {
-            /**
-             * Повертає результат операції «відповідну операцію».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new AssertionError("JavaFX test failed", failure[0]);
         }
     }

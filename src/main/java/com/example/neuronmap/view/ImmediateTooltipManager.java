@@ -9,7 +9,7 @@ import javafx.event.EventHandler;
 import javafx.scene.input.MouseEvent;
 
 /**
- * Керує негайним показом і приховуванням підказок інтерфейсу.
+ * Показує підказку без стандартної затримки JavaFX і приховує її, коли курсор залишає відповідний елемент.
  */
 public final class ImmediateTooltipManager {
 
@@ -23,11 +23,9 @@ public final class ImmediateTooltipManager {
     private Control activeControl;
 
     /**
-     * Повертає результат операції «підказка».
+     * Створює екземпляр ImmediateTooltipManager та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param scene значення, що визначає сцена для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param scene сцена JavaFX, до якої приєднують компонент.
      */
     private ImmediateTooltipManager(Scene scene) {
         this.scene = scene;
@@ -35,33 +33,19 @@ public final class ImmediateTooltipManager {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Створює менеджер миттєвих підказок і під’єднує його до сцени.
      *
-     * @param scene значення, що визначає сцена для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param scene сцена JavaFX, до якої приєднують компонент.
      */
     public static ImmediateTooltipManager install(Scene scene) {
         if (scene == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
             throw new IllegalArgumentException("scene must not be null");
         }
-        /**
-         * Повертає результат операції «підказка».
-         *
-         * @param scene значення, що визначає сцена для цієї операції.
-         *
-         * @return значення або обʼєкт, визначений описаною операцією.
-         */
         return new ImmediateTooltipManager(scene);
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     * Від’єднує обробники подій і звільняє ресурси, якими керує компонент.
      */
     public void dispose() {
         hideActiveTooltip();
@@ -80,7 +64,7 @@ public final class ImmediateTooltipManager {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Реєструє обробники подій, потрібні для handlers.
      */
     private void installHandlers() {
         scene.addEventFilter(
@@ -98,9 +82,9 @@ public final class ImmediateTooltipManager {
     }
 
     /**
-     * Обробляє «відповідну операцію».
+     * Визначає елемент під курсором і за потреби показує його підказку.
      *
-     * @param event подія інтерфейсу.
+     * @param event подія інтерфейсу, яку потрібно обробити.
      */
     private void handleMouseMoved(MouseEvent event) {
         Control control = findTooltipControl(event.getTarget());
@@ -132,9 +116,9 @@ public final class ImmediateTooltipManager {
     }
 
     /**
-     * Обробляє «відповідну операцію».
+     * Приховує активну підказку після виходу курсора з її цільового елемента.
      *
-     * @param event подія інтерфейсу.
+     * @param event подія інтерфейсу, яку потрібно обробити.
      */
     private void handleMouseExited(MouseEvent event) {
         Node target = event.getTarget() instanceof Node node
@@ -147,9 +131,9 @@ public final class ImmediateTooltipManager {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «підказка».
+     * Налаштовує tooltip для роботи з відповідним елементом інтерфейсу.
      *
-     * @param tooltip значення, що визначає підказка для цієї операції.
+     * @param tooltip значення «tooltip», яке використовується в цьому методі.
      */
     private void configureTooltip(Tooltip tooltip) {
         tooltip.setShowDelay(UiTiming.TOOLTIP_SHOW_DELAY);
@@ -158,7 +142,7 @@ public final class ImmediateTooltipManager {
     }
 
     /**
-     * Виконує операцію «приховати підказка».
+     * Приховує active tooltip і завершує пов’язаний стан відображення.
      */
     private void hideActiveTooltip() {
         if (activeControl == null) {
@@ -173,11 +157,9 @@ public final class ImmediateTooltipManager {
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «підказка».
+     * Знаходить елемент керування JavaFX, що відповідає за підказку під курсором.
      *
-     * @param target значення, що визначає кінцевий для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param target цільовий вузол або об’єкт інтерфейсу, який потрібно перевірити чи знайти.
      */
     private static Control findTooltipControl(Object target) {
         Node node = target instanceof Node targetNode

@@ -6,12 +6,12 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Перевіряє режими редактора, вибір обʼєктів і скидання стану.
+ * Перевіряє, що режими редактора, виділення та очищення тимчасового стану не пошкоджують інші частини EditorState.
  */
 class EditorStateTest {
 
     /**
-     * Перевіряє очікувану поведінку: не камера стан.
+     * Перевіряє, що перемикання спеціальних режимів не змінює масштаб і зміщення камери.
      */
     @Test
     void specialModesDoNotLoseCameraState() {
@@ -30,7 +30,7 @@ class EditorStateTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: вибір із.
+     * Перевіряє, що набір вибраних нейронів не скидається автоматично під час зміни режиму взаємодії.
      */
     @Test
     void selectionIsIndependentFromInteractionMode() {
@@ -52,7 +52,7 @@ class EditorStateTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: скинути до очищає тимчасовий і меню вибір.
+     * Перевіряє, що повернення до звичайного режиму очищає тимчасові параметри та нейрон контекстного меню.
      */
     @Test
     void resetToIdleClearsTransientModeAndMenuSelection() {

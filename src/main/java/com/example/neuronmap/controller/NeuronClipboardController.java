@@ -21,7 +21,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * Повʼязує команди копіювання й вставлення нейронів з інтерфейсом редактора.
+ * Обробляє копіювання й вставлення вибраних нейронів через буфер обміну та розміщує вставлені нейрони біля курсора.
  */
 public final class NeuronClipboardController {
 
@@ -43,25 +43,16 @@ public final class NeuronClipboardController {
     private double lastMouseY;
 
     /**
-     * Повертає результат операції «нейрон буфер обміну».
+     * Створює екземпляр NeuronClipboardController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param clipboardService значення, що визначає буфер обміну служба для цієї операції.
-     *
-     * @param state стан обʼєкта або редактора.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param hideMenu значення, що визначає приховати меню для цієї операції.
-     *
-     * @param addView значення, що визначає додати відображення для цієї операції.
-     *
-     * @param refreshPresentation значення, що визначає представлення для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param status стан операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param clipboardService служба копіювання та вставлення нейронів.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param workspace полотно редактора.
+     * @param hideMenu callback для приховування контекстного меню.
+     * @param addView callback, що додає візуальне подання нового нейрона.
+     * @param refreshPresentation callback, який синхронізує візуальні подання з моделлю.
+     * @param save функція зворотного виклику для відповідної дії.
+     * @param status callback для показу повідомлення в рядку стану.
      */
     public NeuronClipboardController(
             NeuronClipboardService clipboardService,
@@ -87,27 +78,17 @@ public final class NeuronClipboardController {
     }
 
     /**
-     * Повертає результат операції «нейрон буфер обміну».
+     * Створює екземпляр NeuronClipboardController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param clipboardService значення, що визначає буфер обміну служба для цієї операції.
-     *
-     * @param state стан обʼєкта або редактора.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param hideMenu значення, що визначає приховати меню для цієї операції.
-     *
-     * @param addView значення, що визначає додати відображення для цієї операції.
-     *
-     * @param refreshPresentation значення, що визначає представлення для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param status стан операції.
-     *
-     * @param localization значення, що визначає локалізація для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param clipboardService служба копіювання та вставлення нейронів.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param workspace полотно редактора.
+     * @param hideMenu callback для приховування контекстного меню.
+     * @param addView callback, що додає візуальне подання нового нейрона.
+     * @param refreshPresentation callback, який синхронізує візуальні подання з моделлю.
+     * @param save функція зворотного виклику для відповідної дії.
+     * @param status callback для показу повідомлення в рядку стану.
+     * @param localization служба локалізації інтерфейсу.
      */
     public NeuronClipboardController(
             NeuronClipboardService clipboardService,
@@ -137,14 +118,14 @@ public final class NeuronClipboardController {
     }
 
     /**
-     * Видаляє або скидає дані, повʼязані з «потрібні дані».
+     * Очищає  від тимчасових або застарілих значень.
      */
     public void clear() {
         clipboardService.clear();
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Реєструє обробники подій, потрібні для mouse tracking.
      */
     private void installMouseTracking() {
         workspace.node().addEventFilter(
@@ -162,9 +143,9 @@ public final class NeuronClipboardController {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «положення».
+     * Зберігає поточні координати курсора, щоб вставити скопійовані нейрони біля його положення.
      *
-     * @param event подія інтерфейсу.
+     * @param event подія інтерфейсу, яку потрібно обробити.
      */
     private void updateMousePosition(MouseEvent event) {
         Point2D point = workspace.node().sceneToLocal(
@@ -177,7 +158,7 @@ public final class NeuronClipboardController {
     }
 
     /**
-     * Виконує операцію «сцена ключ».
+     * Реєструє обробник клавіш сцени для команд копіювання та вставлення нейронів.
      */
     private void installSceneKeyHandler() {
         workspace.node().sceneProperty().addListener(
@@ -202,9 +183,9 @@ public final class NeuronClipboardController {
     }
 
     /**
-     * Обробляє «ключ».
+     * Обробляє подію «key pressed» і передає її до відповідної операції редактора.
      *
-     * @param event подія інтерфейсу.
+     * @param event подія інтерфейсу, яку потрібно обробити.
      */
     private void handleKeyPressed(KeyEvent event) {
         if (isTextInputTarget(event.getTarget()) || !event.isControlDown()) {
@@ -224,9 +205,7 @@ public final class NeuronClipboardController {
     }
 
     /**
-     * Повертає результат операції «копіювання вибір».
-     *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * Копіює поточний вибір нейронів у внутрішній буфер, зберігаючи їхні налаштування й взаємне розташування.
      */
     private boolean copySelection() {
         Set<String> selectedIds = new LinkedHashSet<>(
@@ -264,9 +243,7 @@ public final class NeuronClipboardController {
     }
 
     /**
-     * Повертає результат операції «вставлення».
-     *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * Вставляє вміст буфера в позицію курсора та оновлює відображення карти.
      */
     private boolean pasteAtMouse() {
         if (!mouseInsideWorkspace || !clipboardService.hasContent()) {
@@ -303,11 +280,11 @@ public final class NeuronClipboardController {
     }
 
     /**
-     * Перевіряє, чи виконується умова «текст вхід кінцевий».
+     * Перевіряє, чи перебуває фокус у текстовому полі, де клавіатурні команди копіювання не мають перехоплюватися редактором.
      *
-     * @param target значення, що визначає кінцевий для цієї операції.
+     * @param target цільовий вузол або об’єкт інтерфейсу, який потрібно перевірити чи знайти.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     private boolean isTextInputTarget(Object target) {
         Node node = target instanceof Node targetNode ? targetNode : null;

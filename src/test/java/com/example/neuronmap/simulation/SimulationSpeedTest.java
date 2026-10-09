@@ -6,12 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
- * Перевіряє допустимі значення швидкості симуляції.
+ * Перевіряє розбір тривалості такту симуляції та відхилення значень поза налаштованими межами.
  */
 class SimulationSpeedTest {
 
     /**
-     * Перевіряє очікувану поведінку: коректний швидкість.
+     * Перевіряє прийняття коректного значення швидкості в межах конфігурації.
      */
     @Test
     void parsesValidSpeedInsideConfiguredRange() {
@@ -22,7 +22,7 @@ class SimulationSpeedTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: відхиляє швидкість.
+     * Перевіряє відхилення швидкості за межами допустимого діапазону.
      */
     @Test
     void rejectsSpeedOutsideConfiguredRange() {

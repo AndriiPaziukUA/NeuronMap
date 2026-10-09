@@ -9,7 +9,7 @@ import java.util.LinkedHashSet;
 import java.util.function.Consumer;
 
 /**
- * Керує вибором нейронів та інших елементів карти.
+ * Керує вибором нейронів, групуванням і розгрупуванням вибраних елементів.
  */
 public final class SelectionController {
 
@@ -21,19 +21,13 @@ public final class SelectionController {
     private final LocalizationService localization;
 
     /**
-     * Повертає результат операції «вибір».
+     * Створює екземпляр SelectionController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param groupService значення, що визначає група служба для цієї операції.
-     *
-     * @param state стан обʼєкта або редактора.
-     *
-     * @param refreshNeuronViews значення, що визначає нейрон для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param status стан операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param groupService служба операцій над групами нейронів.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param refreshNeuronViews callback, який оновлює візуальні подання нейронів після зміни вибору.
+     * @param save функція зворотного виклику для відповідної дії.
+     * @param status callback для показу повідомлення в рядку стану.
      */
     public SelectionController(
             GroupService groupService,
@@ -53,21 +47,14 @@ public final class SelectionController {
     }
 
     /**
-     * Повертає результат операції «вибір».
+     * Створює екземпляр SelectionController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param groupService значення, що визначає група служба для цієї операції.
-     *
-     * @param state стан обʼєкта або редактора.
-     *
-     * @param refreshNeuronViews значення, що визначає нейрон для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param status стан операції.
-     *
-     * @param localization значення, що визначає локалізація для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param groupService служба операцій над групами нейронів.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param refreshNeuronViews callback, який оновлює візуальні подання нейронів після зміни вибору.
+     * @param save функція зворотного виклику для відповідної дії.
+     * @param status callback для показу повідомлення в рядку стану.
+     * @param localization служба локалізації інтерфейсу.
      */
     public SelectionController(
             GroupService groupService,
@@ -86,11 +73,10 @@ public final class SelectionController {
     }
 
     /**
-     * Виконує операцію «для».
+     * Обробляє первинне натискання по нейрону: замінює вибір або додає нейрон до нього, якщо натиснуто клавішу модифікатора.
      *
      * @param neuronId ідентифікатор нейрона.
-     *
-     * @param additive значення, що визначає відповідну операцію для цієї операції.
+     * @param additive значення «additive», яке використовується в цьому методі.
      */
     public void selectForPrimaryPress(String neuronId, boolean additive) {
         if (additive) {
@@ -103,7 +89,7 @@ public final class SelectionController {
     }
 
     /**
-     * Виконує операцію «лише».
+     * Залишає у виборі лише вказаний нейрон та оновлює його відображення.
      *
      * @param neuronId ідентифікатор нейрона.
      */
@@ -113,7 +99,7 @@ public final class SelectionController {
     }
 
     /**
-     * Перемикає стан «потрібні дані».
+     * Перемикає включення нейрона до поточного вибору.
      *
      * @param neuronId ідентифікатор нейрона.
      */
@@ -123,7 +109,7 @@ public final class SelectionController {
     }
 
     /**
-     * Видаляє або скидає дані, повʼязані з «потрібні дані».
+     * Знімає виділення з усіх нейронів і оновлює візуальний стан.
      */
     public void clear() {
         state.clearSelection();
@@ -131,7 +117,7 @@ public final class SelectionController {
     }
 
     /**
-     * Виконує операцію «група вибір».
+     * Створює групу з вибраних нейронів.
      */
     public void groupSelection() {
         if (state.selectedNeuronIds().size() < 2) {
@@ -152,7 +138,7 @@ public final class SelectionController {
     }
 
     /**
-     * Виконує операцію «вибір».
+     * Прибирає групування для вибраних нейронів.
      */
     public void ungroupSelection() {
         groupService.ungroup(

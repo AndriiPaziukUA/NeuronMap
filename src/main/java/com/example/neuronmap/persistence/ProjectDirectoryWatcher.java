@@ -14,7 +14,7 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Спостерігає за змінами в папках проєктів і повідомляє про них за допомогою зворотного виклику.
+ * Відстежує зміни каталогів проєктів і повідомляє слухача, коли список чи вміст проєктів може потребувати оновлення.
  */
 public final class ProjectDirectoryWatcher implements AutoCloseable {
 
@@ -27,13 +27,10 @@ public final class ProjectDirectoryWatcher implements AutoCloseable {
     private Thread watcherThread;
 
     /**
-     * Повертає результат операції «проєкт каталог спостерігач».
+     * Створює екземпляр ProjectDirectoryWatcher та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param rootDirectory значення, що визначає каталог для цієї операції.
-     *
-     * @param changeListener значення, що визначає змінити слухач для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param rootDirectory кореневий каталог сховища проєктів.
+     * @param changeListener callback, який викликається після зміни каталогу.
      */
     public ProjectDirectoryWatcher(
             Path rootDirectory,
@@ -49,7 +46,7 @@ public final class ProjectDirectoryWatcher implements AutoCloseable {
     }
 
     /**
-     * Запускає або планує дію, повʼязану з «потрібні дані».
+     * Запускає спостереження за каталогами проєктів.
      */
     public synchronized void start() {
         if (running.get()) {
@@ -63,13 +60,7 @@ public final class ProjectDirectoryWatcher implements AutoCloseable {
             registerExistingProjectDirectories();
         } catch (IOException exception) {
             close();
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @param exception помилка, яку потрібно обробити.
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new PersistenceException(
                     "Не вдалося запустити спостереження за проєктами.",
                     exception
@@ -86,7 +77,7 @@ public final class ProjectDirectoryWatcher implements AutoCloseable {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     * Зупиняє спостереження та звільняє ресурси; повторний виклик безпечний.
      */
     @Override
     public synchronized void close() {
@@ -101,7 +92,7 @@ public final class ProjectDirectoryWatcher implements AutoCloseable {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Обробляє події файлової системи, поки спостерігач працює.
      */
     private void watchLoop() {
         while (running.get()) {
@@ -153,7 +144,7 @@ public final class ProjectDirectoryWatcher implements AutoCloseable {
     }
 
     /**
-     * Виконує операцію «наявний проєкт каталоги».
+     * Реєструє наявні каталоги проєктів у файловому спостерігачі, щоб відстежувати наступні зміни.
      */
     private void registerExistingProjectDirectories() throws IOException {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(rootDirectory)) {
@@ -164,9 +155,9 @@ public final class ProjectDirectoryWatcher implements AutoCloseable {
     }
 
     /**
-     * Виконує операцію «каталог якщо».
+     * Реєструє каталог у спостерігачі лише тоді, коли його ще не зареєстровано.
      *
-     * @param directory каталог для пошуку чи збереження.
+     * @param directory каталог, який потрібно обробити.
      */
     private synchronized void registerDirectoryIfNeeded(Path directory) {
         if (!Files.isDirectory(directory)) {
@@ -181,9 +172,9 @@ public final class ProjectDirectoryWatcher implements AutoCloseable {
     }
 
     /**
-     * Виконує операцію «каталог».
+     * Реєструє каталог у WatchService для отримання подій створення, видалення або зміни файлів.
      *
-     * @param directory каталог для пошуку чи збереження.
+     * @param directory каталог, який потрібно обробити.
      */
     private synchronized void registerDirectory(Path directory)
             throws IOException {
@@ -201,18 +192,18 @@ public final class ProjectDirectoryWatcher implements AutoCloseable {
     }
 
     /**
-     * Обробляє «змінити».
+     * Викликає слухача змін, щоб каталог проєктів було перечитано.
      */
     private void notifyChange() {
         try {
             changeListener.run();
         } catch (RuntimeException ignored) {
-            // The watcher must stay alive when a UI refresh fails.
+
         }
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «служба».
+     * Закриває WatchService, не перериваючи завершення спостерігача через додаткову помилку закриття.
      */
     private synchronized void closeWatchServiceQuietly() {
         if (watchService == null) {
@@ -221,7 +212,7 @@ public final class ProjectDirectoryWatcher implements AutoCloseable {
         try {
             watchService.close();
         } catch (IOException ignored) {
-            // Shutdown is best-effort.
+
         }
         watchService = null;
     }

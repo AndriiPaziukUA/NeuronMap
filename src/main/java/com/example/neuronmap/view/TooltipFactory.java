@@ -5,24 +5,17 @@ import javafx.scene.control.Control;
 import javafx.scene.control.Tooltip;
 
 /**
- * Створює графічні підказки для елементів інтерфейсу.
+ * Створює та налаштовує підказки для елементів керування JavaFX.
  */
 public final class TooltipFactory {
 
-    /**
-     * Повертає результат операції «підказка».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
-     */
     private TooltipFactory() {
     }
 
     /**
-     * Створює обʼєкт із переданих даних «потрібні дані».
+     * Створює підказку з заданим текстом і стандартними параметрами оформлення.
      *
-     * @param text текст, який потрібно показати або обробити.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param text текст, який потрібно показати або розібрати.
      */
     public static Tooltip create(String text) {
         Tooltip tooltip = new Tooltip(text == null ? "" : text);
@@ -33,19 +26,14 @@ public final class TooltipFactory {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Створює підказку й приєднує її до елемента керування JavaFX.
      *
-     * @param control значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param text текст, який потрібно показати або обробити.
+     * @param control елемент керування JavaFX.
+     * @param text текст, який потрібно показати або розібрати.
      */
     public static void install(Control control, String text) {
         if (control == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException(
                     "control must not be null"
             );

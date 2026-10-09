@@ -6,7 +6,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 
 /**
- * Зберігає історію попередніх значень поля та підтримує скасування й повторення змін.
+ * Зберігає знімки стану карти та реалізує стек скасування й повторення змін, не записуючи зміни, що не впливають на збережені дані.
  */
 public final class FieldHistory {
 
@@ -20,7 +20,7 @@ public final class FieldHistory {
     private FieldStateSnapshot currentState;
 
 /**
- * Виконує операцію «відповідну операцію».
+ * Створює початковий знімок карти та очищає стеки скасування й повторення.
  *
  * @param model модель карти нейронів.
  */
@@ -31,11 +31,9 @@ public void initialize(NeuronMapModel model) {
     }
 
 /**
- * Повертає результат операції «збережений стан».
+ * Фіксує новий знімок стану, лише якщо змінилися дані, які потрібно зберігати.
  *
  * @param model модель карти нейронів.
- *
- * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
  */
 public boolean commitSavedState(NeuronMapModel model) {
         FieldStateSnapshot nextState = capture(model);
@@ -57,29 +55,27 @@ public boolean commitSavedState(NeuronMapModel model) {
     }
 
     /**
-     * Перевіряє, чи виконується умова «відповідну операцію».
+     * Перевіряє, чи є в історії стан для скасування.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public boolean canUndo() {
         return !undoStack.isEmpty();
     }
 
     /**
-     * Перевіряє, чи виконується умова «відповідну операцію».
+     * Перевіряє, чи є стан для повторення.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public boolean canRedo() {
         return !redoStack.isEmpty();
     }
 
 /**
- * Повертає результат операції «відповідну операцію».
+ * Відновлює попередній збережений стан моделі та переносить поточний стан до стека повторення.
  *
  * @param model модель карти нейронів.
- *
- * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
  */
 public boolean undo(NeuronMapModel model) {
         requireInitialized();
@@ -99,11 +95,9 @@ public boolean undo(NeuronMapModel model) {
     }
 
 /**
- * Повертає результат операції «відповідну операцію».
+ * Повторно застосовує стан зі стека повторення та оновлює стек скасування.
  *
  * @param model модель карти нейронів.
- *
- * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
  */
 public boolean redo(NeuronMapModel model) {
         requireInitialized();
@@ -124,25 +118,25 @@ public boolean redo(NeuronMapModel model) {
     }
 
     /**
-     * Повертає результат операції «розмір».
+     * Повертає кількість доступних записів у стеку скасування.
      *
-     * @return числове значення, визначене методом.
+     * @return кількість доступних записів у стеку скасування.
      */
     public int undoSize() {
         return undoStack.size();
     }
 
     /**
-     * Повертає результат операції «розмір».
+     * Повертає кількість доступних записів у стеку повторення.
      *
-     * @return числове значення, визначене методом.
+     * @return кількість доступних записів у стеку повторення.
      */
     public int redoSize() {
         return redoStack.size();
     }
 
 /**
- * Видаляє або скидає дані, повʼязані з «потрібні дані».
+ * Очищає  від тимчасових або застарілих значень.
  *
  * @param model модель карти нейронів.
  */
@@ -151,50 +145,36 @@ public void clear(NeuronMapModel model) {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Створює знімок стану моделі для порівняння або відновлення.
      *
      * @param model модель карти нейронів.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
      */
     private static FieldStateSnapshot capture(NeuronMapModel model) {
         if (model == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("Model must not be null.");
         }
         return FieldStateSnapshot.capture(model);
     }
 
     /**
-     * Виконує операцію «потребувати модель».
+     * Перевіряє, що передано ненульову модель карти.
      *
      * @param model модель карти нейронів.
      */
     private static void requireModel(NeuronMapModel model) {
         if (model == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("Model must not be null.");
         }
     }
 
     /**
-     * Виконує операцію «потребувати».
+     * Перевіряє, що історію ініціалізовано перед виконанням скасування чи повторення.
      */
     private void requireInitialized() {
         if (currentState == null) {
-            /**
-             * Повертає результат операції «стан виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalStateException(
                     "Field history is not initialized."
             );
@@ -202,7 +182,7 @@ public void clear(NeuronMapModel model) {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Видаляє найстаріші записи, якщо стек скасування перевищив дозволену кількість кроків.
      */
     private void trimUndoStack() {
         while (undoStack.size() > MAX_UNDO_STEPS) {

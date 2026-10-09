@@ -3,45 +3,29 @@ package com.example.neuronmap.controller;
 import javafx.geometry.Point2D;
 
 /**
- * Містить математичні обчислення, потрібні для визначення кута обертання нейрона.
+ * Містить геометричні обчислення кутів для ручки обертання, зокрема нормалізацію кутів і найкоротшу кутову різницю.
  */
 public final class NeuronRotationMath {
 
-    /**
-     * Повертає результат операції «нейрон обертання».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
-     */
     private NeuronRotationMath() {
     }
 
 /**
- * Повертає результат операції «кут градуси».
+ * Обчислює кут у градусах між центром нейрона та положенням покажчика.
  *
- * @param center центр області.
- *
- * @param pointer значення, що визначає відповідну операцію для цієї операції.
- *
- * @return числове значення, визначене методом.
+ * @param center центр нейрона у координатах сцени.
+ * @param pointer положення покажчика миші у координатах сцени.
  */
 public static double pointerAngleDegrees(
             Point2D center,
             Point2D pointer
     ) {
         if (center == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("center must not be null");
         }
         if (pointer == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("pointer must not be null");
         }
 
@@ -54,15 +38,11 @@ public static double pointerAngleDegrees(
     }
 
 /**
- * Повертає результат операції «обертання для перетягування».
+ * Обчислює новий кут нейрона з урахуванням зміни кута покажчика під час перетягування.
  *
- * @param initialRotationDegrees значення, що визначає обертання градуси для цієї операції.
- *
- * @param initialPointerAngleDegrees значення, що визначає кут градуси для цієї операції.
- *
- * @param currentPointerAngleDegrees значення, що визначає поточний кут градуси для цієї операції.
- *
- * @return числове значення, визначене методом.
+ * @param initialRotationDegrees кут нейрона до початку перетягування.
+ * @param initialPointerAngleDegrees кут покажчика на момент початку перетягування.
+ * @param currentPointerAngleDegrees поточний кут покажчика під час перетягування.
  */
 public static double rotationForDrag(
             double initialRotationDegrees,
@@ -88,13 +68,12 @@ public static double rotationForDrag(
     }
 
 /**
- * Повертає результат операції «відповідну операцію».
+ * Повертає найкоротшу знакову різницю між двома кутами.
  *
- * @param from значення, що визначає із для цієї операції.
+ * @param from початковий кут у градусах.
+ * @param to кінцевий кут у градусах.
  *
- * @param to значення, що визначає до для цієї операції.
- *
- * @return числове значення, визначене методом.
+ * @return найкоротшу знакову різницю між двома кутами.
  */
 public static double shortestSignedDelta(
             double from,
@@ -111,11 +90,9 @@ public static double shortestSignedDelta(
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Нормалізує кут до діапазону одного повного оберту.
      *
-     * @param degrees кут повороту в градусах.
-     *
-     * @return числове значення, визначене методом.
+     * @param degrees кут у градусах.
      */
     public static double normalize360(double degrees) {
         requireFinite(degrees, "degrees");
@@ -126,22 +103,17 @@ public static double shortestSignedDelta(
     }
 
     /**
-     * Виконує операцію «потребувати».
+     * Перевіряє передумову «finite» та перериває операцію, якщо вона не виконується.
      *
-     * @param value значення, яке потрібно передати або зберегти.
-     *
-     * @param name назва або текстове імʼя обʼєкта.
+     * @param value значення, яке потрібно зберегти або перевірити.
+     * @param name назва, яку потрібно перевірити або зберегти.
      */
     private static void requireFinite(
             double value,
             String name
     ) {
         if (!Double.isFinite(value)) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException(
                     name + " must be finite"
             );

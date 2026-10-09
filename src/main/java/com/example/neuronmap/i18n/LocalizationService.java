@@ -12,7 +12,7 @@ import java.util.ResourceBundle;
 import java.util.function.Consumer;
 
 /**
- * Завантажує переклади, визначає поточну мову та повідомляє про її зміну.
+ * Надає переклади інтерфейсу, керує поточною мовою, повідомляє слухачів про її зміну та зберігає вибір користувача.
  */
 public final class LocalizationService {
 
@@ -26,11 +26,9 @@ public final class LocalizationService {
     private ResourceBundle bundle;
 
     /**
-     * Повертає результат операції «локалізація служба».
+     * Створює екземпляр LocalizationService та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param settings набір налаштувань.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param settings сховище глобальних налаштувань застосунку.
      */
     public LocalizationService(GlobalSettingsStore settings) {
         this.settings = settings;
@@ -39,11 +37,9 @@ public final class LocalizationService {
     }
 
     /**
-     * Повертає результат операції «локалізація служба».
+     * Створює екземпляр LocalizationService та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param initialLocale значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param initialLocale локаль, яку потрібно застосувати під час створення служби локалізації.
      */
     public LocalizationService(Locale initialLocale) {
         this.settings = null;
@@ -52,29 +48,29 @@ public final class LocalizationService {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Повертає поточну локаль інтерфейсу.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return поточну локаль інтерфейсу.
      */
     public Locale locale() {
         return locale;
     }
 
     /**
-     * Повертає результат операції «мова».
+     * Повертає поточну мову інтерфейсу.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return поточну мову інтерфейсу.
      */
     public SupportedLanguage language() {
         return SupportedLanguage.fromLocale(locale);
     }
 
     /**
-     * Повертає результат операції «текст».
+     * Повертає переклад заданого ключа для поточної мови; варіант з аргументами підставляє їх у шаблон повідомлення.
      *
-     * @param key ключ для пошуку або збереження значення.
+     * @param key ключ налаштування або перекладу.
      *
-     * @return текстове значення, сформоване або знайдене методом.
+     * @return переклад заданого ключа для поточної мови; варіант з аргументами підставляє їх у шаблон повідомлення.
      */
     public String text(String key) {
         if (key == null || key.isBlank()) {
@@ -84,24 +80,23 @@ public final class LocalizationService {
     }
 
     /**
-     * Повертає результат операції «текст».
+     * Повертає переклад заданого ключа для поточної мови; варіант з аргументами підставляє їх у шаблон повідомлення.
      *
-     * @param key ключ для пошуку або збереження значення.
+     * @param key ключ налаштування або перекладу.
+     * @param arguments аргументи для підстановки в шаблон перекладу.
      *
-     * @param arguments значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return текстове значення, сформоване або знайдене методом.
+     * @return переклад заданого ключа для поточної мови; варіант з аргументами підставляє їх у шаблон повідомлення.
      */
     public String text(String key, Object... arguments) {
         return MessageFormat.format(text(key), arguments);
     }
 
     /**
-     * Відображає «відповідну операцію» в інтерфейсі.
+     * Повертає назву мови для поточної локалі інтерфейсу.
      *
-     * @param language значення, що визначає мова для цієї операції.
+     * @param language мова інтерфейсу, яку потрібно застосувати або описати.
      *
-     * @return текстове значення, сформоване або знайдене методом.
+     * @return назву мови для поточної локалі інтерфейсу.
      */
     public String displayName(SupportedLanguage language) {
         if (language == null) {
@@ -111,9 +106,9 @@ public final class LocalizationService {
     }
 
     /**
-     * Повертає результат операції «відображати».
+     * Повертає підтримувані мови, відсортовані за локалізованими назвами.
      *
-     * @return колекцію результатів; якщо елементів немає, колекція порожня.
+     * @return підтримувані мови, відсортовані за локалізованими назвами.
      */
     public List<SupportedLanguage> supportedLanguagesInDisplayOrder() {
         List<SupportedLanguage> languages = new ArrayList<>(
@@ -125,9 +120,9 @@ public final class LocalizationService {
     }
 
     /**
-     * Виконує операцію «додати слухач».
+     * Реєструє слухача, якому надсилатиметься нова локаль після зміни мови.
      *
-     * @param listener слухач, якого потрібно сповістити.
+     * @param listener слухач змін локалі, якого потрібно зареєструвати або видалити.
      */
     public void addListener(Consumer<Locale> listener) {
         if (listener != null && !listeners.contains(listener)) {
@@ -136,34 +131,34 @@ public final class LocalizationService {
     }
 
     /**
-     * Видаляє або скидає дані, повʼязані з «слухач».
+     * Від’єднує раніше зареєстрованого слухача зміни мови.
      *
-     * @param listener слухач, якого потрібно сповістити.
+     * @param listener слухач змін локалі, якого потрібно зареєструвати або видалити.
      */
     public void removeListener(Consumer<Locale> listener) {
         listeners.remove(listener);
     }
 
 /**
- * Задає або оновлює значення, повʼязані з «мова».
+ * Змінює активну мову інтерфейсу та зберігає вибір користувача.
  *
- * @param language значення, що визначає мова для цієї операції.
+ * @param language мова інтерфейсу, яку потрібно застосувати або описати.
  */
 public void setLanguage(SupportedLanguage language) {
         applyLanguage(language, true);
     }
 
 /**
- * Виконує операцію «попередній перегляд мова».
+ * Тимчасово змінює мову для попереднього перегляду без збереження налаштування.
  *
- * @param language значення, що визначає мова для цієї операції.
+ * @param language мова інтерфейсу, яку потрібно застосувати або описати.
  */
 public void previewLanguage(SupportedLanguage language) {
         applyLanguage(language, false);
     }
 
 /**
- * Зберігає дані, повʼязані з «поточний мова», у відповідному сховищі.
+ * Записує поточну мову інтерфейсу в глобальні налаштування.
  */
 public void persistCurrentLanguage() {
         if (settings != null) {
@@ -172,11 +167,10 @@ public void persistCurrentLanguage() {
     }
 
     /**
-     * Обробляє «мова».
+     * Застосовує локаль до інтерфейсу та за потреби зберігає вибір мови.
      *
-     * @param language значення, що визначає мова для цієї операції.
-     *
-     * @param persist значення, що визначає зберігати для цієї операції.
+     * @param language мова інтерфейсу, яку потрібно застосувати або описати.
+     * @param persist ознака, чи потрібно записати налаштування у сховище.
      */
     private void applyLanguage(SupportedLanguage language, boolean persist) {
         if (language == null) {
@@ -186,11 +180,10 @@ public void persistCurrentLanguage() {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «відповідну операцію».
+     * Установлює locale для поточного об’єкта.
      *
-     * @param newLocale значення, що визначає новий для цієї операції.
-     *
-     * @param persist значення, що визначає зберігати для цієї операції.
+     * @param newLocale нова локаль, яку потрібно застосувати.
+     * @param persist ознака, чи потрібно записати налаштування у сховище.
      */
     private void setLocale(Locale newLocale, boolean persist) {
         SupportedLanguage supported = SupportedLanguage.fromLocale(newLocale);
@@ -216,11 +209,9 @@ public void persistCurrentLanguage() {
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «відповідну операцію».
+     * Завантажує initial locale із відповідного джерела даних.
      *
-     * @param settings набір налаштувань.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param settings сховище глобальних налаштувань застосунку.
      */
     private static Locale loadInitialLocale(GlobalSettingsStore settings) {
         if (settings == null) {
@@ -238,11 +229,9 @@ public void persistCurrentLanguage() {
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «відповідну операцію».
+     * Завантажує набір текстів інтерфейсу для переданої локалі.
      *
-     * @param locale значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param locale локаль, для якої потрібно завантажити або показати текст.
      */
     private static ResourceBundle loadBundle(Locale locale) {
         return ResourceBundle.getBundle(BUNDLE_BASE_NAME, locale);

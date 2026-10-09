@@ -1,28 +1,19 @@
 package com.example.neuronmap.simulation;
 
 /**
- * Описує швидкість симуляції та перевіряє її допустимі межі.
+ * Перетворює введену швидкість симуляції на тривалість такту та перевіряє її допустимий діапазон.
  */
 public final class SimulationSpeed {
 
-    /**
-     * Повертає результат операції «швидкість».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
-     */
     private SimulationSpeed() {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Розбирає текстову тривалість такту й перевіряє, чи лежить вона в дозволеному діапазоні.
      *
-     * @param text текст, який потрібно показати або обробити.
-     *
-     * @param minMillis значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param maxMillis значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return числове значення, визначене методом.
+     * @param text текст, який потрібно показати або розібрати.
+     * @param minMillis мінімальна допустима тривалість такту в мілісекундах.
+     * @param maxMillis максимальна допустима тривалість такту в мілісекундах.
      */
     public static double parseMillis(
             String text,
@@ -30,11 +21,7 @@ public final class SimulationSpeed {
             double maxMillis
     ) {
         if (text == null || text.isBlank()) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("speed must not be blank");
         }
 
@@ -45,13 +32,7 @@ public final class SimulationSpeed {
                     maxMillis
             );
         } catch (NumberFormatException exception) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @param exception помилка, яку потрібно обробити.
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException(
                     "speed must be numeric",
                     exception
@@ -60,15 +41,11 @@ public final class SimulationSpeed {
     }
 
     /**
-     * Повертає результат операції «потребувати».
+     * Перевіряє, що тривалість такту є скінченною та лежить між мінімальним і максимальним значеннями.
      *
-     * @param millis значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param minMillis значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param maxMillis значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return числове значення, визначене методом.
+     * @param millis тривалість такту в мілісекундах.
+     * @param minMillis мінімальна допустима тривалість такту в мілісекундах.
+     * @param maxMillis максимальна допустима тривалість такту в мілісекундах.
      */
     public static double requireMillis(
             double millis,
@@ -79,22 +56,14 @@ public final class SimulationSpeed {
                 || !Double.isFinite(maxMillis)
                 || minMillis <= 0.0
                 || maxMillis < minMillis) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("invalid speed range");
         }
 
         if (!Double.isFinite(millis)
                 || millis < minMillis
                 || millis > maxMillis) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException(
                     "speed must be between " + minMillis
                             + " and " + maxMillis + " ms"

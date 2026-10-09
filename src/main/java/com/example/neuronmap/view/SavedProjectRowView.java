@@ -21,7 +21,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 /**
- * Відображає один збережений проєкт у списку головного меню.
+ * Відображає рядок проєкту в меню та обробляє перейменування, збереження чи скасування змін назви.
  */
 public final class SavedProjectRowView extends HBox {
 
@@ -41,21 +41,14 @@ public final class SavedProjectRowView extends HBox {
     private final Consumer<Locale> localizationListener = ignored -> refreshTexts();
 
     /**
-     * Повертає результат операції «збережений проєкт відображення».
+     * Створює екземпляр SavedProjectRowView та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param project опис проєкту.
-     *
-     * @param localization значення, що визначає локалізація для цієї операції.
-     *
-     * @param openAction значення, що визначає відкрити для цієї операції.
-     *
-     * @param renameAction значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param deleteAction значення, що визначає видалити для цієї операції.
-     *
-     * @param renameCommitted значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param project опис проєкту, над яким виконується дія.
+     * @param localization служба локалізації інтерфейсу.
+     * @param openAction значення «open action», яке використовується в цьому методі.
+     * @param renameAction значення «rename action», яке використовується в цьому методі.
+     * @param deleteAction значення «delete action», яке використовується в цьому методі.
+     * @param renameCommitted значення «rename committed», яке використовується в цьому методі.
      */
     public SavedProjectRowView(
             ProjectDescriptor project,
@@ -145,34 +138,34 @@ public final class SavedProjectRowView extends HBox {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     * Від’єднує обробники подій і звільняє ресурси, якими керує компонент.
      */
     public void dispose() {
         localization.removeListener(localizationListener);
     }
 
     /**
-     * Повертає результат операції «проєкт».
+     * Повертає опис проєкту, який представляє цей рядок списку.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return опис проєкту, який представляє цей рядок списку.
      */
     public ProjectDescriptor project() {
         return project;
     }
 
     /**
-     * Перевіряє, чи виконується умова «відповідну операцію».
+     * Перевіряє, чи editing за поточного стану компонента.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public boolean isEditing() {
         return renameField.isVisible();
     }
 
     /**
-     * Перевіряє, чи виконується умова «змінює».
+     * Перевіряє, чи є unsaved changes у поточному стані.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public boolean hasUnsavedChanges() {
         if (!isEditing()) {
@@ -185,7 +178,7 @@ public final class SavedProjectRowView extends HBox {
     }
 
     /**
-     * Зберігає дані, повʼязані з «очікуваний змінити», у відповідному сховищі.
+     * Підтверджує поточну незбережену зміну назви.
      */
     public void savePendingChange() {
         if (!hasUnsavedChanges()) {
@@ -196,30 +189,28 @@ public final class SavedProjectRowView extends HBox {
     }
 
     /**
-     * Видаляє або скидає дані, повʼязані з «очікуваний змінити».
+     * Відкидає незбережену зміну назви й повертає збережене значення.
      */
     public void discardPendingChange() {
         cancelRename();
     }
 
     /**
-     * Запускає або планує дію, повʼязану з «для».
+     * Надає тестам доступ до «begin rename» для перевірки стану інтерфейсу.
      */
     void beginRenameForTest() {
         beginRename();
     }
 
     /**
-     * Повертає результат операції «поле для».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * Надає тестам доступ до «rename field» для перевірки стану інтерфейсу.
      */
     TextField renameFieldForTest() {
         return renameField;
     }
 
     /**
-     * Запускає або планує дію, повʼязану з «відповідну операцію».
+     * Переводить назву проєкту в режим редагування.
      */
     private void beginRename() {
         renameField.setText(project.name());
@@ -234,7 +225,7 @@ public final class SavedProjectRowView extends HBox {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Перевіряє й застосовує нову назву проєкту.
      */
     private void commitRename() {
         String name = renameField.getText() == null
@@ -253,14 +244,16 @@ public final class SavedProjectRowView extends HBox {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «відповідну операцію».
+     * Скасовує редагування назви та повертає попередній текст.
+     *
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     private void cancelRename() {
         endRename();
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Завершує операцію rename та очищає її тимчасовий стан.
      */
     private void endRename() {
         renameField.setManaged(false);
@@ -272,9 +265,9 @@ public final class SavedProjectRowView extends HBox {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «кнопка».
+     * Налаштовує button для роботи з відповідним елементом інтерфейсу.
      *
-     * @param button значення, що визначає кнопка для цієї операції.
+     * @param button кнопка інтерфейсу, яку потрібно налаштувати.
      */
     private void configureButton(Button button) {
         button.getStyleClass().add("menu-small-button");
@@ -282,7 +275,7 @@ public final class SavedProjectRowView extends HBox {
     }
 
     /**
-     * Обробляє «відповідну операцію».
+     * Оновлює «texts» за поточним станом моделі або інтерфейсу.
      */
     private void refreshTexts() {
         nameLabel.setText(project.name());
@@ -305,13 +298,10 @@ public final class SavedProjectRowView extends HBox {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Форматує modified для показу користувачеві.
      *
-     * @param instant значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param locale значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return текстове значення, сформоване або знайдене методом.
+     * @param instant значення «instant», яке використовується в цьому методі.
+     * @param locale локаль, для якої потрібно завантажити або показати текст.
      */
     private static String formatModified(java.time.Instant instant, Locale locale) {
         if (instant == null) {

@@ -15,13 +15,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє рух імпульсу після зміни геометрії звʼязку.
+ * Перевіряє геометрію лінії анімації імпульсу за заданим знімком зв’язку.
  */
 class PulseAnimationViewTest {
 
-    /**
-     * Запускає або планує дію, повʼязану з «відповідну операцію».
-     */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -33,9 +30,6 @@ class PulseAnimationViewTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
     }
 
-    /**
-     * Перевіряє очікувану поведінку: імпульс геометрія із поточний знімок.
-     */
     @Test
     void pulseRefreshesGeometryFromCurrentSnapshot() throws Exception {
         runOnFxThread(() -> {
@@ -61,17 +55,7 @@ class PulseAnimationViewTest {
     }
 
     /**
-     * Повертає результат операції «знімок».
-     *
-     * @param startX значення, що визначає запуск для цієї операції.
-     *
-     * @param startY значення, що визначає запуск для цієї операції.
-     *
-     * @param endX значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param endY значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * Перевіряє сценарій «snapshot» і відповідність результату очікуваній поведінці.
      */
     private static ConnectionPulseSnapshot snapshot(
             double startX,
@@ -88,11 +72,7 @@ class PulseAnimationViewTest {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
-     *
-     * @param line значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param snapshot знімок стану.
+     * Перевіряє сценарій «assert line matches» і відповідність результату очікуваній поведінці.
      */
     private static void assertLineMatches(
             Line line,
@@ -104,11 +84,6 @@ class PulseAnimationViewTest {
         assertEquals(snapshot.end().getY(), line.getEndY());
     }
 
-    /**
-     * Запускає або планує дію, повʼязану з «відповідну операцію».
-     *
-     * @param action дія, яку потрібно виконати.
-     */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];
@@ -125,11 +100,7 @@ class PulseAnimationViewTest {
 
         assertTrue(latch.await(5, TimeUnit.SECONDS));
         if (failure[0] != null) {
-            /**
-             * Повертає результат операції «відповідну операцію».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new AssertionError("JavaFX test failed", failure[0]);
         }
     }

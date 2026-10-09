@@ -51,7 +51,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Збирає та узгоджує компоненти, які забезпечують роботу редактора карти.
+ * Координує основні сценарії редактора: керування проєктами, взаємодію з картою, симуляцію, збереження та завершення роботи.
  */
 public final class MapEditorCoordinator {
 
@@ -94,13 +94,10 @@ public final class MapEditorCoordinator {
     private Scene scene;
 
     /**
-     * Повертає результат операції «карта».
+     * Створює екземпляр MapEditorCoordinator та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param application значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param config значення, що визначає конфігурація для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param application прикладна служба, яка надає доступ до служб карти й збереження.
+     * @param config завантажена конфігурація застосунку.
      */
     public MapEditorCoordinator(
             NeuronMapApplicationService application,
@@ -115,17 +112,12 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Повертає результат операції «карта».
+     * Створює екземпляр MapEditorCoordinator та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param application значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param config значення, що визначає конфігурація для цієї операції.
-     *
-     * @param localization значення, що визначає локалізація для цієї операції.
-     *
-     * @param exitApplication значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param application прикладна служба, яка надає доступ до служб карти й збереження.
+     * @param config завантажена конфігурація застосунку.
+     * @param localization служба локалізації інтерфейсу.
+     * @param exitApplication callback завершення роботи застосунку.
      */
     public MapEditorCoordinator(
             NeuronMapApplicationService application,
@@ -351,13 +343,10 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Створює обʼєкт із переданих даних «сцена».
+     * Створює сцену редактора та налаштовує її основні компоненти.
      *
-     * @param width ширина області.
-     *
-     * @param height висота області.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param width ширина видимої області.
+     * @param height висота видимої області.
      */
     public Scene createScene(double width, double height) {
         scene = view.createScene(width, height);
@@ -398,14 +387,14 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Виконує операцію «центр відображення».
+     * Обчислює початкове зміщення камери, щоб початкова область карти була видимою в центрі полотна.
      */
     public void centerInitialView() {
         cameraController.apply();
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     * Зупиняє симуляцію, закриває сховище та звільняє ресурси редактора.
      */
     public void shutdown() {
         projectDirectoryWatcher.close();
@@ -425,7 +414,7 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Перемикає стан «відповідну операцію».
+     * Перемикає симуляцію між виконанням і паузою.
      */
     private void toggleSimulationPause() {
         simulationController.pauseOrResume();
@@ -433,7 +422,7 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «сигнали».
+     * Зупиняє симуляцію та прибирає незавершені сигнали й анімації.
      */
     private void stopSimulationSignals() {
         simulationController.stopSignals();
@@ -441,9 +430,9 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «швидкість».
+     * Розбирає значення зі списку швидкостей і передає його контролеру симуляції.
      *
-     * @param text текст, який потрібно показати або обробити.
+     * @param text текст, який потрібно показати або розібрати.
      */
     private void changeSimulationSpeed(String text) {
         try {
@@ -468,7 +457,7 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Виконує операцію «для меню».
+     * Призупиняє симуляцію на час відкритого меню.
      */
     private void pauseForMenu() {
         modalSimulationWasRunning = simulationController.pauseForModal();
@@ -476,7 +465,7 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Виконує операцію «після меню».
+     * Відновлює симуляцію після закриття меню, якщо вона була активною раніше.
      */
     private void resumeAfterMenu() {
         connectionController.resumeAnimations();
@@ -487,7 +476,7 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Створює обʼєкт із переданих даних «новий проєкт».
+     * Створює новий тимчасовий проєкт і активує його в редакторі.
      */
     private void createNewProject() {
         prepareForProjectSwitch();
@@ -501,9 +490,9 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Виконує операцію «відкрити проєкт».
+     * Відкриває вказаний проєкт після підготовки поточного проєкту до перемикання.
      *
-     * @param project опис проєкту.
+     * @param project опис проєкту, над яким виконується дія.
      */
     private void openProject(ProjectDescriptor project) {
         if (project == null) {
@@ -527,13 +516,10 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Повертає результат операції «проєкт».
+     * Перейменовує проєкт через каталог і повертає його оновлений опис.
      *
-     * @param project опис проєкту.
-     *
-     * @param name назва або текстове імʼя обʼєкта.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param project опис проєкту, над яким виконується дія.
+     * @param name назва, яку потрібно перевірити або зберегти.
      */
     private ProjectDescriptor renameProject(
             ProjectDescriptor project,
@@ -569,16 +555,16 @@ public final class MapEditorCoordinator {
                         project.databasePath()
                 );
             } catch (RuntimeException ignored) {
-                // Preserve the original rename failure.
+
             }
             throw exception;
         }
     }
 
     /**
-     * Видаляє або скидає дані, повʼязані з «проєкт».
+     * Видаляє проєкт і оновлює активний стан редактора, якщо це потрібно.
      *
-     * @param project опис проєкту.
+     * @param project опис проєкту, над яким виконується дія.
      */
     private void deleteProject(ProjectDescriptor project) {
         if (project == null) {
@@ -610,7 +596,7 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Виконує операцію «для проєкт».
+     * Зупиняє тимчасові взаємодії й готує поточний проєкт до закриття або заміни.
      */
     private void prepareForProjectSwitch() {
         simulationController.stop();
@@ -626,13 +612,11 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Виконує операцію «проєкт».
+     * Підключає репозиторій вибраного проєкту та за потреби завантажує його дані.
      *
-     * @param project опис проєкту.
-     *
-     * @param repository значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param loadExisting значення, що визначає завантажувати наявний для цієї операції.
+     * @param project опис проєкту, над яким виконується дія.
+     * @param repository сховище, через яке читають і зберігають карту.
+     * @param loadExisting ознака, чи потрібно завантажити наявний вміст проєкту.
      */
     private void activateProject(
             ProjectDescriptor project,
@@ -683,7 +667,7 @@ public final class MapEditorCoordinator {
     }
 
 /**
- * Створює обʼєкт із переданих даних «карта».
+ * Створює демонстраційну карту з прикладом нейронів і зв’язків.
  */
 private void createDemoMap() {
         Neuron first = neuronService.create(NeuronType.EXCITATORY, 250, 220);
@@ -695,37 +679,37 @@ private void createDemoMap() {
     }
 
     /**
-     * Запускає або планує дію, повʼязану з «додати нейрон».
+     * Починає операцію add neuron mode та готує стан взаємодії.
      *
-     * @param type тип обʼєкта.
+     * @param type тип нейрона або елемента.
      */
     private void beginAddNeuronMode(NeuronType type) {
         interaction.beginAddNeuronMode(type);
     }
 
     /**
-     * Виконує операцію «група вибір».
+     * Створює групу з поточно вибраних нейронів.
      */
     private void groupSelection() {
         interaction.groupSelection();
     }
 
     /**
-     * Виконує операцію «вибір».
+     * Вилучає поточно вибрані нейрони зі складу їхньої групи.
      */
     private void ungroupSelection() {
         interaction.ungroupSelection();
     }
 
     /**
-     * Виконує операцію «видалити звʼязок».
+     * Завершує режим видалення зв’язків і повертає редактор до звичайної взаємодії.
      */
     private void exitDeleteConnectionMode() {
         interaction.exitDeleteConnectionMode();
     }
 
     /**
-     * Перемикає стан «нейрон напрямок».
+     * Перемикає напрямок указаного нейрона й оновлює його подання.
      *
      * @param neuronId ідентифікатор нейрона.
      */
@@ -737,21 +721,21 @@ private void createDemoMap() {
     }
 
     /**
-     * Обробляє «карта представлення».
+     * Оновлює візуальні подання всіх елементів карти.
      */
     private void refreshMapPresentation() {
         presentation.refreshAll();
     }
 
     /**
-     * Обробляє «нейрон».
+     * Оновлює зовнішній вигляд нейронів за їхнім поточним типом і станом.
      */
     private void refreshNeuronVisuals() {
         presentation.refreshNeurons();
     }
 
     /**
-     * Зберігає дані, повʼязані з «відповідну операцію», у відповідному сховищі.
+     * Негайно зберігає поточну карту й пов’язані налаштування.
      */
     private void saveNow() {
         mapService.save(state);
@@ -769,26 +753,21 @@ private void createDemoMap() {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «стан».
+     * Передає текст повідомлення до рядка стану інтерфейсу.
      *
-     * @param text текст, який потрібно показати або обробити.
+     * @param text текст, який потрібно показати або розібрати.
      */
     private void updateStatus(String text) {
         statusMessagePresenter.show(text);
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «такт».
+     * Вибирає початкову тривалість такту: збережене значення, якщо воно коректне, або резервне значення з конфігурації.
      *
-     * @param persistedMillis значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param fallbackMillis значення, що визначає резервний варіант для цієї операції.
-     *
-     * @param minMillis значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param maxMillis значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return числове значення, визначене методом.
+     * @param persistedMillis збережена тривалість такту симуляції, якщо її знайдено.
+     * @param fallbackMillis резервна тривалість такту, якщо збереженого значення немає.
+     * @param minMillis мінімальна допустима тривалість такту в мілісекундах.
+     * @param maxMillis максимальна допустима тривалість такту в мілісекундах.
      */
     private static double resolveInitialSimulationTickMillis(
             double persistedMillis,

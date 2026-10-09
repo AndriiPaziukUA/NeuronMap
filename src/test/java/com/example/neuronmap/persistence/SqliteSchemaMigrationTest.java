@@ -12,15 +12,10 @@ import java.sql.Statement;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Перевіряє перенесення координат зі старої структури таблиць.
+ * Перевіряє міграції старих версій схеми SQLite до актуальної структури.
  */
 class SqliteSchemaMigrationTest {
 
-    /**
-     * Перевіряє перенесення координат нейронів зі старих стовпців до таблиці представлень.
-     *
-     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
-     */
     @Test
     void migratesLegacyNeuronCoordinates(
             @TempDir Path tempDir
@@ -52,7 +47,7 @@ class SqliteSchemaMigrationTest {
 
         try (MapRepository ignored =
                      new SqliteMapRepository(db)) {
-            // Opening the repository performs the migration.
+
         }
 
         try (Connection connection = DriverManager.getConnection(
@@ -86,17 +81,6 @@ class SqliteSchemaMigrationTest {
         }
     }
 
-    /**
-     * Перевіряє, чи виконується умова «стовпець».
-     *
-     * @param statement SQL-оператор.
-     *
-     * @param table значення, що визначає таблиця для цієї операції.
-     *
-     * @param column значення, що визначає стовпець для цієї операції.
-     *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
-     */
     private static boolean hasColumn(
             Statement statement,
             String table,

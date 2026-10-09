@@ -4,7 +4,7 @@ import javafx.scene.shape.Circle;
 import javafx.scene.shape.Polygon;
 
 /**
- * Обчислює геометричні параметри графічного представлення нейрона.
+ * Визначає координати видимих вхідного порту та вихідного трикутника нейрона з урахуванням розвороту напрямку.
  */
 public final class NeuronVisualGeometry {
 
@@ -13,31 +13,21 @@ public final class NeuronVisualGeometry {
     public static final double INPUT_PORT_RADIUS = 7.0;
     public static final double OUTPUT_PORT_SIZE = 14.0;
 
-    /**
-     * Повертає результат операції «нейрон графічний геометрія».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
-     */
     private NeuronVisualGeometry() {
     }
 
     /**
-     * Виконує операцію «положення вхід».
+     * Розташовує вхідний порт на лівому або правому краї нейрона залежно від напрямку.
      *
-     * @param port значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param directionReversed значення, що визначає напрямок для цієї операції.
+     * @param port значення «port», яке використовується в цьому методі.
+     * @param directionReversed ознака розвернутого напрямку.
      */
     public static void positionInputPort(
             Circle port,
             boolean directionReversed
     ) {
         if (port == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("port must not be null");
         }
 
@@ -46,22 +36,17 @@ public final class NeuronVisualGeometry {
     }
 
     /**
-     * Виконує операцію «положення вихід трикутник».
+     * Розташовує вихідний трикутник на відповідному краї нейрона залежно від розвороту.
      *
-     * @param triangle значення, що визначає трикутник для цієї операції.
-     *
-     * @param directionReversed значення, що визначає напрямок для цієї операції.
+     * @param triangle значення «triangle», яке використовується в цьому методі.
+     * @param directionReversed ознака розвернутого напрямку.
      */
     public static void positionOutputTriangle(
             Polygon triangle,
             boolean directionReversed
     ) {
         if (triangle == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException(
                     "triangle must not be null"
             );
@@ -88,22 +73,18 @@ public final class NeuronVisualGeometry {
     }
 
     /**
-     * Повертає результат операції «вхід».
+     * Обчислює горизонтальну координату вхідного порту з урахуванням напрямку нейрона.
      *
-     * @param directionReversed значення, що визначає напрямок для цієї операції.
-     *
-     * @return числове значення, визначене методом.
+     * @param directionReversed ознака розвернутого напрямку.
      */
     public static double inputPortX(boolean directionReversed) {
         return directionReversed ? WIDTH : 0.0;
     }
 
     /**
-     * Повертає результат операції «вихід».
+     * Обчислює горизонтальну координату вістря вихідного трикутника з урахуванням напрямку нейрона.
      *
-     * @param directionReversed значення, що визначає напрямок для цієї операції.
-     *
-     * @return числове значення, визначене методом.
+     * @param directionReversed ознака розвернутого напрямку.
      */
     public static double outputTipX(boolean directionReversed) {
         double half = OUTPUT_PORT_SIZE / 2.0;

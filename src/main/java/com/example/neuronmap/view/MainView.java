@@ -11,7 +11,7 @@ import java.net.URL;
 import java.util.function.Consumer;
 
 /**
- * Створює головне JavaFX-представлення вікна застосунку.
+ * Збирає основні елементи вікна редактора: полотно, панель інструментів, головне меню та рядок стану.
  */
 public final class MainView {
 
@@ -23,25 +23,16 @@ public final class MainView {
     private final MainMenuView mainMenu;
 
     /**
-     * Повертає результат операції «відображення».
+     * Створює екземпляр MainView та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param addNeuron значення, що визначає додати нейрон для цієї операції.
-     *
-     * @param group група нейронів.
-     *
-     * @param ungroup значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param exitDelete значення, що визначає видалити для цієї операції.
-     *
-     * @param pauseResume значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param stopSignals значення, що визначає зупинити сигнали для цієї операції.
-     *
-     * @param speedChanged значення, що визначає швидкість для цієї операції.
-     *
-     * @param initialSpeedMillis значення, що визначає швидкість для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param addNeuron значення «add neuron», яке використовується в цьому методі.
+     * @param group значення «group», яке використовується в цьому методі.
+     * @param ungroup значення «ungroup», яке використовується в цьому методі.
+     * @param exitDelete callback, який завершує режим видалення зв’язку.
+     * @param pauseResume значення «pause resume», яке використовується в цьому методі.
+     * @param stopSignals значення «stop signals», яке використовується в цьому методі.
+     * @param speedChanged значення «speed changed», яке використовується в цьому методі.
+     * @param initialSpeedMillis значення «initial speed millis», яке використовується в цьому методі.
      */
     public MainView(
             Consumer<NeuronType> addNeuron,
@@ -67,27 +58,17 @@ public final class MainView {
     }
 
     /**
-     * Повертає результат операції «відображення».
+     * Створює екземпляр MainView та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param addNeuron значення, що визначає додати нейрон для цієї операції.
-     *
-     * @param group група нейронів.
-     *
-     * @param ungroup значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param exitDelete значення, що визначає видалити для цієї операції.
-     *
-     * @param pauseResume значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param stopSignals значення, що визначає зупинити сигнали для цієї операції.
-     *
-     * @param speedChanged значення, що визначає швидкість для цієї операції.
-     *
-     * @param initialSpeedMillis значення, що визначає швидкість для цієї операції.
-     *
-     * @param localization значення, що визначає локалізація для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param addNeuron значення «add neuron», яке використовується в цьому методі.
+     * @param group значення «group», яке використовується в цьому методі.
+     * @param ungroup значення «ungroup», яке використовується в цьому методі.
+     * @param exitDelete callback, який завершує режим видалення зв’язку.
+     * @param pauseResume значення «pause resume», яке використовується в цьому методі.
+     * @param stopSignals значення «stop signals», яке використовується в цьому методі.
+     * @param speedChanged значення «speed changed», яке використовується в цьому методі.
+     * @param initialSpeedMillis значення «initial speed millis», яке використовується в цьому методі.
+     * @param localization служба локалізації інтерфейсу.
      */
     public MainView(
             Consumer<NeuronType> addNeuron,
@@ -132,24 +113,17 @@ public final class MainView {
     }
 
     /**
-     * Створює обʼєкт із переданих даних «сцена».
+     * Створює сцену з кореневим вузлом інтерфейсу й заданими початковими розмірами.
      *
-     * @param width ширина області.
-     *
-     * @param height висота області.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param width ширина видимої області.
+     * @param height висота видимої області.
      */
     public Scene createScene(double width, double height) {
         Scene scene = new Scene(root, width, height);
 
         URL css = getClass().getResource("/app.css");
         if (css == null) {
-            /**
-             * Повертає результат операції «стан виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalStateException("app.css is missing");
         }
 
@@ -159,54 +133,54 @@ public final class MainView {
     }
 
     /**
-     * Повертає результат операції «вузол».
+     * Повертає кореневий вузол інтерфейсу.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return кореневий вузол інтерфейсу.
      */
     public StackPane node() {
         return root;
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Повертає полотно редактора.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return полотно редактора.
      */
     public WorkspaceView workspace() {
         return workspace;
     }
 
     /**
-     * Повертає результат операції «панель інструментів».
+     * Повертає панель інструментів.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return панель інструментів.
      */
     public ToolbarView toolbar() {
         return toolbar;
     }
 
     /**
-     * Повертає результат операції «меню».
+     * Повертає головне меню.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return головне меню.
      */
     public MainMenuView mainMenu() {
         return mainMenu;
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «стан».
+     * Установлює status для поточного об’єкта.
      *
-     * @param text текст, який потрібно показати або обробити.
+     * @param text текст, який потрібно показати або розібрати.
      */
     public void setStatus(String text) {
         statusBar.setText(text);
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «меню графічний стан».
+     * Установлює main menu visual state для поточного об’єкта.
      *
-     * @param visible ознака видимості елемента.
+     * @param visible значення «visible», яке використовується в цьому методі.
      */
     private void setMainMenuVisualState(boolean visible) {
         content.setDisable(visible);
@@ -216,12 +190,10 @@ public final class MainView {
     }
 
     /**
-     * Компонент RootPane у складі NeuronMap. Його призначення та параметри операцій описані над відповідними методами.
+     * Розміщує дочірні елементи головного вікна редактора під час зміни розміру сцени.
      */
     private static final class RootPane extends Pane {
-        /**
-         * Виконує операцію «розташування».
-         */
+
         @Override
         protected void layoutChildren() {
             double width = getWidth();

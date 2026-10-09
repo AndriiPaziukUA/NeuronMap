@@ -9,12 +9,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє правила створення й видалення звʼязків.
+ * Перевіряє, що операції зі зв’язками реалізовані у сервісі, а не в контролерах інтерфейсу.
  */
 class ConnectionServiceTest {
 
     /**
-     * Перевіряє очікувану поведінку: звʼязок.
+     * Перевіряє, що логіка роботи зі зв’язками розташована в сервісі, а не у контролерах.
      */
     @Test
     void connectionOperationsStayOutsideControllers() {

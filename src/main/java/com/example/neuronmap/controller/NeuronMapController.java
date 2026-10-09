@@ -12,20 +12,17 @@ import java.nio.file.Path;
 import java.util.Objects;
 
 /**
- * Є головним контролером редактора та повʼязує події інтерфейсу з потрібними компонентами.
+ * Готує сцену карти нейронів, встановлює початкове положення камери та завершує роботу контролерів під час закриття редактора.
  */
 public final class NeuronMapController {
 
     private final MapEditorCoordinator coordinator;
 
     /**
-     * Повертає результат операції «нейрон карта».
+     * Створює екземпляр NeuronMapController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param application значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param config значення, що визначає конфігурація для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param application прикладна служба, яка надає доступ до служб карти й збереження.
+     * @param config завантажена конфігурація застосунку.
      */
     public NeuronMapController(
             NeuronMapApplicationService application,
@@ -39,15 +36,11 @@ public final class NeuronMapController {
     }
 
     /**
-     * Повертає результат операції «нейрон карта».
+     * Створює екземпляр NeuronMapController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param application значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param config значення, що визначає конфігурація для цієї операції.
-     *
-     * @param exitApplication значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param application прикладна служба, яка надає доступ до служб карти й збереження.
+     * @param config завантажена конфігурація застосунку.
+     * @param exitApplication callback завершення роботи застосунку.
      */
     public NeuronMapController(
             NeuronMapApplicationService application,
@@ -73,27 +66,24 @@ public final class NeuronMapController {
     }
 
     /**
-     * Створює обʼєкт із переданих даних «сцена».
+     * Створює сцену редактора заданого розміру та розміщує на ній компоненти карти.
      *
-     * @param width ширина області.
-     *
-     * @param height висота області.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param width ширина видимої області.
+     * @param height висота видимої області.
      */
     public Scene createScene(double width, double height) {
         return coordinator.createScene(width, height);
     }
 
     /**
-     * Виконує операцію «центр відображення».
+     * Розміщує камеру так, щоб початковий вигляд карти був центрований у вікні.
      */
     public void centerInitialView() {
         coordinator.centerInitialView();
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     * Завершує роботу контролерів і закриває ресурси редактора.
      */
     public void shutdown() {
         coordinator.shutdown();

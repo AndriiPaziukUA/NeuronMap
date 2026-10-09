@@ -20,7 +20,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * Організовує видалення вибраних нейронів і повʼязаних із ними елементів.
+ * Видаляє вибрані або окремі нейрони та оновлює пов’язані візуальні елементи й стан редактора.
  */
 public final class NeuronDeletionController {
 
@@ -39,31 +39,19 @@ public final class NeuronDeletionController {
     private final EventHandler<KeyEvent> keyHandler = this::handleKeyPressed;
 
     /**
-     * Повертає результат операції «нейрон».
+     * Створює екземпляр NeuronDeletionController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param neuronService значення, що визначає нейрон служба для цієї операції.
-     *
-     * @param state стан обʼєкта або редактора.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param neuronViews значення, що визначає нейрон для цієї операції.
-     *
-     * @param rotationHandles значення, що визначає обертання обробляє для цієї операції.
-     *
-     * @param hideMenu значення, що визначає приховати меню для цієї операції.
-     *
-     * @param refreshVisuals значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param refreshPresentation значення, що визначає представлення для цієї операції.
-     *
-     * @param refreshDeleteHighlights значення, що визначає видалити для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param status стан операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param neuronService служба операцій над нейронами.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param workspace полотно редактора.
+     * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
+     * @param rotationHandles мапа ручок обертання нейронів за ідентифікаторами.
+     * @param hideMenu callback для приховування контекстного меню.
+     * @param refreshVisuals callback, який оновлює вигляд нейронів.
+     * @param refreshPresentation callback, який синхронізує візуальні подання з моделлю.
+     * @param refreshDeleteHighlights callback, який оновлює підсвічування зв’язків, доступних для видалення.
+     * @param save функція зворотного виклику для відповідної дії.
+     * @param status callback для показу повідомлення в рядку стану.
      */
     public NeuronDeletionController(
             NeuronService neuronService,
@@ -95,33 +83,20 @@ public final class NeuronDeletionController {
     }
 
     /**
-     * Повертає результат операції «нейрон».
+     * Створює екземпляр NeuronDeletionController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param neuronService значення, що визначає нейрон служба для цієї операції.
-     *
-     * @param state стан обʼєкта або редактора.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param neuronViews значення, що визначає нейрон для цієї операції.
-     *
-     * @param rotationHandles значення, що визначає обертання обробляє для цієї операції.
-     *
-     * @param hideMenu значення, що визначає приховати меню для цієї операції.
-     *
-     * @param refreshVisuals значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param refreshPresentation значення, що визначає представлення для цієї операції.
-     *
-     * @param refreshDeleteHighlights значення, що визначає видалити для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param status стан операції.
-     *
-     * @param localization значення, що визначає локалізація для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param neuronService служба операцій над нейронами.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param workspace полотно редактора.
+     * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
+     * @param rotationHandles мапа ручок обертання нейронів за ідентифікаторами.
+     * @param hideMenu callback для приховування контекстного меню.
+     * @param refreshVisuals callback, який оновлює вигляд нейронів.
+     * @param refreshPresentation callback, який синхронізує візуальні подання з моделлю.
+     * @param refreshDeleteHighlights callback, який оновлює підсвічування зв’язків, доступних для видалення.
+     * @param save функція зворотного виклику для відповідної дії.
+     * @param status callback для показу повідомлення в рядку стану.
+     * @param localization служба локалізації інтерфейсу.
      */
     public NeuronDeletionController(
             NeuronService neuronService,
@@ -153,7 +128,7 @@ public final class NeuronDeletionController {
     }
 
     /**
-     * Виконує операцію «сцена ключ».
+     * Реєструє обробники подій, потрібні для scene key handler.
      */
     private void installSceneKeyHandler() {
         workspace.node().sceneProperty().addListener(
@@ -169,9 +144,9 @@ public final class NeuronDeletionController {
     }
 
     /**
-     * Обробляє «ключ».
+     * Обробляє подію «key pressed» і передає її до відповідної операції редактора.
      *
-     * @param event подія інтерфейсу.
+     * @param event подія інтерфейсу, яку потрібно обробити.
      */
     private void handleKeyPressed(KeyEvent event) {
         if (event.getCode() != KeyCode.DELETE
@@ -185,9 +160,7 @@ public final class NeuronDeletionController {
     }
 
     /**
-     * Видаляє або скидає дані, повʼязані з «вибраний нейрони».
-     *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * Видаляє всі вибрані нейрони й повертає ознаку того, чи змінилася модель.
      */
     public boolean deleteSelectedNeurons() {
         LinkedHashSet<String> selectedIds =
@@ -210,7 +183,7 @@ public final class NeuronDeletionController {
     }
 
     /**
-     * Видаляє або скидає дані, повʼязані з «нейрон».
+     * Видаляє нейрон за ідентифікатором і очищає пов’язані елементи інтерфейсу.
      *
      * @param neuronId ідентифікатор нейрона.
      */
@@ -222,9 +195,9 @@ public final class NeuronDeletionController {
     }
 
     /**
-     * Видаляє або скидає дані, повʼязані з «нейрони».
+     * Видаляє набір нейронів та оновлює залежні візуальні елементи.
      *
-     * @param neuronIds ідентифікатори нейронів.
+     * @param neuronIds ідентифікатори нейронів, які потрібно обробити.
      */
     private void deleteNeurons(Collection<String> neuronIds) {
         LinkedHashSet<String> ids = new LinkedHashSet<>(neuronIds);
@@ -273,11 +246,11 @@ public final class NeuronDeletionController {
     }
 
     /**
-     * Перевіряє, чи виконується умова «текст вхід кінцевий».
+     * Перевіряє, чи має фокус текстовий елемент, щоб не перехоплювати введення користувача.
      *
-     * @param target значення, що визначає кінцевий для цієї операції.
+     * @param target цільовий вузол або об’єкт інтерфейсу, який потрібно перевірити чи знайти.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     private boolean isTextInputTarget(Object target) {
         Node node = target instanceof Node targetNode ? targetNode : null;

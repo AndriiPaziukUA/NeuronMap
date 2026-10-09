@@ -7,12 +7,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
- * Перевіряє розрахунок положення меню та накладок.
+ * Перевіряє розташування накладок на точній відстані від нейрона, у тому числі за обернутого напрямку та нульового вектора.
  */
 class NeuronOverlayPositionerTest {
 
     /**
-     * Перевіряє очікувану поведінку: зберігає.
+     * Перевіряє, що зміщення вздовж нормалі зберігає вказану екранну відстань.
      */
     @Test
     void offsetAlongNormalKeepsExactScreenDistance() {
@@ -35,7 +35,7 @@ class NeuronOverlayPositionerTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: слідує.
+     * Перевіряє, що зміщення виконується уздовж нормалі після повороту.
      */
     @Test
     void offsetAlongNormalFollowsRotatedNormal() {
@@ -53,7 +53,7 @@ class NeuronOverlayPositionerTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: відхилений.
+     * Перевіряє відхилення нульового вектора нормалі.
      */
     @Test
     void zeroNormalIsRejected() {

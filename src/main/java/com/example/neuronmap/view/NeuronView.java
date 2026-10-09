@@ -13,7 +13,7 @@ import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
 
 /**
- * Відображає нейрон, його напрямок і візуальний стан.
+ * Відображає нейрон, його порти й напрямок сигналу та відстежує перетягування, вибір і показ вхідного сигналу.
  */
 public final class NeuronView extends StackPane {
 
@@ -44,19 +44,13 @@ private Integer displayedInputSignal;
     private double lastSceneY;
 
     /**
-     * Повертає результат операції «нейрон відображення».
+     * Створює екземпляр NeuronView та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param presentation значення, що визначає представлення для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param presentation візуальне подання нейрона.
      */
     public NeuronView(NeuronPresentation presentation) {
         if (presentation == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException(
                     "presentation must not be null"
             );
@@ -107,60 +101,57 @@ private Integer displayedInputSignal;
     }
 
     /**
-     * Повертає результат операції «модель».
+     * Повертає модель карти нейронів.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return модель карти нейронів.
      */
     public Neuron model() {
         return presentation.neuron();
     }
 
     /**
-     * Повертає результат операції «представлення».
+     * Повертає візуальне подання нейрона.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return візуальне подання нейрона.
      */
     public NeuronPresentation presentation() {
         return presentation;
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Повертає ознаку того, що подання нейрона справді перемістили під час поточного жесту миші.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return ознаку того, що подання нейрона справді перемістили під час поточного жесту миші.
      */
     public boolean wasDragged() {
         return wasDragged;
     }
 
     /**
-     * Перевіряє, чи виконується умова «відповідну операцію».
+     * Перевіряє, чи dragging за поточного стану компонента.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public boolean isDragging() {
         return dragging;
     }
 
     /**
-     * Перевіряє, чи виконується умова «група».
+     * Перевіряє, чи dragging group за поточного стану компонента.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public boolean isDraggingGroup() {
         return dragGroup;
     }
 
     /**
-     * Запускає або планує дію, повʼязану з «перетягування».
+     * Запам’ятовує початкові координати перетягування та модифікатори, які впливають на переміщення.
      *
-     * @param sceneX значення, що визначає сцена для цієї операції.
-     *
-     * @param sceneY значення, що визначає сцена для цієї операції.
-     *
-     * @param altPressed значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param belongsToGroup значення, що визначає до група для цієї операції.
+     * @param sceneX горизонтальна координата точки у системі координат сцени JavaFX.
+     * @param sceneY вертикальна координата точки у системі координат сцени JavaFX.
+     * @param altPressed значення «alt pressed», яке використовується в цьому методі.
+     * @param belongsToGroup значення «belongs to group», яке використовується в цьому методі.
      */
     public void beginDrag(
             double sceneX,
@@ -178,11 +169,9 @@ private Integer displayedInputSignal;
     }
 
     /**
-     * Переміщує обʼєкт «відповідну операцію» відповідно до переданого зміщення.
+     * Обчислює горизонтальне зміщення від початку перетягування.
      *
-     * @param sceneX значення, що визначає сцена для цієї операції.
-     *
-     * @return числове значення, визначене методом.
+     * @param sceneX горизонтальна координата точки у системі координат сцени JavaFX.
      */
     public double dragDeltaX(double sceneX) {
         double delta = sceneX - lastSceneX;
@@ -191,11 +180,9 @@ private Integer displayedInputSignal;
     }
 
     /**
-     * Переміщує обʼєкт «відповідну операцію» відповідно до переданого зміщення.
+     * Обчислює вертикальне зміщення від початку перетягування.
      *
-     * @param sceneY значення, що визначає сцена для цієї операції.
-     *
-     * @return числове значення, визначене методом.
+     * @param sceneY вертикальна координата точки у системі координат сцени JavaFX.
      */
     public double dragDeltaY(double sceneY) {
         double delta = sceneY - lastSceneY;
@@ -204,11 +191,10 @@ private Integer displayedInputSignal;
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «стан».
+     * Оновлює dragged state після зміни даних або взаємодії користувача.
      *
-     * @param sceneX значення, що визначає сцена для цієї операції.
-     *
-     * @param sceneY значення, що визначає сцена для цієї операції.
+     * @param sceneX горизонтальна координата точки у системі координат сцени JavaFX.
+     * @param sceneY вертикальна координата точки у системі координат сцени JavaFX.
      */
     public void updateDraggedState(double sceneX, double sceneY) {
         if (Math.hypot(
@@ -220,16 +206,16 @@ private Integer displayedInputSignal;
     }
 
     /**
-     * Виконує операцію «перетягування».
+     * Завершує перетягування та очищає тимчасовий стан жесту.
      */
     public void endDrag() {
         dragging = false;
     }
 
 /**
- * Відображає «вхід сигнал» в інтерфейсі.
+ * Показує на нейроні індикатор із величиною отриманого вхідного сигналу.
  *
- * @param signal значення, що визначає сигнал для цієї операції.
+ * @param signal значення «signal», яке використовується в цьому методі.
  */
 public void showInputSignal(int signal) {
         displayedInputSignal = signal;
@@ -237,7 +223,7 @@ public void showInputSignal(int signal) {
     }
 
 /**
- * Виконує операцію «приховати вхід сигнал».
+ * Приховує індикатор вхідного сигналу.
  */
 public void hideInputSignal() {
         displayedInputSignal = null;
@@ -245,23 +231,23 @@ public void hideInputSignal() {
     }
 
 /**
- * Видаляє або скидає дані, повʼязані з «вхід сигнал».
+ * Очищає текст і стан відображення вхідного сигналу.
  */
 public void clearDisplayedInputSignal() {
         hideInputSignal();
     }
 
     /**
-     * Перевіряє, чи виконується умова «напрямок».
+     * Перевіряє, чи direction reversed за поточного стану компонента.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public boolean isDirectionReversed() {
         return presentation.directionReversed();
     }
 
     /**
-     * Перемикає стан «напрямок».
+     * Перемикає напрямок портів нейрона та оновлює його видиме подання.
      */
     public void toggleDirection() {
         presentation.toggleDirection();
@@ -269,9 +255,9 @@ public void clearDisplayedInputSignal() {
     }
 
     /**
-     * Обробляє «відповідну операцію».
+     * Оновлює колір, напрямок і позначення нейрона з урахуванням його стану та вибору.
      *
-     * @param selected значення, що визначає вибраний для цієї операції.
+     * @param selected значення «selected», яке використовується в цьому методі.
      */
     public void refreshVisuals(boolean selected) {
         setLayoutX(presentation.x());
@@ -306,9 +292,9 @@ public void clearDisplayedInputSignal() {
     }
 
 /**
- * Повертає результат операції «вихід».
+ * Повертає світову точку на вихідному порту нейрона, до якої має приєднуватися зв’язок.
  *
- * @return значення або обʼєкт, визначений описаною операцією.
+ * @return світову точку на вихідному порту нейрона, до якої має приєднуватися зв’язок.
  */
 public Point2D outputPoint() {
         return localPointToWorld(
@@ -322,9 +308,9 @@ public Point2D outputPoint() {
     }
 
 /**
- * Повертає результат операції «вхід».
+ * Повертає світову точку на вхідному порту нейрона, до якої має приєднуватися зв’язок.
  *
- * @return значення або обʼєкт, визначений описаною операцією.
+ * @return світову точку на вхідному порту нейрона, до якої має приєднуватися зв’язок.
  */
 public Point2D inputPoint() {
         return localPointToWorld(
@@ -338,7 +324,7 @@ public Point2D inputPoint() {
     }
 
     /**
-     * Виконує операцію «положення».
+     * Перераховує положення постійних графічних елементів усередині подання нейрона.
      */
     private void positionFixedChildren() {
         body.relocate(0.0, 0.0);
@@ -391,11 +377,9 @@ public Point2D inputPoint() {
     }
 
     /**
-     * Повертає результат операції «до карта».
+     * Перетворює точку з локальних координат нейрона на світові координати полотна.
      *
-     * @param localPoint значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param localPoint значення «local point», яке використовується в цьому методі.
      */
     private Point2D localPointToWorld(Point2D localPoint) {
         double centerX = WIDTH / 2.0;
@@ -426,9 +410,9 @@ public Point2D inputPoint() {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «сигнал підпис».
+     * Налаштовує signal label для роботи з відповідним елементом інтерфейсу.
      *
-     * @param label значення, що визначає підпис для цієї операції.
+     * @param label значення «label», яке використовується в цьому методі.
      */
     private void configureSignalLabel(Label label) {
         label.getStyleClass().add("neuron-activation");
@@ -437,9 +421,9 @@ public Point2D inputPoint() {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Повертає базовий колір тіла нейрона відповідно до його типу.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return базовий колір тіла нейрона відповідно до його типу.
      */
     private Color baseColor() {
         return model().type() == NeuronType.EXCITATORY

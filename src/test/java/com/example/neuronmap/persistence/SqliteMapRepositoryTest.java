@@ -18,14 +18,12 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Перевіряє збереження та читання карти через SQLite.
+ * Перевіряє повне збереження та відновлення семантичних даних, подання нейронів, зв’язків, груп і камери в SQLite.
  */
 class SqliteMapRepositoryTest {
 
     /**
-     * Перевіряє очікувану поведінку: зберігає змістовий представлення звʼязки групи і камера.
-     *
-     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
+     * Перевіряє круговий цикл збереження та завантаження моделі, груп, зв’язків і камери.
      */
     @Test
     void roundTripPersistsSemanticPresentationConnectionsGroupsAndCamera(
@@ -135,11 +133,6 @@ class SqliteMapRepositoryTest {
         );
     }
 
-    /**
-     * Перевіряє очікувану поведінку: SQLite.
-     *
-     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
-     */
     @Test
     void configuresDurableSqlitePragmas(
             @TempDir Path tempDir
@@ -167,11 +160,6 @@ class SqliteMapRepositoryTest {
                     )
             );
 
-            /*
-             * foreign_keys is a connection-local SQLite PRAGMA.
-             * Therefore it must be verified on the SAME connection
-             * configured by SqliteConnectionFactory.
-             */
             assertEquals(
                     1,
                     pragmaInt(
@@ -190,11 +178,6 @@ class SqliteMapRepositoryTest {
         }
     }
 
-    /**
-     * Перевіряє очікувану поведінку: структура зберігає нейрон і представлення дані.
-     *
-     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
-     */
     @Test
     void schemaKeepsNeuronAndPresentationDataSeparate(
             @TempDir Path tempDir
@@ -238,15 +221,6 @@ class SqliteMapRepositoryTest {
         }
     }
 
-    /**
-     * Повертає результат операції «текст».
-     *
-     * @param statement SQL-оператор.
-     *
-     * @param sql значення, що визначає SQL для цієї операції.
-     *
-     * @return текстове значення, сформоване або знайдене методом.
-     */
     private static String pragmaText(
             Statement statement,
             String sql
@@ -258,15 +232,6 @@ class SqliteMapRepositoryTest {
         }
     }
 
-    /**
-     * Повертає результат операції «відповідну операцію».
-     *
-     * @param statement SQL-оператор.
-     *
-     * @param sql значення, що визначає SQL для цієї операції.
-     *
-     * @return числове значення, визначене методом.
-     */
     private static int pragmaInt(
             Statement statement,
             String sql
@@ -278,15 +243,6 @@ class SqliteMapRepositoryTest {
         }
     }
 
-    /**
-     * Повертає результат операції «стовпець».
-     *
-     * @param connection звʼязок між нейронами.
-     *
-     * @param table значення, що визначає таблиця для цієї операції.
-     *
-     * @return колекцію результатів; якщо елементів немає, колекція порожня.
-     */
     private static Set<String> columnNames(
             Connection connection,
             String table

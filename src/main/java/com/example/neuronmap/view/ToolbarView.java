@@ -22,7 +22,7 @@ import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
 /**
- * Створює панель інструментів із командами редактора та керуванням симуляцією.
+ * Створює панель інструментів і керує кнопками нейронів, групуванням, симуляцією, швидкістю й відображенням координат камери.
  */
 public final class ToolbarView {
 
@@ -50,25 +50,16 @@ public final class ToolbarView {
     private boolean committingSpeed;
 
     /**
-     * Повертає результат операції «панель інструментів відображення».
+     * Створює екземпляр ToolbarView та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param addNeuron значення, що визначає додати нейрон для цієї операції.
-     *
-     * @param group група нейронів.
-     *
-     * @param ungroup значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param exitDelete значення, що визначає видалити для цієї операції.
-     *
-     * @param pauseResume значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param stopSignals значення, що визначає зупинити сигнали для цієї операції.
-     *
-     * @param speedChanged значення, що визначає швидкість для цієї операції.
-     *
-     * @param initialSpeedMillis значення, що визначає швидкість для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param addNeuron значення «add neuron», яке використовується в цьому методі.
+     * @param group значення «group», яке використовується в цьому методі.
+     * @param ungroup значення «ungroup», яке використовується в цьому методі.
+     * @param exitDelete callback, який завершує режим видалення зв’язку.
+     * @param pauseResume значення «pause resume», яке використовується в цьому методі.
+     * @param stopSignals значення «stop signals», яке використовується в цьому методі.
+     * @param speedChanged значення «speed changed», яке використовується в цьому методі.
+     * @param initialSpeedMillis значення «initial speed millis», яке використовується в цьому методі.
      */
     public ToolbarView(
             Consumer<NeuronType> addNeuron,
@@ -94,27 +85,17 @@ public final class ToolbarView {
     }
 
     /**
-     * Повертає результат операції «панель інструментів відображення».
+     * Створює екземпляр ToolbarView та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param addNeuron значення, що визначає додати нейрон для цієї операції.
-     *
-     * @param group група нейронів.
-     *
-     * @param ungroup значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param exitDelete значення, що визначає видалити для цієї операції.
-     *
-     * @param pauseResume значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param stopSignals значення, що визначає зупинити сигнали для цієї операції.
-     *
-     * @param speedChanged значення, що визначає швидкість для цієї операції.
-     *
-     * @param initialSpeedMillis значення, що визначає швидкість для цієї операції.
-     *
-     * @param localization значення, що визначає локалізація для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param addNeuron значення «add neuron», яке використовується в цьому методі.
+     * @param group значення «group», яке використовується в цьому методі.
+     * @param ungroup значення «ungroup», яке використовується в цьому методі.
+     * @param exitDelete callback, який завершує режим видалення зв’язку.
+     * @param pauseResume значення «pause resume», яке використовується в цьому методі.
+     * @param stopSignals значення «stop signals», яке використовується в цьому методі.
+     * @param speedChanged значення «speed changed», яке використовується в цьому методі.
+     * @param initialSpeedMillis значення «initial speed millis», яке використовується в цьому методі.
+     * @param localization служба локалізації інтерфейсу.
      */
     public ToolbarView(
             Consumer<NeuronType> addNeuron,
@@ -225,36 +206,32 @@ public final class ToolbarView {
     }
 
     /**
-     * Повертає результат операції «вузол».
+     * Повертає кореневий вузол інтерфейсу.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return кореневий вузол інтерфейсу.
      */
     public HBox node() {
         return root;
     }
 
     /**
-     * Повертає результат операції «додати кнопка».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * Створює та додає кнопку інструмента для додавання збуджувального нейрона.
      */
     public Button addExcitatoryButton() {
         return addExcitatoryButton;
     }
 
     /**
-     * Повертає результат операції «додати кнопка».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * Створює та додає кнопку інструмента для додавання гальмівного нейрона.
      */
     public Button addInhibitoryButton() {
         return addInhibitoryButton;
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «видалити».
+     * Установлює delete mode visible для поточного об’єкта.
      *
-     * @param visible ознака видимості елемента.
+     * @param visible значення «visible», яке використовується в цьому методі.
      */
     public void setDeleteModeVisible(boolean visible) {
         exitDeleteButton.setVisible(visible);
@@ -262,9 +239,9 @@ public final class ToolbarView {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «відповідну операцію».
+     * Установлює simulation controls visible для поточного об’єкта.
      *
-     * @param visible ознака видимості елемента.
+     * @param visible значення «visible», яке використовується в цьому методі.
      */
     public void setSimulationControlsVisible(boolean visible) {
         simulationSeparator.setVisible(visible);
@@ -276,9 +253,9 @@ public final class ToolbarView {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «відповідну операцію».
+     * Оновлює вигляд елементів керування, щоб показати, чи симуляція призупинена.
      *
-     * @param paused значення, що визначає відповідну операцію для цієї операції.
+     * @param paused значення «paused», яке використовується в цьому методі.
      */
     public void setSimulationPaused(boolean paused) {
         pauseResumeButton.setText(paused ? "▶" : "❚❚");
@@ -290,20 +267,19 @@ public final class ToolbarView {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «швидкість».
+     * Установлює значення швидкості симуляції, яке показує панель інструментів.
      *
-     * @param millis значення, що визначає відповідну операцію для цієї операції.
+     * @param millis тривалість такту в мілісекундах.
      */
     public void setSimulationSpeedMillis(double millis) {
         speedField.setText(formatSpeed(millis));
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «камера координати».
+     * Оновлює координати камери, показані на панелі інструментів.
      *
-     * @param x координата по горизонталі.
-     *
-     * @param y координата по вертикалі.
+     * @param x координата X.
+     * @param y координата Y.
      */
     public void setCameraCoordinates(double x, double y) {
         cameraCoordinatesLabel.setText(
@@ -313,7 +289,7 @@ public final class ToolbarView {
     }
 
     /**
-     * Обробляє «відповідну операцію».
+     * Оновлює «texts» за поточним станом моделі або інтерфейсу.
      */
     private void refreshTexts() {
         addExcitatoryButton.setText(localization.text("toolbar.excitatory"));
@@ -333,9 +309,9 @@ public final class ToolbarView {
     }
 
     /**
-     * Обробляє «сцена».
+     * Обробляє подію «scene mouse pressed» і передає її до відповідної операції редактора.
      *
-     * @param event подія інтерфейсу.
+     * @param event подія інтерфейсу, яку потрібно обробити.
      */
     private void handleSceneMousePressed(MouseEvent event) {
         if (!speedField.isFocused()) {
@@ -349,7 +325,7 @@ public final class ToolbarView {
     }
 
     /**
-     * Виконує операцію «швидкість».
+     * Перевіряє введену тривалість такту й передає нове значення контролеру симуляції.
      */
     private void commitSpeedEdit() {
         if (committingSpeed) {
@@ -365,9 +341,7 @@ public final class ToolbarView {
     }
 
     /**
-     * Повертає результат операції «швидкість».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * Створює фільтр текстового поля, який обмежує введення числом допустимого формату.
      */
     private static UnaryOperator<TextFormatter.Change> numericSpeedFilter() {
         return change -> {
@@ -380,13 +354,12 @@ public final class ToolbarView {
     }
 
     /**
-     * Перевіряє, чи виконується умова «або».
+     * Перевіряє, чи descendant or self за поточного стану компонента.
      *
-     * @param target значення, що визначає кінцевий для цієї операції.
+     * @param target цільовий вузол або об’єкт інтерфейсу, який потрібно перевірити чи знайти.
+     * @param parent батьківський XML-елемент або вузол, у якому виконується пошук.
      *
-     * @param parent батьківський графічний вузол.
-     *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     private static boolean isDescendantOrSelf(Node target, Node parent) {
         Node current = target;
@@ -400,9 +373,7 @@ public final class ToolbarView {
     }
 
     /**
-     * Повертає результат операції «кнопка».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * Створює кнопку інструмента для панелі редактора зі спільним оформленням.
      */
     private static Button toolButton() {
         Button button = new Button();
@@ -411,11 +382,9 @@ public final class ToolbarView {
     }
 
     /**
-     * Повертає результат операції «кнопка».
+     * Створює кнопку панелі інструментів із заданим текстом і значком.
      *
-     * @param text текст, який потрібно показати або обробити.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param text текст, який потрібно показати або розібрати.
      */
     private static Button iconButton(String text) {
         Button button = new Button(text);
@@ -424,11 +393,9 @@ public final class ToolbarView {
     }
 
     /**
-     * Повертає результат операції «швидкість».
+     * Форматує тривалість такту для короткого відображення на панелі.
      *
-     * @param millis значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return текстове значення, сформоване або знайдене методом.
+     * @param millis тривалість такту в мілісекундах.
      */
     private static String formatSpeed(double millis) {
         return Math.abs(millis - Math.rint(millis)) < 0.0001
@@ -437,11 +404,9 @@ public final class ToolbarView {
     }
 
     /**
-     * Повертає результат операції «координата».
+     * Форматує координату камери для відображення з обмеженою кількістю знаків.
      *
-     * @param value значення, яке потрібно передати або зберегти.
-     *
-     * @return текстове значення, сформоване або знайдене методом.
+     * @param value значення, яке потрібно зберегти або перевірити.
      */
     private static String formatCoordinate(double value) {
         if (Math.abs(value - Math.rint(value)) < 0.0001) {

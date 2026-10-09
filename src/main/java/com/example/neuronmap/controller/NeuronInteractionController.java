@@ -19,7 +19,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * Обробляє клацання та інші безпосередні дії користувача над нейронами.
+ * Створює й підтримує візуальні подання нейронів та координує кліки, контекстне меню й інтерактивні стани нейронів.
  */
 public final class NeuronInteractionController {
 
@@ -41,37 +41,22 @@ public final class NeuronInteractionController {
     private final NeuronDragController dragController;
 
     /**
-     * Повертає результат операції «нейрон».
+     * Створює екземпляр NeuronInteractionController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param neuronService значення, що визначає нейрон служба для цієї операції.
-     *
-     * @param groupService значення, що визначає група служба для цієї операції.
-     *
-     * @param selectionController значення, що визначає вибір для цієї операції.
-     *
-     * @param clipboardService значення, що визначає буфер обміну служба для цієї операції.
-     *
-     * @param state стан обʼєкта або редактора.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param neuronViews значення, що визначає нейрон для цієї операції.
-     *
-     * @param rotationHandles значення, що визначає обертання обробляє для цієї операції.
-     *
-     * @param connections значення, що визначає звʼязки для цієї операції.
-     *
-     * @param simulation значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param refreshConnections значення, що визначає звʼязки для цієї операції.
-     *
-     * @param status стан операції.
-     *
-     * @param menuCustomizer значення, що визначає меню для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param neuronService служба операцій над нейронами.
+     * @param groupService служба операцій над групами нейронів.
+     * @param selectionController контролер вибору нейронів.
+     * @param clipboardService служба копіювання та вставлення нейронів.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param workspace полотно редактора.
+     * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
+     * @param rotationHandles мапа ручок обертання нейронів за ідентифікаторами.
+     * @param connections набір напрямлених зв’язків моделі.
+     * @param simulation налаштування часу одного такту симуляції.
+     * @param save функція зворотного виклику для відповідної дії.
+     * @param refreshConnections callback, який оновлює геометрію та вигляд зв’язків.
+     * @param status callback для показу повідомлення в рядку стану.
+     * @param menuCustomizer компонент, що налаштовує кнопки контекстного меню нейрона.
      */
     public NeuronInteractionController(
             NeuronService neuronService,
@@ -109,39 +94,23 @@ public final class NeuronInteractionController {
     }
 
     /**
-     * Повертає результат операції «нейрон».
+     * Створює екземпляр NeuronInteractionController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param neuronService значення, що визначає нейрон служба для цієї операції.
-     *
-     * @param groupService значення, що визначає група служба для цієї операції.
-     *
-     * @param selectionController значення, що визначає вибір для цієї операції.
-     *
-     * @param clipboardService значення, що визначає буфер обміну служба для цієї операції.
-     *
-     * @param state стан обʼєкта або редактора.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param neuronViews значення, що визначає нейрон для цієї операції.
-     *
-     * @param rotationHandles значення, що визначає обертання обробляє для цієї операції.
-     *
-     * @param connections значення, що визначає звʼязки для цієї операції.
-     *
-     * @param simulation значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param refreshConnections значення, що визначає звʼязки для цієї операції.
-     *
-     * @param status стан операції.
-     *
-     * @param menuCustomizer значення, що визначає меню для цієї операції.
-     *
-     * @param localization значення, що визначає локалізація для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param neuronService служба операцій над нейронами.
+     * @param groupService служба операцій над групами нейронів.
+     * @param selectionController контролер вибору нейронів.
+     * @param clipboardService служба копіювання та вставлення нейронів.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param workspace полотно редактора.
+     * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
+     * @param rotationHandles мапа ручок обертання нейронів за ідентифікаторами.
+     * @param connections набір напрямлених зв’язків моделі.
+     * @param simulation налаштування часу одного такту симуляції.
+     * @param save функція зворотного виклику для відповідної дії.
+     * @param refreshConnections callback, який оновлює геометрію та вигляд зв’язків.
+     * @param status callback для показу повідомлення в рядку стану.
+     * @param menuCustomizer компонент, що налаштовує кнопки контекстного меню нейрона.
+     * @param localization служба локалізації інтерфейсу.
      */
     public NeuronInteractionController(
             NeuronService neuronService,
@@ -250,7 +219,7 @@ public final class NeuronInteractionController {
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «відповідну операцію».
+     * Створює візуальні подання для нейронів, які вже є в моделі.
      */
     public void loadViews() {
         for (Neuron neuron : neuronService.neurons()) {
@@ -261,9 +230,9 @@ public final class NeuronInteractionController {
     }
 
     /**
-     * Виконує операцію «додати відображення для нейрон».
+     * Створює подання для нового нейрона та додає його до шару вузлів.
      *
-     * @param neuron нейрон, над яким виконується операція.
+     * @param neuron нейрон моделі.
      */
     public void addViewForNeuron(Neuron neuron) {
         if (neuronViews.containsKey(neuron.id())) {
@@ -275,20 +244,20 @@ public final class NeuronInteractionController {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Повертає поточні візуальні подання нейронів.
      *
-     * @return колекцію результатів; якщо елементів немає, колекція порожня.
+     * @return поточні візуальні подання нейронів.
      */
     public Collection<NeuronView> views() {
         return neuronViews.values();
     }
 
     /**
-     * Перевіряє, чи виконується умова «кінцевий».
+     * Перевіряє, чи є ціль подією інтерактивним елементом, який має сам обробляти взаємодію.
      *
-     * @param target значення, що визначає кінцевий для цієї операції.
+     * @param target цільовий вузол або об’єкт інтерфейсу, який потрібно перевірити чи знайти.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public boolean isInteractiveTarget(Object target) {
         Node node = target instanceof Node targetNode ? targetNode : null;
@@ -305,7 +274,7 @@ public final class NeuronInteractionController {
     }
 
     /**
-     * Обробляє «відповідну операцію».
+     * Оновлює вигляд нейронів відповідно до вибору та поточного стану моделі.
      */
     public void refreshVisuals() {
         for (NeuronView neuronView : neuronViews.values()) {
@@ -316,7 +285,7 @@ public final class NeuronInteractionController {
     }
 
     /**
-     * Обробляє «накладка».
+     * Перераховує положення контекстних меню й ручок обертання біля нейронів.
      */
     public void refreshOverlayPositions() {
         for (NeuronView neuronView : neuronViews.values()) {
@@ -330,9 +299,9 @@ public final class NeuronInteractionController {
     }
 
     /**
-     * Відображає «меню» в інтерфейсі.
+     * Відкриває контекстне меню вказаного нейрона.
      *
-     * @param neuronView значення, що визначає нейрон відображення для цієї операції.
+     * @param neuronView візуальне подання нейрона.
      */
     public void showMenu(NeuronView neuronView) {
         rotationController.hideAll();
@@ -340,7 +309,7 @@ public final class NeuronInteractionController {
     }
 
     /**
-     * Виконує операцію «приховати меню».
+     * Приховує контекстне меню нейрона.
      */
     public void hideMenu() {
         menuController.hide();
@@ -348,16 +317,14 @@ public final class NeuronInteractionController {
     }
 
     /**
-     * Видаляє або скидає дані, повʼязані з «вибраний нейрони».
-     *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * Передає видалення поточного вибору відповідному обробнику й повертає результат операції.
      */
     public boolean deleteSelectedNeurons() {
         return deletionController.deleteSelectedNeurons();
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     * Від’єднує обробники та очищає ресурси, створені контролером взаємодії.
      */
     public void dispose() {
         clipboardController.clear();
@@ -365,9 +332,9 @@ public final class NeuronInteractionController {
     }
 
     /**
-     * Створює обʼєкт із переданих даних «відображення».
+     * Створює й додає до полотна візуальне подання нейрона.
      *
-     * @param neuron нейрон, над яким виконується операція.
+     * @param neuron нейрон моделі.
      */
     private void createView(Neuron neuron) {
         var presentation = neuronService.presentation(neuron.id());
@@ -399,11 +366,10 @@ public final class NeuronInteractionController {
     }
 
     /**
-     * Обробляє «нейрон».
+     * Обробляє клацання по нейрону з урахуванням кнопки миші та активного режиму редактора.
      *
-     * @param neuronView значення, що визначає нейрон відображення для цієї операції.
-     *
-     * @param event подія інтерфейсу.
+     * @param neuronView візуальне подання нейрона.
+     * @param event подія інтерфейсу, яку потрібно обробити.
      */
     private void handleNeuronClicked(NeuronView neuronView, MouseEvent event) {
         if (event.getButton() == MouseButton.SECONDARY) {

@@ -17,13 +17,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє склад і порядок елементів панелі інструментів.
+ * Перевіряє склад панелі інструментів і розташування поля швидкості симуляції відносно кнопок.
  */
 final class ToolbarViewTest {
 
-    /**
-     * Запускає або планує дію, повʼязану з «відповідну операцію».
-     */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -35,18 +32,11 @@ final class ToolbarViewTest {
         }
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
-            /**
-             * Повертає результат операції «стан виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalStateException("JavaFX startup timed out");
         }
     }
 
-    /**
-     * Перевіряє очікувану поведінку: швидкість поле приймає лише вхід і зберігає вирівнювання.
-     */
     @Test
     void speedFieldAcceptsOnlyNumericInputAndKeepsLeftAlignment()
             throws Exception {
@@ -76,9 +66,6 @@ final class ToolbarViewTest {
         });
     }
 
-    /**
-     * Перевіряє очікувану поведінку: швидкість поле перед.
-     */
     @Test
     void speedFieldStaysBeforeDynamicSimulationControls()
             throws Exception {
@@ -99,9 +86,7 @@ final class ToolbarViewTest {
     }
 
     /**
-     * Повертає результат операції «панель інструментів».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * Перевіряє сценарій «toolbar» і відповідність результату очікуваній поведінці.
      */
     private static ToolbarView toolbar() {
         return new ToolbarView(
@@ -117,11 +102,7 @@ final class ToolbarViewTest {
     }
 
     /**
-     * Повертає результат операції «швидкість поле».
-     *
-     * @param toolbar значення, що визначає панель інструментів для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * Перевіряє сценарій «speed field» і відповідність результату очікуваній поведінці.
      */
     private static TextField speedField(ToolbarView toolbar) {
         return (TextField) toolbar.node().getChildren().stream()
@@ -131,11 +112,7 @@ final class ToolbarViewTest {
     }
 
     /**
-     * Повертає результат операції «швидкість поле».
-     *
-     * @param toolbar значення, що визначає панель інструментів для цієї операції.
-     *
-     * @return числове значення, визначене методом.
+     * Перевіряє сценарій «index of speed field» і відповідність результату очікуваній поведінці.
      */
     private static int indexOfSpeedField(ToolbarView toolbar) {
         return indexOf(
@@ -145,13 +122,7 @@ final class ToolbarViewTest {
     }
 
     /**
-     * Повертає результат операції «кнопка».
-     *
-     * @param toolbar значення, що визначає панель інструментів для цієї операції.
-     *
-     * @param text текст, який потрібно показати або обробити.
-     *
-     * @return числове значення, визначене методом.
+     * Перевіряє сценарій «index of button» і відповідність результату очікуваній поведінці.
      */
     private static int indexOfButton(
             ToolbarView toolbar,
@@ -165,13 +136,7 @@ final class ToolbarViewTest {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
-     *
-     * @param nodes значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param predicate значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return числове значення, визначене методом.
+     * Перевіряє сценарій «index of» і відповідність результату очікуваній поведінці.
      */
     private static int indexOf(
             List<Node> nodes,
@@ -186,11 +151,6 @@ final class ToolbarViewTest {
         return -1;
     }
 
-    /**
-     * Запускає або планує дію, повʼязану з «відповідну операцію».
-     *
-     * @param action дія, яку потрібно виконати.
-     */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];
@@ -206,20 +166,12 @@ final class ToolbarViewTest {
         });
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
-            /**
-             * Повертає результат операції «стан виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalStateException("JavaFX test timed out");
         }
 
         if (failure[0] != null) {
-            /**
-             * Повертає результат операції «відповідну операцію».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new AssertionError(
                     "JavaFX test failed",
                     failure[0]

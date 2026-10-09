@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Керує запуском, оновленням і завершенням анімацій сигналів.
+ * Керує запуском, призупиненням, відновленням і зупиненням анімацій імпульсів на зв’язках.
  */
 public final class PulseAnimationController {
 
@@ -19,24 +19,19 @@ public final class PulseAnimationController {
     private final List<PulseAnimationView> activeAnimations = new ArrayList<>();
 
     /**
-     * Повертає результат операції «імпульс анімація».
+     * Створює екземпляр PulseAnimationController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param workspace полотно редактора.
      */
     public PulseAnimationController(WorkspaceView workspace) {
         this(workspace, () -> { });
     }
 
     /**
-     * Повертає результат операції «імпульс анімація».
+     * Створює екземпляр PulseAnimationController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param activityChanged значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param workspace полотно редактора.
+     * @param activityChanged callback, який повідомляє про зміну активності анімацій.
      */
     public PulseAnimationController(
             WorkspaceView workspace,
@@ -50,9 +45,9 @@ public final class PulseAnimationController {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Створює та запускає анімацію імпульсу для заданого подання зв’язку.
      *
-     * @param connectionView значення, що визначає звʼязок відображення для цієї операції.
+     * @param connectionView візуальне подання зв’язку.
      */
     public void play(ConnectionView connectionView) {
         if (connectionView == null) {
@@ -79,7 +74,7 @@ public final class PulseAnimationController {
     }
 
     /**
-     * Виконує операцію «усі».
+     * Призупиняє «all», зберігаючи можливість подальшого відновлення.
      */
     public void pauseAll() {
         pruneFinished();
@@ -89,7 +84,7 @@ public final class PulseAnimationController {
     }
 
     /**
-     * Виконує операцію «усі».
+     * Відновлює «all» після призупинення.
      */
     public void resumeAll() {
         pruneFinished();
@@ -99,7 +94,7 @@ public final class PulseAnimationController {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «усі».
+     * Зупиняє all та очищає пов’язаний активний стан.
      */
     public void stopAll() {
         for (PulseAnimationView animation : List.copyOf(activeAnimations)) {
@@ -110,9 +105,9 @@ public final class PulseAnimationController {
     }
 
     /**
-     * Перевіряє, чи виконується умова «анімації».
+     * Перевіряє, чи є active animations у поточному стані.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public boolean hasActiveAnimations() {
         pruneFinished();
@@ -120,9 +115,7 @@ public final class PulseAnimationController {
     }
 
     /**
-     * Повертає результат операції «анімація для».
-     *
-     * @return числове значення, визначене методом.
+     * Надає тестам доступ до «active animation count» для перевірки стану інтерфейсу.
      */
     int activeAnimationCountForTest() {
         pruneFinished();
@@ -130,7 +123,7 @@ public final class PulseAnimationController {
     }
 
     /**
-     * Обробляє «анімація завершений».
+     * Обробляє подію «animation finished» і передає її до відповідної операції редактора.
      */
     private void handleAnimationFinished() {
         pruneFinished();
@@ -138,7 +131,7 @@ public final class PulseAnimationController {
     }
 
     /**
-     * Виконує операцію «завершений».
+     * Видаляє зі списку керування анімації, які вже завершилися.
      */
     private void pruneFinished() {
         activeAnimations.removeIf(PulseAnimationView::isFinished);

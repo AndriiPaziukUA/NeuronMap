@@ -9,7 +9,7 @@ import javafx.scene.control.Label;
 import java.util.function.Consumer;
 
 /**
- * Відображає повідомлення про стан роботи застосунку.
+ * Знаходить реальний елемент рядка стану в JavaFX-сцені та передає йому повідомлення для відображення.
  */
 public final class StatusMessagePresenter {
 
@@ -20,19 +20,13 @@ public final class StatusMessagePresenter {
     private long messageVersion;
 
     /**
-     * Повертає результат операції «стан повідомлення».
+     * Створює екземпляр StatusMessagePresenter та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param fallback значення, що визначає резервний варіант для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param fallback резервне значення, яке використовують, якщо основний варіант недоступний.
      */
     public StatusMessagePresenter(Consumer<String> fallback) {
         if (fallback == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException(
                     "fallback must not be null"
             );
@@ -41,9 +35,9 @@ public final class StatusMessagePresenter {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Під’єднує подання повідомлень до сцени та знаходить фактичний елемент рядка стану.
      *
-     * @param scene значення, що визначає сцена для цієї операції.
+     * @param scene сцена JavaFX, до якої приєднують компонент.
      */
     public void attach(Scene scene) {
         disposeLifecycle();
@@ -51,9 +45,9 @@ public final class StatusMessagePresenter {
     }
 
     /**
-     * Відображає «потрібні дані» в інтерфейсі.
+     * Показує повідомлення в рядку стану або передає його резервному обробнику, якщо ціль не знайдена.
      *
-     * @param message повідомлення для показу чи журналювання.
+     * @param message значення «message», яке використовується в цьому методі.
      */
     public void show(String message) {
         String normalized = message == null ? "" : message;
@@ -73,7 +67,7 @@ public final class StatusMessagePresenter {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     * Від’єднує подання повідомлень від сцени та звільняє ресурси.
      */
     public void dispose() {
         messageVersion++;
@@ -82,11 +76,10 @@ public final class StatusMessagePresenter {
     }
 
     /**
-     * Виконує операцію «до стан підпис».
+     * Знаходить реальну мітку рядка стану в сцені та під’єднує до неї механізм показу повідомлень.
      *
-     * @param message повідомлення для показу чи журналювання.
-     *
-     * @param currentVersion значення, що визначає поточний для цієї операції.
+     * @param message значення «message», яке використовується в цьому методі.
+     * @param currentVersion номер поточної версії, з яким порівнюють збережені дані.
      */
     private void attachToActualStatusLabel(
             String message,
@@ -117,7 +110,7 @@ public final class StatusMessagePresenter {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «відповідну операцію».
+     * Від’єднує обробники подій і звільняє ресурси, якими керує компонент.
      */
     private void disposeLifecycle() {
         if (lifecycle != null) {

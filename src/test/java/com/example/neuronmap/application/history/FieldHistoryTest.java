@@ -7,12 +7,12 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Перевіряє збереження станів, скасування й повторення змін та межі історії.
+ * Перевіряє скасування, повторення, відгалуження історії після нової зміни та обмеження розміру історії.
  */
 class FieldHistoryTest {
 
     /**
-     * Перевіряє очікувану поведінку: і відновити поле стан.
+     * Перевіряє відновлення стану карти після скасування та повторення зміни.
      */
     @Test
     void undoAndRedoRestoreFieldState() {
@@ -36,7 +36,7 @@ class FieldHistoryTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: новий змінити після гілка.
+     * Перевіряє, що нова зміна після скасування видаляє застарілу гілку повторення.
      */
     @Test
     void newChangeAfterUndoDropsRedoBranch() {
@@ -60,7 +60,7 @@ class FieldHistoryTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: і лише не створити історія.
+     * Перевіряє, що незмінені дані й тимчасові значення симуляції не створюють крок історії.
      */
     @Test
     void unchangedAndRuntimeOnlySavesDoNotCreateHistory() {
@@ -79,7 +79,7 @@ class FieldHistoryTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: історія до кроки.
+     * Перевіряє, що історія обмежена тридцятьма кроками скасування.
      */
     @Test
     void historyIsLimitedToThirtyUndoSteps() {
@@ -107,7 +107,7 @@ class FieldHistoryTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: запускає новий історія.
+     * Перевіряє, що повторна ініціалізація створює нову історію без попередніх записів.
      */
     @Test
     void initializeStartsCompletelyNewHistory() {

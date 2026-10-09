@@ -8,7 +8,7 @@ import javafx.scene.control.Label;
 import javafx.util.Duration;
 
 /**
- * Керує строком показу повідомлення стану та його завершенням.
+ * Керує життєвим циклом повідомлення рядка стану: часом видимості, реакцією на наведення й плавним зникненням.
  */
 public final class StatusMessageLifecycle {
 
@@ -28,34 +28,23 @@ public final class StatusMessageLifecycle {
     private boolean messageFinished;
 
     /**
-     * Повертає результат операції «стан повідомлення».
+     * Створює екземпляр StatusMessageLifecycle та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param hoverRegion значення, що визначає наведення для цієї операції.
-     *
-     * @param messageLabel значення, що визначає повідомлення підпис для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param hoverRegion значення «hover region», яке використовується в цьому методі.
+     * @param messageLabel значення «message label», яке використовується в цьому методі.
      */
     public StatusMessageLifecycle(
             Node hoverRegion,
             Label messageLabel
     ) {
         if (hoverRegion == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException(
                     "hoverRegion must not be null"
             );
         }
         if (messageLabel == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException(
                     "messageLabel must not be null"
             );
@@ -95,9 +84,9 @@ public final class StatusMessageLifecycle {
     }
 
     /**
-     * Відображає «потрібні дані» в інтерфейсі.
+     * Показує повідомлення та запускає таймер його видимості.
      *
-     * @param message повідомлення для показу чи журналювання.
+     * @param message значення «message», яке використовується в цьому методі.
      */
     public void show(String message) {
         String normalizedMessage =
@@ -116,7 +105,7 @@ public final class StatusMessageLifecycle {
     }
 
     /**
-     * Видаляє або скидає дані, повʼязані з «потрібні дані».
+     * Прибирає текст повідомлення й скасовує таймери його приховування.
      */
     public void clear() {
         visiblePause.stop();
@@ -128,7 +117,7 @@ public final class StatusMessageLifecycle {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     * Від’єднує обробники подій і звільняє ресурси, якими керує компонент.
      */
     public void dispose() {
         clear();
@@ -139,7 +128,7 @@ public final class StatusMessageLifecycle {
     }
 
     /**
-     * Обробляє «відповідну операцію».
+     * Зупиняє приховування повідомлення, поки курсор перебуває над ним.
      */
     private void handleMouseEntered() {
         if (messageFinished) {
@@ -157,7 +146,7 @@ public final class StatusMessageLifecycle {
     }
 
     /**
-     * Обробляє «відповідну операцію».
+     * Відновлює відлік часу приховування після виходу курсора.
      */
     private void handleMouseExited() {
         if (messageFinished) {
@@ -170,7 +159,7 @@ public final class StatusMessageLifecycle {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Перезапускає таймер видимості повідомлення після наведення курсора.
      */
     private void restartVisibleCountdown() {
         if (messageFinished) {
@@ -181,7 +170,7 @@ public final class StatusMessageLifecycle {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Запускає плавне зникнення повідомлення після завершення часу видимості.
      */
     private void playFade() {
         if (hovered || messageFinished) {

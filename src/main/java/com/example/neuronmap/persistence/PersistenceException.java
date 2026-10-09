@@ -1,20 +1,17 @@
 package com.example.neuronmap.persistence;
 
 /**
- * Повідомляє про помилку під час читання або запису збережених даних.
+ * Представляє помилку збереження або завантаження даних і зберігає першопричину збою.
  */
 public final class PersistenceException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;
 
     /**
-     * Повертає результат операції «виняток».
+     * Створює виняток збереження з повідомленням і першопричиною помилки.
      *
-     * @param message повідомлення для показу чи журналювання.
-     *
-     * @param cause значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param message значення «message», яке використовується в цьому методі.
+     * @param cause першопричина помилки, яку потрібно передати разом із повідомленням.
      */
     public PersistenceException(
             String message,

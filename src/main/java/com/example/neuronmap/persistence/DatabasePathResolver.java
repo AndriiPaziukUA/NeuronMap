@@ -4,24 +4,19 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Визначає шлях до файлу бази даних для потрібного проєкту.
+ * Визначає шлях до файлу бази даних застосунку в належному каталозі користувацьких даних.
  */
 public final class DatabasePathResolver {
 
     private static final String DATABASE_NAME = "neuronmap.db";
 
-    /**
-     * Повертає результат операції «база даних шлях».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
-     */
     private DatabasePathResolver() {
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «потрібні дані».
+     * Повертає шлях до основного файлу бази даних користувацьких даних.
      *
-     * @return шлях до відповідного файлу або каталогу.
+     * @return шлях до основного файлу бази даних користувацьких даних.
      */
     public static Path resolve() {
         Path workingDirectory = Path.of(

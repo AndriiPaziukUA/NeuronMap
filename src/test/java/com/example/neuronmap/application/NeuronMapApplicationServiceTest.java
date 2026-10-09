@@ -14,12 +14,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
- * Перевіряє створення служб застосунку та передавання операцій між компонентами.
+ * Перевіряє, що прикладна служба надає спеціалізовані служби та передає збереження камери й швидкості симуляції до сховища.
  */
 final class NeuronMapApplicationServiceTest {
 
     /**
-     * Перевіряє очікувану поведінку: служби і камера стан.
+     * Перевіряє доступність спеціалізованих служб і передавання стану камери до сховища під час збереження.
      */
     @Test
     void exposesSpecializedServicesAndSavesCameraState() {
@@ -51,7 +51,7 @@ final class NeuronMapApplicationServiceTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: такт карта служба.
+     * Перевіряє, що збереження швидкості симуляції делегується службі карти.
      */
     @Test
     void delegatesSimulationTickPersistenceThroughMapService() {
@@ -76,7 +76,7 @@ final class NeuronMapApplicationServiceTest {
     }
 
     /**
-     * Набір модульних тестів типу FakeRepository. Перевіряє його основну поведінку та обробку некоректних або крайових даних.
+     * Тестова реалізація MapRepository, що дозволяє перевіряти виклики та передані значення без доступу до SQLite.
      */
     private static final class FakeRepository implements MapRepository {
 
@@ -84,64 +84,30 @@ final class NeuronMapApplicationServiceTest {
         private CameraState savedCamera;
         private double savedSimulationTickMillis = Double.NaN;
 
-        /**
-         * Повертає результат операції «база даних шлях».
-         *
-         * @return шлях до відповідного файлу або каталогу.
-         */
         @Override
         public Path databasePath() {
             return Path.of("test.db");
         }
 
-        /**
-         * Повертає або знаходить дані, повʼязані з «такт».
-         *
-         * @param fallbackMillis значення, що визначає резервний варіант для цієї операції.
-         *
-         * @return числове значення, визначене методом.
-         */
         @Override
         public double loadSimulationTickMillis(double fallbackMillis) {
             return fallbackMillis;
         }
 
-        /**
-         * Зберігає дані, повʼязані з «такт», у відповідному сховищі.
-         *
-         * @param millis значення, що визначає відповідну операцію для цієї операції.
-         */
         @Override
         public void saveSimulationTickMillis(double millis) {
             savedSimulationTickMillis = millis;
         }
 
-        /**
-         * Повертає або знаходить дані, повʼязані з «камера стан».
-         *
-         * @return значення або обʼєкт, визначений описаною операцією.
-         */
         @Override
         public CameraState loadCameraState() {
             return CameraState.defaultState();
         }
 
-        /**
-         * Повертає або знаходить дані, повʼязані з «відповідну операцію».
-         *
-         * @param model модель карти нейронів.
-         */
         @Override
         public void loadInto(NeuronMapModel model) {
         }
 
-        /**
-         * Зберігає дані, повʼязані з «потрібні дані», у відповідному сховищі.
-         *
-         * @param model модель карти нейронів.
-         *
-         * @param cameraState значення, що визначає камера стан для цієї операції.
-         */
         @Override
         public void save(
                 NeuronMapModel model,
@@ -151,9 +117,6 @@ final class NeuronMapApplicationServiceTest {
             savedCamera = cameraState;
         }
 
-        /**
-         * Завершує або скасовує дію, повʼязану з «потрібні дані».
-         */
         @Override
         public void close() {
         }

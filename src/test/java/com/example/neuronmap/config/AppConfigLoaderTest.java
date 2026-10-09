@@ -8,13 +8,10 @@ import java.nio.charset.StandardCharsets;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Перевіряє читання конфігурації та відхилення некоректних параметрів.
+ * Перевіряє завантаження конфігурації з ресурсу та відхилення некоректного діапазону швидкості симуляції.
  */
 class AppConfigLoaderTest {
 
-    /**
-     * Перевіряє очікувану поведінку: конфігурація.
-     */
     @Test
     void parsesBaseConfiguration() throws Exception {
         AppConfig config = AppConfigLoader.parse(
@@ -40,7 +37,7 @@ class AppConfigLoaderTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: завантажує конфігурація.
+     * Перевіряє завантаження конфігурації, що входить до ресурсів застосунку.
      */
     @Test
     void loadsBundledApplicationConfiguration() {
@@ -53,7 +50,7 @@ class AppConfigLoaderTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: відхиляє некоректний.
+     * Перевіряє відхилення конфігурації з некоректним діапазоном тривалості такту симуляції.
      */
     @Test
     void rejectsInvalidSimulationRange() {

@@ -9,37 +9,31 @@ import java.nio.file.StandardCopyOption;
 import java.util.Properties;
 
 /**
- * Зберігає загальні налаштування застосунку окремо від конкретної карти.
+ * Читає й записує глобальні налаштування застосунку у файлі властивостей.
  */
 public final class GlobalSettingsStore {
 
     private final Path path;
 
     /**
-     * Повертає результат операції «загальний налаштування зберігати».
+     * Створює екземпляр GlobalSettingsStore та зберігає передані залежності, потрібні для його роботи.
      *
      * @param path шлях до файлу або каталогу.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
      */
     public GlobalSettingsStore(Path path) {
         if (path == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("path must not be null");
         }
         this.path = path.toAbsolutePath().normalize();
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «потрібні дані».
+     * Повертає значення глобального налаштування за ключем або null, якщо ключ не задано.
      *
-     * @param key ключ для пошуку або збереження значення.
+     * @param key ключ налаштування або перекладу.
      *
-     * @return текстове значення, сформоване або знайдене методом.
+     * @return значення глобального налаштування за ключем або null, якщо ключ не задано.
      */
     public synchronized String load(String key) {
         Properties properties = loadProperties();
@@ -47,11 +41,10 @@ public final class GlobalSettingsStore {
     }
 
     /**
-     * Зберігає дані, повʼязані з «потрібні дані», у відповідному сховищі.
+     * Оновлює значення глобального налаштування й записує файл властивостей.
      *
-     * @param key ключ для пошуку або збереження значення.
-     *
-     * @param value значення, яке потрібно передати або зберегти.
+     * @param key ключ налаштування або перекладу.
+     * @param value значення, яке потрібно зберегти або перевірити.
      */
     public synchronized void save(String key, String value) {
         Properties properties = loadProperties();
@@ -64,9 +57,7 @@ public final class GlobalSettingsStore {
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «властивості».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * Зчитує файл глобальних налаштувань у об’єкт Properties.
      */
     private Properties loadProperties() {
         Properties properties = new Properties();
@@ -78,13 +69,7 @@ public final class GlobalSettingsStore {
             properties.load(input);
             return properties;
         } catch (IOException exception) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @param exception помилка, яку потрібно обробити.
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new PersistenceException(
                     "Не вдалося прочитати глобальні налаштування.",
                     exception
@@ -93,9 +78,9 @@ public final class GlobalSettingsStore {
     }
 
     /**
-     * Зберігає дані, повʼязані з «властивості», у відповідному сховищі.
+     * Записує переданий набір властивостей у файл налаштувань.
      *
-     * @param properties набір властивостей.
+     * @param properties набір властивостей, який потрібно записати у файл.
      */
     private void writeProperties(Properties properties) {
         try {
@@ -124,13 +109,7 @@ public final class GlobalSettingsStore {
                 );
             }
         } catch (IOException exception) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @param exception помилка, яку потрібно обробити.
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new PersistenceException(
                     "Не вдалося зберегти глобальні налаштування.",
                     exception

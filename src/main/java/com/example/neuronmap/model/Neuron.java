@@ -1,7 +1,7 @@
 package com.example.neuronmap.model;
 
 /**
- * Зберігає змістові дані нейрона: тип, активацію, силу сигналу та поріг активації.
+ * Зберігає семантичний стан нейрона: тип, силу сигналу та поріг активації.
  */
 public final class Neuron {
 
@@ -12,15 +12,11 @@ public final class Neuron {
     private int activationThreshold;
 
     /**
-     * Повертає результат операції «нейрон».
+     * Створює екземпляр Neuron та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param id ідентифікатор обʼєкта.
-     *
-     * @param type тип обʼєкта.
-     *
-     * @param activation значення активації нейрона.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param id унікальний ідентифікатор елемента.
+     * @param type тип нейрона або елемента.
+     * @param activation значення «activation», яке використовується в цьому методі.
      */
     public Neuron(
             String id,
@@ -37,19 +33,13 @@ public final class Neuron {
     }
 
     /**
-     * Повертає результат операції «нейрон».
+     * Створює екземпляр Neuron та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param id ідентифікатор обʼєкта.
-     *
-     * @param type тип обʼєкта.
-     *
-     * @param activation значення активації нейрона.
-     *
+     * @param id унікальний ідентифікатор елемента.
+     * @param type тип нейрона або елемента.
+     * @param activation значення «activation», яке використовується в цьому методі.
      * @param signalStrength сила сигналу нейрона.
-     *
-     * @param activationThreshold поріг активації нейрона.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param activationThreshold поріг суми вхідних сигналів для активації нейрона.
      */
     public Neuron(
             String id,
@@ -59,22 +49,14 @@ public final class Neuron {
             int activationThreshold
     ) {
         if (id == null || id.isBlank()) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException(
                     "Neuron id must not be blank."
             );
         }
 
         if (type == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException(
                     "Neuron type must not be null."
             );
@@ -98,35 +80,31 @@ public final class Neuron {
     }
 
     /**
-     * Повертає незмінний ідентифікатор нейрона.
+     * Повертає унікальний ідентифікатор нейрона.
      *
-     * @return текстове значення, сформоване або знайдене методом.
+     * @return унікальний ідентифікатор нейрона.
      */
     public String id() {
         return id;
     }
 
     /**
-     * Повертає поточний тип нейрона.
+     * Повертає тип нейрона, що визначає знак базової ваги сигналу.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return тип нейрона, що визначає знак базової ваги сигналу.
      */
     public NeuronType type() {
         return type;
     }
 
     /**
-     * Змінює тип нейрона; null не допускається.
+     * Установлює type для поточного об’єкта.
      *
-     * @param type тип обʼєкта.
+     * @param type тип нейрона або елемента.
      */
     public void setType(NeuronType type) {
         if (type == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException(
                     "Neuron type must not be null."
             );
@@ -138,32 +116,32 @@ public final class Neuron {
     /**
      * Повертає поточне значення активації нейрона.
      *
-     * @return числове значення, визначене методом.
+     * @return поточне значення активації нейрона.
      */
     public int activation() {
         return activation;
     }
 
     /**
-     * Задає поточне значення активації нейрона.
+     * Установлює activation для поточного об’єкта.
      *
-     * @param activation значення активації нейрона.
+     * @param activation значення «activation», яке використовується в цьому методі.
      */
     public void setActivation(int activation) {
         this.activation = activation;
     }
 
     /**
-     * Повертає силу сигналу, яку випромінює нейрон.
+     * Повертає налаштовану силу сигналу нейрона.
      *
-     * @return числове значення, визначене методом.
+     * @return налаштовану силу сигналу нейрона.
      */
     public int signalStrength() {
         return signalStrength;
     }
 
     /**
-     * Задає силу сигналу; значення має бути додатним.
+     * Установлює signal strength для поточного об’єкта.
      *
      * @param signalStrength сила сигналу нейрона.
      */
@@ -177,18 +155,18 @@ public final class Neuron {
     }
 
     /**
-     * Повертає поріг, потрібний для активації нейрона.
+     * Повертає поріг суми вхідних сигналів, необхідний для активації нейрона.
      *
-     * @return числове значення, визначене методом.
+     * @return поріг суми вхідних сигналів, необхідний для активації нейрона.
      */
     public int activationThreshold() {
         return activationThreshold;
     }
 
     /**
-     * Задає поріг активації; значення має бути додатним.
+     * Установлює activation threshold для поточного об’єкта.
      *
-     * @param activationThreshold поріг активації нейрона.
+     * @param activationThreshold поріг суми вхідних сигналів для активації нейрона.
      */
     public void setActivationThreshold(
             int activationThreshold
@@ -202,9 +180,9 @@ public final class Neuron {
     }
 
 /**
- * Повертає вагу сигналу: додатну для збуджувального нейрона та відʼємну для гальмівного.
+ * Повертає вагу сигналу з урахуванням типу нейрона та його налаштованої сили сигналу.
  *
- * @return числове значення, визначене методом.
+ * @return вагу сигналу з урахуванням типу нейрона та його налаштованої сили сигналу.
  */
 public int signalWeight() {
         return type == NeuronType.EXCITATORY
@@ -213,22 +191,17 @@ public int signalWeight() {
     }
 
     /**
-     * Перевіряє, що передане число більше нуля; інакше кидає IllegalArgumentException.
+     * Відхиляє нульове або від’ємне значення параметра, який має бути додатним.
      *
-     * @param value значення, яке потрібно передати або зберегти.
-     *
-     * @param name назва або текстове імʼя обʼєкта.
+     * @param value значення, яке потрібно зберегти або перевірити.
+     * @param name назва, яку потрібно перевірити або зберегти.
      */
     private static void validatePositive(
             int value,
             String name
     ) {
         if (value <= 0) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException(
                     name + " must be greater than zero."
             );

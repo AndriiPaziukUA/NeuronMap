@@ -9,7 +9,7 @@ import java.nio.file.Path;
 import java.util.Objects;
 
 /**
- * Надає операції завантаження, зміни та збереження карти через контракт сховища.
+ * Координує завантаження й збереження моделі карти, параметрів камери та налаштувань симуляції через репозиторій.
  */
 public final class MapService {
 
@@ -17,13 +17,10 @@ public final class MapService {
     private MapRepository repository;
 
     /**
-     * Повертає результат операції «карта служба».
+     * Створює екземпляр MapService та зберігає передані залежності, потрібні для його роботи.
      *
      * @param model модель карти нейронів.
-     *
-     * @param repository значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param repository сховище, через яке читають і зберігають карту.
      */
     public MapService(
             NeuronMapModel model,
@@ -34,72 +31,68 @@ public final class MapService {
     }
 
     /**
-     * Повертає результат операції «модель».
+     * Повертає модель карти, якою керує служба збереження.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return модель карти, якою керує служба збереження.
      */
     public NeuronMapModel model() {
         return model;
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «потрібні дані».
+     * Завантажує збережену модель карти з активного репозиторію.
      */
     public void load() {
         repository.loadInto(model);
     }
 
     /**
-     * Перевіряє, чи виконується умова «порожній».
+     * Перевіряє, чи empty за поточного стану компонента.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public boolean isEmpty() {
         return model.isEmpty();
     }
 
     /**
-     * Перевіряє, чи виконується умова «відповідну операцію».
+     * Перевіряє, чи persistent за поточного стану компонента.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public boolean isPersistent() {
         return repository.isPersistent();
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «камера стан».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * Завантажує camera state із відповідного джерела даних.
      */
     public CameraState loadCameraState() {
         return repository.loadCameraState();
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «такт».
+     * Завантажує simulation tick millis із відповідного джерела даних.
      *
-     * @param fallbackMillis значення, що визначає резервний варіант для цієї операції.
-     *
-     * @return числове значення, визначене методом.
+     * @param fallbackMillis резервна тривалість такту, якщо збереженого значення немає.
      */
     public double loadSimulationTickMillis(double fallbackMillis) {
         return repository.loadSimulationTickMillis(fallbackMillis);
     }
 
     /**
-     * Повертає результат операції «база даних шлях».
+     * Повертає шлях до файлу бази даних.
      *
-     * @return шлях до відповідного файлу або каталогу.
+     * @return шлях до файлу бази даних.
      */
     public Path databasePath() {
         return repository.databasePath();
     }
 
     /**
-     * Зберігає дані, повʼязані з «потрібні дані», у відповідному сховищі.
+     * Зберігає карту та параметри камери через активний репозиторій.
      *
-     * @param state стан обʼєкта або редактора.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
      */
     public void save(EditorState state) {
         Objects.requireNonNull(state, "state");
@@ -114,18 +107,18 @@ public final class MapService {
     }
 
     /**
-     * Зберігає дані, повʼязані з «такт», у відповідному сховищі.
+     * Зберігає simulation tick millis у відповідному сховищі.
      *
-     * @param millis значення, що визначає відповідну операцію для цієї операції.
+     * @param millis тривалість такту в мілісекундах.
      */
     public void saveSimulationTickMillis(double millis) {
         repository.saveSimulationTickMillis(millis);
     }
 
 /**
- * Перемикає стан «відповідну операцію».
+ * Перемикає активний репозиторій і закриває попереднє сховище.
  *
- * @param newRepository значення, що визначає новий для цієї операції.
+ * @param newRepository значення «new repository», яке використовується в цьому методі.
  */
 public void switchRepository(MapRepository newRepository) {
         Objects.requireNonNull(newRepository, "newRepository");
@@ -136,7 +129,7 @@ public void switchRepository(MapRepository newRepository) {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     * Закриває активний репозиторій карти та звільняє його ресурси.
      */
     public void close() {
         repository.close();

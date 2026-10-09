@@ -8,14 +8,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє геометрію графічного представлення нейрона.
+ * Перевіряє геометрію вихідного трикутника, вхідного порту й точок приєднання зв’язків.
  */
 final class NeuronVisualGeometryTest {
 
     private static final double EPSILON = 0.0001;
 
     /**
-     * Перевіряє очікувану поведінку: вихід трикутник із.
+     * Перевіряє, що вихідний трикутник центрований на правому краї нейрона й частково виходить за його межі.
      */
     @Test
     void outputTriangleIsCenteredOnRightEdgeWithHalfOutside() {
@@ -43,7 +43,7 @@ final class NeuronVisualGeometryTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: вихід трикутник із.
+     * Перевіряє симетричне розташування вихідного трикутника на лівому краї розвернутого нейрона.
      */
     @Test
     void reversedOutputTriangleIsCenteredOnLeftEdgeWithHalfOutside() {
@@ -68,7 +68,7 @@ final class NeuronVisualGeometryTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: звʼязок геометрія.
+     * Перевіряє збіг точок приєднання зв’язків із видимою геометрією портів.
      */
     @Test
     void connectionAnchorsMatchVisiblePortGeometry() {
@@ -96,7 +96,7 @@ final class NeuronVisualGeometryTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: вхід нейрон.
+     * Перевіряє центрування вхідного порту на потрібному краї нейрона.
      */
     @Test
     void inputPortStaysCenteredOnTheCorrectNeuronEdge() {
@@ -131,11 +131,7 @@ final class NeuronVisualGeometryTest {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
-     *
-     * @param polygon значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return числове значення, визначене методом.
+     * Перевіряє сценарій «min x» і відповідність результату очікуваній поведінці.
      */
     private static double minX(Polygon polygon) {
         double min = Double.POSITIVE_INFINITY;
@@ -146,11 +142,7 @@ final class NeuronVisualGeometryTest {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
-     *
-     * @param polygon значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return числове значення, визначене методом.
+     * Перевіряє сценарій «max x» і відповідність результату очікуваній поведінці.
      */
     private static double maxX(Polygon polygon) {
         double max = Double.NEGATIVE_INFINITY;

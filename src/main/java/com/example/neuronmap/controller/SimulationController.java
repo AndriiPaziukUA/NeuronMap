@@ -16,7 +16,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * Повʼязує керування симуляцією в інтерфейсі з обчисленням тактів і показом результатів.
+ * Керує життєвим циклом симуляції, її паузою, швидкістю, обробкою тактів і повідомленням інтерфейсу про стан виконання.
  */
 public final class SimulationController {
 
@@ -38,27 +38,17 @@ public final class SimulationController {
     private boolean modalSuspended;
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Створює екземпляр SimulationController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param neuronService значення, що визначає нейрон служба для цієї операції.
-     *
-     * @param stepPresenter значення, що визначає крок для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param status стан операції.
-     *
-     * @param pausedStateConsumer значення, що визначає стан для цієї операції.
-     *
-     * @param simulationActivityConsumer значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param initialTickMillis значення, що визначає такт для цієї операції.
-     *
-     * @param minTickMillis значення, що визначає такт для цієї операції.
-     *
-     * @param maxTickMillis значення, що визначає такт для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param neuronService служба операцій над нейронами.
+     * @param stepPresenter компонент, що відображає результат такту симуляції.
+     * @param save функція зворотного виклику для відповідної дії.
+     * @param status callback для показу повідомлення в рядку стану.
+     * @param pausedStateConsumer callback, що отримує новий стан паузи.
+     * @param simulationActivityConsumer callback, що отримує ознаку активності симуляції.
+     * @param initialTickMillis початкова тривалість такту симуляції в мілісекундах.
+     * @param minTickMillis мінімально допустима тривалість такту.
+     * @param maxTickMillis максимально допустима тривалість такту.
      */
     public SimulationController(
             NeuronService neuronService,
@@ -86,29 +76,18 @@ public final class SimulationController {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Створює екземпляр SimulationController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param neuronService значення, що визначає нейрон служба для цієї операції.
-     *
-     * @param stepPresenter значення, що визначає крок для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param status стан операції.
-     *
-     * @param pausedStateConsumer значення, що визначає стан для цієї операції.
-     *
-     * @param simulationActivityConsumer значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param initialTickMillis значення, що визначає такт для цієї операції.
-     *
-     * @param minTickMillis значення, що визначає такт для цієї операції.
-     *
-     * @param maxTickMillis значення, що визначає такт для цієї операції.
-     *
-     * @param localization значення, що визначає локалізація для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param neuronService служба операцій над нейронами.
+     * @param stepPresenter компонент, що відображає результат такту симуляції.
+     * @param save функція зворотного виклику для відповідної дії.
+     * @param status callback для показу повідомлення в рядку стану.
+     * @param pausedStateConsumer callback, що отримує новий стан паузи.
+     * @param simulationActivityConsumer callback, що отримує ознаку активності симуляції.
+     * @param initialTickMillis початкова тривалість такту симуляції в мілісекундах.
+     * @param minTickMillis мінімально допустима тривалість такту.
+     * @param maxTickMillis максимально допустима тривалість такту.
+     * @param localization служба локалізації інтерфейсу.
      */
     public SimulationController(
             NeuronService neuronService,
@@ -158,7 +137,7 @@ public final class SimulationController {
     }
 
     /**
-     * Виконує операцію «імпульс».
+     * Додає ручний запуск указаного нейрона до сеансу симуляції та запускає обробку тактів за потреби.
      *
      * @param sourceNeuronId ідентифікатор початкового нейрона.
      */
@@ -204,7 +183,7 @@ public final class SimulationController {
     }
 
     /**
-     * Виконує операцію «або».
+     * Перемикає симуляцію між призупиненим станом і виконанням.
      */
     public void pauseOrResume() {
         if (!hasActiveSimulation()) {
@@ -218,9 +197,7 @@ public final class SimulationController {
     }
 
 /**
- * Повертає результат операції «для».
- *
- * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+ * Призупиняє симуляцію для показу модального вікна та повідомляє, чи потрібно буде її відновити.
  */
 public boolean pauseForModal() {
         if (!hasActiveSimulation() || paused) {
@@ -234,7 +211,7 @@ public boolean pauseForModal() {
     }
 
 /**
- * Виконує операцію «із».
+ * Відновлює симуляцію після закриття модального вікна, якщо вона була активною до показу діалогу.
  */
 public void resumeFromModal() {
         if (!modalSuspended) {
@@ -248,18 +225,18 @@ public void resumeFromModal() {
     }
 
     /**
-     * Перевіряє, чи виконується умова «відповідну операцію».
+     * Перевіряє, чи paused за поточного стану компонента.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public boolean isPaused() {
         return paused;
     }
 
     /**
-     * Перевіряє, чи виконується умова «відповідну операцію».
+     * Перевіряє, чи є active simulation у поточному стані.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public boolean hasActiveSimulation() {
         return session != null
@@ -269,7 +246,7 @@ public void resumeFromModal() {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «сигнали».
+     * Зупиняє поширення сигналів і скидає незавершену роботу симуляції.
      */
     public void stopSignals() {
         resetRuntime();
@@ -283,9 +260,9 @@ public void resumeFromModal() {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «такт».
+     * Установлює тривалість одного такту симуляції в мілісекундах.
      *
-     * @param millis значення, що визначає відповідну операцію для цієї операції.
+     * @param millis тривалість такту в мілісекундах.
      */
     public void setTickDurationMillis(double millis) {
         tickMillis = SimulationSpeed.requireMillis(
@@ -316,7 +293,7 @@ public void resumeFromModal() {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     * Зупиняє  та очищає пов’язаний активний стан.
      */
     public void stop() {
         resetRuntime();
@@ -328,7 +305,7 @@ public void resumeFromModal() {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     * Зупиняє таймери й анімацію та звільняє ресурси симуляції.
      */
     public void shutdown() {
         resetRuntime();
@@ -339,7 +316,7 @@ public void resumeFromModal() {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Призупиняє виконання симуляції, не скидаючи її поточний стан.
      */
     private void pause() {
         if (!hasActiveSimulation()) {
@@ -350,7 +327,7 @@ public void resumeFromModal() {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Призупиняє внутрішню часову шкалу симуляції без повторного перемикання зовнішнього стану паузи.
      */
     private void pauseInternal() {
         paused = true;
@@ -366,7 +343,7 @@ public void resumeFromModal() {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Відновлює виконання симуляції з поточного сеансу, якщо залишилася запланована робота.
      */
     private void resume() {
         resumeInternal();
@@ -374,7 +351,7 @@ public void resumeFromModal() {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Запускає внутрішню часову шкалу симуляції, якщо сеанс має наступний такт для обробки.
      */
     private void resumeInternal() {
         paused = false;
@@ -388,7 +365,7 @@ public void resumeFromModal() {
     }
 
     /**
-     * Обробляє «наступний крок».
+     * Обчислює наступний такт сеансу, передає його результат поданню й планує продовження симуляції.
      */
     private void processNextStep() {
         if (session == null) {
@@ -416,7 +393,7 @@ public void resumeFromModal() {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «відповідну операцію».
+     * Завершує симуляцію, оновлює індикатори стану й зберігає потрібні параметри.
      */
     private void finishSimulation() {
         if (timeline != null) {
@@ -433,7 +410,7 @@ public void resumeFromModal() {
     }
 
     /**
-     * Видаляє або скидає дані, повʼязані з «відповідну операцію».
+     * Скидає поточний сеанс, таймер і тимчасові сигнали симуляції.
      */
     private void resetRuntime() {
         if (timeline != null) {
@@ -446,7 +423,7 @@ public void resumeFromModal() {
     }
 
     /**
-     * Створює обʼєкт із переданих даних «відповідну операцію».
+     * Створює timeline з переданих параметрів.
      */
     private void createTimeline() {
         timeline = new Timeline(
@@ -459,7 +436,7 @@ public void resumeFromModal() {
     }
 
     /**
-     * Запускає або планує дію, повʼязану з «якщо».
+     * Запускає часову шкалу лише тоді, коли симуляція має роботу й таймер ще не виконується.
      */
     private void startTimelineIfNeeded() {
         if (session == null || paused || !session.hasPendingWork()) {
@@ -476,25 +453,23 @@ public void resumeFromModal() {
     }
 
     /**
-     * Обробляє «стан».
+     * Передає поточний стан паузи зареєстрованому споживачу стану інтерфейсу.
      */
     private void notifyPausedState() {
         pausedStateConsumer.accept(paused);
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «відповідну операцію».
+     * Показує або приховує елементи керування симуляцією відповідно до її поточного стану.
      */
     private void updateSimulationControlsVisibility() {
         simulationActivityConsumer.accept(hasActiveSimulation());
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Форматує тривалість такту в мілісекундах для показу в полі швидкості симуляції.
      *
-     * @param value значення, яке потрібно передати або зберегти.
-     *
-     * @return текстове значення, сформоване або знайдене методом.
+     * @param value значення, яке потрібно зберегти або перевірити.
      */
     private static String formatMillis(double value) {
         return Math.abs(value - Math.rint(value)) < 0.0001

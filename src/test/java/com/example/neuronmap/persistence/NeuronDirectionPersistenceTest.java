@@ -13,14 +13,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє, що напрямок нейрона зберігається та відновлюється.
+ * Перевіряє, що розворот напрямку нейрона зберігається після запису й повторного завантаження бази даних.
  */
 class NeuronDirectionPersistenceTest {
 
     /**
-     * Перевіряє очікувану поведінку: напрямок база даних.
-     *
-     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
+     * Перевіряє збереження розвернутого напрямку після запису й повторного завантаження з SQLite.
      */
     @Test
     void reversedDirectionSurvivesDatabaseRoundTrip(

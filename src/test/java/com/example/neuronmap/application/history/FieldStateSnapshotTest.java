@@ -12,12 +12,12 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Перевіряє вміст знімків стану та порівняння змін.
+ * Перевіряє повне відновлення знімка та ігнорування тимчасових змін активації під час порівняння станів.
  */
 class FieldStateSnapshotTest {
 
     /**
-     * Перевіряє очікувану поведінку: знімок відновлює нейрон дані представлення і.
+     * Перевіряє відновлення параметрів нейронів, їхнього розташування, зв’язків і груп зі знімка.
      */
     @Test
     void snapshotRestoresPersistentNeuronDataPresentationAndStructure() {
@@ -88,7 +88,7 @@ class FieldStateSnapshotTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: активація лише змінює не змінити знімок.
+     * Перевіряє, що зміна лише поточної активації не змінює знімок збереженого стану.
      */
     @Test
     void activationOnlyChangesDoNotChangeSnapshot() {

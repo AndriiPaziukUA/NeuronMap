@@ -14,7 +14,7 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
- * Відображає рухомий імпульс уздовж звʼязку між нейронами.
+ * Анімує імпульс уздовж зв’язку, оновлює геометрію траєкторії та повідомляє про завершення анімації.
  */
 public final class PulseAnimationView extends Pane {
 
@@ -32,24 +32,19 @@ public final class PulseAnimationView extends Pane {
     private boolean finished;
 
     /**
-     * Повертає результат операції «імпульс анімація відображення».
+     * Створює екземпляр PulseAnimationView та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param snapshot знімок стану.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param snapshot значення «snapshot», яке використовується в цьому методі.
      */
     public PulseAnimationView(ConnectionPulseSnapshot snapshot) {
         this(snapshot, () -> snapshot, () -> { });
     }
 
     /**
-     * Повертає результат операції «імпульс анімація відображення».
+     * Створює екземпляр PulseAnimationView та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param snapshot знімок стану.
-     *
-     * @param onFinished значення, що визначає завершений для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param snapshot значення «snapshot», яке використовується в цьому методі.
+     * @param onFinished callback, який викликається після завершення анімації.
      */
     public PulseAnimationView(
             ConnectionPulseSnapshot snapshot,
@@ -59,13 +54,10 @@ public final class PulseAnimationView extends Pane {
     }
 
     /**
-     * Повертає результат операції «імпульс анімація відображення».
+     * Створює екземпляр PulseAnimationView та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param initialSnapshot значення, що визначає знімок для цієї операції.
-     *
-     * @param snapshotSupplier значення, що визначає знімок для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param initialSnapshot значення «initial snapshot», яке використовується в цьому методі.
+     * @param snapshotSupplier функція, яка повертає актуальну геометрію зв’язку.
      */
     public PulseAnimationView(
             ConnectionPulseSnapshot initialSnapshot,
@@ -75,15 +67,11 @@ public final class PulseAnimationView extends Pane {
     }
 
     /**
-     * Повертає результат операції «імпульс анімація відображення».
+     * Створює екземпляр PulseAnimationView та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param initialSnapshot значення, що визначає знімок для цієї операції.
-     *
-     * @param snapshotSupplier значення, що визначає знімок для цієї операції.
-     *
-     * @param onFinished значення, що визначає завершений для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param initialSnapshot значення «initial snapshot», яке використовується в цьому методі.
+     * @param snapshotSupplier функція, яка повертає актуальну геометрію зв’язку.
+     * @param onFinished callback, який викликається після завершення анімації.
      */
     public PulseAnimationView(
             ConnectionPulseSnapshot initialSnapshot,
@@ -144,11 +132,7 @@ public final class PulseAnimationView extends Pane {
         timeline.setOnFinished(event -> finish());
 
         geometryUpdater = new AnimationTimer() {
-            /**
-             * Обробляє «потрібні дані».
-             *
-             * @param now значення, що визначає відповідну операцію для цієї операції.
-             */
+
             @Override
             public void handle(long now) {
                 refreshGeometry();
@@ -157,7 +141,7 @@ public final class PulseAnimationView extends Pane {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Запускає анімацію імпульсу вздовж поточної геометрії зв’язку.
      */
     public void play() {
         if (!finished) {
@@ -167,7 +151,7 @@ public final class PulseAnimationView extends Pane {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Призупиняє рух імпульсу, зберігаючи поточний прогрес анімації.
      */
     public void pause() {
         if (!finished) {
@@ -177,7 +161,7 @@ public final class PulseAnimationView extends Pane {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Відновлює призупинену анімацію імпульсу.
      */
     public void resume() {
         if (!finished) {
@@ -187,7 +171,7 @@ public final class PulseAnimationView extends Pane {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     * Зупиняє анімацію та прибирає її візуальний елемент.
      */
     public void stop() {
         if (finished) {
@@ -198,16 +182,16 @@ public final class PulseAnimationView extends Pane {
     }
 
     /**
-     * Перевіряє, чи виконується умова «завершений».
+     * Перевіряє, чи finished за поточного стану компонента.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public boolean isFinished() {
         return finished;
     }
 
 /**
- * Обробляє «геометрія».
+ * Оновлює траєкторію імпульсу, якщо положення кінців зв’язку змінилося.
  */
 void refreshGeometry() {
         ConnectionPulseSnapshot currentSnapshot = snapshotSupplier.get();
@@ -223,11 +207,10 @@ void refreshGeometry() {
     }
 
     /**
-     * Обробляє «геометрія».
+     * Установлює початкову й кінцеву точки лінії імпульсу за геометрією знімка зв’язку.
      *
-     * @param start значення, що визначає запуск для цієї операції.
-     *
-     * @param end значення, що визначає відповідну операцію для цієї операції.
+     * @param start початкова точка зв’язку у координатах сцени.
+     * @param end кінцева точка зв’язку у координатах сцени.
      */
     private void applyGeometry(Point2D start, Point2D end) {
         line.setStartX(start.getX());
@@ -265,7 +248,7 @@ void refreshGeometry() {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     * Завершує анімацію та викликає переданий обробник завершення.
      */
     private void finish() {
         if (finished) {

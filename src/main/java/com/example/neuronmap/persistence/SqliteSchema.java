@@ -6,24 +6,19 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 /**
- * Створює структуру таблиць бази даних і забезпечує її сумісність із кодом.
+ * Створює та мігрує схему SQLite, додаючи потрібні таблиці й стовпці для актуальної версії даних.
  */
 public final class SqliteSchema {
 
     private static final int CURRENT_VERSION = 4;
 
-    /**
-     * Повертає результат операції «SQLite структура».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
-     */
     private SqliteSchema() {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Перевіряє версію схеми та застосовує потрібні міграції бази даних.
      *
-     * @param connection звʼязок між нейронами.
+     * @param connection напрямлений зв’язок між нейронами.
      */
     public static void migrate(Connection connection) {
         try {
@@ -33,13 +28,7 @@ public final class SqliteSchema {
             ensureDirectionColumn(connection);
             ensureVersion(connection);
         } catch (SQLException exception) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @param exception помилка, яку потрібно обробити.
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new PersistenceException(
                     "Не вдалося підготувати схему SQLite.",
                     exception
@@ -48,9 +37,9 @@ public final class SqliteSchema {
     }
 
     /**
-     * Створює обʼєкт із переданих даних «структура».
+     * Створює таблиці та індекси базової схеми, якщо вони ще не існують.
      *
-     * @param connection звʼязок між нейронами.
+     * @param connection напрямлений зв’язок між нейронами.
      */
     private static void createBaseSchema(Connection connection)
             throws SQLException {
@@ -124,9 +113,9 @@ public final class SqliteSchema {
     }
 
     /**
-     * Виконує операцію «старий формат нейрон розташування».
+     * Переносить дані нейронів зі старого формату таблиці до актуальної схеми.
      *
-     * @param connection звʼязок між нейронами.
+     * @param connection напрямлений зв’язок між нейронами.
      */
     private static void migrateLegacyNeuronLayout(Connection connection)
             throws SQLException {
@@ -182,9 +171,9 @@ public final class SqliteSchema {
     }
 
     /**
-     * Виконує операцію «нейрон налаштування стовпці».
+     * Забезпечує виконання передумови «neuron settings columns» перед продовженням операції.
      *
-     * @param connection звʼязок між нейронами.
+     * @param connection напрямлений зв’язок між нейронами.
      */
     private static void ensureNeuronSettingsColumns(Connection connection)
             throws SQLException {
@@ -218,9 +207,9 @@ public final class SqliteSchema {
     }
 
     /**
-     * Виконує операцію «напрямок стовпець».
+     * Додає стовпець напрямку нейрона, якщо база даних ще не містить його.
      *
-     * @param connection звʼязок між нейронами.
+     * @param connection напрямлений зв’язок між нейронами.
      */
     private static void ensureDirectionColumn(Connection connection)
             throws SQLException {
@@ -242,15 +231,11 @@ public final class SqliteSchema {
     }
 
     /**
-     * Повертає результат операції «стовпець існує».
+     * Перевіряє, чи існує в указаній таблиці стовпець із заданою назвою.
      *
-     * @param connection звʼязок між нейронами.
-     *
-     * @param table значення, що визначає таблиця для цієї операції.
-     *
-     * @param column значення, що визначає стовпець для цієї операції.
-     *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @param connection напрямлений зв’язок між нейронами.
+     * @param table значення «table», яке використовується в цьому методі.
+     * @param column значення «column», яке використовується в цьому методі.
      */
     private static boolean columnExists(
             Connection connection,
@@ -274,9 +259,9 @@ public final class SqliteSchema {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Забезпечує виконання передумови «version» перед продовженням операції.
      *
-     * @param connection звʼязок між нейронами.
+     * @param connection напрямлений зв’язок між нейронами.
      */
     private static void ensureVersion(Connection connection)
             throws SQLException {

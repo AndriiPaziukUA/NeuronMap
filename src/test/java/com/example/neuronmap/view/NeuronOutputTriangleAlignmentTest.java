@@ -16,15 +16,12 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Перевіряє вирівнювання трикутника вихідного сигналу.
+ * Перевіряє вирівнювання вихідного трикутника нейрона для звичайного й розвернутого напрямків.
  */
 final class NeuronOutputTriangleAlignmentTest {
 
     private static final double EPSILON = 0.0001;
 
-    /**
-     * Запускає або планує дію, повʼязану з «відповідну операцію».
-     */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -36,20 +33,13 @@ final class NeuronOutputTriangleAlignmentTest {
         }
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
-            /**
-             * Повертає результат операції «стан виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalStateException(
                     "JavaFX startup timed out"
             );
         }
     }
 
-    /**
-     * Перевіряє очікувану поведінку: вихід трикутник вибраний для напрямок.
-     */
     @Test
     void outputTriangleIsCenteredOnSelectedStrokeForNormalDirection()
             throws Exception {
@@ -66,9 +56,6 @@ final class NeuronOutputTriangleAlignmentTest {
         });
     }
 
-    /**
-     * Перевіряє очікувану поведінку: вихід трикутник вибраний для напрямок.
-     */
     @Test
     void outputTriangleIsCenteredOnSelectedStrokeForReversedDirection()
             throws Exception {
@@ -85,11 +72,7 @@ final class NeuronOutputTriangleAlignmentTest {
     }
 
     /**
-     * Повертає результат операції «нейрон відображення».
-     *
-     * @param reversed значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * Перевіряє сценарій «neuron view» і відповідність результату очікуваній поведінці.
      */
     private static NeuronView neuronView(boolean reversed) {
         Neuron neuron = new Neuron(
@@ -116,11 +99,7 @@ final class NeuronOutputTriangleAlignmentTest {
     }
 
     /**
-     * Повертає результат операції «вихід трикутник».
-     *
-     * @param view значення, що визначає відображення для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * Перевіряє сценарій «output triangle» і відповідність результату очікуваній поведінці.
      */
     private static Polygon outputTriangle(NeuronView view) {
         for (Node child : view.getChildrenUnmodifiable()) {
@@ -129,20 +108,11 @@ final class NeuronOutputTriangleAlignmentTest {
             }
         }
 
-        /**
-         * Повертає результат операції «відповідну операцію».
-         *
-         * @return значення або обʼєкт, визначений описаною операцією.
-         */
         throw new AssertionError("Output triangle was not found");
     }
 
     /**
-     * Повертає результат операції «трикутник центр».
-     *
-     * @param triangle значення, що визначає трикутник для цієї операції.
-     *
-     * @return числове значення, визначене методом.
+     * Перевіряє сценарій «triangle center x» і відповідність результату очікуваній поведінці.
      */
     private static double triangleCenterX(Polygon triangle) {
         double minX = Double.POSITIVE_INFINITY;
@@ -157,11 +127,6 @@ final class NeuronOutputTriangleAlignmentTest {
         return (minX + maxX) / 2.0 + triangle.getTranslateX();
     }
 
-    /**
-     * Запускає або планує дію, повʼязану з «відповідну операцію».
-     *
-     * @param action дія, яку потрібно виконати.
-     */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];
@@ -177,22 +142,14 @@ final class NeuronOutputTriangleAlignmentTest {
         });
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
-            /**
-             * Повертає результат операції «стан виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalStateException(
                     "JavaFX test timed out"
             );
         }
 
         if (failure[0] != null) {
-            /**
-             * Повертає результат операції «відповідну операцію».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new AssertionError(
                     "JavaFX test failed",
                     failure[0]

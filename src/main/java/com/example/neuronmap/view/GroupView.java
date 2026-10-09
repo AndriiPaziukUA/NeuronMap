@@ -8,7 +8,7 @@ import javafx.scene.shape.Rectangle;
 import java.util.Map;
 
 /**
- * Відображає групу нейронів і її межі на карті.
+ * Візуально об’єднує подання нейронів, що входять до однієї групи.
  */
 public final class GroupView extends Pane {
 
@@ -22,35 +22,24 @@ public final class GroupView extends Pane {
             new Rectangle();
 
     /**
-     * Повертає результат операції «група відображення».
+     * Створює екземпляр GroupView та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param group група нейронів.
-     *
-     * @param neuronViews значення, що визначає нейрон для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param group значення «group», яке використовується в цьому методі.
+     * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
      */
     public GroupView(
             NeuronGroup group,
             Map<String, NeuronView> neuronViews
     ) {
         if (group == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException(
                     "group must not be null"
             );
         }
 
         if (neuronViews == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException(
                     "neuronViews must not be null"
             );
@@ -75,16 +64,16 @@ public final class GroupView extends Pane {
     }
 
     /**
-     * Повертає результат операції «група».
+     * Повертає групу, яку відображає це подання.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return групу, яку відображає це подання.
      */
     public NeuronGroup group() {
         return group;
     }
 
 /**
- * Обробляє «потрібні дані».
+ * Перераховує межі групи за поточними позиціями нейронів-учасників.
  */
 public void refresh() {
         if (group.memberIds().isEmpty()) {
@@ -162,10 +151,6 @@ public void refresh() {
                 maxY - minY + PADDING * 2.0
         );
 
-        /*
-         * GroupView is deliberately positioned in the same parent as the
-         * neuron views. Its own origin is moved to the group bounds.
-         */
         resizeRelocate(
                 minX - PADDING,
                 minY - PADDING,

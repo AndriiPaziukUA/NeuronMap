@@ -19,7 +19,7 @@ import java.util.Objects;
 import java.util.function.BiConsumer;
 
 /**
- * Обробляє перетягування інструментів редактора та їхнє розміщення на карті.
+ * Обробляє перетягування інструментів створення з панелі на полотно та перетворює екранні координати на координати карти.
  */
 public final class NeuronToolDragController {
 
@@ -32,15 +32,11 @@ public final class NeuronToolDragController {
     private Scale dragPreviewScale;
 
     /**
-     * Повертає результат операції «нейрон перетягування».
+     * Створює екземпляр NeuronToolDragController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param state стан обʼєкта або редактора.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param dropConsumer значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param workspace полотно редактора.
+     * @param dropConsumer callback, який отримує тип нейрона та координату відпускання.
      */
     public NeuronToolDragController(
             EditorState state,
@@ -53,7 +49,7 @@ public final class NeuronToolDragController {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Реєструє обробники перетягування між панеллю інструментів і полотном.
      */
     public void install() {
         workspace.node().addEventHandler(DragEvent.DRAG_OVER, this::handleDragOver);
@@ -62,11 +58,10 @@ public final class NeuronToolDragController {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «панель інструментів».
+     * Налаштовує кнопки типів нейронів як джерела перетягування.
      *
-     * @param excitatoryButton значення, що визначає кнопка для цієї операції.
-     *
-     * @param inhibitoryButton значення, що визначає кнопка для цієї операції.
+     * @param excitatoryButton кнопка додавання збуджувального нейрона.
+     * @param inhibitoryButton кнопка додавання гальмівного нейрона.
      */
     public void configureToolbarButtons(Button excitatoryButton, Button inhibitoryButton) {
         configureDragSource(excitatoryButton, NeuronType.EXCITATORY);
@@ -74,7 +69,7 @@ public final class NeuronToolDragController {
     }
 
     /**
-     * Видаляє або скидає дані, повʼязані з «попередній перегляд».
+     * Прибирає попереднє зображення нейрона з полотна.
      */
     public void clearPreview() {
         if (dragPreview != null) {
@@ -86,11 +81,10 @@ public final class NeuronToolDragController {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «перетягування джерело».
+     * Налаштовує кнопку так, щоб вона передавала тип нейрона під час перетягування.
      *
-     * @param button значення, що визначає кнопка для цієї операції.
-     *
-     * @param type тип обʼєкта.
+     * @param button кнопка інтерфейсу, яку потрібно налаштувати.
+     * @param type тип нейрона або елемента.
      */
     private void configureDragSource(Button button, NeuronType type) {
         if (button == null || type == null) {
@@ -118,9 +112,9 @@ public final class NeuronToolDragController {
     }
 
     /**
-     * Обробляє «перетягування».
+     * Оновлює стан цілі перетягування та дозволяє відпускання, якщо тип нейрона розпізнано.
      *
-     * @param event подія інтерфейсу.
+     * @param event подія інтерфейсу, яку потрібно обробити.
      */
     private void handleDragOver(DragEvent event) {
         NeuronType type = dragNeuronType(event.getDragboard());
@@ -134,9 +128,9 @@ public final class NeuronToolDragController {
     }
 
     /**
-     * Обробляє «відповідну операцію».
+     * Створює нейрон у точці полотна, на яку відпустили інструмент.
      *
-     * @param event подія інтерфейсу.
+     * @param event подія інтерфейсу, яку потрібно обробити.
      */
     private void handleDrop(DragEvent event) {
         boolean success = false;
@@ -159,13 +153,11 @@ public final class NeuronToolDragController {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «перетягування попередній перегляд».
+     * Розташовує попередній перегляд нейрона під курсором під час перетягування інструмента.
      *
-     * @param type тип обʼєкта.
-     *
-     * @param sceneX значення, що визначає сцена для цієї операції.
-     *
-     * @param sceneY значення, що визначає сцена для цієї операції.
+     * @param type тип нейрона або елемента.
+     * @param sceneX горизонтальна координата точки у системі координат сцени JavaFX.
+     * @param sceneY вертикальна координата точки у системі координат сцени JavaFX.
      */
     private void updateDragPreview(NeuronType type, double sceneX, double sceneY) {
         if (dragPreview == null || dragPreviewType != type) {
@@ -193,11 +185,9 @@ public final class NeuronToolDragController {
     }
 
     /**
-     * Повертає результат операції «до карта».
+     * Перетворює екранну точку на координати карти з урахуванням масштабу й зміщення камери.
      *
-     * @param screenPoint значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param screenPoint точка в екранних координатах.
      */
     private Point2D screenToWorld(Point2D screenPoint) {
         return new Point2D(
@@ -207,11 +197,9 @@ public final class NeuronToolDragController {
     }
 
     /**
-     * Переміщує обʼєкт «нейрон тип» відповідно до переданого зміщення.
+     * Зчитує тип нейрона з буфера перетягування та повертає відповідне значення переліку.
      *
-     * @param dragboard значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param dragboard буфер перетягування, що містить дані про тип створюваного нейрона.
      */
     private static NeuronType dragNeuronType(Dragboard dragboard) {
         if (dragboard == null || !dragboard.hasString()) {

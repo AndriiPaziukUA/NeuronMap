@@ -11,7 +11,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 /**
- * Записує стан карти в таблиці бази даних SQLite.
+ * Записує стан моделі карти й параметри камери до таблиць SQLite в межах операції збереження.
  */
 public final class SqliteMapWriter {
 
@@ -19,32 +19,21 @@ public final class SqliteMapWriter {
     private final SqliteSettingsStore settings;
 
     /**
-     * Повертає результат операції «SQLite карта».
+     * Створює екземпляр SqliteMapWriter та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param connection звʼязок між нейронами.
-     *
-     * @param settings набір налаштувань.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param connection напрямлений зв’язок між нейронами.
+     * @param settings сховище глобальних налаштувань застосунку.
      */
     public SqliteMapWriter(
             java.sql.Connection connection,
             SqliteSettingsStore settings
     ) {
         if (connection == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("connection must not be null");
         }
         if (settings == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("settings must not be null");
         }
         this.connection = connection;
@@ -52,11 +41,10 @@ public final class SqliteMapWriter {
     }
 
     /**
-     * Зберігає дані, повʼязані з «потрібні дані», у відповідному сховищі.
+     * Записує стан карти та камери до бази даних.
      *
      * @param model модель карти нейронів.
-     *
-     * @param cameraState значення, що визначає камера стан для цієї операції.
+     * @param cameraState стан камери, який потрібно зберегти разом із картою.
      */
     public void save(
             NeuronMapModel model,
@@ -71,7 +59,7 @@ public final class SqliteMapWriter {
     }
 
     /**
-     * Видаляє або скидає дані, повʼязані з «усі дані».
+     * Очищає таблиці карти перед повним записом актуального стану.
      */
     private void deleteAllData() throws SQLException {
         try (Statement statement = connection.createStatement()) {
@@ -84,7 +72,7 @@ public final class SqliteMapWriter {
     }
 
     /**
-     * Виконує операцію «нейрони».
+     * Записує семантичні параметри всіх нейронів у таблицю нейронів.
      *
      * @param model модель карти нейронів.
      */
@@ -114,7 +102,7 @@ public final class SqliteMapWriter {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Записує координати, обертання й напрямок візуальних подань нейронів.
      *
      * @param model модель карти нейронів.
      */
@@ -148,7 +136,7 @@ public final class SqliteMapWriter {
     }
 
     /**
-     * Виконує операцію «звʼязки».
+     * Записує напрямлені зв’язки між нейронами.
      *
      * @param model модель карти нейронів.
      */
@@ -175,7 +163,7 @@ public final class SqliteMapWriter {
     }
 
     /**
-     * Виконує операцію «групи».
+     * Записує групи та їхніх учасників.
      *
      * @param model модель карти нейронів.
      */
@@ -209,9 +197,9 @@ public final class SqliteMapWriter {
     }
 
     /**
-     * Зберігає дані, повʼязані з «камера стан», у відповідному сховищі.
+     * Зберігає camera state у відповідному сховищі.
      *
-     * @param state стан обʼєкта або редактора.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
      */
     private void saveCameraState(CameraState state) throws SQLException {
         settings.write("zoom", Double.toString(state.zoom()));

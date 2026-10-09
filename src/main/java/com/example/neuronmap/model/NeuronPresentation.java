@@ -1,7 +1,7 @@
 package com.example.neuronmap.model;
 
 /**
- * Зберігає параметри відображення нейрона: координати, кут повороту та напрямок.
+ * Зберігає візуальне розташування нейрона: координати, кут обертання й напрямок входу та виходу.
  */
 public final class NeuronPresentation {
 
@@ -12,17 +12,12 @@ public final class NeuronPresentation {
     private boolean directionReversed;
 
     /**
-     * Повертає результат операції «нейрон представлення».
+     * Створює екземпляр NeuronPresentation та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param neuron нейрон, над яким виконується операція.
-     *
-     * @param x координата по горизонталі.
-     *
-     * @param y координата по вертикалі.
-     *
-     * @param rotationDegrees значення, що визначає обертання градуси для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param neuron нейрон моделі.
+     * @param x координата X.
+     * @param y координата Y.
+     * @param rotationDegrees кут обертання в градусах.
      */
     public NeuronPresentation(
             Neuron neuron,
@@ -40,19 +35,13 @@ public final class NeuronPresentation {
     }
 
     /**
-     * Повертає результат операції «нейрон представлення».
+     * Створює екземпляр NeuronPresentation та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param neuron нейрон, над яким виконується операція.
-     *
-     * @param x координата по горизонталі.
-     *
-     * @param y координата по вертикалі.
-     *
-     * @param rotationDegrees значення, що визначає обертання градуси для цієї операції.
-     *
-     * @param directionReversed значення, що визначає напрямок для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param neuron нейрон моделі.
+     * @param x координата X.
+     * @param y координата Y.
+     * @param rotationDegrees кут обертання в градусах.
+     * @param directionReversed ознака розвернутого напрямку.
      */
     public NeuronPresentation(
             Neuron neuron,
@@ -62,11 +51,7 @@ public final class NeuronPresentation {
             boolean directionReversed
     ) {
         if (neuron == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException(
                     "Neuron must not be null."
             );
@@ -80,56 +65,55 @@ public final class NeuronPresentation {
     }
 
     /**
-     * Повертає результат операції «нейрон».
+     * Повертає нейрон, візуальне подання якого описує цей об’єкт.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return нейрон, візуальне подання якого описує цей об’єкт.
      */
     public Neuron neuron() {
         return neuron;
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Повертає горизонтальну координату нейрона на карті.
      *
-     * @return числове значення, визначене методом.
+     * @return горизонтальну координату нейрона на карті.
      */
     public double x() {
         return x;
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Повертає вертикальну координату нейрона на карті.
      *
-     * @return числове значення, визначене методом.
+     * @return вертикальну координату нейрона на карті.
      */
     public double y() {
         return y;
     }
 
     /**
-     * Повертає результат операції «обертання градуси».
+     * Повертає кут обертання нейрона в градусах.
      *
-     * @return числове значення, визначене методом.
+     * @return кут обертання нейрона в градусах.
      */
     public double rotationDegrees() {
         return rotationDegrees;
     }
 
     /**
-     * Повертає результат операції «напрямок».
+     * Повертає ознаку того, що вхідний і вихідний порти нейрона розвернуті.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return ознаку того, що вхідний і вихідний порти нейрона розвернуті.
      */
     public boolean directionReversed() {
         return directionReversed;
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «положення».
+     * Установлює координати подання нейрона.
      *
-     * @param x координата по горизонталі.
-     *
-     * @param y координата по вертикалі.
+     * @param x координата X.
+     * @param y координата Y.
      */
     public void setPosition(
             double x,
@@ -140,11 +124,10 @@ public final class NeuronPresentation {
     }
 
     /**
-     * Переміщує обʼєкт «за» відповідно до переданого зміщення.
+     * Зміщує подання нейрона на заданий вектор.
      *
-     * @param dx зміщення по горизонталі.
-     *
-     * @param dy зміщення по вертикалі.
+     * @param dx значення «dx», яке використовується в цьому методі.
+     * @param dy значення «dy», яке використовується в цьому методі.
      */
     public void moveBy(
             double dx,
@@ -155,9 +138,9 @@ public final class NeuronPresentation {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «обертання градуси».
+     * Установлює кут обертання подання в градусах.
      *
-     * @param rotationDegrees значення, що визначає обертання градуси для цієї операції.
+     * @param rotationDegrees кут обертання в градусах.
      */
     public void setRotationDegrees(
             double rotationDegrees
@@ -166,9 +149,9 @@ public final class NeuronPresentation {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «напрямок».
+     * Установлює, чи має нейрон розвернутий напрямок сигналу.
      *
-     * @param directionReversed значення, що визначає напрямок для цієї операції.
+     * @param directionReversed ознака розвернутого напрямку.
      */
     public void setDirectionReversed(
             boolean directionReversed
@@ -177,7 +160,7 @@ public final class NeuronPresentation {
     }
 
     /**
-     * Перемикає стан «напрямок».
+     * Перемикає звичайний і розвернутий напрямки сигналу.
      */
     public void toggleDirection() {
         directionReversed = !directionReversed;

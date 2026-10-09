@@ -23,14 +23,14 @@ import javafx.stage.Stage;
 import java.nio.file.Path;
 
 /**
- * Запускає застосунок, завантажує конфігурацію та створює основні компоненти програми.
+ * Запускає JavaFX-застосунок, завантажує конфігурацію та готує початкове вікно редактора карти нейронів.
  */
 public final class NeuronMapApp extends Application {
 
     /**
-     * Запускає або планує дію, повʼязану з «потрібні дані».
+     * Ініціалізує конфігурацію та сховище, створює головну сцену JavaFX і показує вікно застосунку.
      *
-     * @param stage значення, що визначає відповідну операцію для цієї операції.
+     * @param stage головне вікно JavaFX, яке потрібно показати.
      */
     @Override
     public void start(Stage stage) {
@@ -118,9 +118,9 @@ public final class NeuronMapApp extends Application {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Є точкою входу застосунку та передає керування JavaFX через launch(args).
      *
-     * @param args значення, що визначає відповідну операцію для цієї операції.
+     * @param args аргументи командного рядка, передані під час запуску.
      */
     public static void main(String[] args) {
         launch(args);

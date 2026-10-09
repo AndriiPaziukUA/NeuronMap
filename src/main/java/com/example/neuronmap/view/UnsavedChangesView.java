@@ -12,7 +12,7 @@ import javafx.scene.layout.VBox;
 import java.util.Objects;
 
 /**
- * Показує запит про незбережені зміни та надає варіанти дій.
+ * Показує й приховує підтвердження дії, яка може призвести до втрати незбережених змін.
  */
 public final class UnsavedChangesView extends StackPane {
 
@@ -23,11 +23,9 @@ public final class UnsavedChangesView extends StackPane {
     private final Button noButton = new Button();
 
     /**
-     * Повертає результат операції «змінює відображення».
+     * Створює екземпляр UnsavedChangesView та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param localization значення, що визначає локалізація для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param localization служба локалізації інтерфейсу.
      */
     public UnsavedChangesView(LocalizationService localization) {
         this.localization = Objects.requireNonNull(localization, "localization");
@@ -60,20 +58,19 @@ public final class UnsavedChangesView extends StackPane {
     }
 
     /**
-     * Перевіряє, чи виконується умова «відповідну операцію».
+     * Перевіряє, чи showing за поточного стану компонента.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public boolean isShowing() {
         return isVisible();
     }
 
     /**
-     * Відображає «потрібні дані» в інтерфейсі.
+     * Показує  у відповідній частині інтерфейсу.
      *
-     * @param saveAction значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param discardAction значення, що визначає відкинути для цієї операції.
+     * @param saveAction callback збереження поточних змін.
+     * @param discardAction callback відкидання незбережених змін.
      */
     public void show(
             Runnable saveAction,
@@ -100,7 +97,7 @@ public final class UnsavedChangesView extends StackPane {
     }
 
     /**
-     * Виконує операцію «приховати».
+     * Приховує  і завершує пов’язаний стан відображення.
      */
     public void hide() {
         setVisible(false);
@@ -110,7 +107,7 @@ public final class UnsavedChangesView extends StackPane {
     }
 
     /**
-     * Обробляє «відповідну операцію».
+     * Оновлює «texts» за поточним станом моделі або інтерфейсу.
      */
     public void refreshTexts() {
         title.setText(localization.text("menu.unsaved.title"));

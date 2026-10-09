@@ -6,14 +6,14 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Перевіряє математичні розрахунки кута повороту.
+ * Перевіряє відповідність кутів обертання JavaFX та відсутність стрибків під час початку й продовження перетягування ручки.
  */
 class NeuronRotationMathTest {
 
     private static final Point2D CENTER = new Point2D(70.0, 37.0);
 
     /**
-     * Перевіряє очікувану поведінку: обробити використати обертання.
+     * Перевіряє відповідність напрямків ручки конвенції кутів обертання JavaFX.
      */
     @Test
     void handleDirectionsUseJavaFxRotationConvention() {
@@ -52,7 +52,7 @@ class NeuronRotationMathTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: перший перетягування положення не або.
+     * Перевіряє відсутність стрибка або перевороту кута, якщо перша подія перетягування збігається з точкою натискання.
      */
     @Test
     void firstDragAtThePressPositionDoesNotFlipOrJump() {
@@ -77,7 +77,7 @@ class NeuronRotationMathTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: обертання слідує без.
+     * Перевіряє відповідність обертання зміщенню покажчика без стрибка через протилежний напрямок.
      */
     @Test
     void rotationFollowsPointerDeltaWithoutCrossingFlip() {

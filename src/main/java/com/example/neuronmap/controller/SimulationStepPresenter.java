@@ -11,7 +11,7 @@ import javafx.scene.Node;
 import java.util.Map;
 
 /**
- * Передає результат такту симуляції компонентам, які відображають його в інтерфейсі.
+ * Відображає результати такту симуляції: вхідні сигнали нейронів та анімацію імпульсів уздовж вихідних зв’язків.
  */
 public final class SimulationStepPresenter {
 
@@ -22,17 +22,12 @@ public final class SimulationStepPresenter {
     private final PulseAnimationController pulseAnimations;
 
     /**
-     * Повертає результат операції «крок».
+     * Створює екземпляр SimulationStepPresenter та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param neuronService значення, що визначає нейрон служба для цієї операції.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param neuronViews значення, що визначає нейрон для цієї операції.
-     *
-     * @param refreshNeuronViews значення, що визначає нейрон для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param neuronService служба операцій над нейронами.
+     * @param workspace полотно редактора.
+     * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
+     * @param refreshNeuronViews callback, який оновлює візуальні подання нейронів після зміни вибору.
      */
     public SimulationStepPresenter(
             NeuronService neuronService,
@@ -51,7 +46,7 @@ public final class SimulationStepPresenter {
     }
 
     /**
-     * Обробляє «потрібні дані».
+     * Оновлює інтерфейс за результатом такту: показує активовані нейрони та запускає анімацію вихідних сигналів.
      *
      * @param step результат одного такту симуляції.
      */
@@ -78,7 +73,7 @@ public final class SimulationStepPresenter {
     }
 
     /**
-     * Видаляє або скидає дані, повʼязані з «відповідну операцію».
+     * Прибирає індикатори сигналів і решту тимчасового відображення завершеного сеансу симуляції.
      */
     public void clearRuntime() {
         neuronService.clearActivations();
@@ -87,39 +82,39 @@ public final class SimulationStepPresenter {
     }
 
     /**
-     * Обробляє «потрібні дані».
+     * Оновлює подання нейронів і зв’язків після зміни моделі.
      */
     public void refresh() {
         refreshNeuronViews.run();
     }
 
     /**
-     * Перевіряє, чи виконується умова «анімації».
+     * Перевіряє, чи відображаються анімації імпульсів, які ще не завершилися.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public boolean hasActiveAnimations() {
         return pulseAnimations.hasActiveAnimations();
     }
 
     /**
-     * Виконує операцію «анімації».
+     * Призупиняє «animations», зберігаючи можливість подальшого відновлення.
      */
     public void pauseAnimations() {
         pulseAnimations.pauseAll();
     }
 
     /**
-     * Виконує операцію «анімації».
+     * Відновлює «animations» після призупинення.
      */
     public void resumeAnimations() {
         pulseAnimations.resumeAll();
     }
 
     /**
-     * Відображає «сигнали» в інтерфейсі.
+     * Показує на нейронах суми сигналів, отриманих у поточному такті.
      *
-     * @param inputSums значення, що визначає вхід для цієї операції.
+     * @param inputSums суми вхідних сигналів для нейронів на поточному такті.
      */
     private void showIncomingSignals(Map<String, Integer> inputSums) {
         inputSums.forEach((neuronId, sum) -> {
@@ -131,7 +126,7 @@ public final class SimulationStepPresenter {
     }
 
     /**
-     * Видаляє або скидає дані, повʼязані з «вхід сигнали».
+     * Прибирає з нейронів індикатори вхідних сигналів.
      */
     private void clearDisplayedInputSignals() {
         for (NeuronView neuronView : neuronViews.values()) {
@@ -140,7 +135,7 @@ public final class SimulationStepPresenter {
     }
 
     /**
-     * Виконує операцію «звʼязки».
+     * Запускає анімацію імпульсів на вихідних зв’язках указаного нейрона.
      *
      * @param neuronId ідентифікатор нейрона.
      */

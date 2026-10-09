@@ -5,7 +5,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 /**
- * Зберігає параметри конкретного проєкту в базі даних SQLite.
+ * Читає й записує налаштування проєкту в таблиці SQLite, включно зі швидкістю тактів симуляції.
  */
 public final class SqliteSettingsStore {
 
@@ -15,30 +15,22 @@ public final class SqliteSettingsStore {
     private final java.sql.Connection connection;
 
     /**
-     * Повертає результат операції «SQLite налаштування зберігати».
+     * Створює екземпляр SqliteSettingsStore та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param connection звʼязок між нейронами.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param connection напрямлений зв’язок між нейронами.
      */
     public SqliteSettingsStore(java.sql.Connection connection) {
         if (connection == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("connection must not be null");
         }
         this.connection = connection;
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «потрібні дані».
+     * Зчитує значення налаштування за ключем із таблиці налаштувань.
      *
-     * @param key ключ для пошуку або збереження значення.
-     *
-     * @return текстове значення, сформоване або знайдене методом.
+     * @param key ключ налаштування або перекладу.
      */
     public String load(String key) throws SQLException {
         String sql = """
@@ -59,11 +51,10 @@ public final class SqliteSettingsStore {
     }
 
     /**
-     * Зберігає дані, повʼязані з «потрібні дані», у відповідному сховищі.
+     * Записує значення налаштування за ключем у таблицю налаштувань.
      *
-     * @param key ключ для пошуку або збереження значення.
-     *
-     * @param value значення, яке потрібно передати або зберегти.
+     * @param key ключ налаштування або перекладу.
+     * @param value значення, яке потрібно зберегти або перевірити.
      */
     public void write(String key, String value) throws SQLException {
         String sql = """
@@ -81,11 +72,9 @@ public final class SqliteSettingsStore {
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «такт».
+     * Завантажує simulation tick millis із відповідного джерела даних.
      *
-     * @param fallbackMillis значення, що визначає резервний варіант для цієї операції.
-     *
-     * @return числове значення, визначене методом.
+     * @param fallbackMillis резервна тривалість такту, якщо збереженого значення немає.
      */
     public double loadSimulationTickMillis(double fallbackMillis) {
         try {
@@ -101,13 +90,7 @@ public final class SqliteSettingsStore {
         } catch (NumberFormatException exception) {
             return fallbackMillis;
         } catch (SQLException exception) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @param exception помилка, яку потрібно обробити.
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new PersistenceException(
                     "Не вдалося завантажити налаштування SQLite.",
                     exception
@@ -116,9 +99,9 @@ public final class SqliteSettingsStore {
     }
 
     /**
-     * Зберігає дані, повʼязані з «такт», у відповідному сховищі.
+     * Зберігає simulation tick millis у відповідному сховищі.
      *
-     * @param millis значення, що визначає відповідну операцію для цієї операції.
+     * @param millis тривалість такту в мілісекундах.
      */
     public void saveSimulationTickMillis(double millis) {
         try {
@@ -127,13 +110,7 @@ public final class SqliteSettingsStore {
                     Double.toString(millis)
             );
         } catch (SQLException exception) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @param exception помилка, яку потрібно обробити.
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new PersistenceException(
                     "Не вдалося зберегти швидкість такту.",
                     exception

@@ -3,18 +3,15 @@ package com.example.neuronmap.simulation;
 import com.example.neuronmap.model.NeuronMapModel;
 
 /**
- * Надає операції запуску й виконання симуляції, не повʼязані з JavaFX.
+ * Створює сеанс симуляції для моделі карти та початкового нейрона.
  */
 public final class SimulationService {
 
     /**
-     * Запускає або планує дію, повʼязану з «потрібні дані».
+     * Створює сеанс симуляції для моделі та ставить вказаний нейрон у чергу ручного запуску.
      *
      * @param model модель карти нейронів.
-     *
      * @param sourceNeuronId ідентифікатор початкового нейрона.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
      */
     public SimulationSession start(
             NeuronMapModel model,

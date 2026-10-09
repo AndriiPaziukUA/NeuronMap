@@ -10,7 +10,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * Визначає, як налаштовується меню нейрона перед його показом.
+ * Налаштовує кнопки контекстного меню нейрона відповідно до потрібних дій та стану інтерфейсу.
  */
 public final class NeuronMenuCustomizer {
 
@@ -20,11 +20,9 @@ public final class NeuronMenuCustomizer {
     private final LocalizationService localization;
 
     /**
-     * Повертає результат операції «нейрон меню».
+     * Створює екземпляр NeuronMenuCustomizer та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param toolbarRoot значення, що визначає панель інструментів для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param toolbarRoot кореневий вузол панелі інструментів, у кнопках якої налаштовують меню.
      */
     public NeuronMenuCustomizer(Node toolbarRoot) {
         this(
@@ -36,15 +34,11 @@ public final class NeuronMenuCustomizer {
     }
 
     /**
-     * Повертає результат операції «нейрон меню».
+     * Створює екземпляр NeuronMenuCustomizer та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param toolbarRoot значення, що визначає панель інструментів для цієї операції.
-     *
-     * @param selectedNeuronIdSupplier значення, що визначає вибраний нейрон ідентифікатор для цієї операції.
-     *
-     * @param directionAction значення, що визначає напрямок для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param toolbarRoot кореневий вузол панелі інструментів, у кнопках якої налаштовують меню.
+     * @param selectedNeuronIdSupplier функція, що повертає ідентифікатор вибраного нейрона.
+     * @param directionAction callback, який змінює напрямок портів нейрона.
      */
     public NeuronMenuCustomizer(
             Node toolbarRoot,
@@ -60,17 +54,12 @@ public final class NeuronMenuCustomizer {
     }
 
     /**
-     * Повертає результат операції «нейрон меню».
+     * Створює екземпляр NeuronMenuCustomizer та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param toolbarRoot значення, що визначає панель інструментів для цієї операції.
-     *
-     * @param selectedNeuronIdSupplier значення, що визначає вибраний нейрон ідентифікатор для цієї операції.
-     *
-     * @param directionAction значення, що визначає напрямок для цієї операції.
-     *
-     * @param localization значення, що визначає локалізація для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param toolbarRoot кореневий вузол панелі інструментів, у кнопках якої налаштовують меню.
+     * @param selectedNeuronIdSupplier функція, що повертає ідентифікатор вибраного нейрона.
+     * @param directionAction callback, який змінює напрямок портів нейрона.
+     * @param localization служба локалізації інтерфейсу.
      */
     public NeuronMenuCustomizer(
             Node toolbarRoot,
@@ -79,11 +68,7 @@ public final class NeuronMenuCustomizer {
             LocalizationService localization
     ) {
         if (toolbarRoot == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("toolbarRoot must not be null");
         }
 
@@ -99,9 +84,9 @@ public final class NeuronMenuCustomizer {
     }
 
     /**
-     * Виконує операцію «меню кнопка».
+     * Налаштовує вигляд і дію кнопки в контекстному меню нейрона.
      *
-     * @param button значення, що визначає кнопка для цієї операції.
+     * @param button кнопка інтерфейсу, яку потрібно налаштувати.
      */
     public void customizeMenuButton(Button button) {
         if (button == null) {
@@ -129,9 +114,7 @@ public final class NeuronMenuCustomizer {
     }
 
     /**
-     * Створює обʼєкт із переданих даних «напрямок кнопка».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * Створює кнопку, яка перемикає напрямок портів нейрона.
      */
     public Button createDirectionButton() {
         if (directionAction == null) {
@@ -163,7 +146,7 @@ public final class NeuronMenuCustomizer {
     }
 
     /**
-     * Видаляє або скидає дані, повʼязані з «видалити звʼязок кнопка».
+     * Прибирає з меню кнопку виходу з режиму видалення зв’язку, якщо її не потрібно показувати.
      */
     public void removeDeleteConnectionModeExitButton() {
         toolbarRoot.lookupAll(

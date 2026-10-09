@@ -10,7 +10,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Circle;
 
 /**
- * Відображає ручку, за допомогою якої користувач повертає нейрон.
+ * Відображає інтерактивну ручку обертання та встановлює її положення й візуальний кут.
  */
 public final class RotationHandleView extends Button {
 
@@ -21,11 +21,6 @@ public final class RotationHandleView extends Button {
     private final Circle background = new Circle(SIZE / 2.0);
     private final Label glyph = new Label("↻");
 
-    /**
-     * Повертає результат операції «обертання обробити відображення».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
-     */
     public RotationHandleView() {
         getStyleClass().add("rotation-handle-button");
 
@@ -62,17 +57,13 @@ public final class RotationHandleView extends Button {
     }
 
 /**
- * Виконує операцію «центр».
+ * Переміщує ручку обертання так, щоб її центр збігався з переданою точкою батьківської області.
  *
- * @param parentCenter значення, що визначає центр для цієї операції.
+ * @param parentCenter значення «parent center», яке використовується в цьому методі.
  */
 public void placeCenterAt(Point2D parentCenter) {
         if (parentCenter == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException(
                     "parentCenter must not be null"
             );
@@ -92,16 +83,16 @@ public void placeCenterAt(Point2D parentCenter) {
     }
 
 /**
- * Задає або оновлює значення, повʼязані з «графічний обертання».
+ * Установлює visual rotation для поточного об’єкта.
  *
- * @param degrees кут повороту в градусах.
+ * @param degrees кут у градусах.
  */
 public void setVisualRotation(double degrees) {
         graphicPane.setRotate(degrees);
     }
 
 /**
- * Завершує або скасовує дію, повʼязану з «потрібні дані».
+ * Від’єднує обробники подій і звільняє ресурси, якими керує компонент.
  */
 public void dispose() {
         graphicPane.setRotate(0.0);

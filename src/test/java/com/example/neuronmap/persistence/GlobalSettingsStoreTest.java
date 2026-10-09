@@ -9,14 +9,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
- * Перевіряє запис і читання загальних налаштувань.
+ * Перевіряє запис і повторне читання глобальних налаштувань із файлу властивостей.
  */
 final class GlobalSettingsStoreTest {
 
     /**
-     * Перевіряє очікувану поведінку: значення властивості файл.
-     *
-     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
+     * Перевіряє, що глобальні налаштування проходять цикл запису й повторного читання без зміни значень.
      */
     @Test
     void valuesRoundTripThroughPropertiesFile(@TempDir Path tempDir) {

@@ -9,7 +9,7 @@ import java.util.Optional;
 import java.util.Properties;
 
 /**
- * Зберігає та відновлює геометрію головного вікна.
+ * Завантажує та зберігає геометрію головного вікна в окремому файлі.
  */
 public final class WindowStateStore {
 
@@ -21,28 +21,20 @@ public final class WindowStateStore {
     private final Path file;
 
     /**
-     * Повертає результат операції «вікно стан зберігати».
+     * Створює екземпляр WindowStateStore та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param file файл, який обробляється.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param file значення «file», яке використовується в цьому методі.
      */
     public WindowStateStore(Path file) {
         if (file == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("file must not be null");
         }
         this.file = file;
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «потрібні дані».
-     *
-     * @return знайдене значення або порожній Optional, якщо результату немає.
+     * Завантажує збережену геометрію вікна, якщо файл містить коректний стан.
      */
     public Optional<WindowState> load() {
         if (!Files.isRegularFile(file)) {
@@ -74,17 +66,13 @@ public final class WindowStateStore {
     }
 
     /**
-     * Зберігає дані, повʼязані з «потрібні дані», у відповідному сховищі.
+     * Записує геометрію вікна у файл стану.
      *
-     * @param state стан обʼєкта або редактора.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
      */
     public void save(WindowState state) {
         if (state == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("state must not be null");
         }
         if (!state.isValid()) {
@@ -107,7 +95,7 @@ public final class WindowStateStore {
                 properties.store(output, "NeuronMap window geometry");
             }
         } catch (IOException ignored) {
-            // Window persistence is best-effort and must never block shutdown.
+
         }
     }
 }

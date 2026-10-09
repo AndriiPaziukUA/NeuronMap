@@ -13,7 +13,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * Обробляє перетягування нейронів та оновлює їхнє положення на карті.
+ * Обробляє перетягування нейронів і груп, переміщуючи модель та оновлюючи пов’язані з нею зв’язки й накладки.
  */
 public final class NeuronDragController {
 
@@ -30,31 +30,19 @@ public final class NeuronDragController {
     private final Runnable save;
 
     /**
-     * Повертає результат операції «нейрон перетягування».
+     * Створює екземпляр NeuronDragController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param neuronService значення, що визначає нейрон служба для цієї операції.
-     *
-     * @param groupService значення, що визначає група служба для цієї операції.
-     *
-     * @param selectionController значення, що визначає вибір для цієї операції.
-     *
-     * @param state стан обʼєкта або редактора.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param hideMenu значення, що визначає приховати меню для цієї операції.
-     *
-     * @param showRotationHandle значення, що визначає показати обертання обробити для цієї операції.
-     *
-     * @param refreshVisuals значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param refreshConnections значення, що визначає звʼязки для цієї операції.
-     *
-     * @param refreshOverlayPositions значення, що визначає накладка для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param neuronService служба операцій над нейронами.
+     * @param groupService служба операцій над групами нейронів.
+     * @param selectionController контролер вибору нейронів.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param workspace полотно редактора.
+     * @param hideMenu callback для приховування контекстного меню.
+     * @param showRotationHandle callback, який показує ручку обертання нейрона.
+     * @param refreshVisuals callback, який оновлює вигляд нейронів.
+     * @param refreshConnections callback, який оновлює геометрію та вигляд зв’язків.
+     * @param refreshOverlayPositions callback, який перераховує положення накладок над полотном.
+     * @param save функція зворотного виклику для відповідної дії.
      */
     public NeuronDragController(
             NeuronService neuronService,
@@ -83,11 +71,10 @@ public final class NeuronDragController {
     }
 
     /**
-     * Обробляє «відповідну операцію».
+     * Обробляє подію «pressed» і передає її до відповідної операції редактора.
      *
-     * @param neuronView значення, що визначає нейрон відображення для цієї операції.
-     *
-     * @param event подія інтерфейсу.
+     * @param neuronView візуальне подання нейрона.
+     * @param event подія інтерфейсу, яку потрібно обробити.
      */
     public void handlePressed(NeuronView neuronView, MouseEvent event) {
         if (event.getButton() == MouseButton.SECONDARY) {
@@ -121,11 +108,10 @@ public final class NeuronDragController {
     }
 
     /**
-     * Обробляє «відповідну операцію».
+     * Обробляє подію «dragged» і передає її до відповідної операції редактора.
      *
-     * @param neuronView значення, що визначає нейрон відображення для цієї операції.
-     *
-     * @param event подія інтерфейсу.
+     * @param neuronView візуальне подання нейрона.
+     * @param event подія інтерфейсу, яку потрібно обробити.
      */
     public void handleDragged(NeuronView neuronView, MouseEvent event) {
         if (!neuronView.isDragging()) {
@@ -151,11 +137,10 @@ public final class NeuronDragController {
     }
 
     /**
-     * Обробляє «відповідну операцію».
+     * Обробляє подію «released» і передає її до відповідної операції редактора.
      *
-     * @param neuronView значення, що визначає нейрон відображення для цієї операції.
-     *
-     * @param event подія інтерфейсу.
+     * @param neuronView візуальне подання нейрона.
+     * @param event подія інтерфейсу, яку потрібно обробити.
      */
     public void handleReleased(NeuronView neuronView, MouseEvent event) {
         boolean dragged = neuronView.wasDragged();

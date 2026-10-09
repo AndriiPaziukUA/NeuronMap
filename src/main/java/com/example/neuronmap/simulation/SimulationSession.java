@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Веде спільний відлік тактів і накопичує сигнали, які потрібно обробити на наступних тактах.
+ * Обробляє симуляцію по глобальних тактах: накопичує вхідні сигнали, активує нейрони та планує сигнали для наступного такту.
  */
 public final class SimulationSession {
 
@@ -25,35 +25,26 @@ public final class SimulationSession {
     private boolean finished;
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Створює екземпляр SimulationSession та зберігає передані залежності, потрібні для його роботи.
      *
      * @param model модель карти нейронів.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
      */
     private SimulationSession(NeuronMapModel model) {
         this.model = model;
     }
 
     /**
-     * Створює сеанс симуляції та ставить ручний запуск указаного нейрона в чергу.
+     * Створює сеанс симуляції та додає початковий нейрон до черги ручного запуску.
      *
      * @param model модель карти нейронів.
-     *
      * @param sourceNeuronId ідентифікатор початкового нейрона.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
      */
     public static SimulationSession manual(
             NeuronMapModel model,
             String sourceNeuronId
     ) {
         if (model == null) {
-            /**
-             * Повертає результат операції «виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalArgumentException("model must not be null");
         }
 
@@ -63,11 +54,9 @@ public final class SimulationSession {
     }
 
 /**
- * Додає нейрон до списку ручних запусків наступного такту; повторне додавання не дублює запуск.
+ * Додає наявний нейрон до черги запуску на наступному такті; повторне додавання не створює дубліката.
  *
  * @param sourceNeuronId ідентифікатор початкового нейрона.
- *
- * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
  */
 public boolean queueManualStart(String sourceNeuronId) {
         if (sourceNeuronId == null || sourceNeuronId.isBlank()) {
@@ -84,27 +73,27 @@ public boolean queueManualStart(String sourceNeuronId) {
     }
 
     /**
-     * Повертає ознаку того, що сеанс симуляції завершився.
+     * Повертає true, якщо сеанс не має подальшої роботи.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public boolean isFinished() {
         return finished;
     }
 
     /**
-     * Повертає номер поточного такту симуляції.
+     * Повертає номер наступного глобального такту симуляції.
      *
-     * @return номер такту симуляції.
+     * @return номер наступного глобального такту симуляції.
      */
     public BigInteger tick() {
         return tick;
     }
 
 /**
- * Перевіряє, чи залишилися сигнали або ручні запуски для наступного такту.
+ * Перевіряє, чи залишилися вхідні сигнали або ручні запуски для наступного такту.
  *
- * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+ * @return {@code true}, якщо умову виконано; інакше {@code false}.
  */
 public boolean hasPendingWork() {
         return !pendingSignals.isEmpty()
@@ -112,9 +101,7 @@ public boolean hasPendingWork() {
     }
 
     /**
-     * Обчислює наступний такт симуляції; повертає null, коли роботи більше немає.
-     *
-     * @return наступний такт симуляції або null, якщо подальшої роботи немає.
+     * Обробляє один такт: визначає активовані нейрони й накопичує вихідні сигнали для наступного такту. Повертає null, якщо робота завершилася.
      */
     public SimulationStep nextStep() {
         if (finished || !hasPendingWork()) {
@@ -145,8 +132,6 @@ public boolean hasPendingWork() {
         for (Map.Entry<String, Integer> entry : inputSums.entrySet()) {
             Neuron neuron = model.neuron(entry.getKey());
 
-            // A neuron deleted after a pulse was scheduled may remain in the
-            // pending map for this tick, but it must not participate any more.
             if (neuron == null) {
                 continue;
             }
@@ -156,8 +141,6 @@ public boolean hasPendingWork() {
             }
         }
 
-        // Each activated neuron emits once per global tick, even when it was
-        // both manually started and activated by an incoming signal.
         for (String neuronId : activatedNeuronIds) {
             Neuron neuron = model.neuron(neuronId);
             if (neuron != null) {
@@ -185,11 +168,10 @@ public boolean hasPendingWork() {
     }
 
     /**
-     * Виконує операцію «сигнали».
+     * Додає вагу сигналу до накопичувача для кожного наявного цільового нейрона, з яким з’єднаний активований нейрон.
      *
-     * @param neuron нейрон, над яким виконується операція.
-     *
-     * @param nextSignals значення, що визначає наступний сигнали для цієї операції.
+     * @param neuron нейрон моделі.
+     * @param nextSignals накопичувач сигналів, запланованих для наступного такту.
      */
     private void collectOutgoingSignals(
             Neuron neuron,

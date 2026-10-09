@@ -10,12 +10,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє створення, пошук, зміну параметрів і видалення нейронів.
+ * Перевіряє, що створення, перемикання типу, оновлення параметрів і видалення проходять через NeuronService.
  */
 class NeuronServiceTest {
 
     /**
-     * Перевіряє очікувану поведінку: створити перемкнути налаштування і видалити служба.
+     * Перевіряє проходження створення, перемикання типу, зміни налаштувань і видалення через сервіс нейронів.
      */
     @Test
     void createToggleSettingsAndRemoveAreDelegatedThroughService() {

@@ -11,12 +11,12 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Перевіряє поширення сигналів, цикли, одночасні запуски та спільний відлік тактів.
+ * Перевіряє поширення сигналів, цикли, видалення цілі під час очікування сигналу, одночасні ручні запуски та спільний лічильник тактів.
  */
 class SimulationSessionTest {
 
     /**
-     * Перевіряє очікувану поведінку: очікуваний кінцевий не такт.
+     * Перевіряє, що видалений нейрон, на який уже очікує сигнал, не активується в наступному такті.
      */
     @Test
     void deletedPendingTargetDoesNotParticipateInLaterTick() {
@@ -48,7 +48,7 @@ class SimulationSessionTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: сигнал попередній такт межа.
+     * Перевіряє продовження сигналу в циклічному графі довше за попередню межу тактів.
      */
     @Test
     void cyclicSignalContinuesBeyondPreviousTickLimit() {
@@ -74,7 +74,7 @@ class SimulationSessionTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: ручний запускає такти.
+     * Перевіряє одночасну активацію нейронів, ручний запуск яких додано між тактами.
      */
     @Test
     void manualStartsQueuedBetweenTicksAreActivatedTogether() {
@@ -108,7 +108,7 @@ class SimulationSessionTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: новий джерело не скинути загальний такт після.
+     * Перевіряє, що відновлення симуляції після простою не скидає глобальний лічильник тактів.
      */
     @Test
     void queueingNewSourceDoesNotResetGlobalTickAfterSessionBecameIdle() {
@@ -135,7 +135,7 @@ class SimulationSessionTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: нейрон за ручний запуск і вхід випромінює лише.
+     * Перевіряє, що нейрон, активований вручну й сигналом за один такт, випромінює лише один вихідний сигнал.
      */
     @Test
     void neuronActivatedByManualStartAndInputEmitsOnlyOnce() {

@@ -18,7 +18,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * Організовує створення спрямованого звʼязку між початковим і кінцевим нейронами.
+ * Обробляє створення зв’язку: відстежує нейрон-джерело, показує попередню лінію та завершує створення після клацання по цілі.
  */
 final class ConnectionCreationController {
 
@@ -37,23 +37,16 @@ final class ConnectionCreationController {
     private double lastCursorY;
 
     /**
-     * Створює обʼєкт ConnectionCreationController та ініціалізує його початковий стан.
+     * Створює екземпляр ConnectionCreationController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param connectionService значення, що визначає звʼязок служба для цієї операції.
-     *
-     * @param state стан обʼєкта або редактора.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param neuronViews значення, що визначає нейрон для цієї операції.
-     *
-     * @param refresh значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param status стан операції.
-     *
-     * @param exitDelete значення, що визначає видалити для цієї операції.
+     * @param connectionService служба операцій над зв’язками.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param workspace полотно редактора.
+     * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
+     * @param refresh callback для оновлення інтерфейсу після зміни моделі.
+     * @param save функція зворотного виклику для відповідної дії.
+     * @param status callback для показу повідомлення в рядку стану.
+     * @param exitDelete callback, який завершує режим видалення зв’язку.
      */
     ConnectionCreationController(
             ConnectionService connectionService,
@@ -79,25 +72,17 @@ final class ConnectionCreationController {
     }
 
     /**
-     * Створює обʼєкт ConnectionCreationController та ініціалізує його початковий стан.
+     * Створює екземпляр ConnectionCreationController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param connectionService значення, що визначає звʼязок служба для цієї операції.
-     *
-     * @param state стан обʼєкта або редактора.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param neuronViews значення, що визначає нейрон для цієї операції.
-     *
-     * @param refresh значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param status стан операції.
-     *
-     * @param exitDelete значення, що визначає видалити для цієї операції.
-     *
-     * @param localization значення, що визначає локалізація для цієї операції.
+     * @param connectionService служба операцій над зв’язками.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param workspace полотно редактора.
+     * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
+     * @param refresh callback для оновлення інтерфейсу після зміни моделі.
+     * @param save функція зворотного виклику для відповідної дії.
+     * @param status callback для показу повідомлення в рядку стану.
+     * @param exitDelete callback, який завершує режим видалення зв’язку.
+     * @param localization служба локалізації інтерфейсу.
      */
     ConnectionCreationController(
             ConnectionService connectionService,
@@ -122,7 +107,7 @@ final class ConnectionCreationController {
     }
 
     /**
-     * Запускає або планує дію, повʼязану з «створити».
+     * Починає операцію create та готує стан взаємодії.
      *
      * @param sourceNeuronId ідентифікатор початкового нейрона.
      */
@@ -143,7 +128,9 @@ final class ConnectionCreationController {
     }
 
     /**
-     * Завершує або скасовує дію, повʼязану з «створити».
+     * Перевіряє, чи дозволяє поточний стан виконати cel create.
+     *
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     void cancelCreate() {
         if (previewLine != null) {
@@ -160,9 +147,9 @@ final class ConnectionCreationController {
     }
 
     /**
-     * Обробляє «відповідну операцію».
+     * Переміщує кінець попередньої лінії створення зв’язку за курсором.
      *
-     * @param event подія інтерфейсу.
+     * @param event подія інтерфейсу, яку потрібно обробити.
      */
     void handleMouseMoved(MouseEvent event) {
         lastCursorX = event.getX();
@@ -171,16 +158,16 @@ final class ConnectionCreationController {
     }
 
     /**
-     * Обробляє «попередній перегляд після камера змінити».
+     * Оновлює геометрію тимчасової лінії зв’язку після зміни камери.
      */
     void refreshPreviewAfterCameraChange() {
         updatePreviewLine(lastCursorX, lastCursorY);
     }
 
     /**
-     * Обробляє «створити».
+     * Обробляє клацання під час створення зв’язку та перевіряє вибрану ціль.
      *
-     * @param event подія інтерфейсу.
+     * @param event подія інтерфейсу, яку потрібно обробити.
      */
     void handleCreateClick(MouseEvent event) {
         if (event.getButton() != MouseButton.PRIMARY) {
@@ -217,11 +204,10 @@ final class ConnectionCreationController {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «попередній перегляд».
+     * Оновлює кінцеву точку тимчасової лінії до координат курсора.
      *
-     * @param screenX значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param screenY значення, що визначає відповідну операцію для цієї операції.
+     * @param screenX горизонтальна екранна координата.
+     * @param screenY вертикальна екранна координата.
      */
     private void updatePreviewLine(double screenX, double screenY) {
         if (previewLine == null || state.connectionSourceId() == null) {

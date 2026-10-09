@@ -6,7 +6,7 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
 
 /**
- * Відображає поточний стан роботи застосунку в рядку стану.
+ * Надає вузол рядка стану й оновлює текст повідомлення для користувача.
  */
 public final class StatusBarView {
 
@@ -15,11 +15,6 @@ public final class StatusBarView {
     private final StackPane root = new StackPane();
     private final Label label = new Label();
 
-    /**
-     * Повертає результат операції «стан відображення».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
-     */
     public StatusBarView() {
         root.getStyleClass().add("status-bar");
         root.setAlignment(Pos.CENTER_LEFT);
@@ -40,18 +35,18 @@ public final class StatusBarView {
     }
 
     /**
-     * Повертає результат операції «вузол».
+     * Повертає кореневий вузол інтерфейсу.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return кореневий вузол інтерфейсу.
      */
     public StackPane node() {
         return root;
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «текст».
+     * Установлює text для поточного об’єкта.
      *
-     * @param text текст, який потрібно показати або обробити.
+     * @param text текст, який потрібно показати або розібрати.
      */
     public void setText(String text) {
         boolean visible =

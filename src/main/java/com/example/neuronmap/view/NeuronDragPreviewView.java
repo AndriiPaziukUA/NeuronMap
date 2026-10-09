@@ -9,7 +9,7 @@ import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
 
 /**
- * Відображає попереднє зображення нейрона під час перетягування.
+ * Відображає напівпрозорий попередній вигляд нейрона під час перетягування інструмента на карту.
  */
 public final class NeuronDragPreviewView extends Pane {
 
@@ -27,11 +27,9 @@ public final class NeuronDragPreviewView extends Pane {
     private final Label outputSignalLabel = new Label("1");
 
     /**
-     * Повертає результат операції «нейрон перетягування попередній перегляд відображення».
+     * Створює екземпляр NeuronDragPreviewView та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param type тип обʼєкта.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param type тип нейрона або елемента.
      */
     public NeuronDragPreviewView(NeuronType type) {
         setPrefSize(WIDTH, HEIGHT);
@@ -59,9 +57,9 @@ public final class NeuronDragPreviewView extends Pane {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «відповідну операцію».
+     * Налаштовує body для роботи з відповідним елементом інтерфейсу.
      *
-     * @param type тип обʼєкта.
+     * @param type тип нейрона або елемента.
      */
     private void configureBody(NeuronType type) {
         body.setX(0);
@@ -77,7 +75,7 @@ public final class NeuronDragPreviewView extends Pane {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «вхід».
+     * Налаштовує input port для роботи з відповідним елементом інтерфейсу.
      */
     private void configureInputPort() {
         inputPort.setFill(Color.WHITE);
@@ -88,7 +86,7 @@ public final class NeuronDragPreviewView extends Pane {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «вихід».
+     * Налаштовує output port для роботи з відповідним елементом інтерфейсу.
      */
     private void configureOutputPort() {
         outputPort.setFill(Color.WHITE);
@@ -100,7 +98,7 @@ public final class NeuronDragPreviewView extends Pane {
     }
 
     /**
-     * Задає або оновлює значення, повʼязані з «відповідну операцію».
+     * Налаштовує labels для роботи з відповідним елементом інтерфейсу.
      */
     private void configureLabels() {
         inputSignalLabel.setTextFill(Color.BLACK);
@@ -113,7 +111,7 @@ public final class NeuronDragPreviewView extends Pane {
     }
 
     /**
-     * Виконує операцію «положення».
+     * Перераховує положення дочірніх графічних елементів попереднього перегляду нейрона.
      */
     private void positionChildren() {
         NeuronVisualGeometry.positionInputPort(inputPort, false);
@@ -124,11 +122,11 @@ public final class NeuronDragPreviewView extends Pane {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Повертає колір заливки тіла попереднього перегляду для переданого типу нейрона.
      *
-     * @param type тип обʼєкта.
+     * @param type тип нейрона або елемента.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return колір заливки тіла попереднього перегляду для переданого типу нейрона.
      */
     private static Color bodyFill(NeuronType type) {
         return type == NeuronType.EXCITATORY

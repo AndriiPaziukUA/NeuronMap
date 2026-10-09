@@ -13,7 +13,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * Організовує скасування й повторення змін редактора та синхронізацію його стану.
+ * Пов’язує операції скасування й повторення з оновленням візуального подання та стану взаємодії редактора.
  */
 public final class EditorHistoryCoordinator {
 
@@ -30,29 +30,18 @@ public final class EditorHistoryCoordinator {
     private final LocalizationService localization;
 
     /**
-     * Повертає результат операції «історія».
+     * Створює екземпляр EditorHistoryCoordinator та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param historyService значення, що визначає історія служба для цієї операції.
-     *
-     * @param simulationController значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param connectionController значення, що визначає звʼязок для цієї операції.
-     *
-     * @param neuronController значення, що визначає нейрон для цієї операції.
-     *
-     * @param state стан обʼєкта або редактора.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param removeDragPreview значення, що визначає видалити перетягування попередній перегляд для цієї операції.
-     *
-     * @param presentation значення, що визначає представлення для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param status стан операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param historyService служба скасування й повторення змін.
+     * @param simulationController значення «simulation controller», яке використовується в цьому методі.
+     * @param connectionController значення «connection controller», яке використовується в цьому методі.
+     * @param neuronController значення «neuron controller», яке використовується в цьому методі.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param workspace полотно редактора.
+     * @param removeDragPreview callback, який прибирає попередній перегляд перетягування.
+     * @param presentation візуальне подання нейрона.
+     * @param save функція зворотного виклику для відповідної дії.
+     * @param status callback для показу повідомлення в рядку стану.
      */
     public EditorHistoryCoordinator(
             HistoryService historyService,
@@ -82,31 +71,19 @@ public final class EditorHistoryCoordinator {
     }
 
     /**
-     * Повертає результат операції «історія».
+     * Створює екземпляр EditorHistoryCoordinator та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param historyService значення, що визначає історія служба для цієї операції.
-     *
-     * @param simulationController значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param connectionController значення, що визначає звʼязок для цієї операції.
-     *
-     * @param neuronController значення, що визначає нейрон для цієї операції.
-     *
-     * @param state стан обʼєкта або редактора.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param removeDragPreview значення, що визначає видалити перетягування попередній перегляд для цієї операції.
-     *
-     * @param presentation значення, що визначає представлення для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param status стан операції.
-     *
-     * @param localization значення, що визначає локалізація для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param historyService служба скасування й повторення змін.
+     * @param simulationController значення «simulation controller», яке використовується в цьому методі.
+     * @param connectionController значення «connection controller», яке використовується в цьому методі.
+     * @param neuronController значення «neuron controller», яке використовується в цьому методі.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param workspace полотно редактора.
+     * @param removeDragPreview callback, який прибирає попередній перегляд перетягування.
+     * @param presentation візуальне подання нейрона.
+     * @param save функція зворотного виклику для відповідної дії.
+     * @param status callback для показу повідомлення в рядку стану.
+     * @param localization служба локалізації інтерфейсу.
      */
     public EditorHistoryCoordinator(
             HistoryService historyService,
@@ -135,9 +112,7 @@ public final class EditorHistoryCoordinator {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
-     *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * Скасовує останню зміну карти й оновлює залежні частини інтерфейсу.
      */
     public boolean undo() {
         simulationController.stop();
@@ -152,9 +127,7 @@ public final class EditorHistoryCoordinator {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
-     *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * Повторює скасовану зміну карти й оновлює залежні частини інтерфейсу.
      */
     public boolean redo() {
         simulationController.stop();
@@ -169,7 +142,7 @@ public final class EditorHistoryCoordinator {
     }
 
     /**
-     * Видаляє або скидає дані, повʼязані з «після історія змінити».
+     * Скидає тимчасові стани взаємодії після відновлення іншого знімка карти.
      */
     private void resetEditorAfterHistoryChange() {
         removeDragPreview.run();

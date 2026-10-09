@@ -7,12 +7,12 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Перевіряє правила цілісності карти, створення звʼязків і видалення обʼєктів.
+ * Перевіряє створення нейронів, правила напрямлених зв’язків, видалення нейрона та очищення членства в групах.
  */
 class NeuronMapModelTest {
 
     /**
-     * Перевіряє очікувану поведінку: створити нейрон створює представлення.
+     * Перевіряє, що створення нейрона додає окремий об’єкт його візуального подання.
      */
     @Test
     void createNeuronCreatesSeparatePresentation() {
@@ -37,7 +37,7 @@ class NeuronMapModelTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: звʼязки і.
+     * Перевіряє напрямленість, унікальність зв’язків і заборону зв’язку нейрона із самим собою.
      */
     @Test
     void connectionsAreDirectedUniqueAndCannotBeSelfLoops() {
@@ -61,7 +61,7 @@ class NeuronMapModelTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: звʼязок відхиляє.
+     * Перевіряє, що навіть низькорівневе додавання зв’язку відхиляє петлю на одному нейроні.
      */
     @Test
     void lowLevelConnectionImportAlsoRejectsSelfLoops() {
@@ -82,7 +82,7 @@ class NeuronMapModelTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: видаляє.
+     * Перевіряє видалення зв’язків між двома нейронами в обох напрямках.
      */
     @Test
     void removesContactInBothDirections() {
@@ -118,7 +118,7 @@ class NeuronMapModelTest {
     }
 
     /**
-     * Перевіряє очікувану поведінку: нейрон видаляє представлення звʼязки і група.
+     * Перевіряє очищення подання, зв’язків і членства у групі після видалення нейрона.
      */
     @Test
     void deletingNeuronRemovesPresentationConnectionsAndItsGroupMembership() {

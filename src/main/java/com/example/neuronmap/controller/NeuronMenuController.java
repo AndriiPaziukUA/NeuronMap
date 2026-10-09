@@ -17,7 +17,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * Керує меню, яке відкривається для окремого нейрона.
+ * Відображає контекстне меню нейрона, керує його видимістю та підтримує розташування меню біля нейрона.
  */
 public final class NeuronMenuController {
 
@@ -40,33 +40,20 @@ public final class NeuronMenuController {
     private String activeNeuronId;
 
     /**
-     * Повертає результат операції «нейрон меню».
+     * Створює екземпляр NeuronMenuController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param neuronService значення, що визначає нейрон служба для цієї операції.
-     *
-     * @param state стан обʼєкта або редактора.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param connections значення, що визначає звʼязки для цієї операції.
-     *
-     * @param simulation значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param deletionController значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param menuCustomizer значення, що визначає меню для цієї операції.
-     *
-     * @param refreshVisuals значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param refreshConnections значення, що визначає звʼязки для цієї операції.
-     *
-     * @param refreshOverlays значення, що визначає накладки для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param status стан операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param neuronService служба операцій над нейронами.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param workspace полотно редактора.
+     * @param connections набір напрямлених зв’язків моделі.
+     * @param simulation налаштування часу одного такту симуляції.
+     * @param deletionController значення «deletion controller», яке використовується в цьому методі.
+     * @param menuCustomizer компонент, що налаштовує кнопки контекстного меню нейрона.
+     * @param refreshVisuals callback, який оновлює вигляд нейронів.
+     * @param refreshConnections callback, який оновлює геометрію та вигляд зв’язків.
+     * @param refreshOverlays callback, який оновлює положення меню та ручок обертання.
+     * @param save функція зворотного виклику для відповідної дії.
+     * @param status callback для показу повідомлення в рядку стану.
      */
     public NeuronMenuController(
             NeuronService neuronService,
@@ -100,35 +87,21 @@ public final class NeuronMenuController {
     }
 
     /**
-     * Повертає результат операції «нейрон меню».
+     * Створює екземпляр NeuronMenuController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param neuronService значення, що визначає нейрон служба для цієї операції.
-     *
-     * @param state стан обʼєкта або редактора.
-     *
-     * @param workspace значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param connections значення, що визначає звʼязки для цієї операції.
-     *
-     * @param simulation значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param deletionController значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param menuCustomizer значення, що визначає меню для цієї операції.
-     *
-     * @param refreshVisuals значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param refreshConnections значення, що визначає звʼязки для цієї операції.
-     *
-     * @param refreshOverlays значення, що визначає накладки для цієї операції.
-     *
-     * @param save значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @param status стан операції.
-     *
-     * @param localization значення, що визначає локалізація для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param neuronService служба операцій над нейронами.
+     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param workspace полотно редактора.
+     * @param connections набір напрямлених зв’язків моделі.
+     * @param simulation налаштування часу одного такту симуляції.
+     * @param deletionController значення «deletion controller», яке використовується в цьому методі.
+     * @param menuCustomizer компонент, що налаштовує кнопки контекстного меню нейрона.
+     * @param refreshVisuals callback, який оновлює вигляд нейронів.
+     * @param refreshConnections callback, який оновлює геометрію та вигляд зв’язків.
+     * @param refreshOverlays callback, який оновлює положення меню та ручок обертання.
+     * @param save функція зворотного виклику для відповідної дії.
+     * @param status callback для показу повідомлення в рядку стану.
+     * @param localization служба локалізації інтерфейсу.
      */
     public NeuronMenuController(
             NeuronService neuronService,
@@ -162,27 +135,27 @@ public final class NeuronMenuController {
     }
 
     /**
-     * Перевіряє, чи виконується умова «відповідну операцію».
+     * Перевіряє, чи видиме контекстне меню нейрона.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public boolean isVisible() {
         return menu != null && menu.isVisible();
     }
 
     /**
-     * Повертає результат операції «вузол».
+     * Повертає кореневий вузол контекстного меню для розміщення в шарі накладок.
      *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @return кореневий вузол контекстного меню для розміщення в шарі накладок.
      */
     public VBox node() {
         return menu;
     }
 
     /**
-     * Відображає «потрібні дані» в інтерфейсі.
+     * Розміщує й показує контекстне меню біля вказаного нейрона.
      *
-     * @param neuronView значення, що визначає нейрон відображення для цієї операції.
+     * @param neuronView візуальне подання нейрона.
      */
     public void show(NeuronView neuronView) {
         hide();
@@ -278,7 +251,7 @@ public final class NeuronMenuController {
     }
 
     /**
-     * Виконує операцію «приховати».
+     * Приховує контекстне меню нейрона.
      */
     public void hide() {
         if (menu != null) {
@@ -290,9 +263,9 @@ public final class NeuronMenuController {
     }
 
     /**
-     * Обробляє «положення».
+     * Перераховує положення меню після зміни позиції нейрона або камери.
      *
-     * @param view значення, що визначає відображення для цієї операції.
+     * @param view візуальний компонент, яким керує контролер.
      */
     public void refreshPosition(NeuronView view) {
         if (!isVisible() || activeNeuronId == null || view == null) {
@@ -305,15 +278,11 @@ public final class NeuronMenuController {
     }
 
     /**
-     * Повертає результат операції «меню кнопка».
+     * Створює кнопку контекстного меню з підписом, підказкою та CSS-класом.
      *
-     * @param text текст, який потрібно показати або обробити.
-     *
-     * @param tooltipText значення, що визначає підказка текст для цієї операції.
-     *
-     * @param styleClass значення, що визначає відповідну операцію для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param text текст, який потрібно показати або розібрати.
+     * @param tooltipText текст, який відображатиме підказка.
+     * @param styleClass назва CSS-класу стилізації кнопки.
      */
     private Button menuButton(String text, String tooltipText, String styleClass) {
         Button button = new Button(text);

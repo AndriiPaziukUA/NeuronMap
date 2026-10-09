@@ -16,15 +16,12 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Перевіряє положення та поведінку ручки обертання.
+ * Перевіряє, що ручка обертання розміщується відповідно до центра та кута нейрона.
  */
 final class RotationHandleViewTest {
 
     private static final double EPSILON = 0.0001;
 
-    /**
-     * Запускає або планує дію, повʼязану з «відповідну операцію».
-     */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -36,20 +33,13 @@ final class RotationHandleViewTest {
         }
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
-            /**
-             * Повертає результат операції «стан виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalStateException(
                     "JavaFX startup timed out"
             );
         }
     }
 
-    /**
-     * Перевіряє очікувану поведінку: обробити запускає нейрон із.
-     */
     @Test
     void handleStartsCenteredBelowNeuronWithExactGap() throws Exception {
         runOnFxThread(() -> {
@@ -81,9 +71,6 @@ final class RotationHandleViewTest {
         });
     }
 
-    /**
-     * Перевіряє очікувану поведінку: обробити слідує нейрон після перемістити.
-     */
     @Test
     void handleFollowsNeuronAfterMove() throws Exception {
         runOnFxThread(() -> {
@@ -128,9 +115,6 @@ final class RotationHandleViewTest {
         });
     }
 
-    /**
-     * Перевіряє очікувану поведінку: обробити нейрон коли.
-     */
     @Test
     void handleOrbitsAroundNeuronWhileKeepingExactEdgeGap()
             throws Exception {
@@ -168,9 +152,6 @@ final class RotationHandleViewTest {
                 double expectedDistance =
                         NeuronView.HEIGHT / 2.0 + edgeGap;
 
-                // JavaFX positive rotation is clockwise in screen coordinates.
-                // Starting from the rectangle bottom edge, 90 degrees therefore
-                // moves the handle to the left of the neuron center.
                 Point2D expected = new Point2D(
                         center.getX()
                                 - expectedDistance * Math.sin(angle),
@@ -192,9 +173,6 @@ final class RotationHandleViewTest {
         });
     }
 
-    /**
-     * Перевіряє очікувану поведінку: обробити зберігає карта масштаб.
-     */
     @Test
     void handleKeepsScreenGapThroughWorldZoom() throws Exception {
         runOnFxThread(() -> {
@@ -263,9 +241,6 @@ final class RotationHandleViewTest {
         });
     }
 
-    /**
-     * Перевіряє очікувану поведінку: обробити за.
-     */
     @Test
     void handleHitAreaStaysExactly22By22() throws Exception {
         runOnFxThread(() -> {
@@ -301,9 +276,7 @@ final class RotationHandleViewTest {
     }
 
     /**
-     * Виконує операцію «положення».
-     *
-     * @param fixture значення, що визначає відповідну операцію для цієї операції.
+     * Перевіряє сценарій «position» і відповідність результату очікуваній поведінці.
      */
     private static void position(Fixture fixture) {
         NeuronOverlayPositioner.positionRotationHandleInParent(
@@ -314,11 +287,7 @@ final class RotationHandleViewTest {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
-     *
-     * @param rotationDegrees значення, що визначає обертання градуси для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * Перевіряє сценарій «fixture» і відповідність результату очікуваній поведінці.
      */
     private static Fixture fixture(double rotationDegrees) {
         NeuronPresentation presentation = new NeuronPresentation(
@@ -345,23 +314,6 @@ final class RotationHandleViewTest {
 
         root.layout();
 
-        /**
-         * Повертає результат операції «відповідну операцію».
-         *
-         * @param presentation значення, що визначає представлення для цієї операції.
-         *
-         * @param neuronView значення, що визначає нейрон відображення для цієї операції.
-         *
-         * @param handle значення, що визначає обробити для цієї операції.
-         *
-         * @param world значення, що визначає карта для цієї операції.
-         *
-         * @param overlay значення, що визначає накладка для цієї операції.
-         *
-         * @param root кореневий каталог.
-         *
-         * @return значення або обʼєкт, визначений описаною операцією.
-         */
         return new Fixture(
                 presentation,
                 neuronView,
@@ -373,11 +325,7 @@ final class RotationHandleViewTest {
     }
 
     /**
-     * Повертає результат операції «нейрон центр сцена».
-     *
-     * @param neuronView значення, що визначає нейрон відображення для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * Перевіряє сценарій «neuron center in scene» і відповідність результату очікуваній поведінці.
      */
     private static Point2D neuronCenterInScene(NeuronView neuronView) {
         return neuronView.localToScene(
@@ -387,11 +335,7 @@ final class RotationHandleViewTest {
     }
 
     /**
-     * Обробляє «центр сцена».
-     *
-     * @param handle значення, що визначає обробити для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * Перевіряє сценарій «handle center in scene» і відповідність результату очікуваній поведінці.
      */
     private static Point2D handleCenterInScene(
             RotationHandleView handle
@@ -402,11 +346,6 @@ final class RotationHandleViewTest {
         );
     }
 
-    /**
-     * Запускає або планує дію, повʼязану з «відповідну операцію».
-     *
-     * @param action дія, яку потрібно виконати.
-     */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];
@@ -422,22 +361,14 @@ final class RotationHandleViewTest {
         });
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
-            /**
-             * Повертає результат операції «стан виняток».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new IllegalStateException(
                     "JavaFX test timed out"
             );
         }
 
         if (failure[0] != null) {
-            /**
-             * Повертає результат операції «відповідну операцію».
-             *
-             * @return значення або обʼєкт, визначений описаною операцією.
-             */
+
             throw new AssertionError(
                     "JavaFX test failed",
                     failure[0]
@@ -445,26 +376,6 @@ final class RotationHandleViewTest {
         }
     }
 
-    /**
-     * Повертає результат операції «відповідну операцію».
-     *
-     * @param presentation значення, що визначає представлення для цієї операції.
-     *
-     * @param neuronView значення, що визначає нейрон відображення для цієї операції.
-     *
-     * @param handle значення, що визначає обробити для цієї операції.
-     *
-     * @param world значення, що визначає карта для цієї операції.
-     *
-     * @param overlay значення, що визначає накладка для цієї операції.
-     *
-     * @param root кореневий каталог.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
-     */
-    /**
-     * Набір модульних тестів типу Fixture. Перевіряє його основну поведінку та обробку некоректних або крайових даних.
-     */
     private record Fixture(
             NeuronPresentation presentation,
             NeuronView neuronView,

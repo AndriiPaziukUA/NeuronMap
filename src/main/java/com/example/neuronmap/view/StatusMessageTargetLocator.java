@@ -11,41 +11,26 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Знаходить графічний елемент, у якому потрібно показати повідомлення стану.
+ * Знаходить у JavaFX-сцені мітку повідомлення стану та область наведення, що керує її видимістю.
  */
 public final class StatusMessageTargetLocator {
 
     /**
-     * Повертає результат операції «кінцевий».
-     *
-     * @param label значення, що визначає підпис для цієї операції.
-     *
-     * @param hoverRegion значення, що визначає наведення для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
-     */
-    /**
-     * Компонент Target у складі NeuronMap. Його призначення та параметри операцій описані над відповідними методами.
+     * Зберігає мітку повідомлення стану та область інтерфейсу, наведення на яку впливає на її видимість.
+     * @param label мітка JavaFX, у якій показують повідомлення.
+     * @param hoverRegion вузол, за наведенням на який відстежують взаємодію з повідомленням.
      */
     public record Target(Label label, Node hoverRegion) {
     }
 
-    /**
-     * Повертає результат операції «стан повідомлення кінцевий».
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
-     */
     private StatusMessageTargetLocator() {
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «за текст».
+     * Знаходить мітку повідомлення, текст якої відповідає заданому значенню.
      *
-     * @param scene значення, що визначає сцена для цієї операції.
-     *
-     * @param text текст, який потрібно показати або обробити.
-     *
-     * @return знайдене значення або порожній Optional, якщо результату немає.
+     * @param scene сцена JavaFX, до якої приєднують компонент.
+     * @param text текст, який потрібно показати або розібрати.
      */
     public static Optional<Target> findByText(
             Scene scene,
@@ -83,11 +68,9 @@ public final class StatusMessageTargetLocator {
     }
 
     /**
-     * Повертає або знаходить дані, повʼязані з «наведення».
+     * Знаходить hover region за заданими координатами або критеріями пошуку.
      *
-     * @param label значення, що визначає підпис для цієї операції.
-     *
-     * @return значення або обʼєкт, визначений описаною операцією.
+     * @param label значення «label», яке використовується в цьому методі.
      */
     private static Node findHoverRegion(Label label) {
         Node current = label.getParent();
@@ -105,11 +88,11 @@ public final class StatusMessageTargetLocator {
     }
 
     /**
-     * Повертає результат операції «відповідну операцію».
+     * Повертає координату нижнього краю мітки в системі координат сцени JavaFX.
      *
-     * @param label значення, що визначає підпис для цієї операції.
+     * @param label значення «label», яке використовується в цьому методі.
      *
-     * @return числове значення, визначене методом.
+     * @return координату нижнього краю мітки в системі координат сцени JavaFX.
      */
     private static double bottomEdge(Label label) {
         return label.localToScene(
@@ -118,11 +101,9 @@ public final class StatusMessageTargetLocator {
     }
 
     /**
-     * Повертає результат операції «шукає стан підпис».
+     * Перевіряє ідентифікатор та CSS-класи мітки, щоб визначити, чи призначена вона для повідомлення стану.
      *
-     * @param label значення, що визначає підпис для цієї операції.
-     *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @param label значення «label», яке використовується в цьому методі.
      */
     private static boolean looksLikeStatusLabel(Label label) {
         return hasStatusToken(label.getId())
@@ -131,11 +112,11 @@ public final class StatusMessageTargetLocator {
     }
 
     /**
-     * Перевіряє, чи виконується умова «стан».
+     * Перевіряє, чи містить стиль або ідентифікатор елемента маркер рядка стану.
      *
-     * @param value значення, яке потрібно передати або зберегти.
+     * @param value значення, яке потрібно зберегти або перевірити.
      *
-     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     private static boolean hasStatusToken(String value) {
         return value != null
@@ -143,11 +124,10 @@ public final class StatusMessageTargetLocator {
     }
 
     /**
-     * Виконує операцію «відповідну операцію».
+     * Рекурсивно обходить вузли сцени й передає кожну знайдену мітку до callback.
      *
-     * @param node графічний вузол JavaFX.
-     *
-     * @param consumer значення, що визначає відповідну операцію для цієї операції.
+     * @param node вузол JavaFX, який потрібно перевірити або змінити.
+     * @param consumer callback, що приймає результат операції.
      */
     private static void collectLabels(
             Node node,
