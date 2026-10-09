@@ -2,15 +2,17 @@ package com.example.neuronmap.view;
 
 import com.example.neuronmap.application.project.ProjectDescriptor;
 import com.example.neuronmap.i18n.LocalizationService;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -21,9 +23,13 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 /**
- * Відображає рядок проєкту в меню та обробляє перейменування, збереження чи скасування змін назви.
+ * Displays one saved project and manages its open, rename, and delete interactions.
+ * The project name keeps the available horizontal space, while edit mode hides unrelated controls
+ * so that the editor, Save, and Cancel controls remain inside the menu panel.
  */
 public final class SavedProjectRowView extends HBox {
+
+    private static final double MODIFIED_DATE_WIDTH = 92.0;
 
     private final LocalizationService localization;
     private ProjectDescriptor project;
@@ -34,21 +40,21 @@ public final class SavedProjectRowView extends HBox {
 
     private final Label modifiedLabel = new Label();
     private final Label nameLabel = new Label();
-    private final TextField renameField = new TextField();
+    private TextField renameField;
     private final Button renameButton = new Button();
     private final Button deleteButton = new Button();
     private final Button cancelButton = new Button();
     private final Consumer<Locale> localizationListener = ignored -> refreshTexts();
 
     /**
-     * Створює екземпляр SavedProjectRowView та зберігає передані залежності, потрібні для його роботи.
+     * Creates a row for a saved project and connects the callbacks for its available operations.
      *
-     * @param project опис проєкту, над яким виконується дія.
-     * @param localization служба локалізації інтерфейсу.
-     * @param openAction значення «open action», яке використовується в цьому методі.
-     * @param renameAction значення «rename action», яке використовується в цьому методі.
-     * @param deleteAction значення «delete action», яке використовується в цьому методі.
-     * @param renameCommitted значення «rename committed», яке використовується в цьому методі.
+     * @param project descriptor of the project represented by this row.
+     * @param localization localization service used for labels, tooltips, and dates.
+     * @param openAction callback that opens this project.
+     * @param renameAction callback that saves a new project name and returns the updated descriptor.
+     * @param deleteAction callback that deletes this project.
+     * @param renameCommitted callback invoked after a rename is committed.
      */
     public SavedProjectRowView(
             ProjectDescriptor project,
@@ -67,59 +73,53 @@ public final class SavedProjectRowView extends HBox {
 
         getStyleClass().add("saved-project-row");
         setAlignment(Pos.CENTER_LEFT);
-        setSpacing(10.0);
-        setPadding(new Insets(9, 10, 9, 10));
+        setSpacing(8.0);
+        setPadding(new Insets(9.0, 10.0, 9.0, 10.0));
         setMaxWidth(Double.MAX_VALUE);
 
         modifiedLabel.getStyleClass().add("saved-project-date");
-        modifiedLabel.setMinWidth(125.0);
-        modifiedLabel.setPrefWidth(125.0);
+        modifiedLabel.setMinWidth(MODIFIED_DATE_WIDTH);
+        modifiedLabel.setPrefWidth(MODIFIED_DATE_WIDTH);
+        modifiedLabel.setMaxWidth(MODIFIED_DATE_WIDTH);
 
         nameLabel.getStyleClass().add("saved-project-name");
+        nameLabel.setMinWidth(0.0);
         nameLabel.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(nameLabel, Priority.ALWAYS);
-
-        renameField.setManaged(false);
-        renameField.setVisible(false);
-        renameField.setMaxWidth(Double.MAX_VALUE);
-        HBox.setHgrow(renameField, Priority.ALWAYS);
-
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
 
         configureButton(renameButton);
         configureButton(deleteButton);
         configureButton(cancelButton);
+        cancelButton.setManaged(false);
+        cancelButton.setVisible(false);
 
         getChildren().addAll(
                 modifiedLabel,
                 nameLabel,
-                renameField,
-                spacer,
                 renameButton,
+                cancelButton,
                 deleteButton
         );
 
         setOnMouseClicked(event -> {
-            if (!renameField.isVisible()
+            if (!isEditing()
                     && event.getTarget() != renameButton
                     && event.getTarget() != deleteButton
                     && event.getTarget() != cancelButton) {
-                openAction.accept(project);
+                openAction.accept(this.project);
             }
         });
 
         renameButton.setOnAction(event -> {
-            if (renameField.isVisible()) {
+            if (isEditing()) {
                 commitRename();
             } else {
                 beginRename();
             }
             event.consume();
         });
-
         deleteButton.setOnAction(event -> {
-            deleteAction.accept(project);
+            deleteAction.accept(this.project);
             event.consume();
         });
 
@@ -128,58 +128,47 @@ public final class SavedProjectRowView extends HBox {
             event.consume();
         });
 
-        renameField.setOnAction(event -> {
-            commitRename();
-            event.consume();
-        });
-
         localization.addListener(localizationListener);
         refreshTexts();
     }
 
-    /**
-     * Від’єднує обробники подій і звільняє ресурси, якими керує компонент.
-     */
+    /** Removes the localization listener when this row is discarded from the project list. */
     public void dispose() {
         localization.removeListener(localizationListener);
     }
 
     /**
-     * Повертає опис проєкту, який представляє цей рядок списку.
+     * Returns the latest descriptor represented by this row.
      *
-     * @return опис проєкту, який представляє цей рядок списку.
+     * @return the current project descriptor.
      */
     public ProjectDescriptor project() {
         return project;
     }
 
     /**
-     * Перевіряє, чи editing за поточного стану компонента.
+     * Reports whether this row is currently in rename mode.
      *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
+     * @return {@code true} when the text field and edit controls are visible.
      */
     public boolean isEditing() {
-        return renameField.isVisible();
+        return renameField != null && renameField.isVisible();
     }
 
     /**
-     * Перевіряє, чи є unsaved changes у поточному стані.
+     * Reports whether the edit field contains a pending change to the project name.
      *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
+     * @return {@code true} when the edited name differs from the saved project name.
      */
     public boolean hasUnsavedChanges() {
         if (!isEditing()) {
             return false;
         }
-        String pending = renameField.getText() == null
-                ? ""
-                : renameField.getText().trim();
+        String pending = renameField.getText() == null ? "" : renameField.getText().trim();
         return !pending.equals(project.name());
     }
 
-    /**
-     * Підтверджує поточну незбережену зміну назви.
-     */
+    /** Commits the pending rename when valid, or exits edit mode if no change is pending. */
     public void savePendingChange() {
         if (!hasUnsavedChanges()) {
             cancelRename();
@@ -188,50 +177,176 @@ public final class SavedProjectRowView extends HBox {
         commitRename();
     }
 
-    /**
-     * Відкидає незбережену зміну назви й повертає збережене значення.
-     */
+    /** Discards the pending project name and restores the saved name in the row. */
     public void discardPendingChange() {
         cancelRename();
     }
 
-    /**
-     * Надає тестам доступ до «begin rename» для перевірки стану інтерфейсу.
-     */
+    /** Enters rename mode for tests without simulating a mouse click. */
     void beginRenameForTest() {
         beginRename();
     }
 
     /**
-     * Надає тестам доступ до «rename field» для перевірки стану інтерфейсу.
+     * Exposes the rename input for regression tests.
+     *
+     * @return the text field used to edit the project name.
      */
     TextField renameFieldForTest() {
         return renameField;
     }
 
     /**
-     * Переводить назву проєкту в режим редагування.
+     * Exposes the Rename button so UI regression tests can trigger the normal action handler.
+     *
+     * @return the button that starts or commits project renaming.
      */
-    private void beginRename() {
-        renameField.setText(project.name());
-        renameField.setManaged(true);
-        renameField.setVisible(true);
-        nameLabel.setManaged(false);
-        nameLabel.setVisible(false);
-        getChildren().remove(cancelButton);
-        getChildren().add(cancelButton);
-        renameField.requestFocus();
-        renameField.selectAll();
+    Button renameButtonForTest() {
+        return renameButton;
     }
 
     /**
-     * Перевіряє й застосовує нову назву проєкту.
+     * Exposes the displayed project name for regression tests.
+     *
+     * @return the label that displays the saved project name.
      */
+    Label nameLabelForTest() {
+        return nameLabel;
+    }
+
+    /**
+     * Exposes the Delete button for regression tests.
+     *
+     * @return the button that deletes the project.
+     */
+    Button deleteButtonForTest() {
+        return deleteButton;
+    }
+
+    /**
+     * Exposes the Cancel button for regression tests.
+     *
+     * @return the button that cancels the current rename operation.
+     */
+    Button cancelButtonForTest() {
+        return cancelButton;
+    }
+
+    /**
+     * Enters edit mode with a fresh text field and only the relevant controls visible.
+     * The field is laid out while empty before the saved name is inserted, avoiding reuse of a JavaFX
+     * skin initialized while an old field was unmanaged and had no layout width.
+     */
+    private void beginRename() {
+        int nameIndex = getChildren().indexOf(nameLabel);
+        renameField = createRenameField();
+        getChildren().set(nameIndex, renameField);
+        setManagedAndVisible(modifiedLabel, false);
+        setManagedAndVisible(nameLabel, false);
+        setManagedAndVisible(deleteButton, false);
+        setManagedAndVisible(cancelButton, true);
+        refreshTexts();
+        requestLayout();
+
+        layoutRenameField();
+        renameField.setText(project.name());
+        renameField.requestFocus();
+        synchronizeRenameFieldLayoutAndCaret();
+        scheduleRenameCaretRestoration();
+    }
+
+    /**
+     * Creates a styled, initially empty text field wired to commit on Enter.
+     * The field is created only when rename mode starts so its JavaFX skin can be initialized with a
+     * real layout slot before the saved name is inserted and the caret is moved to its end.
+     *
+     * @return a fresh text field used for the current rename operation.
+     */
+    private TextField createRenameField() {
+        TextField field = new TextField();
+        field.getStyleClass().add("saved-project-rename-field");
+        field.setMinWidth(0.0);
+        field.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(field, Priority.ALWAYS);
+        field.setOnAction(event -> {
+            commitRename();
+            event.consume();
+        });
+        return field;
+    }
+
+    /**
+     * Applies CSS and lays out the scene hierarchy and the newly attached rename field.
+     * The first layout deliberately happens while the field is empty, so JavaFX creates its text
+     * skin with the final row width before any saved-name glyphs or caret geometry are calculated.
+     */
+    private void layoutRenameField() {
+        if (!isEditing() || renameField == null) {
+            return;
+        }
+
+        Scene scene = getScene();
+        if (scene != null) {
+            Parent root = scene.getRoot();
+            root.applyCss();
+            root.requestLayout();
+            root.layout();
+        }
+
+        applyCss();
+        requestLayout();
+        layout();
+
+        renameField.applyCss();
+        renameField.requestLayout();
+        renameField.layout();
+    }
+
+    /**
+     * Recomputes the text field's rendered caret after the saved name has been inserted and styled.
+     */
+    private void synchronizeRenameFieldLayoutAndCaret() {
+        if (!isEditing() || renameField == null) {
+            return;
+        }
+
+        layoutRenameField();
+        positionRenameCaretAtEnd();
+        renameField.requestLayout();
+        renameField.layout();
+    }
+
+    /**
+     * Schedules one additional caret synchronization after the rename-button event has completed.
+     * A queued callback alone does not guarantee a JavaFX layout pulse, so the callback explicitly
+     * lays out the current scene hierarchy and text field before setting the rendered caret position.
+     */
+    private void scheduleRenameCaretRestoration() {
+        Platform.runLater(() -> {
+            if (!isEditing()) {
+                return;
+            }
+            renameField.requestFocus();
+            synchronizeRenameFieldLayoutAndCaret();
+        });
+    }
+
+    /**
+     * Clears any selection and places the insertion caret at the end of the current project name.
+     */
+    private void positionRenameCaretAtEnd() {
+        if (!isEditing()) {
+            return;
+        }
+        int endPosition = renameField.getLength();
+        renameField.selectRange(endPosition, endPosition);
+    }
+
+    /** Validates and commits the name currently entered in the rename field. */
     private void commitRename() {
-        String name = renameField.getText() == null
-                ? ""
-                : renameField.getText().trim();
+        String name = renameField.getText() == null ? "" : renameField.getText().trim();
         if (name.isBlank()) {
+            renameField.requestFocus();
             return;
         }
 
@@ -243,47 +358,51 @@ public final class SavedProjectRowView extends HBox {
         renameCommitted.run();
     }
 
-    /**
-     * Скасовує редагування назви та повертає попередній текст.
-     *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
-     */
+    /** Cancels rename mode without invoking the project catalog callback. */
     private void cancelRename() {
         endRename();
     }
 
-    /**
-     * Завершує операцію rename та очищає її тимчасовий стан.
-     */
+    /** Restores the normal row layout and refreshes the saved name and localized labels. */
     private void endRename() {
-        renameField.setManaged(false);
-        renameField.setVisible(false);
-        nameLabel.setManaged(true);
-        nameLabel.setVisible(true);
-        getChildren().remove(cancelButton);
+        TextField completedField = renameField;
+        if (completedField != null) {
+            int fieldIndex = getChildren().indexOf(completedField);
+            if (fieldIndex >= 0) {
+                getChildren().set(fieldIndex, nameLabel);
+            }
+            completedField.setOnAction(null);
+            renameField = null;
+        }
+        setManagedAndVisible(modifiedLabel, true);
+        setManagedAndVisible(nameLabel, true);
+        setManagedAndVisible(cancelButton, false);
+        setManagedAndVisible(deleteButton, true);
         refreshTexts();
+        requestLayout();
     }
 
     /**
-     * Налаштовує button для роботи з відповідним елементом інтерфейсу.
+     * Applies the same visibility and layout state to a row control.
      *
-     * @param button кнопка інтерфейсу, яку потрібно налаштувати.
+     * @param node control whose state must be updated.
+     * @param visible whether the control should be visible and take up layout space.
      */
+    private static void setManagedAndVisible(javafx.scene.Node node, boolean visible) {
+        node.setManaged(visible);
+        node.setVisible(visible);
+    }
+
+    /** Configures the shared visual and sizing rules for small project-action buttons. */
     private void configureButton(Button button) {
         button.getStyleClass().add("menu-small-button");
-        button.setMinWidth(88.0);
+        button.setMinWidth(70.0);
     }
 
-    /**
-     * Оновлює «texts» за поточним станом моделі або інтерфейсу.
-     */
+    /** Refreshes the project name, modified date, action labels, and tooltips for the active language. */
     private void refreshTexts() {
         nameLabel.setText(project.name());
-        modifiedLabel.setText(formatModified(
-                project.modifiedAt(),
-                localization.locale()
-        ));
-
+        modifiedLabel.setText(formatModified(project.modifiedAt(), localization.locale()));
         renameButton.setText(
                 isEditing()
                         ? localization.text("menu.rename.save")
@@ -297,12 +416,7 @@ public final class SavedProjectRowView extends HBox {
         cancelButton.setTooltip(new Tooltip(localization.text("menu.rename.cancel")));
     }
 
-    /**
-     * Форматує modified для показу користувачеві.
-     *
-     * @param instant значення «instant», яке використовується в цьому методі.
-     * @param locale локаль, для якої потрібно завантажити або показати текст.
-     */
+    /** Formats a modification timestamp using the current UI locale and system time zone. */
     private static String formatModified(java.time.Instant instant, Locale locale) {
         if (instant == null) {
             return "";

@@ -8,10 +8,11 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 
 import java.net.URL;
+import java.util.Locale;
 import java.util.function.Consumer;
 
 /**
- * Збирає основні елементи вікна редактора: полотно, панель інструментів, головне меню та рядок стану.
+ * Assembles the editor workspace, toolbar, status bar, and main-menu overlay into the application scene.
  */
 public final class MainView {
 
@@ -23,16 +24,16 @@ public final class MainView {
     private final MainMenuView mainMenu;
 
     /**
-     * Створює екземпляр MainView та зберігає передані залежності, потрібні для його роботи.
+     * Creates the editor view using English as the default UI language.
      *
-     * @param addNeuron значення «add neuron», яке використовується в цьому методі.
-     * @param group значення «group», яке використовується в цьому методі.
-     * @param ungroup значення «ungroup», яке використовується в цьому методі.
-     * @param exitDelete callback, який завершує режим видалення зв’язку.
-     * @param pauseResume значення «pause resume», яке використовується в цьому методі.
-     * @param stopSignals значення «stop signals», яке використовується в цьому методі.
-     * @param speedChanged значення «speed changed», яке використовується в цьому методі.
-     * @param initialSpeedMillis значення «initial speed millis», яке використовується в цьому методі.
+     * @param addNeuron action for adding a neuron of the selected type.
+     * @param group action for grouping the current selection.
+     * @param ungroup action for ungrouping the current selection.
+     * @param exitDelete action for leaving connection-deletion mode.
+     * @param pauseResume action for toggling simulation pause state.
+     * @param stopSignals action for stopping signal transmission.
+     * @param speedChanged callback for a changed simulation speed value.
+     * @param initialSpeedMillis initial simulation tick duration in milliseconds.
      */
     public MainView(
             Consumer<NeuronType> addNeuron,
@@ -44,31 +45,22 @@ public final class MainView {
             Consumer<String> speedChanged,
             double initialSpeedMillis
     ) {
-        this(
-                addNeuron,
-                group,
-                ungroup,
-                exitDelete,
-                pauseResume,
-                stopSignals,
-                speedChanged,
-                initialSpeedMillis,
-                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
-        );
+        this(addNeuron, group, ungroup, exitDelete, pauseResume, stopSignals,
+                speedChanged, initialSpeedMillis, new LocalizationService(Locale.ENGLISH));
     }
 
     /**
-     * Створює екземпляр MainView та зберігає передані залежності, потрібні для його роботи.
+     * Creates the editor view with the supplied localization service.
      *
-     * @param addNeuron значення «add neuron», яке використовується в цьому методі.
-     * @param group значення «group», яке використовується в цьому методі.
-     * @param ungroup значення «ungroup», яке використовується в цьому методі.
-     * @param exitDelete callback, який завершує режим видалення зв’язку.
-     * @param pauseResume значення «pause resume», яке використовується в цьому методі.
-     * @param stopSignals значення «stop signals», яке використовується в цьому методі.
-     * @param speedChanged значення «speed changed», яке використовується в цьому методі.
-     * @param initialSpeedMillis значення «initial speed millis», яке використовується в цьому методі.
-     * @param localization служба локалізації інтерфейсу.
+     * @param addNeuron action for adding a neuron of the selected type.
+     * @param group action for grouping the current selection.
+     * @param ungroup action for ungrouping the current selection.
+     * @param exitDelete action for leaving connection-deletion mode.
+     * @param pauseResume action for toggling simulation pause state.
+     * @param stopSignals action for stopping signal transmission.
+     * @param speedChanged callback for a changed simulation speed value.
+     * @param initialSpeedMillis initial simulation tick duration in milliseconds.
+     * @param localization service providing localized UI messages.
      */
     public MainView(
             Consumer<NeuronType> addNeuron,
@@ -82,28 +74,12 @@ public final class MainView {
             LocalizationService localization
     ) {
         toolbar = new ToolbarView(
-                addNeuron,
-                group,
-                ungroup,
-                exitDelete,
-                pauseResume,
-                stopSignals,
-                speedChanged,
-                initialSpeedMillis,
-                localization
-        );
-
-        mainMenu = new MainMenuView(
-                localization,
-                this::setMainMenuVisualState
-        );
+                addNeuron, group, ungroup, exitDelete, pauseResume, stopSignals,
+                speedChanged, initialSpeedMillis, localization);
+        mainMenu = new MainMenuView(localization, this::setMainMenuVisualState);
 
         content.getStyleClass().add("root");
-        content.getChildren().addAll(
-                toolbar.node(),
-                workspace.node(),
-                statusBar.node()
-        );
+        content.getChildren().addAll(toolbar.node(), workspace.node(), statusBar.node());
         content.setPickOnBounds(true);
         content.requestLayout();
 
@@ -113,134 +89,94 @@ public final class MainView {
     }
 
     /**
-     * Створює сцену з кореневим вузлом інтерфейсу й заданими початковими розмірами.
+     * Creates a JavaFX scene and attaches the application's main stylesheet.
      *
-     * @param width ширина видимої області.
-     * @param height висота видимої області.
+     * @param width initial scene width.
+     * @param height initial scene height.
+     * @return the configured editor scene.
      */
     public Scene createScene(double width, double height) {
         Scene scene = new Scene(root, width, height);
-
         URL css = getClass().getResource("/app.css");
         if (css == null) {
-
             throw new IllegalStateException("app.css is missing");
         }
-
         scene.getStylesheets().add(css.toExternalForm());
         root.layout();
         return scene;
     }
 
     /**
-     * Повертає кореневий вузол інтерфейсу.
+     * Returns the root node of the editor UI.
      *
-     * @return кореневий вузол інтерфейсу.
+     * @return editor root node.
      */
     public StackPane node() {
         return root;
     }
 
     /**
-     * Повертає полотно редактора.
+     * Returns the editor workspace.
      *
-     * @return полотно редактора.
+     * @return workspace view.
      */
     public WorkspaceView workspace() {
         return workspace;
     }
 
     /**
-     * Повертає панель інструментів.
+     * Returns the toolbar.
      *
-     * @return панель інструментів.
+     * @return editor toolbar view.
      */
     public ToolbarView toolbar() {
         return toolbar;
     }
 
     /**
-     * Повертає головне меню.
+     * Returns the main-menu overlay.
      *
-     * @return головне меню.
+     * @return menu view.
      */
     public MainMenuView mainMenu() {
         return mainMenu;
     }
 
-    /**
-     * Установлює status для поточного об’єкта.
-     *
-     * @param text текст, який потрібно показати або розібрати.
-     */
+    /** Updates the text displayed in the status bar. */
     public void setStatus(String text) {
         statusBar.setText(text);
     }
 
-    /**
-     * Установлює main menu visual state для поточного об’єкта.
-     *
-     * @param visible значення «visible», яке використовується в цьому методі.
-     */
+    /** Blurs and disables editor content whenever the main-menu overlay is visible. */
     private void setMainMenuVisualState(boolean visible) {
         content.setDisable(visible);
-        content.setEffect(
-                visible ? new GaussianBlur(7.0) : null
-        );
+        content.setEffect(visible ? new GaussianBlur(7.0) : null);
     }
 
-    /**
-     * Розміщує дочірні елементи головного вікна редактора під час зміни розміру сцени.
-     */
+    /** Lays out the toolbar, workspace viewport, and status bar within the available scene bounds. */
     private static final class RootPane extends Pane {
 
+        /** Positions the toolbar, main viewport, and status bar without changing their layer order. */
         @Override
         protected void layoutChildren() {
             double width = getWidth();
             double height = getHeight();
-
             if (width <= 0.0 || height <= 0.0) {
                 return;
             }
 
-            double toolbarHeight = Math.min(
-                    ToolbarView.HEIGHT,
-                    height
-            );
-
-            double statusHeight = Math.min(
-                    StatusBarView.HEIGHT,
-                    Math.max(0.0, height - toolbarHeight)
-            );
-
+            double toolbarHeight = Math.min(ToolbarView.HEIGHT, height);
+            double statusHeight = Math.min(StatusBarView.HEIGHT,
+                    Math.max(0.0, height - toolbarHeight));
             double statusY = height - statusHeight;
-            double viewportHeight = Math.max(
-                    0.0,
-                    statusY - toolbarHeight
-            );
+            double viewportHeight = Math.max(0.0, statusY - toolbarHeight);
 
             Pane toolbar = (Pane) getChildren().get(0);
             Pane viewport = (Pane) getChildren().get(1);
             Pane status = (Pane) getChildren().get(2);
-
-            toolbar.resizeRelocate(
-                    0.0,
-                    0.0,
-                    width,
-                    toolbarHeight
-            );
-            viewport.resizeRelocate(
-                    0.0,
-                    toolbarHeight,
-                    width,
-                    viewportHeight
-            );
-            status.resizeRelocate(
-                    0.0,
-                    statusY,
-                    width,
-                    statusHeight
-            );
+            toolbar.resizeRelocate(0.0, 0.0, width, toolbarHeight);
+            viewport.resizeRelocate(0.0, toolbarHeight, width, viewportHeight);
+            status.resizeRelocate(0.0, statusY, width, statusHeight);
         }
     }
 }

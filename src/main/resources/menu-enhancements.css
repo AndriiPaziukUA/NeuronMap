@@ -1,0 +1,75 @@
+/* Scrollbars stay hidden unless needed, and use a visible, draggable thumb when active. */
+.main-menu-scroll {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.main-menu-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.main-menu-scroll .scroll-bar:vertical {
+    -fx-background-color: transparent;
+    -fx-padding: 1 1 1 1;
+    -fx-min-width: 9px;
+    -fx-pref-width: 9px;
+    -fx-max-width: 9px;
+    -fx-opacity: 1;
+}
+
+.main-menu-scroll .scroll-bar:vertical .track {
+    -fx-background-color: #292e36;
+    -fx-background-radius: 4;
+    -fx-border-color: transparent;
+}
+
+.main-menu-scroll .scroll-bar:vertical .thumb {
+    -fx-background-color: #687383;
+    -fx-background-radius: 4;
+    -fx-background-insets: 0;
+}
+
+.main-menu-scroll .scroll-bar:vertical .thumb:hover {
+    -fx-background-color: #788494;
+}
+
+.main-menu-scroll .scroll-bar:vertical .increment-button,
+.main-menu-scroll .scroll-bar:vertical .decrement-button {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.main-menu-scroll .scroll-bar:vertical .increment-arrow,
+.main-menu-scroll .scroll-bar:vertical .decrement-arrow {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+/* Project row controls shrink to the available row width without clipping the project name. */
+.saved-project-row .saved-project-rename-field,
+.saved-project-row .text-field {
+    -fx-background-color: #20252c;
+    -fx-text-fill: #edf0f3;
+    -fx-prompt-text-fill: #858e9a;
+    -fx-highlight-fill: #52647c;
+    -fx-highlight-text-fill: #ffffff;
+    -fx-background-insets: 0;
+    -fx-background-radius: 6;
+    -fx-border-color: #59616d;
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+    -fx-padding: 5 8 5 8;
+    -fx-font-size: 12px;
+}
+
+.saved-project-row .saved-project-rename-field:focused,
+.saved-project-row .text-field:focused {
+    -fx-border-color: #8297b3;
+    -fx-background-color: #242a32;
+}
+
+/* Hover feedback remains responsive even when a menu control previously held focus. */
+.main-menu-button:focused:hover {
+    -fx-background-color: #373d46;
+    -fx-border-color: #59616d;
+}
