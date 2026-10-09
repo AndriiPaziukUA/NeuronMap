@@ -50,7 +50,9 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.Objects;
 
-/** Composition coordinator for the map editor; feature work lives in services/controllers. */
+/**
+ * Збирає та узгоджує компоненти, які забезпечують роботу редактора карти.
+ */
 public final class MapEditorCoordinator {
 
     private final MapService mapService;
@@ -91,6 +93,15 @@ public final class MapEditorCoordinator {
     private boolean modalSimulationWasRunning;
     private Scene scene;
 
+    /**
+     * Повертає результат операції «карта».
+     *
+     * @param application значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param config значення, що визначає конфігурація для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public MapEditorCoordinator(
             NeuronMapApplicationService application,
             AppConfig config
@@ -103,6 +114,19 @@ public final class MapEditorCoordinator {
         );
     }
 
+    /**
+     * Повертає результат операції «карта».
+     *
+     * @param application значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param config значення, що визначає конфігурація для цієї операції.
+     *
+     * @param localization значення, що визначає локалізація для цієї операції.
+     *
+     * @param exitApplication значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public MapEditorCoordinator(
             NeuronMapApplicationService application,
             AppConfig config,
@@ -326,6 +350,15 @@ public final class MapEditorCoordinator {
 
     }
 
+    /**
+     * Створює обʼєкт із переданих даних «сцена».
+     *
+     * @param width ширина області.
+     *
+     * @param height висота області.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public Scene createScene(double width, double height) {
         scene = view.createScene(width, height);
 
@@ -364,10 +397,16 @@ public final class MapEditorCoordinator {
         return scene;
     }
 
+    /**
+     * Виконує операцію «центр відображення».
+     */
     public void centerInitialView() {
         cameraController.apply();
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     */
     public void shutdown() {
         projectDirectoryWatcher.close();
         mainMenuController.dispose(scene);
@@ -385,16 +424,27 @@ public final class MapEditorCoordinator {
         mapService.close();
     }
 
+    /**
+     * Перемикає стан «відповідну операцію».
+     */
     private void toggleSimulationPause() {
         simulationController.pauseOrResume();
         view.toolbar().setSimulationPaused(simulationController.isPaused());
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «сигнали».
+     */
     private void stopSimulationSignals() {
         simulationController.stopSignals();
         view.toolbar().setSimulationPaused(false);
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «швидкість».
+     *
+     * @param text текст, який потрібно показати або обробити.
+     */
     private void changeSimulationSpeed(String text) {
         try {
             double millis = SimulationSpeed.parseMillis(
@@ -417,11 +467,17 @@ public final class MapEditorCoordinator {
         }
     }
 
+    /**
+     * Виконує операцію «для меню».
+     */
     private void pauseForMenu() {
         modalSimulationWasRunning = simulationController.pauseForModal();
         connectionController.pauseAnimations();
     }
 
+    /**
+     * Виконує операцію «після меню».
+     */
     private void resumeAfterMenu() {
         connectionController.resumeAnimations();
         if (modalSimulationWasRunning) {
@@ -430,6 +486,9 @@ public final class MapEditorCoordinator {
         }
     }
 
+    /**
+     * Створює обʼєкт із переданих даних «новий проєкт».
+     */
     private void createNewProject() {
         prepareForProjectSwitch();
         ProjectDescriptor project = projectCatalog.createTransientProject(
@@ -441,6 +500,11 @@ public final class MapEditorCoordinator {
         activateProject(project, repository, false);
     }
 
+    /**
+     * Виконує операцію «відкрити проєкт».
+     *
+     * @param project опис проєкту.
+     */
     private void openProject(ProjectDescriptor project) {
         if (project == null) {
             return;
@@ -462,6 +526,15 @@ public final class MapEditorCoordinator {
         }
     }
 
+    /**
+     * Повертає результат операції «проєкт».
+     *
+     * @param project опис проєкту.
+     *
+     * @param name назва або текстове імʼя обʼєкта.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private ProjectDescriptor renameProject(
             ProjectDescriptor project,
             String name
@@ -502,6 +575,11 @@ public final class MapEditorCoordinator {
         }
     }
 
+    /**
+     * Видаляє або скидає дані, повʼязані з «проєкт».
+     *
+     * @param project опис проєкту.
+     */
     private void deleteProject(ProjectDescriptor project) {
         if (project == null) {
             return;
@@ -531,6 +609,9 @@ public final class MapEditorCoordinator {
         }
     }
 
+    /**
+     * Виконує операцію «для проєкт».
+     */
     private void prepareForProjectSwitch() {
         simulationController.stop();
         connectionController.clearDeleteHighlights();
@@ -544,6 +625,15 @@ public final class MapEditorCoordinator {
         modalSimulationWasRunning = false;
     }
 
+    /**
+     * Виконує операцію «проєкт».
+     *
+     * @param project опис проєкту.
+     *
+     * @param repository значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param loadExisting значення, що визначає завантажувати наявний для цієї операції.
+     */
     private void activateProject(
             ProjectDescriptor project,
             MapRepository repository,
@@ -592,10 +682,10 @@ public final class MapEditorCoordinator {
         view.mainMenu().showMainPage();
     }
 
-
-
-
-    private void createDemoMap() {
+/**
+ * Створює обʼєкт із переданих даних «карта».
+ */
+private void createDemoMap() {
         Neuron first = neuronService.create(NeuronType.EXCITATORY, 250, 220);
         Neuron second = neuronService.create(NeuronType.INHIBITORY, 520, 340);
         Neuron third = neuronService.create(NeuronType.EXCITATORY, 790, 210);
@@ -604,22 +694,41 @@ public final class MapEditorCoordinator {
         updateStatus(localization.text("status.demo_created"));
     }
 
+    /**
+     * Запускає або планує дію, повʼязану з «додати нейрон».
+     *
+     * @param type тип обʼєкта.
+     */
     private void beginAddNeuronMode(NeuronType type) {
         interaction.beginAddNeuronMode(type);
     }
 
+    /**
+     * Виконує операцію «група вибір».
+     */
     private void groupSelection() {
         interaction.groupSelection();
     }
 
+    /**
+     * Виконує операцію «вибір».
+     */
     private void ungroupSelection() {
         interaction.ungroupSelection();
     }
 
+    /**
+     * Виконує операцію «видалити звʼязок».
+     */
     private void exitDeleteConnectionMode() {
         interaction.exitDeleteConnectionMode();
     }
 
+    /**
+     * Перемикає стан «нейрон напрямок».
+     *
+     * @param neuronId ідентифікатор нейрона.
+     */
     private void toggleNeuronDirection(String neuronId) {
         neuronService.toggleDirection(neuronId);
         refreshMapPresentation();
@@ -627,14 +736,23 @@ public final class MapEditorCoordinator {
         updateStatus(localization.text("status.direction_changed"));
     }
 
+    /**
+     * Обробляє «карта представлення».
+     */
     private void refreshMapPresentation() {
         presentation.refreshAll();
     }
 
+    /**
+     * Обробляє «нейрон».
+     */
     private void refreshNeuronVisuals() {
         presentation.refreshNeurons();
     }
 
+    /**
+     * Зберігає дані, повʼязані з «відповідну операцію», у відповідному сховищі.
+     */
     private void saveNow() {
         mapService.save(state);
 
@@ -650,10 +768,28 @@ public final class MapEditorCoordinator {
         }
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «стан».
+     *
+     * @param text текст, який потрібно показати або обробити.
+     */
     private void updateStatus(String text) {
         statusMessagePresenter.show(text);
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «такт».
+     *
+     * @param persistedMillis значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param fallbackMillis значення, що визначає резервний варіант для цієї операції.
+     *
+     * @param minMillis значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param maxMillis значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return числове значення, визначене методом.
+     */
     private static double resolveInitialSimulationTickMillis(
             double persistedMillis,
             double fallbackMillis,

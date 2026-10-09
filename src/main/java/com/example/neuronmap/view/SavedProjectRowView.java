@@ -20,7 +20,9 @@ import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
-/** One saved-project entry with open, rename and delete actions. */
+/**
+ * Відображає один збережений проєкт у списку головного меню.
+ */
 public final class SavedProjectRowView extends HBox {
 
     private final LocalizationService localization;
@@ -38,6 +40,23 @@ public final class SavedProjectRowView extends HBox {
     private final Button cancelButton = new Button();
     private final Consumer<Locale> localizationListener = ignored -> refreshTexts();
 
+    /**
+     * Повертає результат операції «збережений проєкт відображення».
+     *
+     * @param project опис проєкту.
+     *
+     * @param localization значення, що визначає локалізація для цієї операції.
+     *
+     * @param openAction значення, що визначає відкрити для цієї операції.
+     *
+     * @param renameAction значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param deleteAction значення, що визначає видалити для цієї операції.
+     *
+     * @param renameCommitted значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public SavedProjectRowView(
             ProjectDescriptor project,
             LocalizationService localization,
@@ -125,18 +144,36 @@ public final class SavedProjectRowView extends HBox {
         refreshTexts();
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     */
     public void dispose() {
         localization.removeListener(localizationListener);
     }
 
+    /**
+     * Повертає результат операції «проєкт».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public ProjectDescriptor project() {
         return project;
     }
 
+    /**
+     * Перевіряє, чи виконується умова «відповідну операцію».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean isEditing() {
         return renameField.isVisible();
     }
 
+    /**
+     * Перевіряє, чи виконується умова «змінює».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean hasUnsavedChanges() {
         if (!isEditing()) {
             return false;
@@ -147,6 +184,9 @@ public final class SavedProjectRowView extends HBox {
         return !pending.equals(project.name());
     }
 
+    /**
+     * Зберігає дані, повʼязані з «очікуваний змінити», у відповідному сховищі.
+     */
     public void savePendingChange() {
         if (!hasUnsavedChanges()) {
             cancelRename();
@@ -155,18 +195,32 @@ public final class SavedProjectRowView extends HBox {
         commitRename();
     }
 
+    /**
+     * Видаляє або скидає дані, повʼязані з «очікуваний змінити».
+     */
     public void discardPendingChange() {
         cancelRename();
     }
 
+    /**
+     * Запускає або планує дію, повʼязану з «для».
+     */
     void beginRenameForTest() {
         beginRename();
     }
 
+    /**
+     * Повертає результат операції «поле для».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     TextField renameFieldForTest() {
         return renameField;
     }
 
+    /**
+     * Запускає або планує дію, повʼязану з «відповідну операцію».
+     */
     private void beginRename() {
         renameField.setText(project.name());
         renameField.setManaged(true);
@@ -179,6 +233,9 @@ public final class SavedProjectRowView extends HBox {
         renameField.selectAll();
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     */
     private void commitRename() {
         String name = renameField.getText() == null
                 ? ""
@@ -195,10 +252,16 @@ public final class SavedProjectRowView extends HBox {
         renameCommitted.run();
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «відповідну операцію».
+     */
     private void cancelRename() {
         endRename();
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     */
     private void endRename() {
         renameField.setManaged(false);
         renameField.setVisible(false);
@@ -208,11 +271,19 @@ public final class SavedProjectRowView extends HBox {
         refreshTexts();
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «кнопка».
+     *
+     * @param button значення, що визначає кнопка для цієї операції.
+     */
     private void configureButton(Button button) {
         button.getStyleClass().add("menu-small-button");
         button.setMinWidth(88.0);
     }
 
+    /**
+     * Обробляє «відповідну операцію».
+     */
     private void refreshTexts() {
         nameLabel.setText(project.name());
         modifiedLabel.setText(formatModified(
@@ -233,6 +304,15 @@ public final class SavedProjectRowView extends HBox {
         cancelButton.setTooltip(new Tooltip(localization.text("menu.rename.cancel")));
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @param instant значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param locale значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return текстове значення, сформоване або знайдене методом.
+     */
     private static String formatModified(java.time.Instant instant, Locale locale) {
         if (instant == null) {
             return "";

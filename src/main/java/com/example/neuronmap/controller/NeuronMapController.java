@@ -11,11 +11,22 @@ import javafx.scene.Scene;
 import java.nio.file.Path;
 import java.util.Objects;
 
-/** Thin JavaFX entry-point. Project/menu orchestration remains in coordinators. */
+/**
+ * Є головним контролером редактора та повʼязує події інтерфейсу з потрібними компонентами.
+ */
 public final class NeuronMapController {
 
     private final MapEditorCoordinator coordinator;
 
+    /**
+     * Повертає результат операції «нейрон карта».
+     *
+     * @param application значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param config значення, що визначає конфігурація для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public NeuronMapController(
             NeuronMapApplicationService application,
             AppConfig config
@@ -27,6 +38,17 @@ public final class NeuronMapController {
         );
     }
 
+    /**
+     * Повертає результат операції «нейрон карта».
+     *
+     * @param application значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param config значення, що визначає конфігурація для цієї операції.
+     *
+     * @param exitApplication значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public NeuronMapController(
             NeuronMapApplicationService application,
             AppConfig config,
@@ -50,14 +72,29 @@ public final class NeuronMapController {
         );
     }
 
+    /**
+     * Створює обʼєкт із переданих даних «сцена».
+     *
+     * @param width ширина області.
+     *
+     * @param height висота області.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public Scene createScene(double width, double height) {
         return coordinator.createScene(width, height);
     }
 
+    /**
+     * Виконує операцію «центр відображення».
+     */
     public void centerInitialView() {
         coordinator.centerInitialView();
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     */
     public void shutdown() {
         coordinator.shutdown();
     }

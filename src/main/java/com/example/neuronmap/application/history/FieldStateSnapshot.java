@@ -12,10 +12,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Immutable snapshot of the editable field state.
- *
- * <p>Simulation activation is intentionally excluded because it is runtime
- * state rather than editable field data.</p>
+ * Представляє незмінний знімок значень полів, потрібний для порівняння та історії змін.
  */
 public final class FieldStateSnapshot {
 
@@ -24,6 +21,19 @@ public final class FieldStateSnapshot {
     private final List<ConnectionState> connections;
     private final List<GroupState> groups;
 
+    /**
+     * Повертає результат операції «поле стан знімок».
+     *
+     * @param neurons значення, що визначає нейрони для цієї операції.
+     *
+     * @param presentations значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param connections значення, що визначає звʼязки для цієї операції.
+     *
+     * @param groups значення, що визначає групи для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private FieldStateSnapshot(
             List<NeuronState> neurons,
             List<PresentationState> presentations,
@@ -36,6 +46,13 @@ public final class FieldStateSnapshot {
         this.groups = List.copyOf(groups);
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @param model модель карти нейронів.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public static FieldStateSnapshot capture(NeuronMapModel model) {
         requireModel(model);
 
@@ -85,6 +102,19 @@ public final class FieldStateSnapshot {
             );
         }
 
+        /**
+         * Повертає результат операції «поле стан знімок».
+         *
+         * @param neuronStates значення, що визначає нейрон стани для цієї операції.
+         *
+         * @param presentationStates значення, що визначає представлення стани для цієї операції.
+         *
+         * @param connectionStates значення, що визначає звʼязок стани для цієї операції.
+         *
+         * @param groupStates значення, що визначає група стани для цієї операції.
+         *
+         * @return значення або обʼєкт, визначений описаною операцією.
+         */
         return new FieldStateSnapshot(
                 neuronStates,
                 presentationStates,
@@ -93,11 +123,12 @@ public final class FieldStateSnapshot {
         );
     }
 
-    /**
-     * Restores the captured editable field state into the supplied model.
-     * Runtime activation is reset to zero because it is not part of history.
-     */
-    public void restoreInto(NeuronMapModel model) {
+/**
+ * Задає або оновлює значення, повʼязані з «відповідну операцію».
+ *
+ * @param model модель карти нейронів.
+ */
+public void restoreInto(NeuronMapModel model) {
         requireModel(model);
 
         model.clear();
@@ -153,22 +184,49 @@ public final class FieldStateSnapshot {
         }
     }
 
+    /**
+     * Повертає результат операції «нейрони».
+     *
+     * @return колекцію результатів; якщо елементів немає, колекція порожня.
+     */
     public List<NeuronState> neurons() {
         return neurons;
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @return колекцію результатів; якщо елементів немає, колекція порожня.
+     */
     public List<PresentationState> presentations() {
         return presentations;
     }
 
+    /**
+     * Повертає результат операції «звʼязки».
+     *
+     * @return колекцію результатів; якщо елементів немає, колекція порожня.
+     */
     public List<ConnectionState> connections() {
         return connections;
     }
 
+    /**
+     * Повертає результат операції «групи».
+     *
+     * @return колекцію результатів; якщо елементів немає, колекція порожня.
+     */
     public List<GroupState> groups() {
         return groups;
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @param other значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     @Override
     public boolean equals(Object other) {
         if (this == other) {
@@ -185,6 +243,11 @@ public final class FieldStateSnapshot {
                 && groups.equals(that.groups);
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @return числове значення, визначене методом.
+     */
     @Override
     public int hashCode() {
         return Objects.hash(
@@ -195,12 +258,38 @@ public final class FieldStateSnapshot {
         );
     }
 
+    /**
+     * Виконує операцію «потребувати модель».
+     *
+     * @param model модель карти нейронів.
+     */
     private static void requireModel(NeuronMapModel model) {
         if (model == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException("Model must not be null.");
         }
     }
 
+    /**
+     * Компонент NeuronState у складі NeuronMap. Його призначення та параметри операцій описані над відповідними методами.
+     */
+    /**
+     * Повертає результат операції «нейрон стан».
+     *
+     * @param id ідентифікатор обʼєкта.
+     *
+     * @param type тип обʼєкта.
+     *
+     * @param signalStrength сила сигналу нейрона.
+     *
+     * @param activationThreshold поріг активації нейрона.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public record NeuronState(
             String id,
             NeuronType type,
@@ -209,6 +298,24 @@ public final class FieldStateSnapshot {
     ) {
     }
 
+    /**
+     * Компонент PresentationState у складі NeuronMap. Його призначення та параметри операцій описані над відповідними методами.
+     */
+    /**
+     * Повертає результат операції «представлення стан».
+     *
+     * @param neuronId ідентифікатор нейрона.
+     *
+     * @param x координата по горизонталі.
+     *
+     * @param y координата по вертикалі.
+     *
+     * @param rotationDegrees значення, що визначає обертання градуси для цієї операції.
+     *
+     * @param directionReversed значення, що визначає напрямок для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public record PresentationState(
             String neuronId,
             double x,
@@ -218,6 +325,20 @@ public final class FieldStateSnapshot {
     ) {
     }
 
+    /**
+     * Повертає результат операції «звʼязок стан».
+     *
+     * @param id ідентифікатор обʼєкта.
+     *
+     * @param sourceId значення, що визначає джерело ідентифікатор для цієї операції.
+     *
+     * @param targetId значення, що визначає кінцевий ідентифікатор для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
+    /**
+     * Компонент ConnectionState у складі NeuronMap. Його призначення та параметри операцій описані над відповідними методами.
+     */
     public record ConnectionState(
             String id,
             String sourceId,
@@ -225,6 +346,18 @@ public final class FieldStateSnapshot {
     ) {
     }
 
+    /**
+     * Повертає результат операції «група стан».
+     *
+     * @param id ідентифікатор обʼєкта.
+     *
+     * @param memberIds значення, що визначає ідентифікатори для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
+    /**
+     * Компонент GroupState у складі NeuronMap. Його призначення та параметри операцій описані над відповідними методами.
+     */
     public record GroupState(
             String id,
             List<String> memberIds

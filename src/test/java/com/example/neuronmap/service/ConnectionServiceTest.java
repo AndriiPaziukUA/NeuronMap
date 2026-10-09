@@ -8,8 +8,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * Перевіряє правила створення й видалення звʼязків.
+ */
 class ConnectionServiceTest {
 
+    /**
+     * Перевіряє очікувану поведінку: звʼязок.
+     */
     @Test
     void connectionOperationsStayOutsideControllers() {
         NeuronMapModel model = new NeuronMapModel();

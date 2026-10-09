@@ -9,7 +9,9 @@ import javafx.scene.layout.Pane;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/** Applies consistent styling and creates neuron-menu actions. */
+/**
+ * Визначає, як налаштовується меню нейрона перед його показом.
+ */
 public final class NeuronMenuCustomizer {
 
     private final Node toolbarRoot;
@@ -17,6 +19,13 @@ public final class NeuronMenuCustomizer {
     private final Consumer<String> directionAction;
     private final LocalizationService localization;
 
+    /**
+     * Повертає результат операції «нейрон меню».
+     *
+     * @param toolbarRoot значення, що визначає панель інструментів для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public NeuronMenuCustomizer(Node toolbarRoot) {
         this(
                 toolbarRoot,
@@ -26,6 +35,17 @@ public final class NeuronMenuCustomizer {
         );
     }
 
+    /**
+     * Повертає результат операції «нейрон меню».
+     *
+     * @param toolbarRoot значення, що визначає панель інструментів для цієї операції.
+     *
+     * @param selectedNeuronIdSupplier значення, що визначає вибраний нейрон ідентифікатор для цієї операції.
+     *
+     * @param directionAction значення, що визначає напрямок для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public NeuronMenuCustomizer(
             Node toolbarRoot,
             Supplier<String> selectedNeuronIdSupplier,
@@ -39,6 +59,19 @@ public final class NeuronMenuCustomizer {
         );
     }
 
+    /**
+     * Повертає результат операції «нейрон меню».
+     *
+     * @param toolbarRoot значення, що визначає панель інструментів для цієї операції.
+     *
+     * @param selectedNeuronIdSupplier значення, що визначає вибраний нейрон ідентифікатор для цієї операції.
+     *
+     * @param directionAction значення, що визначає напрямок для цієї операції.
+     *
+     * @param localization значення, що визначає локалізація для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public NeuronMenuCustomizer(
             Node toolbarRoot,
             Supplier<String> selectedNeuronIdSupplier,
@@ -46,6 +79,11 @@ public final class NeuronMenuCustomizer {
             LocalizationService localization
     ) {
         if (toolbarRoot == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException("toolbarRoot must not be null");
         }
 
@@ -60,6 +98,11 @@ public final class NeuronMenuCustomizer {
                 : localization;
     }
 
+    /**
+     * Виконує операцію «меню кнопка».
+     *
+     * @param button значення, що визначає кнопка для цієї операції.
+     */
     public void customizeMenuButton(Button button) {
         if (button == null) {
             return;
@@ -85,6 +128,11 @@ public final class NeuronMenuCustomizer {
         }
     }
 
+    /**
+     * Створює обʼєкт із переданих даних «напрямок кнопка».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public Button createDirectionButton() {
         if (directionAction == null) {
             return null;
@@ -114,6 +162,9 @@ public final class NeuronMenuCustomizer {
         return directionButton;
     }
 
+    /**
+     * Видаляє або скидає дані, повʼязані з «видалити звʼязок кнопка».
+     */
     public void removeDeleteConnectionModeExitButton() {
         toolbarRoot.lookupAll(
                 ".delete-connection-exit-button"

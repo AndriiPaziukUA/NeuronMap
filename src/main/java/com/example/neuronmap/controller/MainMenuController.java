@@ -14,7 +14,9 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/** Controls the in-window main menu without owning project persistence rules. */
+/**
+ * Керує сторінками головного меню, переходами між ними та діями зі списком проєктів.
+ */
 public final class MainMenuController {
 
     private final MainMenuView view;
@@ -30,6 +32,31 @@ public final class MainMenuController {
     private final javafx.event.EventHandler<KeyEvent> keyHandler = this::handleKeyPressed;
     private boolean installed;
 
+    /**
+     * Повертає результат операції «меню».
+     *
+     * @param view значення, що визначає відображення для цієї операції.
+     *
+     * @param localization значення, що визначає локалізація для цієї операції.
+     *
+     * @param projectsSupplier значення, що визначає проєкти для цієї операції.
+     *
+     * @param newProjectAction значення, що визначає новий проєкт для цієї операції.
+     *
+     * @param openProjectAction значення, що визначає відкрити проєкт для цієї операції.
+     *
+     * @param renameProjectAction значення, що визначає проєкт для цієї операції.
+     *
+     * @param deleteProjectAction значення, що визначає видалити проєкт для цієї операції.
+     *
+     * @param exitAction значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param pauseForMenuAction значення, що визначає для меню для цієї операції.
+     *
+     * @param resumeAfterMenuAction значення, що визначає після меню для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public MainMenuController(
             MainMenuView view,
             LocalizationService localization,
@@ -69,6 +96,11 @@ public final class MainMenuController {
         ));
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     *
+     * @param scene значення, що визначає сцена для цієї операції.
+     */
     public void install(Scene scene) {
         Objects.requireNonNull(scene, "scene");
         if (installed) {
@@ -78,6 +110,9 @@ public final class MainMenuController {
         installed = true;
     }
 
+    /**
+     * Виконує операцію «відкрити».
+     */
     public void open() {
         if (view.isMenuVisible()) {
             return;
@@ -87,12 +122,17 @@ public final class MainMenuController {
         view.showMenu();
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     */
     public void close() {
         requestCloseMenu();
     }
 
-    /** Refreshes the saved-project list from the filesystem watcher. */
-    public void refreshProjects() {
+/**
+ * Обробляє «проєкти».
+ */
+public void refreshProjects() {
         Runnable refresh = () -> {
             if (!view.isLoadPage() || view.hasUnsavedChanges()) {
                 return;
@@ -107,10 +147,20 @@ public final class MainMenuController {
         }
     }
 
+    /**
+     * Перевіряє, чи виконується умова «відкрити».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean isOpen() {
         return view.isMenuVisible();
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     *
+     * @param scene значення, що визначає сцена для цієї операції.
+     */
     public void dispose(Scene scene) {
         if (scene != null && installed) {
             scene.removeEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
@@ -123,6 +173,11 @@ public final class MainMenuController {
         view.dispose();
     }
 
+    /**
+     * Обробляє «відкрити проєкт».
+     *
+     * @param project опис проєкту.
+     */
     private void handleOpenProject(ProjectDescriptor project) {
         requestLeave(() -> {
             openProjectAction.accept(project);
@@ -130,6 +185,15 @@ public final class MainMenuController {
         });
     }
 
+    /**
+     * Обробляє «проєкт».
+     *
+     * @param project опис проєкту.
+     *
+     * @param name назва або текстове імʼя обʼєкта.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private ProjectDescriptor handleRenameProject(
             ProjectDescriptor project,
             String name
@@ -137,6 +201,11 @@ public final class MainMenuController {
         return renameProjectAction.apply(project, name);
     }
 
+    /**
+     * Обробляє «видалити проєкт».
+     *
+     * @param project опис проєкту.
+     */
     private void handleDeleteProject(ProjectDescriptor project) {
         requestLeave(() -> {
             deleteProjectAction.accept(project);
@@ -146,6 +215,9 @@ public final class MainMenuController {
         });
     }
 
+    /**
+     * Обробляє «відповідну операцію».
+     */
     private void handleBack() {
         if (view.isLoadPage() || view.isSettingsPage()) {
             requestLeave(view::showMainPage);
@@ -154,6 +226,11 @@ public final class MainMenuController {
         }
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     *
+     * @param action дія, яку потрібно виконати.
+     */
     private void requestLeave(Runnable action) {
         if (!view.hasUnsavedChanges()) {
             action.run();
@@ -172,6 +249,11 @@ public final class MainMenuController {
         );
     }
 
+    /**
+     * Виконує операцію «закриття».
+     *
+     * @param action дія, яку потрібно виконати.
+     */
     private void requestClose(Runnable action) {
         requestLeave(() -> {
             view.hide();
@@ -180,6 +262,9 @@ public final class MainMenuController {
         });
     }
 
+    /**
+     * Виконує операцію «закриття меню».
+     */
     private void requestCloseMenu() {
         if (!view.isMenuVisible()) {
             return;
@@ -187,6 +272,9 @@ public final class MainMenuController {
         requestClose(() -> { });
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «меню».
+     */
     private void closeMenuImmediately() {
         if (!view.isMenuVisible()) {
             return;
@@ -195,6 +283,11 @@ public final class MainMenuController {
         resumeAfterMenuAction.run();
     }
 
+    /**
+     * Обробляє «ключ».
+     *
+     * @param event подія інтерфейсу.
+     */
     private void handleKeyPressed(KeyEvent event) {
         if (event.getCode() == KeyCode.ESCAPE) {
             if (view.isConfirmingUnsavedChanges()) {

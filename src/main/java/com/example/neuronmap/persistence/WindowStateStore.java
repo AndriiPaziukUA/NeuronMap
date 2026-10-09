@@ -8,7 +8,9 @@ import java.nio.file.Path;
 import java.util.Optional;
 import java.util.Properties;
 
-/** Persists window geometry independently from the SQLite map data. */
+/**
+ * Зберігає та відновлює геометрію головного вікна.
+ */
 public final class WindowStateStore {
 
     private static final String WIDTH = "width";
@@ -18,13 +20,30 @@ public final class WindowStateStore {
 
     private final Path file;
 
+    /**
+     * Повертає результат операції «вікно стан зберігати».
+     *
+     * @param file файл, який обробляється.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public WindowStateStore(Path file) {
         if (file == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException("file must not be null");
         }
         this.file = file;
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «потрібні дані».
+     *
+     * @return знайдене значення або порожній Optional, якщо результату немає.
+     */
     public Optional<WindowState> load() {
         if (!Files.isRegularFile(file)) {
             return Optional.empty();
@@ -54,8 +73,18 @@ public final class WindowStateStore {
         }
     }
 
+    /**
+     * Зберігає дані, повʼязані з «потрібні дані», у відповідному сховищі.
+     *
+     * @param state стан обʼєкта або редактора.
+     */
     public void save(WindowState state) {
         if (state == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException("state must not be null");
         }
         if (!state.isValid()) {

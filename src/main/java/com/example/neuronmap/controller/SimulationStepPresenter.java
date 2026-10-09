@@ -10,7 +10,9 @@ import javafx.scene.Node;
 
 import java.util.Map;
 
-/** Applies simulation steps to the JavaFX representation and pulse visuals. */
+/**
+ * Передає результат такту симуляції компонентам, які відображають його в інтерфейсі.
+ */
 public final class SimulationStepPresenter {
 
     private final NeuronService neuronService;
@@ -19,6 +21,19 @@ public final class SimulationStepPresenter {
     private final Runnable refreshNeuronViews;
     private final PulseAnimationController pulseAnimations;
 
+    /**
+     * Повертає результат операції «крок».
+     *
+     * @param neuronService значення, що визначає нейрон служба для цієї операції.
+     *
+     * @param workspace значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param neuronViews значення, що визначає нейрон для цієї операції.
+     *
+     * @param refreshNeuronViews значення, що визначає нейрон для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public SimulationStepPresenter(
             NeuronService neuronService,
             WorkspaceView workspace,
@@ -35,6 +50,11 @@ public final class SimulationStepPresenter {
         );
     }
 
+    /**
+     * Обробляє «потрібні дані».
+     *
+     * @param step результат одного такту симуляції.
+     */
     public void apply(SimulationStep step) {
         clearDisplayedInputSignals();
         neuronService.clearActivations();
@@ -57,28 +77,50 @@ public final class SimulationStepPresenter {
         }
     }
 
+    /**
+     * Видаляє або скидає дані, повʼязані з «відповідну операцію».
+     */
     public void clearRuntime() {
         neuronService.clearActivations();
         clearDisplayedInputSignals();
         pulseAnimations.stopAll();
     }
 
+    /**
+     * Обробляє «потрібні дані».
+     */
     public void refresh() {
         refreshNeuronViews.run();
     }
 
+    /**
+     * Перевіряє, чи виконується умова «анімації».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean hasActiveAnimations() {
         return pulseAnimations.hasActiveAnimations();
     }
 
+    /**
+     * Виконує операцію «анімації».
+     */
     public void pauseAnimations() {
         pulseAnimations.pauseAll();
     }
 
+    /**
+     * Виконує операцію «анімації».
+     */
     public void resumeAnimations() {
         pulseAnimations.resumeAll();
     }
 
+    /**
+     * Відображає «сигнали» в інтерфейсі.
+     *
+     * @param inputSums значення, що визначає вхід для цієї операції.
+     */
     private void showIncomingSignals(Map<String, Integer> inputSums) {
         inputSums.forEach((neuronId, sum) -> {
             NeuronView neuronView = neuronViews.get(neuronId);
@@ -88,12 +130,20 @@ public final class SimulationStepPresenter {
         });
     }
 
+    /**
+     * Видаляє або скидає дані, повʼязані з «вхід сигнали».
+     */
     private void clearDisplayedInputSignals() {
         for (NeuronView neuronView : neuronViews.values()) {
             neuronView.clearDisplayedInputSignal();
         }
     }
 
+    /**
+     * Виконує операцію «звʼязки».
+     *
+     * @param neuronId ідентифікатор нейрона.
+     */
     private void animateOutgoingConnections(String neuronId) {
         for (Node node : workspace.edgeLayer().getChildren()) {
             if (node instanceof ConnectionView connectionView

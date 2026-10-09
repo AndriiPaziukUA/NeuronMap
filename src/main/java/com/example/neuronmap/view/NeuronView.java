@@ -12,7 +12,9 @@ import javafx.scene.shape.Circle;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
 
-/** JavaFX representation of a neuron. */
+/**
+ * Відображає нейрон, його напрямок і візуальний стан.
+ */
 public final class NeuronView extends StackPane {
 
     public static final double WIDTH = NeuronVisualGeometry.WIDTH;
@@ -31,8 +33,7 @@ public final class NeuronView extends StackPane {
     private final Label inputSignalLabel = new Label();
     private final Label outputSignalLabel = new Label();
 
-    /** Temporary incoming-signal value. Null means that no signal is active. */
-    private Integer displayedInputSignal;
+private Integer displayedInputSignal;
 
     private boolean dragging;
     private boolean wasDragged;
@@ -42,8 +43,20 @@ public final class NeuronView extends StackPane {
     private double lastSceneX;
     private double lastSceneY;
 
+    /**
+     * Повертає результат операції «нейрон відображення».
+     *
+     * @param presentation значення, що визначає представлення для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public NeuronView(NeuronPresentation presentation) {
         if (presentation == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     "presentation must not be null"
             );
@@ -93,26 +106,62 @@ public final class NeuronView extends StackPane {
         refreshVisuals(false);
     }
 
+    /**
+     * Повертає результат операції «модель».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public Neuron model() {
         return presentation.neuron();
     }
 
+    /**
+     * Повертає результат операції «представлення».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public NeuronPresentation presentation() {
         return presentation;
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean wasDragged() {
         return wasDragged;
     }
 
+    /**
+     * Перевіряє, чи виконується умова «відповідну операцію».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean isDragging() {
         return dragging;
     }
 
+    /**
+     * Перевіряє, чи виконується умова «група».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean isDraggingGroup() {
         return dragGroup;
     }
 
+    /**
+     * Запускає або планує дію, повʼязану з «перетягування».
+     *
+     * @param sceneX значення, що визначає сцена для цієї операції.
+     *
+     * @param sceneY значення, що визначає сцена для цієї операції.
+     *
+     * @param altPressed значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param belongsToGroup значення, що визначає до група для цієї операції.
+     */
     public void beginDrag(
             double sceneX,
             double sceneY,
@@ -128,18 +177,39 @@ public final class NeuronView extends StackPane {
         dragGroup = !altPressed && belongsToGroup;
     }
 
+    /**
+     * Переміщує обʼєкт «відповідну операцію» відповідно до переданого зміщення.
+     *
+     * @param sceneX значення, що визначає сцена для цієї операції.
+     *
+     * @return числове значення, визначене методом.
+     */
     public double dragDeltaX(double sceneX) {
         double delta = sceneX - lastSceneX;
         lastSceneX = sceneX;
         return delta;
     }
 
+    /**
+     * Переміщує обʼєкт «відповідну операцію» відповідно до переданого зміщення.
+     *
+     * @param sceneY значення, що визначає сцена для цієї операції.
+     *
+     * @return числове значення, визначене методом.
+     */
     public double dragDeltaY(double sceneY) {
         double delta = sceneY - lastSceneY;
         lastSceneY = sceneY;
         return delta;
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «стан».
+     *
+     * @param sceneX значення, що визначає сцена для цієї операції.
+     *
+     * @param sceneY значення, що визначає сцена для цієї операції.
+     */
     public void updateDraggedState(double sceneX, double sceneY) {
         if (Math.hypot(
                 sceneX - dragStartSceneX,
@@ -149,42 +219,60 @@ public final class NeuronView extends StackPane {
         }
     }
 
+    /**
+     * Виконує операцію «перетягування».
+     */
     public void endDrag() {
         dragging = false;
     }
 
-    /** Shows the incoming sum for the current simulation tick. */
-    public void showInputSignal(int signal) {
+/**
+ * Відображає «вхід сигнал» в інтерфейсі.
+ *
+ * @param signal значення, що визначає сигнал для цієї операції.
+ */
+public void showInputSignal(int signal) {
         displayedInputSignal = signal;
         inputSignalLabel.setText(Integer.toString(signal));
     }
 
-    /**
-     * Clears the temporary incoming-signal state, while keeping the input
-     * number visible as the actual neutral value {@code 0}.
-     *
-     * <p>The zero is not a visual placeholder: the backing transient state is
-     * cleared by setting {@code displayedInputSignal} to {@code null}.</p>
-     */
-    public void hideInputSignal() {
+/**
+ * Виконує операцію «приховати вхід сигнал».
+ */
+public void hideInputSignal() {
         displayedInputSignal = null;
         inputSignalLabel.setText("0");
     }
 
-    /** Clears the temporary incoming-signal state. */
-    public void clearDisplayedInputSignal() {
+/**
+ * Видаляє або скидає дані, повʼязані з «вхід сигнал».
+ */
+public void clearDisplayedInputSignal() {
         hideInputSignal();
     }
 
+    /**
+     * Перевіряє, чи виконується умова «напрямок».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean isDirectionReversed() {
         return presentation.directionReversed();
     }
 
+    /**
+     * Перемикає стан «напрямок».
+     */
     public void toggleDirection() {
         presentation.toggleDirection();
         positionFixedChildren();
     }
 
+    /**
+     * Обробляє «відповідну операцію».
+     *
+     * @param selected значення, що визначає вибраний для цієї операції.
+     */
     public void refreshVisuals(boolean selected) {
         setLayoutX(presentation.x());
         setLayoutY(presentation.y());
@@ -217,8 +305,12 @@ public final class NeuronView extends StackPane {
         positionFixedChildren();
     }
 
-    /** Returns the visible output marker tip in world/model coordinates. */
-    public Point2D outputPoint() {
+/**
+ * Повертає результат операції «вихід».
+ *
+ * @return значення або обʼєкт, визначений описаною операцією.
+ */
+public Point2D outputPoint() {
         return localPointToWorld(
                 new Point2D(
                         NeuronVisualGeometry.outputTipX(
@@ -229,8 +321,12 @@ public final class NeuronView extends StackPane {
         );
     }
 
-    /** Returns the input marker center in world/model coordinates. */
-    public Point2D inputPoint() {
+/**
+ * Повертає результат операції «вхід».
+ *
+ * @return значення або обʼєкт, визначений описаною операцією.
+ */
+public Point2D inputPoint() {
         return localPointToWorld(
                 new Point2D(
                         NeuronVisualGeometry.inputPortX(
@@ -241,6 +337,9 @@ public final class NeuronView extends StackPane {
         );
     }
 
+    /**
+     * Виконує операцію «положення».
+     */
     private void positionFixedChildren() {
         body.relocate(0.0, 0.0);
 
@@ -291,6 +390,13 @@ public final class NeuronView extends StackPane {
         );
     }
 
+    /**
+     * Повертає результат операції «до карта».
+     *
+     * @param localPoint значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private Point2D localPointToWorld(Point2D localPoint) {
         double centerX = WIDTH / 2.0;
         double centerY = HEIGHT / 2.0;
@@ -319,12 +425,22 @@ public final class NeuronView extends StackPane {
         );
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «сигнал підпис».
+     *
+     * @param label значення, що визначає підпис для цієї операції.
+     */
     private void configureSignalLabel(Label label) {
         label.getStyleClass().add("neuron-activation");
         label.setAlignment(Pos.CENTER);
         label.setMouseTransparent(true);
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private Color baseColor() {
         return model().type() == NeuronType.EXCITATORY
                 ? Color.web("#328b55")

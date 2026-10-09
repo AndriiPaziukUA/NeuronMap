@@ -10,8 +10,14 @@ import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Перевіряє змістові дані нейрона, обчислення сигналу та перевірку параметрів.
+ */
 class NeuronTest {
 
+    /**
+     * Перевіряє, що нейрон містить лише змістові поля й не зберігає графічний стан.
+     */
     @Test
     void storesOnlySemanticData() {
         Set<String> instanceFields =
@@ -38,6 +44,9 @@ class NeuronTest {
         );
     }
 
+    /**
+     * Перевіряє знак ваги сигналу для обох типів нейрона та врахування заданої сили сигналу.
+     */
     @Test
     void signalWeightUsesTypeAndCustomStrength() {
         Neuron excitatory = new Neuron(
@@ -62,6 +71,9 @@ class NeuronTest {
         assertEquals(3, excitatory.activationThreshold());
     }
 
+    /**
+     * Перевіряє, що силу сигналу й поріг активації можна змінити, а вага сигналу оновлюється відповідно.
+     */
     @Test
     void allowsUpdatingSignalStrengthAndThreshold() {
         Neuron neuron = new Neuron(
@@ -78,6 +90,9 @@ class NeuronTest {
         assertEquals(9, neuron.signalWeight());
     }
 
+    /**
+     * Перевіряє відхилення порожнього ідентифікатора, відсутнього типу та недодатних значень сили сигналу й порога активації.
+     */
     @Test
     void rejectsInvalidConstructionAndParameters() {
         assertThrows(

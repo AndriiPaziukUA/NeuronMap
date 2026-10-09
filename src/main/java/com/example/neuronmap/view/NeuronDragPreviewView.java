@@ -9,11 +9,7 @@ import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
 
 /**
- * Translucent visual preview shown while dragging a neuron from the toolbar.
- *
- * <p>The preview intentionally uses a plain {@link Pane} and manages all child
- * positions manually. This prevents StackPane layout from moving the ports
- * independently of the neuron body.</p>
+ * Відображає попереднє зображення нейрона під час перетягування.
  */
 public final class NeuronDragPreviewView extends Pane {
 
@@ -30,6 +26,13 @@ public final class NeuronDragPreviewView extends Pane {
     private final Label inputSignalLabel = new Label("1");
     private final Label outputSignalLabel = new Label("1");
 
+    /**
+     * Повертає результат операції «нейрон перетягування попередній перегляд відображення».
+     *
+     * @param type тип обʼєкта.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public NeuronDragPreviewView(NeuronType type) {
         setPrefSize(WIDTH, HEIGHT);
         setMinSize(WIDTH, HEIGHT);
@@ -55,6 +58,11 @@ public final class NeuronDragPreviewView extends Pane {
         positionChildren();
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «відповідну операцію».
+     *
+     * @param type тип обʼєкта.
+     */
     private void configureBody(NeuronType type) {
         body.setX(0);
         body.setY(0);
@@ -68,6 +76,9 @@ public final class NeuronDragPreviewView extends Pane {
         body.setMouseTransparent(true);
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «вхід».
+     */
     private void configureInputPort() {
         inputPort.setFill(Color.WHITE);
         inputPort.setStroke(Color.BLACK);
@@ -76,6 +87,9 @@ public final class NeuronDragPreviewView extends Pane {
         inputPort.setMouseTransparent(true);
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «вихід».
+     */
     private void configureOutputPort() {
         outputPort.setFill(Color.WHITE);
         outputPort.setStroke(Color.BLACK);
@@ -85,6 +99,9 @@ public final class NeuronDragPreviewView extends Pane {
         NeuronVisualGeometry.positionOutputTriangle(outputPort, false);
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «відповідну операцію».
+     */
     private void configureLabels() {
         inputSignalLabel.setTextFill(Color.BLACK);
         inputSignalLabel.setMouseTransparent(true);
@@ -95,6 +112,9 @@ public final class NeuronDragPreviewView extends Pane {
         outputSignalLabel.setManaged(false);
     }
 
+    /**
+     * Виконує операцію «положення».
+     */
     private void positionChildren() {
         NeuronVisualGeometry.positionInputPort(inputPort, false);
         NeuronVisualGeometry.positionOutputTriangle(outputPort, false);
@@ -103,6 +123,13 @@ public final class NeuronDragPreviewView extends Pane {
         outputSignalLabel.relocate(OUTPUT_LABEL_OFFSET_X, LABEL_OFFSET_Y);
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @param type тип обʼєкта.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private static Color bodyFill(NeuronType type) {
         return type == NeuronType.EXCITATORY
                 ? Color.LIGHTGREEN

@@ -4,8 +4,14 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Перевіряє допоміжні геометричні обчислення та межі масштабу.
+ */
 class GeometryUtilsTest {
 
+    /**
+     * Перевіряє очікувану поведінку: обмежує масштаб до.
+     */
     @Test
     void clampsZoomToSupportedRange() {
         assertEquals(

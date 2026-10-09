@@ -8,7 +8,9 @@ import javafx.scene.control.Label;
 
 import java.util.function.Consumer;
 
-/** Connects application status updates to the actual status label lifecycle. */
+/**
+ * Відображає повідомлення про стан роботи застосунку.
+ */
 public final class StatusMessagePresenter {
 
     private final Consumer<String> fallback;
@@ -17,8 +19,20 @@ public final class StatusMessagePresenter {
     private Label lifecycleLabel;
     private long messageVersion;
 
+    /**
+     * Повертає результат операції «стан повідомлення».
+     *
+     * @param fallback значення, що визначає резервний варіант для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public StatusMessagePresenter(Consumer<String> fallback) {
         if (fallback == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     "fallback must not be null"
             );
@@ -26,11 +40,21 @@ public final class StatusMessagePresenter {
         this.fallback = fallback;
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     *
+     * @param scene значення, що визначає сцена для цієї операції.
+     */
     public void attach(Scene scene) {
         disposeLifecycle();
         this.scene = scene;
     }
 
+    /**
+     * Відображає «потрібні дані» в інтерфейсі.
+     *
+     * @param message повідомлення для показу чи журналювання.
+     */
     public void show(String message) {
         String normalized = message == null ? "" : message;
         fallback.accept(normalized);
@@ -48,12 +72,22 @@ public final class StatusMessagePresenter {
         attachToActualStatusLabel(normalized, currentVersion);
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     */
     public void dispose() {
         messageVersion++;
         disposeLifecycle();
         scene = null;
     }
 
+    /**
+     * Виконує операцію «до стан підпис».
+     *
+     * @param message повідомлення для показу чи журналювання.
+     *
+     * @param currentVersion значення, що визначає поточний для цієї операції.
+     */
     private void attachToActualStatusLabel(
             String message,
             long currentVersion
@@ -82,6 +116,9 @@ public final class StatusMessagePresenter {
         }
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «відповідну операцію».
+     */
     private void disposeLifecycle() {
         if (lifecycle != null) {
             lifecycle.dispose();

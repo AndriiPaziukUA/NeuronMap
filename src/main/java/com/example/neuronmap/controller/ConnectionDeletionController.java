@@ -19,7 +19,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-/** Owns only the delete-connection mode and its highlights. */
+/**
+ * Обробляє видалення звʼязків із карти та оновлення повʼязаного відображення.
+ */
 final class ConnectionDeletionController {
 
     private final ConnectionService connectionService;
@@ -31,6 +33,23 @@ final class ConnectionDeletionController {
     private final Consumer<String> status;
     private final LocalizationService localization;
 
+    /**
+     * Створює обʼєкт ConnectionDeletionController та ініціалізує його початковий стан.
+     *
+     * @param connectionService значення, що визначає звʼязок служба для цієї операції.
+     *
+     * @param state стан обʼєкта або редактора.
+     *
+     * @param workspace значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param neuronViews значення, що визначає нейрон для цієї операції.
+     *
+     * @param refresh значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param save значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param status стан операції.
+     */
     ConnectionDeletionController(
             ConnectionService connectionService,
             EditorState state,
@@ -52,6 +71,25 @@ final class ConnectionDeletionController {
         );
     }
 
+    /**
+     * Створює обʼєкт ConnectionDeletionController та ініціалізує його початковий стан.
+     *
+     * @param connectionService значення, що визначає звʼязок служба для цієї операції.
+     *
+     * @param state стан обʼєкта або редактора.
+     *
+     * @param workspace значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param neuronViews значення, що визначає нейрон для цієї операції.
+     *
+     * @param refresh значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param save значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param status стан операції.
+     *
+     * @param localization значення, що визначає локалізація для цієї операції.
+     */
     ConnectionDeletionController(
             ConnectionService connectionService,
             EditorState state,
@@ -72,6 +110,11 @@ final class ConnectionDeletionController {
         this.localization = Objects.requireNonNull(localization, "localization");
     }
 
+    /**
+     * Запускає або планує дію, повʼязану з «видалити».
+     *
+     * @param sourceNeuronId ідентифікатор початкового нейрона.
+     */
     void beginDelete(String sourceNeuronId) {
         if (!hasConnections(sourceNeuronId)) {
             exitDelete();
@@ -85,12 +128,18 @@ final class ConnectionDeletionController {
         status.accept(localization.text("status.connection_delete_hint"));
     }
 
+    /**
+     * Виконує операцію «видалити».
+     */
     void exitDelete() {
         state.resetToIdle();
         clearDeleteHighlights();
         workspace.node().setCursor(Cursor.DEFAULT);
     }
 
+    /**
+     * Обробляє «видалити».
+     */
     void refreshDeleteHighlights() {
         String sourceId = state.deleteConnectionNeuronId();
 
@@ -114,6 +163,9 @@ final class ConnectionDeletionController {
         }
     }
 
+    /**
+     * Видаляє або скидає дані, повʼязані з «видалити».
+     */
     void clearDeleteHighlights() {
         for (Node node : workspace.edgeLayer().getChildren()) {
             if (node instanceof ConnectionView connectionView) {
@@ -122,6 +174,11 @@ final class ConnectionDeletionController {
         }
     }
 
+    /**
+     * Обробляє «видалити».
+     *
+     * @param event подія інтерфейсу.
+     */
     void handleDeleteClick(MouseEvent event) {
         if (event.getButton() != MouseButton.PRIMARY) {
             return;
@@ -169,10 +226,26 @@ final class ConnectionDeletionController {
         event.consume();
     }
 
+    /**
+     * Перевіряє, чи виконується умова «звʼязки».
+     *
+     * @param neuronId ідентифікатор нейрона.
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     boolean hasConnections(String neuronId) {
         return connectionService.hasConnections(neuronId);
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «звʼязок відображення».
+     *
+     * @param sceneX значення, що визначає сцена для цієї операції.
+     *
+     * @param sceneY значення, що визначає сцена для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private ConnectionView findConnectionViewAt(double sceneX, double sceneY) {
         Point2D scenePoint = new Point2D(sceneX, sceneY);
 
@@ -192,6 +265,15 @@ final class ConnectionDeletionController {
         return null;
     }
 
+    /**
+     * Перевіряє, чи виконується умова «відповідну операцію».
+     *
+     * @param node графічний вузол JavaFX.
+     *
+     * @param scenePoint значення, що визначає сцена для цієї операції.
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     private static boolean containsVisibleShape(Node node, Point2D scenePoint) {
         if (!node.isVisible()) {
             return false;

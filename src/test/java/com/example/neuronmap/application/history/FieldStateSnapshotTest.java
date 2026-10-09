@@ -11,8 +11,14 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Перевіряє вміст знімків стану та порівняння змін.
+ */
 class FieldStateSnapshotTest {
 
+    /**
+     * Перевіряє очікувану поведінку: знімок відновлює нейрон дані представлення і.
+     */
     @Test
     void snapshotRestoresPersistentNeuronDataPresentationAndStructure() {
         NeuronMapModel model = new NeuronMapModel();
@@ -81,6 +87,9 @@ class FieldStateSnapshotTest {
         assertEquals(2, model.groupContaining(first.id()).memberIds().size());
     }
 
+    /**
+     * Перевіряє очікувану поведінку: активація лише змінює не змінити знімок.
+     */
     @Test
     void activationOnlyChangesDoNotChangeSnapshot() {
         NeuronMapModel model = new NeuronMapModel();

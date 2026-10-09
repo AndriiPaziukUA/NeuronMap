@@ -1,8 +1,10 @@
-# NeuronMap — довідник тестів
+# Тестування NeuronMap
 
-Тести дзеркалять production packages. Основна ідея: тестувати behavior та invariants, а не implementation details.
+Тести розміщені в `src/test/java`. Пакети тестів повторюють структуру основного коду, тому потрібний набір легко знайти поруч із класом, який змінюється.
 
-## Як запускати
+## Команди
+
+Усі тести:
 
 ```powershell
 mvn clean test
@@ -11,121 +13,104 @@ mvn clean test
 Окремий клас:
 
 ```powershell
-mvn -Dtest=ProjectCatalogServiceTest test
+mvn -Dtest=NeuronServiceTest test
 ```
 
 Кілька класів:
 
 ```powershell
-mvn -Dtest=ProjectCatalogServiceTest,ProjectDirectoryWatcherTest test
+mvn -Dtest=NeuronServiceTest,SimulationSessionTest test
 ```
 
-## Що покриває кожен пакет
+Звіт покриття JaCoCo формується під час виконання `mvn test`, якщо збірка дійшла до відповідного етапу.
+
+## Що перевіряють тести
 
 ### `application`
-- `EditorStateTest` — editor mode, selection та reset поведінка.
-- `NeuronMapApplicationServiceTest` — service graph та делегування persistence.
+
+- `EditorStateTest` — режими редактора, вибір об'єктів і скидання стану.
+- `NeuronMapApplicationServiceTest` — створення служб і передавання операцій до потрібних компонентів.
 
 ### `application/history`
-- `FieldHistoryTest` — undo/redo, branching, limit 30 кроків, ігнор runtime-only changes.
-- `FieldStateSnapshotTest` — round-trip persistent state та виключення activation-only changes.
+
+- `FieldHistoryTest` — збереження станів, скасування й повторення змін, розгалуження історії та її обмеження.
+- `FieldStateSnapshotTest` — вміст знімка стану та відмінності між постійними даними й поточним станом активації.
 
 ### `config`
-- `AppConfigLoaderTest` — XML config, bundled config, validation simulation range.
+
+- `AppConfigLoaderTest` — читання XML-конфігурації та перевірка допустимих значень.
 
 ### `controller`
-- `NeuronInteractionControllerMouseButtonTest` — відмінність left/right click interaction.
-- `NeuronOverlayCoordinateTest` — screen-space geometry меню та overlay.
-- `NeuronRotationMathTest` — rotation convention та drag behavior.
-- `PulseAnimationControllerTest` — animation survives removal of source connection view.
+
+- `NeuronInteractionControllerMouseButtonTest` — відмінності обробки кнопок миші.
+- `NeuronOverlayCoordinateTest` — обчислення координат меню та накладок відносно нейрона.
+- `NeuronRotationMathTest` — математичні обчислення обертання.
+- `PulseAnimationControllerTest` — робота анімації після зникнення відображення зв'язку.
 
 ### `i18n`
-- `LocalizationServiceTest` — sorting, listeners, preview/persistence semantics.
+
+- `LocalizationServiceTest` — перемикання мови, сповіщення слухачів, порядок варіантів і збереження вибору.
 
 ### `model`
-- `NeuronMapModelTest` — directed connections, uniqueness, self-loop rejection, cleanup after deletion.
-- `NeuronPresentationDirectionTest` — direction state.
-- `NeuronPresentationTest` — position, rotation, direction.
-- `NeuronTest` — semantic neuron state та validation.
+
+- `NeuronMapModelTest` — цілісність карти, спрямовані зв'язки, унікальність і видалення об'єктів.
+- `NeuronPresentationDirectionTest` — напрямок відображення нейрона.
+- `NeuronPresentationTest` — положення, обертання й напрямок представлення.
+- `NeuronTest` — семантичні дані нейрона та перевірка некоректних значень.
 
 ### `persistence`
-- `GlobalSettingsStoreTest` — properties round-trip.
-- `LegacyProjectStorageMigratorTest` — old layout migration.
-- `NeuronDirectionPersistenceTest` — direction survives SQLite round-trip.
-- `ProjectDirectoryWatcherTest` — filesystem discovery callback та idempotent close.
-- `SqliteMapRepositoryTest` — map round-trip, durable pragmas, schema separation.
-- `SqliteNeuronSchemaContractTest` — persisted neuron columns contract.
-- `SqliteSchemaMigrationTest` — legacy coordinate migration.
-- `SqliteSimulationSettingsTest` — simulation speed persistence and fallback.
-- `TransientProjectRepositoryTest` — lazy materialization, junk cleanup, pending settings, no overwrite.
-- `WindowStateStoreTest` — window geometry persistence and invalid-state fallback.
+
+- `GlobalSettingsStoreTest` — збереження та повторне читання загальних налаштувань.
+- `LegacyProjectStorageMigratorTest` — сумісність зі старим розташуванням даних для наявних користувачів.
+- `NeuronDirectionPersistenceTest` — збереження напрямку нейрона.
+- `ProjectDirectoryWatcherTest` — сповіщення про зміни папок і безпечне завершення спостереження.
+- `SqliteMapRepositoryTest` — запис і читання карти та вимоги до структури бази даних.
+- `SqliteNeuronSchemaContractTest` — перелік і призначення полів нейрона в базі даних.
+- `SqliteSchemaMigrationTest` — перенесення координат зі старої структури таблиць.
+- `SqliteSimulationSettingsTest` — збереження швидкості симуляції та значення за замовчуванням.
+- `TransientProjectRepositoryTest` — відкладене створення папки проєкту, обробка сторонніх файлів, налаштування та захист наявних даних.
+- `WindowStateStoreTest` — збереження геометрії вікна та обробка некоректних значень.
 
 ### `service`
-- `ConnectionServiceTest` — connection business logic lives outside controllers.
-- `GroupServiceTest` — group movement.
-- `NeuronClipboardServiceTest` — copying/pasting state and whole-group selection.
-- `NeuronServiceTest` — service delegation for create/toggle/settings/remove.
-- `ProjectCatalogServiceTest` — folder-based discovery, naming, rename, external discovery, ordering, last-opened preference isolation.
+
+- `ConnectionServiceTest` — правила створення й видалення зв'язків.
+- `GroupServiceTest` — операції з групами та переміщення їхніх елементів.
+- `NeuronClipboardServiceTest` — копіювання й вставлення нейронів і груп.
+- `NeuronServiceTest` — створення, пошук, зміна параметрів і видалення нейрона.
+- `ProjectCatalogServiceTest` — пошук проєктів за папками, назви, перейменування, порядок списку та зміни з боку файлової системи.
 
 ### `simulation`
-- `SimulationSessionTest` — pending targets, cycles, batching manual starts, global tick continuity, single emission per tick.
-- `SimulationSpeedTest` — valid range and rejection outside range.
-- `SimulationStepTest` — tick representation beyond `long` maximum.
-- `SimulationTickTest` — unbounded advancement and negative-value validation.
+
+- `SimulationSessionTest` — поширення сигналів, цикли, одночасний запуск кількох джерел і спільний відлік тактів.
+- `SimulationSpeedTest` — допустимі значення швидкості.
+- `SimulationStepTest` — представлення номера такту, більшого за межу `long`.
+- `SimulationTickTest` — збільшення номера такту та перевірка від'ємних значень.
 
 ### `util`
-- `CameraWorldCenterTest` — viewport center conversion and invalid camera validation.
-- `GeometryUtilsTest` — zoom clamping.
+
+- `CameraWorldCenterTest` — переведення центра видимої області в координати карти.
+- `GeometryUtilsTest` — обмеження масштабу.
 
 ### `view`
-- `MainMenuViewTest` — menu structure, settings discard, pending rename.
-- `NeuronInputSignalDisplayTest` — temporary input signal reset.
-- `NeuronOutputTriangleAlignmentTest` — direction-specific output alignment.
-- `NeuronOverlayPositionerTest` — screen-space offset geometry.
-- `NeuronVisualGeometryTest` — visible ports, output triangle, connection anchors.
-- `PulseAnimationViewTest` — geometry refresh from snapshot.
-- `RotationHandleViewTest` — handle placement, orbit, zoom, hit area.
-- `ToolbarViewTest` — numeric speed input and dynamic controls.
 
-## Test naming convention
+- `MainMenuViewTest` — структура меню, скасування редагування та введення назви.
+- `NeuronInputSignalDisplayTest` — відображення суми вхідних сигналів і її скидання.
+- `NeuronOutputTriangleAlignmentTest` — вирівнювання трикутника виходу нейрона.
+- `NeuronOverlayPositionerTest` — розрахунок положення накладок.
+- `NeuronVisualGeometryTest` — геометрія графічного представлення нейрона.
+- `PulseAnimationViewTest` — рух імпульсу відповідно до змін геометрії зв'язку.
+- `RotationHandleViewTest` — положення та поведінка ручки обертання.
+- `ToolbarViewTest` — порядок і склад елементів панелі інструментів.
 
-Назва тесту повинна пояснювати observable behavior:
+## Як додавати тести
 
-```text
-verb + condition + expected result
-```
+Під час зміни поведінки додай перевірку в тестовий клас того самого пакета. Тест має описувати зовнішню поведінку, а не повторювати рядки реалізації.
 
-Наприклад:
+Корисний набір зазвичай містить:
 
-```text
-existingProjectDatabaseIsNeverOverwritten
-```
+- звичайний коректний сценарій;
+- відсутній або невідомий об'єкт, якщо це можливо;
+- граничні значення та некоректні параметри;
+- регресійний сценарій для помилки, яку виправляємо.
 
-краще за:
-
-```text
-materializeTest2
-```
-
-## Коли писати новий тест
-
-Пиши тест, якщо:
-
-- виправляєш bug;
-- додаєш business rule;
-- міняєш persistence format/schema;
-- змінюєш interaction contract;
-- змінюєш важливу geometric invariant;
-- додаєш compatibility behavior.
-
-Особливо цінні тести на edge cases. Саме вони не дають повернутися старим проблемам із transient projects, SQLite WAL, history branching або зовнішньою появою project folders.
-
-## Чого не тестувати
-
-Не тестуй локальні implementation details, якщо достатньо перевірити observable behavior.
-
-Не роби тест залежним від абсолютного шляху користувача.
-
-Persistence tests повинні використовувати temporary directories/databases.
-
-JavaFX tests повинні перевіряти геометрію та behavior, а не внутрішній порядок приватних helper-викликів.
+Для симуляції, моделі, служб і збереження перевагу слід віддавати тестам без запуску JavaFX-вікна. Це робить перевірки стабільнішими та швидшими.

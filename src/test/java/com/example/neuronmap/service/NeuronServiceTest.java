@@ -9,8 +9,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * Перевіряє створення, пошук, зміну параметрів і видалення нейронів.
+ */
 class NeuronServiceTest {
 
+    /**
+     * Перевіряє очікувану поведінку: створити перемкнути налаштування і видалити служба.
+     */
     @Test
     void createToggleSettingsAndRemoveAreDelegatedThroughService() {
         NeuronMapModel model = new NeuronMapModel();

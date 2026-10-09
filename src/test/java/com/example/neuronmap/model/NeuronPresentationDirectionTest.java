@@ -5,8 +5,14 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * Перевіряє збереження та зміну напрямку нейрона.
+ */
 class NeuronPresentationDirectionTest {
 
+    /**
+     * Перевіряє очікувану поведінку: напрямок до.
+     */
     @Test
     void directionDefaultsToNormal() {
         Neuron neuron = new Neuron(
@@ -28,6 +34,9 @@ class NeuronPresentationDirectionTest {
         );
     }
 
+    /**
+     * Перевіряє очікувану поведінку: напрямок і.
+     */
     @Test
     void directionCanBeToggledAndStored() {
         Neuron neuron = new Neuron(

@@ -14,18 +14,37 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Loads graph state from SQLite into the domain model. */
+/**
+ * Читає з SQLite нейрони, їхні представлення, звʼязки та інші дані карти.
+ */
 public final class SqliteMapLoader {
 
     private final java.sql.Connection connection;
 
+    /**
+     * Повертає результат операції «SQLite карта».
+     *
+     * @param connection звʼязок між нейронами.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public SqliteMapLoader(java.sql.Connection connection) {
         if (connection == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException("connection must not be null");
         }
         this.connection = connection;
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «відповідну операцію».
+     *
+     * @param model модель карти нейронів.
+     */
     public void loadInto(NeuronMapModel model) throws SQLException {
         model.clear();
         loadNeurons(model);
@@ -34,6 +53,11 @@ public final class SqliteMapLoader {
         loadGroups(model);
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «нейрони».
+     *
+     * @param model модель карти нейронів.
+     */
     private void loadNeurons(NeuronMapModel model) throws SQLException {
         String sql = """
                 SELECT
@@ -71,6 +95,11 @@ public final class SqliteMapLoader {
         }
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «відповідну операцію».
+     *
+     * @param model модель карти нейронів.
+     */
     private void loadPresentations(NeuronMapModel model)
             throws SQLException {
         String sql = """
@@ -107,6 +136,11 @@ public final class SqliteMapLoader {
         }
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «звʼязки».
+     *
+     * @param model модель карти нейронів.
+     */
     private void loadConnections(NeuronMapModel model)
             throws SQLException {
         String sql = """
@@ -127,6 +161,11 @@ public final class SqliteMapLoader {
         }
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «групи».
+     *
+     * @param model модель карти нейронів.
+     */
     private void loadGroups(NeuronMapModel model) throws SQLException {
         String sql = """
                 SELECT group_id, neuron_id

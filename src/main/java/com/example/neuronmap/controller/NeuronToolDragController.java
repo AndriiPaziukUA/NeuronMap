@@ -18,7 +18,9 @@ import javafx.scene.transform.Scale;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 
-/** Owns toolbar-to-workspace neuron drag and drop, including its preview. */
+/**
+ * Обробляє перетягування інструментів редактора та їхнє розміщення на карті.
+ */
 public final class NeuronToolDragController {
 
     private final EditorState state;
@@ -29,6 +31,17 @@ public final class NeuronToolDragController {
     private NeuronType dragPreviewType;
     private Scale dragPreviewScale;
 
+    /**
+     * Повертає результат операції «нейрон перетягування».
+     *
+     * @param state стан обʼєкта або редактора.
+     *
+     * @param workspace значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param dropConsumer значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public NeuronToolDragController(
             EditorState state,
             WorkspaceView workspace,
@@ -39,17 +52,30 @@ public final class NeuronToolDragController {
         this.dropConsumer = Objects.requireNonNull(dropConsumer, "dropConsumer");
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     */
     public void install() {
         workspace.node().addEventHandler(DragEvent.DRAG_OVER, this::handleDragOver);
         workspace.node().addEventHandler(DragEvent.DRAG_EXITED, event -> clearPreview());
         workspace.node().addEventHandler(DragEvent.DRAG_DROPPED, this::handleDrop);
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «панель інструментів».
+     *
+     * @param excitatoryButton значення, що визначає кнопка для цієї операції.
+     *
+     * @param inhibitoryButton значення, що визначає кнопка для цієї операції.
+     */
     public void configureToolbarButtons(Button excitatoryButton, Button inhibitoryButton) {
         configureDragSource(excitatoryButton, NeuronType.EXCITATORY);
         configureDragSource(inhibitoryButton, NeuronType.INHIBITORY);
     }
 
+    /**
+     * Видаляє або скидає дані, повʼязані з «попередній перегляд».
+     */
     public void clearPreview() {
         if (dragPreview != null) {
             workspace.overlayLayer().getChildren().remove(dragPreview);
@@ -59,6 +85,13 @@ public final class NeuronToolDragController {
         dragPreviewScale = null;
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «перетягування джерело».
+     *
+     * @param button значення, що визначає кнопка для цієї операції.
+     *
+     * @param type тип обʼєкта.
+     */
     private void configureDragSource(Button button, NeuronType type) {
         if (button == null || type == null) {
             return;
@@ -84,6 +117,11 @@ public final class NeuronToolDragController {
         });
     }
 
+    /**
+     * Обробляє «перетягування».
+     *
+     * @param event подія інтерфейсу.
+     */
     private void handleDragOver(DragEvent event) {
         NeuronType type = dragNeuronType(event.getDragboard());
         if (type == null) {
@@ -95,6 +133,11 @@ public final class NeuronToolDragController {
         event.consume();
     }
 
+    /**
+     * Обробляє «відповідну операцію».
+     *
+     * @param event подія інтерфейсу.
+     */
     private void handleDrop(DragEvent event) {
         boolean success = false;
         try {
@@ -115,6 +158,15 @@ public final class NeuronToolDragController {
         event.consume();
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «перетягування попередній перегляд».
+     *
+     * @param type тип обʼєкта.
+     *
+     * @param sceneX значення, що визначає сцена для цієї операції.
+     *
+     * @param sceneY значення, що визначає сцена для цієї операції.
+     */
     private void updateDragPreview(NeuronType type, double sceneX, double sceneY) {
         if (dragPreview == null || dragPreviewType != type) {
             clearPreview();
@@ -140,6 +192,13 @@ public final class NeuronToolDragController {
         dragPreview.toFront();
     }
 
+    /**
+     * Повертає результат операції «до карта».
+     *
+     * @param screenPoint значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private Point2D screenToWorld(Point2D screenPoint) {
         return new Point2D(
                 (screenPoint.getX() - state.panX()) / state.zoom(),
@@ -147,6 +206,13 @@ public final class NeuronToolDragController {
         );
     }
 
+    /**
+     * Переміщує обʼєкт «нейрон тип» відповідно до переданого зміщення.
+     *
+     * @param dragboard значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private static NeuronType dragNeuronType(Dragboard dragboard) {
         if (dragboard == null || !dragboard.hasString()) {
             return null;

@@ -11,7 +11,9 @@ import javafx.scene.layout.VBox;
 
 import java.util.Objects;
 
-/** In-window confirmation overlay for pending menu edits. */
+/**
+ * Показує запит про незбережені зміни та надає варіанти дій.
+ */
 public final class UnsavedChangesView extends StackPane {
 
     private final LocalizationService localization;
@@ -20,6 +22,13 @@ public final class UnsavedChangesView extends StackPane {
     private final Button yesButton = new Button();
     private final Button noButton = new Button();
 
+    /**
+     * Повертає результат операції «змінює відображення».
+     *
+     * @param localization значення, що визначає локалізація для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public UnsavedChangesView(LocalizationService localization) {
         this.localization = Objects.requireNonNull(localization, "localization");
 
@@ -50,10 +59,22 @@ public final class UnsavedChangesView extends StackPane {
         refreshTexts();
     }
 
+    /**
+     * Перевіряє, чи виконується умова «відповідну операцію».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean isShowing() {
         return isVisible();
     }
 
+    /**
+     * Відображає «потрібні дані» в інтерфейсі.
+     *
+     * @param saveAction значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param discardAction значення, що визначає відкинути для цієї операції.
+     */
     public void show(
             Runnable saveAction,
             Runnable discardAction
@@ -78,6 +99,9 @@ public final class UnsavedChangesView extends StackPane {
         requestFocus();
     }
 
+    /**
+     * Виконує операцію «приховати».
+     */
     public void hide() {
         setVisible(false);
         setManaged(false);
@@ -85,6 +109,9 @@ public final class UnsavedChangesView extends StackPane {
         noButton.setOnAction(null);
     }
 
+    /**
+     * Обробляє «відповідну операцію».
+     */
     public void refreshTexts() {
         title.setText(localization.text("menu.unsaved.title"));
         message.setText(localization.text("menu.unsaved.message"));

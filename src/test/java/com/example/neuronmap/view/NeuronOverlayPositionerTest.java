@@ -6,8 +6,14 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+/**
+ * Перевіряє розрахунок положення меню та накладок.
+ */
 class NeuronOverlayPositionerTest {
 
+    /**
+     * Перевіряє очікувану поведінку: зберігає.
+     */
     @Test
     void offsetAlongNormalKeepsExactScreenDistance() {
         Point2D anchor = new Point2D(100.0, 200.0);
@@ -28,6 +34,9 @@ class NeuronOverlayPositionerTest {
         );
     }
 
+    /**
+     * Перевіряє очікувану поведінку: слідує.
+     */
     @Test
     void offsetAlongNormalFollowsRotatedNormal() {
         Point2D anchor = new Point2D(100.0, 200.0);
@@ -43,6 +52,9 @@ class NeuronOverlayPositionerTest {
         assertEquals(200.0, result.getY(), 1e-9);
     }
 
+    /**
+     * Перевіряє очікувану поведінку: відхилений.
+     */
     @Test
     void zeroNormalIsRejected() {
         Point2D anchor = new Point2D(100.0, 200.0);

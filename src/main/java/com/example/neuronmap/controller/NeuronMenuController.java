@@ -16,7 +16,9 @@ import javafx.scene.layout.VBox;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-/** Builds and manages the neuron context menu; contains no domain rules. */
+/**
+ * Керує меню, яке відкривається для окремого нейрона.
+ */
 public final class NeuronMenuController {
 
     private final NeuronService neuronService;
@@ -37,6 +39,35 @@ public final class NeuronMenuController {
     private VBox menu;
     private String activeNeuronId;
 
+    /**
+     * Повертає результат операції «нейрон меню».
+     *
+     * @param neuronService значення, що визначає нейрон служба для цієї операції.
+     *
+     * @param state стан обʼєкта або редактора.
+     *
+     * @param workspace значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param connections значення, що визначає звʼязки для цієї операції.
+     *
+     * @param simulation значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param deletionController значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param menuCustomizer значення, що визначає меню для цієї операції.
+     *
+     * @param refreshVisuals значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param refreshConnections значення, що визначає звʼязки для цієї операції.
+     *
+     * @param refreshOverlays значення, що визначає накладки для цієї операції.
+     *
+     * @param save значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param status стан операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public NeuronMenuController(
             NeuronService neuronService,
             EditorState state,
@@ -68,6 +99,37 @@ public final class NeuronMenuController {
         );
     }
 
+    /**
+     * Повертає результат операції «нейрон меню».
+     *
+     * @param neuronService значення, що визначає нейрон служба для цієї операції.
+     *
+     * @param state стан обʼєкта або редактора.
+     *
+     * @param workspace значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param connections значення, що визначає звʼязки для цієї операції.
+     *
+     * @param simulation значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param deletionController значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param menuCustomizer значення, що визначає меню для цієї операції.
+     *
+     * @param refreshVisuals значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param refreshConnections значення, що визначає звʼязки для цієї операції.
+     *
+     * @param refreshOverlays значення, що визначає накладки для цієї операції.
+     *
+     * @param save значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param status стан операції.
+     *
+     * @param localization значення, що визначає локалізація для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public NeuronMenuController(
             NeuronService neuronService,
             EditorState state,
@@ -99,14 +161,29 @@ public final class NeuronMenuController {
         this.localization = Objects.requireNonNull(localization, "localization");
     }
 
+    /**
+     * Перевіряє, чи виконується умова «відповідну операцію».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean isVisible() {
         return menu != null && menu.isVisible();
     }
 
+    /**
+     * Повертає результат операції «вузол».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public VBox node() {
         return menu;
     }
 
+    /**
+     * Відображає «потрібні дані» в інтерфейсі.
+     *
+     * @param neuronView значення, що визначає нейрон відображення для цієї операції.
+     */
     public void show(NeuronView neuronView) {
         hide();
 
@@ -200,6 +277,9 @@ public final class NeuronMenuController {
         overlayPositioner.position(neuronView, menu, null);
     }
 
+    /**
+     * Виконує операцію «приховати».
+     */
     public void hide() {
         if (menu != null) {
             workspace.overlayLayer().getChildren().remove(menu);
@@ -209,6 +289,11 @@ public final class NeuronMenuController {
         state.setSelectedNeuronForMenu(null);
     }
 
+    /**
+     * Обробляє «положення».
+     *
+     * @param view значення, що визначає відображення для цієї операції.
+     */
     public void refreshPosition(NeuronView view) {
         if (!isVisible() || activeNeuronId == null || view == null) {
             return;
@@ -219,6 +304,17 @@ public final class NeuronMenuController {
         overlayPositioner.position(view, menu, null);
     }
 
+    /**
+     * Повертає результат операції «меню кнопка».
+     *
+     * @param text текст, який потрібно показати або обробити.
+     *
+     * @param tooltipText значення, що визначає підказка текст для цієї операції.
+     *
+     * @param styleClass значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private Button menuButton(String text, String tooltipText, String styleClass) {
         Button button = new Button(text);
         button.getStyleClass().add("menu-button");

@@ -10,8 +10,14 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * Перевіряє операції з групами та переміщення їхніх елементів.
+ */
 class GroupServiceTest {
 
+    /**
+     * Перевіряє очікувану поведінку: рухається усі група.
+     */
     @Test
     void movesAllMembersOfContainingGroup() {
         NeuronMapModel model = new NeuronMapModel();

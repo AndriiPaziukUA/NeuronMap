@@ -8,8 +8,7 @@ import javafx.scene.control.Label;
 import javafx.util.Duration;
 
 /**
- * Controls delayed disappearance and hover-to-restore behavior of one status
- * message area.
+ * Керує строком показу повідомлення стану та його завершенням.
  */
 public final class StatusMessageLifecycle {
 
@@ -28,16 +27,35 @@ public final class StatusMessageLifecycle {
     private boolean hovered;
     private boolean messageFinished;
 
+    /**
+     * Повертає результат операції «стан повідомлення».
+     *
+     * @param hoverRegion значення, що визначає наведення для цієї операції.
+     *
+     * @param messageLabel значення, що визначає повідомлення підпис для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public StatusMessageLifecycle(
             Node hoverRegion,
             Label messageLabel
     ) {
         if (hoverRegion == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     "hoverRegion must not be null"
             );
         }
         if (messageLabel == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     "messageLabel must not be null"
             );
@@ -76,6 +94,11 @@ public final class StatusMessageLifecycle {
         messageLabel.setOpacity(0.0);
     }
 
+    /**
+     * Відображає «потрібні дані» в інтерфейсі.
+     *
+     * @param message повідомлення для показу чи журналювання.
+     */
     public void show(String message) {
         String normalizedMessage =
                 message == null ? "" : message;
@@ -92,6 +115,9 @@ public final class StatusMessageLifecycle {
         restartVisibleCountdown();
     }
 
+    /**
+     * Видаляє або скидає дані, повʼязані з «потрібні дані».
+     */
     public void clear() {
         visiblePause.stop();
         fadeTransition.stop();
@@ -101,6 +127,9 @@ public final class StatusMessageLifecycle {
         hoverRegion.setMouseTransparent(true);
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     */
     public void dispose() {
         clear();
         hoverRegion.setOnMouseEntered(null);
@@ -109,6 +138,9 @@ public final class StatusMessageLifecycle {
         fadeTransition.setOnFinished(null);
     }
 
+    /**
+     * Обробляє «відповідну операцію».
+     */
     private void handleMouseEntered() {
         if (messageFinished) {
             return;
@@ -124,6 +156,9 @@ public final class StatusMessageLifecycle {
         }
     }
 
+    /**
+     * Обробляє «відповідну операцію».
+     */
     private void handleMouseExited() {
         if (messageFinished) {
             return;
@@ -134,6 +169,9 @@ public final class StatusMessageLifecycle {
         restartVisibleCountdown();
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     */
     private void restartVisibleCountdown() {
         if (messageFinished) {
             return;
@@ -142,6 +180,9 @@ public final class StatusMessageLifecycle {
         visiblePause.playFromStart();
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     */
     private void playFade() {
         if (hovered || messageFinished) {
             return;

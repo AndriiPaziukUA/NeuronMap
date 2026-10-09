@@ -2,27 +2,46 @@ package com.example.neuronmap.controller;
 
 import javafx.geometry.Point2D;
 
-/** Pure rotation math shared by the rotation interaction. */
+/**
+ * Містить математичні обчислення, потрібні для визначення кута обертання нейрона.
+ */
 public final class NeuronRotationMath {
 
+    /**
+     * Повертає результат операції «нейрон обертання».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private NeuronRotationMath() {
     }
 
-    /**
-     * Converts a pointer position around the neuron center to the same
-     * clockwise angle convention used by JavaFX Node#setRotate.
-     *
-     * <p>The handle starts below the rectangle, therefore the bottom direction
-     * is 0 degrees, left is 90, top is 180 and right is 270.</p>
-     */
-    public static double pointerAngleDegrees(
+/**
+ * Повертає результат операції «кут градуси».
+ *
+ * @param center центр області.
+ *
+ * @param pointer значення, що визначає відповідну операцію для цієї операції.
+ *
+ * @return числове значення, визначене методом.
+ */
+public static double pointerAngleDegrees(
             Point2D center,
             Point2D pointer
     ) {
         if (center == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException("center must not be null");
         }
         if (pointer == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException("pointer must not be null");
         }
 
@@ -34,12 +53,18 @@ public final class NeuronRotationMath {
         );
     }
 
-    /**
-     * Applies only the pointer's rotation delta to the rotation that existed
-     * when the user pressed the handle. This prevents the first drag event
-     * from changing the neuron's rotation unexpectedly.
-     */
-    public static double rotationForDrag(
+/**
+ * Повертає результат операції «обертання для перетягування».
+ *
+ * @param initialRotationDegrees значення, що визначає обертання градуси для цієї операції.
+ *
+ * @param initialPointerAngleDegrees значення, що визначає кут градуси для цієї операції.
+ *
+ * @param currentPointerAngleDegrees значення, що визначає поточний кут градуси для цієї операції.
+ *
+ * @return числове значення, визначене методом.
+ */
+public static double rotationForDrag(
             double initialRotationDegrees,
             double initialPointerAngleDegrees,
             double currentPointerAngleDegrees
@@ -62,8 +87,16 @@ public final class NeuronRotationMath {
         return normalize360(initialRotationDegrees + delta);
     }
 
-    /** Returns the shortest signed angle from {@code from} to {@code to}. */
-    public static double shortestSignedDelta(
+/**
+ * Повертає результат операції «відповідну операцію».
+ *
+ * @param from значення, що визначає із для цієї операції.
+ *
+ * @param to значення, що визначає до для цієї операції.
+ *
+ * @return числове значення, визначене методом.
+ */
+public static double shortestSignedDelta(
             double from,
             double to
     ) {
@@ -77,6 +110,13 @@ public final class NeuronRotationMath {
         return delta;
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @param degrees кут повороту в градусах.
+     *
+     * @return числове значення, визначене методом.
+     */
     public static double normalize360(double degrees) {
         requireFinite(degrees, "degrees");
         double normalized = degrees % 360.0;
@@ -85,11 +125,23 @@ public final class NeuronRotationMath {
                 : normalized;
     }
 
+    /**
+     * Виконує операцію «потребувати».
+     *
+     * @param value значення, яке потрібно передати або зберегти.
+     *
+     * @param name назва або текстове імʼя обʼєкта.
+     */
     private static void requireFinite(
             double value,
             String name
     ) {
         if (!Double.isFinite(value)) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     name + " must be finite"
             );

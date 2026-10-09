@@ -17,7 +17,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-/** Owns only the create-connection mode and its preview line. */
+/**
+ * Організовує створення спрямованого звʼязку між початковим і кінцевим нейронами.
+ */
 final class ConnectionCreationController {
 
     private final ConnectionService connectionService;
@@ -34,6 +36,25 @@ final class ConnectionCreationController {
     private double lastCursorX;
     private double lastCursorY;
 
+    /**
+     * Створює обʼєкт ConnectionCreationController та ініціалізує його початковий стан.
+     *
+     * @param connectionService значення, що визначає звʼязок служба для цієї операції.
+     *
+     * @param state стан обʼєкта або редактора.
+     *
+     * @param workspace значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param neuronViews значення, що визначає нейрон для цієї операції.
+     *
+     * @param refresh значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param save значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param status стан операції.
+     *
+     * @param exitDelete значення, що визначає видалити для цієї операції.
+     */
     ConnectionCreationController(
             ConnectionService connectionService,
             EditorState state,
@@ -57,6 +78,27 @@ final class ConnectionCreationController {
         );
     }
 
+    /**
+     * Створює обʼєкт ConnectionCreationController та ініціалізує його початковий стан.
+     *
+     * @param connectionService значення, що визначає звʼязок служба для цієї операції.
+     *
+     * @param state стан обʼєкта або редактора.
+     *
+     * @param workspace значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param neuronViews значення, що визначає нейрон для цієї операції.
+     *
+     * @param refresh значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param save значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param status стан операції.
+     *
+     * @param exitDelete значення, що визначає видалити для цієї операції.
+     *
+     * @param localization значення, що визначає локалізація для цієї операції.
+     */
     ConnectionCreationController(
             ConnectionService connectionService,
             EditorState state,
@@ -79,6 +121,11 @@ final class ConnectionCreationController {
         this.localization = Objects.requireNonNull(localization, "localization");
     }
 
+    /**
+     * Запускає або планує дію, повʼязану з «створити».
+     *
+     * @param sourceNeuronId ідентифікатор початкового нейрона.
+     */
     void beginCreate(String sourceNeuronId) {
         exitDelete.run();
         state.enterCreateConnectionMode(sourceNeuronId);
@@ -95,6 +142,9 @@ final class ConnectionCreationController {
         status.accept(localization.text("status.connection_create_hint"));
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «створити».
+     */
     void cancelCreate() {
         if (previewLine != null) {
             workspace.overlayLayer().getChildren().remove(previewLine);
@@ -109,16 +159,29 @@ final class ConnectionCreationController {
         workspace.node().setCursor(Cursor.DEFAULT);
     }
 
+    /**
+     * Обробляє «відповідну операцію».
+     *
+     * @param event подія інтерфейсу.
+     */
     void handleMouseMoved(MouseEvent event) {
         lastCursorX = event.getX();
         lastCursorY = event.getY();
         updatePreviewLine(event.getX(), event.getY());
     }
 
+    /**
+     * Обробляє «попередній перегляд після камера змінити».
+     */
     void refreshPreviewAfterCameraChange() {
         updatePreviewLine(lastCursorX, lastCursorY);
     }
 
+    /**
+     * Обробляє «створити».
+     *
+     * @param event подія інтерфейсу.
+     */
     void handleCreateClick(MouseEvent event) {
         if (event.getButton() != MouseButton.PRIMARY) {
             return;
@@ -153,6 +216,13 @@ final class ConnectionCreationController {
         event.consume();
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «попередній перегляд».
+     *
+     * @param screenX значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param screenY значення, що визначає відповідну операцію для цієї операції.
+     */
     private void updatePreviewLine(double screenX, double screenY) {
         if (previewLine == null || state.connectionSourceId() == null) {
             return;

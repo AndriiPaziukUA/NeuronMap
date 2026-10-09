@@ -5,13 +5,26 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+/**
+ * Створює структуру таблиць бази даних і забезпечує її сумісність із кодом.
+ */
 public final class SqliteSchema {
 
     private static final int CURRENT_VERSION = 4;
 
+    /**
+     * Повертає результат операції «SQLite структура».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private SqliteSchema() {
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     *
+     * @param connection звʼязок між нейронами.
+     */
     public static void migrate(Connection connection) {
         try {
             createBaseSchema(connection);
@@ -20,6 +33,13 @@ public final class SqliteSchema {
             ensureDirectionColumn(connection);
             ensureVersion(connection);
         } catch (SQLException exception) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @param exception помилка, яку потрібно обробити.
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new PersistenceException(
                     "Не вдалося підготувати схему SQLite.",
                     exception
@@ -27,6 +47,11 @@ public final class SqliteSchema {
         }
     }
 
+    /**
+     * Створює обʼєкт із переданих даних «структура».
+     *
+     * @param connection звʼязок між нейронами.
+     */
     private static void createBaseSchema(Connection connection)
             throws SQLException {
         try (Statement statement = connection.createStatement()) {
@@ -98,6 +123,11 @@ public final class SqliteSchema {
         }
     }
 
+    /**
+     * Виконує операцію «старий формат нейрон розташування».
+     *
+     * @param connection звʼязок між нейронами.
+     */
     private static void migrateLegacyNeuronLayout(Connection connection)
             throws SQLException {
         boolean hasX = columnExists(
@@ -151,6 +181,11 @@ public final class SqliteSchema {
         }
     }
 
+    /**
+     * Виконує операцію «нейрон налаштування стовпці».
+     *
+     * @param connection звʼязок між нейронами.
+     */
     private static void ensureNeuronSettingsColumns(Connection connection)
             throws SQLException {
         if (!columnExists(
@@ -182,6 +217,11 @@ public final class SqliteSchema {
         }
     }
 
+    /**
+     * Виконує операцію «напрямок стовпець».
+     *
+     * @param connection звʼязок між нейронами.
+     */
     private static void ensureDirectionColumn(Connection connection)
             throws SQLException {
         if (columnExists(
@@ -201,6 +241,17 @@ public final class SqliteSchema {
         }
     }
 
+    /**
+     * Повертає результат операції «стовпець існує».
+     *
+     * @param connection звʼязок між нейронами.
+     *
+     * @param table значення, що визначає таблиця для цієї операції.
+     *
+     * @param column значення, що визначає стовпець для цієї операції.
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     private static boolean columnExists(
             Connection connection,
             String table,
@@ -222,6 +273,11 @@ public final class SqliteSchema {
         return false;
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     *
+     * @param connection звʼязок між нейронами.
+     */
     private static void ensureVersion(Connection connection)
             throws SQLException {
         try (Statement statement = connection.createStatement()) {

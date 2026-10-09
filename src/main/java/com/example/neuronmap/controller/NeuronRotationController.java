@@ -14,7 +14,9 @@ import javafx.scene.input.MouseEvent;
 import java.util.Map;
 import java.util.Objects;
 
-/** Owns rotation-handle lifecycle and drag math for neuron rotation. */
+/**
+ * Обробляє обертання нейрона через графічний інтерфейс.
+ */
 public final class NeuronRotationController {
 
     private final NeuronService neuronService;
@@ -35,6 +37,31 @@ public final class NeuronRotationController {
     private double rotationStartPointerAngle;
     private double rotationStartDegrees;
 
+    /**
+     * Повертає результат операції «нейрон обертання».
+     *
+     * @param neuronService значення, що визначає нейрон служба для цієї операції.
+     *
+     * @param state стан обʼєкта або редактора.
+     *
+     * @param workspace значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param neuronViews значення, що визначає нейрон для цієї операції.
+     *
+     * @param rotationHandles значення, що визначає обертання обробляє для цієї операції.
+     *
+     * @param hideMenu значення, що визначає приховати меню для цієї операції.
+     *
+     * @param refreshVisuals значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param refreshConnections значення, що визначає звʼязки для цієї операції.
+     *
+     * @param refreshOverlays значення, що визначає накладки для цієї операції.
+     *
+     * @param save значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public NeuronRotationController(
             NeuronService neuronService,
             EditorState state,
@@ -60,6 +87,11 @@ public final class NeuronRotationController {
         this.save = Objects.requireNonNull(save, "save");
     }
 
+    /**
+     * Створює обʼєкт із переданих даних «обробити».
+     *
+     * @param neuronView значення, що визначає нейрон відображення для цієї операції.
+     */
     public void createHandle(NeuronView neuronView) {
         String neuronId = neuronView.model().id();
         RotationHandleView handle = new RotationHandleView();
@@ -72,6 +104,11 @@ public final class NeuronRotationController {
         handle.addEventHandler(MouseEvent.MOUSE_RELEASED, event -> endRotation(neuronId, event, handle));
     }
 
+    /**
+     * Відображає «потрібні дані» в інтерфейсі.
+     *
+     * @param neuronId ідентифікатор нейрона.
+     */
     public void show(String neuronId) {
         hideMenu.run();
         hideAll();
@@ -85,6 +122,9 @@ public final class NeuronRotationController {
         refreshPosition();
     }
 
+    /**
+     * Виконує операцію «приховати усі».
+     */
     public void hideAll() {
         for (RotationHandleView handle : rotationHandles.values()) {
             if (handle != null) {
@@ -96,6 +136,9 @@ public final class NeuronRotationController {
         rotationCenter = null;
     }
 
+    /**
+     * Обробляє «положення».
+     */
     public void refreshPosition() {
         if (activeNeuronId == null) {
             return;
@@ -108,6 +151,15 @@ public final class NeuronRotationController {
         overlayPositioner.position(view, null, handle);
     }
 
+    /**
+     * Запускає або планує дію, повʼязану з «обертання».
+     *
+     * @param neuronId ідентифікатор нейрона.
+     *
+     * @param event подія інтерфейсу.
+     *
+     * @param handle значення, що визначає обробити для цієї операції.
+     */
     private void beginRotation(String neuronId, MouseEvent event, RotationHandleView handle) {
         if (event.getButton() != MouseButton.PRIMARY) {
             return;
@@ -129,6 +181,13 @@ public final class NeuronRotationController {
         event.consume();
     }
 
+    /**
+     * Переміщує обʼєкт «обертання» відповідно до переданого зміщення.
+     *
+     * @param neuronId ідентифікатор нейрона.
+     *
+     * @param event подія інтерфейсу.
+     */
     private void dragRotation(String neuronId, MouseEvent event) {
         if (!neuronId.equals(rotatingNeuronId) || rotationCenter == null) {
             return;
@@ -150,6 +209,15 @@ public final class NeuronRotationController {
         event.consume();
     }
 
+    /**
+     * Виконує операцію «обертання».
+     *
+     * @param neuronId ідентифікатор нейрона.
+     *
+     * @param event подія інтерфейсу.
+     *
+     * @param handle значення, що визначає обробити для цієї операції.
+     */
     private void endRotation(String neuronId, MouseEvent event, RotationHandleView handle) {
         if (!neuronId.equals(rotatingNeuronId)) {
             return;

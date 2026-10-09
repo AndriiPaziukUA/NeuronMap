@@ -6,8 +6,14 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Перевіряє правила цілісності карти, створення звʼязків і видалення обʼєктів.
+ */
 class NeuronMapModelTest {
 
+    /**
+     * Перевіряє очікувану поведінку: створити нейрон створює представлення.
+     */
     @Test
     void createNeuronCreatesSeparatePresentation() {
         NeuronMapModel model = new NeuronMapModel();
@@ -30,6 +36,9 @@ class NeuronMapModelTest {
         assertEquals(0, neuron.activation());
     }
 
+    /**
+     * Перевіряє очікувану поведінку: звʼязки і.
+     */
     @Test
     void connectionsAreDirectedUniqueAndCannotBeSelfLoops() {
         NeuronMapModel model = new NeuronMapModel();
@@ -51,6 +60,9 @@ class NeuronMapModelTest {
         assertEquals(1, model.connections().size());
     }
 
+    /**
+     * Перевіряє очікувану поведінку: звʼязок відхиляє.
+     */
     @Test
     void lowLevelConnectionImportAlsoRejectsSelfLoops() {
         NeuronMapModel model = new NeuronMapModel();
@@ -69,6 +81,9 @@ class NeuronMapModelTest {
         assertEquals(0, model.connections().size());
     }
 
+    /**
+     * Перевіряє очікувану поведінку: видаляє.
+     */
     @Test
     void removesContactInBothDirections() {
         NeuronMapModel model = new NeuronMapModel();
@@ -102,6 +117,9 @@ class NeuronMapModelTest {
         assertTrue(model.hasConnection(a.id(), c.id()));
     }
 
+    /**
+     * Перевіряє очікувану поведінку: нейрон видаляє представлення звʼязки і група.
+     */
     @Test
     void deletingNeuronRemovesPresentationConnectionsAndItsGroupMembership() {
         NeuronMapModel model = new NeuronMapModel();

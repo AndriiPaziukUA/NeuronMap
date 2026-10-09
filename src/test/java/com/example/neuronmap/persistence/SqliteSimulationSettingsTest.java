@@ -7,8 +7,16 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+/**
+ * Перевіряє збереження параметрів симуляції та значення за замовчуванням.
+ */
 class SqliteSimulationSettingsTest {
 
+    /**
+     * Перевіряє очікувану поведінку: такт налаштування таблиця.
+     *
+     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
+     */
     @Test
     void simulationTickMillisRoundTripsThroughSettingsTable(
             @TempDir Path tempDir
@@ -34,6 +42,11 @@ class SqliteSimulationSettingsTest {
         }
     }
 
+    /**
+     * Перевіряє очікувану поведінку: некоректний такт до.
+     *
+     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
+     */
     @Test
     void invalidPersistedSimulationTickMillisFallsBackToDefault(
             @TempDir Path tempDir

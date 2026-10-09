@@ -8,23 +8,51 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Properties;
 
-/** Persists application-wide settings that must not belong to any project. */
+/**
+ * Зберігає загальні налаштування застосунку окремо від конкретної карти.
+ */
 public final class GlobalSettingsStore {
 
     private final Path path;
 
+    /**
+     * Повертає результат операції «загальний налаштування зберігати».
+     *
+     * @param path шлях до файлу або каталогу.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public GlobalSettingsStore(Path path) {
         if (path == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException("path must not be null");
         }
         this.path = path.toAbsolutePath().normalize();
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «потрібні дані».
+     *
+     * @param key ключ для пошуку або збереження значення.
+     *
+     * @return текстове значення, сформоване або знайдене методом.
+     */
     public synchronized String load(String key) {
         Properties properties = loadProperties();
         return properties.getProperty(key);
     }
 
+    /**
+     * Зберігає дані, повʼязані з «потрібні дані», у відповідному сховищі.
+     *
+     * @param key ключ для пошуку або збереження значення.
+     *
+     * @param value значення, яке потрібно передати або зберегти.
+     */
     public synchronized void save(String key, String value) {
         Properties properties = loadProperties();
         if (value == null) {
@@ -35,6 +63,11 @@ public final class GlobalSettingsStore {
         writeProperties(properties);
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «властивості».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private Properties loadProperties() {
         Properties properties = new Properties();
         if (!Files.isRegularFile(path)) {
@@ -45,6 +78,13 @@ public final class GlobalSettingsStore {
             properties.load(input);
             return properties;
         } catch (IOException exception) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @param exception помилка, яку потрібно обробити.
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new PersistenceException(
                     "Не вдалося прочитати глобальні налаштування.",
                     exception
@@ -52,6 +92,11 @@ public final class GlobalSettingsStore {
         }
     }
 
+    /**
+     * Зберігає дані, повʼязані з «властивості», у відповідному сховищі.
+     *
+     * @param properties набір властивостей.
+     */
     private void writeProperties(Properties properties) {
         try {
             Path parent = path.getParent();
@@ -79,6 +124,13 @@ public final class GlobalSettingsStore {
                 );
             }
         } catch (IOException exception) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @param exception помилка, яку потрібно обробити.
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new PersistenceException(
                     "Не вдалося зберегти глобальні налаштування.",
                     exception

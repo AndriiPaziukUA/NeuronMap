@@ -10,8 +10,16 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * Перевіряє сповіщення про зміни папок проєктів і завершення спостереження.
+ */
 final class ProjectDirectoryWatcherTest {
 
+    /**
+     * Перевіряє очікувану поведінку: новий проєкт папка і база даних.
+     *
+     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
+     */
     @Test
     void detectsNewProjectFolderAndItsDatabase(@TempDir Path tempDir)
             throws Exception {
@@ -30,6 +38,11 @@ final class ProjectDirectoryWatcherTest {
         }
     }
 
+    /**
+     * Перевіряє очікувану поведінку: закриття.
+     *
+     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
+     */
     @Test
     void closeIsIdempotent(@TempDir Path tempDir) {
         Path root = tempDir.resolve("NeuronMap");

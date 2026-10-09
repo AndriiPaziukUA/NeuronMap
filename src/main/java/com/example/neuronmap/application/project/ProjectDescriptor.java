@@ -4,7 +4,22 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Objects;
 
-/** Immutable metadata describing a saved or not-yet-persisted project. */
+/**
+ * Повертає результат операції «проєкт».
+ *
+ * @param id ідентифікатор обʼєкта.
+ *
+ * @param name назва або текстове імʼя обʼєкта.
+ *
+ * @param databasePath значення, що визначає база даних шлях для цієї операції.
+ *
+ * @param modifiedAt значення, що визначає відповідну операцію для цієї операції.
+ *
+ * @return значення або обʼєкт, визначений описаною операцією.
+ */
+/**
+ * Описує збережений проєкт: його назву, розташування та повʼязані метадані.
+ */
 public record ProjectDescriptor(
         String id,
         String name,
@@ -13,9 +28,19 @@ public record ProjectDescriptor(
 ) {
     public ProjectDescriptor {
         if (id == null || id.isBlank()) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException("project id must not be blank");
         }
         if (name == null || name.isBlank()) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException("project name must not be blank");
         }
         databasePath = Objects.requireNonNull(databasePath, "databasePath")
@@ -23,6 +48,11 @@ public record ProjectDescriptor(
                 .normalize();
     }
 
+    /**
+     * Перевіряє, чи виконується умова «відповідну операцію».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean isPersisted() {
         return modifiedAt != null;
     }

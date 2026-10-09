@@ -1,222 +1,108 @@
-# NeuronMap — архітектурний довідник
+# Архітектура NeuronMap
 
-## Мета архітектури
+## Навіщо код поділений на шари
 
-Архітектура NeuronMap розділяє domain rules, application state, business operations, simulation, persistence та JavaFX presentation. Це робиться не заради великої кількості package, а щоб зміна в одному аспекті не змушувала переписувати всю систему.
+Кожен шар має одну основну відповідальність. Завдяки цьому правила карти можна змінювати й тестувати без відкриття вікна, збереження — без втручання в інтерфейс, а візуальні зміни — без переписування логіки симуляції.
 
-## Шари
+## Відповідальність пакетів
 
 ### `app`
-Composition root. Єдине місце, де нормально зібрати весь object graph.
 
-Залежить від усіх потрібних шарів. Сам майже не містить business logic.
+Точка запуску програми. Тут завантажуються налаштування, створюються інфраструктурні компоненти та збирається об'єктна структура застосунку. Складні правила предметної області сюди не належать.
 
 ### `application`
-Стан редактора та application-level service graph.
 
-`EditorState` тримає selection, mode, camera state та transient interaction state. `NeuronMapApplicationService` створює specialized services.
-
-### `service`
-Business operations над model: neurons, connections, groups, clipboard, history, map persistence facade, project catalog.
-
-Service не повинен знати про JavaFX controls.
+Зберігає стан редактора та створює набір служб, потрібних застосунку. Тут розміщені дані вибору, режиму редактора й історії стану, але не SQL-запити.
 
 ### `model`
-Предметна область. Об'єкти тут мають бути максимально незалежними від інфраструктури.
+
+Містить нейрони, зв'язки, групи, карту та стан представлення нейрона. Цей шар описує предметну область і не повинен імпортувати JavaFX.
+
+### `service`
+
+Надає операції над моделлю: створення, пошук і видалення нейронів, роботу зі зв'язками та групами, копіювання, історію й каталог проєктів. Служба приховує деталі виконання операції від контролера.
 
 ### `simulation`
-Чиста логіка поширення сигналів та глобального simulation tick. Simulation має бути тестованою без JavaFX runtime.
+
+Обчислює поширення сигналів. `SimulationSession` веде спільний послідовний відлік тактів, а `SimulationStep` і `SimulationTick` описують результат і номер такту. Цей шар не залежить від JavaFX.
 
 ### `persistence`
-Repository contracts, SQLite adapter, settings stores, filesystem watcher, project storage resolver, migration.
 
-Persistence не керує UI.
+Відповідає за SQLite, читання та запис карт, збереження налаштувань і стану вікна, а також за спостереження за папками проєктів. Контракт `MapRepository` відділяє служби від конкретного способу збереження.
 
 ### `controller`
-JavaFX adapters. Контролери читають події UI і викликають application/service API.
+
+Перетворює дії користувача на виклики служб і координаторів. Контролер може працювати з подіями JavaFX, але не повинен сам виконувати SQL або дублювати правила моделі.
 
 ### `view`
-JavaFX visual components. View відображає стан і вміє керувати власним presentation lifecycle.
+
+Створює та оновлює графічні елементи: нейрони, зв'язки, меню, панелі, підказки й анімації. Відображення може знати про JavaFX, але не повинно вирішувати, чи дозволена бізнес-операція.
 
 ### `coordinator`
-Оркестрація. Coordinator може сказати «спочатку pause simulation, потім зберегти state, потім refresh view», але не повинен містити database rules чи domain algorithms.
 
-### `util`
-Невеликі stateless helpers.
+Задає послідовність дій, для яких потрібно залучити кілька компонентів. Наприклад, координатор може організувати оновлення інтерфейсу після зміни карти. Він не повинен ставати місцем для всіх правил і розрахунків.
 
-### `i18n`
-Локалізація та вибір мови.
+### `config`, `i18n` та `util`
 
-## Dependency rules
+`config` завантажує конфігурацію запуску, `i18n` керує мовою й перекладами, а `util` містить невеликі допоміжні обчислення, які не потребують окремої предметної служби.
 
-Безпечний напрямок залежностей:
+## Напрямок залежностей
 
-```text
-app
-  ↓
-application / coordinator
-  ↓
-controller / service
-  ↓
-model / simulation / persistence abstractions
-```
-
-Але це правило треба читати точніше:
-
-- model не залежить від JavaFX;
-- simulation не залежить від JavaFX;
-- persistence не залежить від JavaFX;
-- view не містить business decisions;
-- controller не містить SQL;
-- coordinator не стає альтернативою service layer.
-
-## Project storage
-
-Фізичний layout:
+Типовий шлях виконання операції виглядає так:
 
 ```text
-%USERPROFILE%\Documents\NeuronMap\
-    <Project Name>\project.db
-    neuronmap-global.properties
-    neuronmap-window.properties
-    .legacy-storage-migrated
+Подія JavaFX
+    ↓
+Контролер
+    ↓
+Координатор (коли потрібен порядок кількох дій)
+    ↓
+Служба
+    ↓
+Модель або контракт сховища
+    ↓
+SQLite чи тимчасове сховище в пам'яті
 ```
 
-`project.db` — дані конкретного project.
+Це схема взаємодії, а не вимога, щоб кожна операція проходила через усі компоненти. Якщо достатньо прямого виклику контролера до служби, додавати координатор лише заради кількості шарів не потрібно.
 
-`neuronmap-global.properties` — application-wide preferences, які не повинні належати одному project, наприклад last opened project.
+Основні обмеження:
 
-`neuronmap-window.properties` — глобальний UI persistence для geometry вікна.
+- `model`, `simulation` і `persistence` не залежать від JavaFX;
+- контролери не містять SQL;
+- `view` не приймає бізнес-рішень;
+- координатори не дублюють функції служб;
+- спільна логіка має одне відповідальне місце, а не кілька схожих реалізацій.
 
-`.legacy-storage-migrated` — marker, що one-time migration зі старого layout уже була виконана.
+## Робота з картою
 
-## Project discovery
+Коли користувач додає нейрон, контролер отримує подію, служба створює нейрон і його стан представлення, після чого редактор оновлює відображення. Якщо карту потрібно зберегти, операція проходить через `MapService` і контракт `MapRepository`. Контролер не повинен напряму звертатися до `SqliteMapWriter`.
 
-`ProjectCatalogService.listProjects()` не читає registry metadata. Він дивиться на immediate child directories storage root і вважає project saved лише тоді, коли:
+## Симуляція
 
-```text
-<folder>\project.db
-```
+Симуляція відокремлена від таймера та анімації JavaFX. Вона визначає, які нейрони активуються на поточному такті, обчислює сигнали для наступного такту й повідомляє про результат. Контролер симуляції відповідає за взаємодію з користувачем, а візуальні компоненти — за показ імпульсів.
 
-є regular file.
+Кілька вручну запущених імпульсів використовують спільний відлік тактів. Відлік представлений типом `BigInteger`, тому не обмежений максимальною величиною `long`.
 
-Це дозволяє просто копіювати project folder на інший Windows PC та отримувати project автоматично після refresh.
+## Збереження проєктів
 
-## External changes
+У Windows кореневий каталог — `Documents\NeuronMap` у домашньому каталозі користувача. Збережений проєкт — це окрема папка з файлом `project.db`. Список проєктів формується за вмістом каталогу, а не за окремим реєстром назв.
 
-`ProjectDirectoryWatcher` використовує Java NIO `WatchService`.
+Порожній новий проєкт може залишатися в пам'яті, поки немає даних, які потрібно зберігати. Дані карти, загальні налаштування застосунку та розташування вікна мають окремі механізми збереження.
 
-Він стежить за root directory та вже відомими immediate project directories. Подія файлової системи приводить до callback, а `MainMenuController` запускає refresh у JavaFX thread.
+`ProjectDirectoryWatcher` лише сповіщає про зміни файлової системи. Рішення, чи є папка збереженим проєктом, належить `ProjectCatalogService`.
 
-Watcher не повинен містити logic, яка вирішує, «чи є це project». Він лише повідомляє про зміни. Правила discovery належать `ProjectCatalogService`.
+## Як обрати місце для нової логіки
 
-## Transient project
+| Потрібно змінити | Почни з |
+|---|---|
+| Структуру нейрона або правила карти | `model/` |
+| Створення, редагування чи видалення об'єктів | відповідної служби в `service/` |
+| Поширення сигналу або такти | `simulation/` |
+| Читання чи запис даних | `persistence/` |
+| Реакцію на натискання або перетягування | відповідного класу в `controller/` |
+| Зовнішній вигляд елементів | відповідного класу в `view/` |
+| Послідовність дій кількох компонентів | `coordinator/` |
+| Переклад або вибір мови | `i18n/` та `src/main/resources/i18n/` |
 
-Новий project не матеріалізується на диску просто через відкриття меню New Project.
-
-```text
-new project
-  ↓
-ProjectDescriptor(modifiedAt = null)
-  ↓
-користувач ще нічого не створив
-  ↓
-нічого не пишемо на диск
-```
-
-Коли зберігається непорожня карта:
-
-```text
-transient repository
-  ↓
-prepare project directory
-  ↓
-create SqliteMapRepository
-  ↓
-save model
-```
-
-Якщо target directory є, але `project.db` відсутній, directory можна очистити та перевикористати. Якщо `project.db` вже існує — materialization відмовляється, щоб ніколи не перезаписати чужий project.
-
-## Save timestamp
-
-SQLite працює з WAL, тому зміни можуть не оновлювати main `project.db` timestamp так, як очікує project catalog. Після успішного save/relevant settings save `SqliteMapRepository` явно оновлює mtime файлу.
-
-Саме цей timestamp використовується для сортування saved projects.
-
-## Rename
-
-Rename project — це filesystem operation.
-
-Порядок для активного project:
-
-```text
-save
-↓
-close current SQLite repository
-↓
-move project directory
-↓
-reopen SQLite repository на новому path
-↓
-refresh current descriptor
-```
-
-Rename project не повинен лише міняти name у memory, тому що folder name є частиною persistence identity.
-
-## Migration
-
-`LegacyProjectStorageMigrator` існує тільки для compatibility з layout старіших версій.
-
-Він читає:
-
-```text
-neuronmap.db
-neuronmap-projects\
-neuronmap-projects.properties
-```
-
-і переносить знайдені project databases у новий folder layout.
-
-Після успішної migration створюється marker. Це запобігає повторному автоматичному перенесенню на кожному старті.
-
-Не змішуй migration code з поточним repository runtime behavior.
-
-## Undo/Redo
-
-`FieldStateSnapshot` описує persistent field state. Runtime-only animation/input signal state не повинен створювати зайві history points.
-
-`FieldHistory` зберігає undo/redo stacks.
-
-`HistoryService` — business facade над history.
-
-`EditorHistoryCoordinator` займається UI cleanup після undo/redo: зупиняє simulation, прибирає transient interaction state і синхронізує views.
-
-## Simulation
-
-Simulation має глобальний `BigInteger` tick, тому система не покладається на `long` overflow.
-
-`SimulationSession` збирає:
-
-- manual starts;
-- pending input signals;
-- activated neurons;
-- signals, які підуть на наступний tick.
-
-Ключовий інваріант: neuron, активований одночасно manual start і incoming signal, випускає сигнал лише один раз за tick.
-
-## Як розширювати архітектуру
-
-Перед додаванням нового class запитай себе:
-
-1. Це правило предметної області? → `model`.
-2. Це операція над model? → `service`.
-3. Це час/propagation simulation? → `simulation`.
-4. Це SQL/filesystem? → `persistence`.
-5. Це тільки JavaFX event? → `controller`.
-6. Це visual composition? → `view`.
-7. Це порядок взаємодії кількох уже готових компонентів? → `coordinator`.
-8. Це збирання application graph? → `application`/`app`.
-9. Це справді маленький stateless helper? → `util`.
-
-Якщо відповідь «ні» на все — клас, імовірно, має занадто розмиту відповідальність.
+Перед створенням нового класу перевір, чи немає вже компонента з такою відповідальністю. Новий клас потрібен, коли він відокремлює справді самостійну роль, а не просто переносить кілька рядків в інший файл.

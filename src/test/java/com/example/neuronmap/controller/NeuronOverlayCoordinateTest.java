@@ -19,10 +19,16 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+/**
+ * Перевіряє обчислення координат меню та накладок.
+ */
 final class NeuronOverlayCoordinateTest {
 
     private static final double EPSILON = 0.0001;
 
+    /**
+     * Запускає або планує дію, повʼязану з «відповідну операцію».
+     */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -34,12 +40,20 @@ final class NeuronOverlayCoordinateTest {
         }
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
+            /**
+             * Повертає результат операції «стан виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalStateException(
                     "JavaFX startup timed out"
             );
         }
     }
 
+    /**
+     * Перевіряє очікувану поведінку: центр накладка координати.
+     */
     @Test
     void rectangleCenterIsConvertedIntoOverlayCoordinates() throws Exception {
         runOnFxThread(() -> {
@@ -60,6 +74,9 @@ final class NeuronOverlayCoordinateTest {
         });
     }
 
+    /**
+     * Перевіряє очікувану поведінку: центр карта і.
+     */
     @Test
     void rectangleCenterIncludesWorldTranslationAndScale() throws Exception {
         runOnFxThread(() -> {
@@ -86,6 +103,9 @@ final class NeuronOverlayCoordinateTest {
         });
     }
 
+    /**
+     * Перевіряє очікувану поведінку: центр залишається після обертання.
+     */
     @Test
     void rectangleCenterRemainsGeometricallyCenteredAfterRotation()
             throws Exception {
@@ -111,6 +131,9 @@ final class NeuronOverlayCoordinateTest {
         });
     }
 
+    /**
+     * Перевіряє очікувану поведінку: меню центр.
+     */
     @Test
     void menuIsCenteredOnRectangleCenter() throws Exception {
         runOnFxThread(() -> {
@@ -140,6 +163,9 @@ final class NeuronOverlayCoordinateTest {
         });
     }
 
+    /**
+     * Перевіряє очікувану поведінку: меню центр нейрон.
+     */
     @Test
     void menuHorizontalCenterTracksNeuronMovement() throws Exception {
         runOnFxThread(() -> {
@@ -176,6 +202,11 @@ final class NeuronOverlayCoordinateTest {
         });
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private static Fixture fixture() {
         NeuronPresentation presentation = new NeuronPresentation(
                 new Neuron(
@@ -215,6 +246,13 @@ final class NeuronOverlayCoordinateTest {
         );
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     *
+     * @param expected значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param actual значення, що визначає відповідну операцію для цієї операції.
+     */
     private static void assertPointEquals(
             Point2D expected,
             Point2D actual
@@ -223,6 +261,11 @@ final class NeuronOverlayCoordinateTest {
         assertEquals(expected.getY(), actual.getY(), EPSILON);
     }
 
+    /**
+     * Запускає або планує дію, повʼязану з «відповідну операцію».
+     *
+     * @param action дія, яку потрібно виконати.
+     */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];
@@ -238,12 +281,22 @@ final class NeuronOverlayCoordinateTest {
         });
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
+            /**
+             * Повертає результат операції «стан виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalStateException(
                     "JavaFX test timed out"
             );
         }
 
         if (failure[0] != null) {
+            /**
+             * Повертає результат операції «відповідну операцію».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new AssertionError(
                     "JavaFX test failed",
                     failure[0]
@@ -251,6 +304,28 @@ final class NeuronOverlayCoordinateTest {
         }
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @param presentation значення, що визначає представлення для цієї операції.
+     *
+     * @param neuronView значення, що визначає нейрон відображення для цієї операції.
+     *
+     * @param workspace значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param world значення, що визначає карта для цієї операції.
+     *
+     * @param overlay значення, що визначає накладка для цієї операції.
+     *
+     * @param positioner значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param root кореневий каталог.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
+    /**
+     * Набір модульних тестів типу Fixture. Перевіряє його основну поведінку та обробку некоректних або крайових даних.
+     */
     private record Fixture(
             NeuronPresentation presentation,
             NeuronView neuronView,

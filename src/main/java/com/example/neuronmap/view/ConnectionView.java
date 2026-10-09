@@ -17,6 +17,9 @@ import javafx.util.Duration;
 
 import java.util.function.Function;
 
+/**
+ * Відображає звʼязок між нейронами та оновлює його графічну геометрію.
+ */
 public final class ConnectionView extends Pane {
 
     private final Connection model;
@@ -30,6 +33,17 @@ public final class ConnectionView extends Pane {
     private Timeline blinkTimeline;
     private boolean deleteHighlighted;
 
+    /**
+     * Повертає результат операції «звʼязок відображення».
+     *
+     * @param model модель карти нейронів.
+     *
+     * @param viewLookup значення, що визначає відображення пошук для цієї операції.
+     *
+     * @param neuronLookup значення, що визначає нейрон пошук для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public ConnectionView(
             Connection model,
             Function<String, NeuronView> viewLookup,
@@ -57,14 +71,27 @@ public final class ConnectionView extends Pane {
         updateGeometry();
     }
 
+    /**
+     * Повертає результат операції «модель».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public Connection model() {
         return model;
     }
 
+    /**
+     * Перевіряє, чи виконується умова «видалити».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean isDeleteHighlighted() {
         return deleteHighlighted;
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «геометрія».
+     */
     public void updateGeometry() {
         NeuronView source = viewLookup.apply(model.sourceId());
         NeuronView target = viewLookup.apply(model.targetId());
@@ -89,8 +116,12 @@ public final class ConnectionView extends Pane {
         updateArrow(start, end);
     }
 
-    /** Captures the currently rendered connection for an independent pulse. */
-    public ConnectionPulseSnapshot capturePulseSnapshot() {
+/**
+ * Повертає результат операції «імпульс знімок».
+ *
+ * @return значення або обʼєкт, визначений описаною операцією.
+ */
+public ConnectionPulseSnapshot capturePulseSnapshot() {
         Neuron source = neuronLookup.apply(model.sourceId());
         if (source == null) {
             return null;
@@ -115,6 +146,11 @@ public final class ConnectionView extends Pane {
         );
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «видалити».
+     *
+     * @param highlighted значення, що визначає відповідну операцію для цієї операції.
+     */
     public void setDeleteHighlight(boolean highlighted) {
         deleteHighlighted = highlighted;
         stopDeleteHighlight();
@@ -145,6 +181,9 @@ public final class ConnectionView extends Pane {
         blinkTimeline.play();
     }
 
+    /**
+     * Виконує операцію «видалити».
+     */
     public void pauseDeleteHighlight() {
         if (blinkTimeline != null
                 && blinkTimeline.getStatus() == Animation.Status.RUNNING) {
@@ -152,6 +191,9 @@ public final class ConnectionView extends Pane {
         }
     }
 
+    /**
+     * Виконує операцію «видалити».
+     */
     public void resumeDeleteHighlight() {
         if (blinkTimeline != null
                 && blinkTimeline.getStatus() == Animation.Status.PAUSED) {
@@ -159,6 +201,9 @@ public final class ConnectionView extends Pane {
         }
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «видалити».
+     */
     public void stopDeleteHighlight() {
         if (blinkTimeline != null) {
             blinkTimeline.stop();
@@ -171,6 +216,13 @@ public final class ConnectionView extends Pane {
         arrow.setFill(normal);
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «відповідну операцію».
+     *
+     * @param start значення, що визначає запуск для цієї операції.
+     *
+     * @param end значення, що визначає відповідну операцію для цієї операції.
+     */
     private void updateArrow(Point2D start, Point2D end) {
         Point2D direction = end.subtract(start);
 
@@ -198,6 +250,11 @@ public final class ConnectionView extends Pane {
         );
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private Color baseColor() {
         Neuron source = neuronLookup.apply(model.sourceId());
 

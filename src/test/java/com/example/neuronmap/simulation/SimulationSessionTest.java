@@ -10,8 +10,14 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Перевіряє поширення сигналів, цикли, одночасні запуски та спільний відлік тактів.
+ */
 class SimulationSessionTest {
 
+    /**
+     * Перевіряє очікувану поведінку: очікуваний кінцевий не такт.
+     */
     @Test
     void deletedPendingTargetDoesNotParticipateInLaterTick() {
         NeuronMapModel model = new NeuronMapModel();
@@ -41,6 +47,9 @@ class SimulationSessionTest {
         assertTrue(session.isFinished());
     }
 
+    /**
+     * Перевіряє очікувану поведінку: сигнал попередній такт межа.
+     */
     @Test
     void cyclicSignalContinuesBeyondPreviousTickLimit() {
         NeuronMapModel model = new NeuronMapModel();
@@ -64,6 +73,9 @@ class SimulationSessionTest {
         assertTrue(session.hasPendingWork());
     }
 
+    /**
+     * Перевіряє очікувану поведінку: ручний запускає такти.
+     */
     @Test
     void manualStartsQueuedBetweenTicksAreActivatedTogether() {
         NeuronMapModel model = new NeuronMapModel();
@@ -95,6 +107,9 @@ class SimulationSessionTest {
         assertEquals(1, second.nextInputSums().get(d.id()));
     }
 
+    /**
+     * Перевіряє очікувану поведінку: новий джерело не скинути загальний такт після.
+     */
     @Test
     void queueingNewSourceDoesNotResetGlobalTickAfterSessionBecameIdle() {
         NeuronMapModel model = new NeuronMapModel();
@@ -119,6 +134,9 @@ class SimulationSessionTest {
         assertEquals(Set.of(c.id()), resumed.activatedNeuronIds());
     }
 
+    /**
+     * Перевіряє очікувану поведінку: нейрон за ручний запуск і вхід випромінює лише.
+     */
     @Test
     void neuronActivatedByManualStartAndInputEmitsOnlyOnce() {
         NeuronMapModel model = new NeuronMapModel();

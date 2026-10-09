@@ -10,10 +10,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Circle;
 
 /**
- * Fixed-size screen-space rotation handle.
- *
- * <p>The button itself is never rotated or scaled. Only the visible graphic
- * rotates. Its position is owned exclusively by NeuronOverlayPositioner.</p>
+ * Відображає ручку, за допомогою якої користувач повертає нейрон.
  */
 public final class RotationHandleView extends Button {
 
@@ -24,6 +21,11 @@ public final class RotationHandleView extends Button {
     private final Circle background = new Circle(SIZE / 2.0);
     private final Label glyph = new Label("↻");
 
+    /**
+     * Повертає результат операції «обертання обробити відображення».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public RotationHandleView() {
         getStyleClass().add("rotation-handle-button");
 
@@ -59,11 +61,18 @@ public final class RotationHandleView extends Button {
         setGraphic(graphicPane);
     }
 
-    /**
-     * Places the fixed-size hit area by its center in parent coordinates.
-     */
-    public void placeCenterAt(Point2D parentCenter) {
+/**
+ * Виконує операцію «центр».
+ *
+ * @param parentCenter значення, що визначає центр для цієї операції.
+ */
+public void placeCenterAt(Point2D parentCenter) {
         if (parentCenter == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     "parentCenter must not be null"
             );
@@ -82,18 +91,19 @@ public final class RotationHandleView extends Button {
         );
     }
 
-    /**
-     * Rotates only the visible graphic; the hit area stays axis-aligned.
-     */
-    public void setVisualRotation(double degrees) {
+/**
+ * Задає або оновлює значення, повʼязані з «графічний обертання».
+ *
+ * @param degrees кут повороту в градусах.
+ */
+public void setVisualRotation(double degrees) {
         graphicPane.setRotate(degrees);
     }
 
-    /**
-     * Legacy no-op kept so deletion/lifecycle code can dispose the handle
-     * without needing to know its positioning implementation.
-     */
-    public void dispose() {
+/**
+ * Завершує або скасовує дію, повʼязану з «потрібні дані».
+ */
+public void dispose() {
         graphicPane.setRotate(0.0);
     }
 }

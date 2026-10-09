@@ -22,9 +22,16 @@ import javafx.stage.Stage;
 
 import java.nio.file.Path;
 
-/** JavaFX application bootstrap and window lifecycle. */
+/**
+ * Запускає застосунок, завантажує конфігурацію та створює основні компоненти програми.
+ */
 public final class NeuronMapApp extends Application {
 
+    /**
+     * Запускає або планує дію, повʼязану з «потрібні дані».
+     *
+     * @param stage значення, що визначає відповідну операцію для цієї операції.
+     */
     @Override
     public void start(Stage stage) {
         AppConfig config = AppConfigLoader.load();
@@ -110,6 +117,11 @@ public final class NeuronMapApp extends Application {
         controller.centerInitialView();
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     *
+     * @param args значення, що визначає відповідну операцію для цієї операції.
+     */
     public static void main(String[] args) {
         launch(args);
     }

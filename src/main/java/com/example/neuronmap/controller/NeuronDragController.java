@@ -12,7 +12,9 @@ import javafx.scene.input.MouseEvent;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-/** Handles dragging an existing neuron or an entire neuron group. */
+/**
+ * Обробляє перетягування нейронів та оновлює їхнє положення на карті.
+ */
 public final class NeuronDragController {
 
     private final NeuronService neuronService;
@@ -27,6 +29,33 @@ public final class NeuronDragController {
     private final Runnable refreshOverlayPositions;
     private final Runnable save;
 
+    /**
+     * Повертає результат операції «нейрон перетягування».
+     *
+     * @param neuronService значення, що визначає нейрон служба для цієї операції.
+     *
+     * @param groupService значення, що визначає група служба для цієї операції.
+     *
+     * @param selectionController значення, що визначає вибір для цієї операції.
+     *
+     * @param state стан обʼєкта або редактора.
+     *
+     * @param workspace значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param hideMenu значення, що визначає приховати меню для цієї операції.
+     *
+     * @param showRotationHandle значення, що визначає показати обертання обробити для цієї операції.
+     *
+     * @param refreshVisuals значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param refreshConnections значення, що визначає звʼязки для цієї операції.
+     *
+     * @param refreshOverlayPositions значення, що визначає накладка для цієї операції.
+     *
+     * @param save значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public NeuronDragController(
             NeuronService neuronService,
             GroupService groupService,
@@ -53,6 +82,13 @@ public final class NeuronDragController {
         this.save = Objects.requireNonNull(save, "save");
     }
 
+    /**
+     * Обробляє «відповідну операцію».
+     *
+     * @param neuronView значення, що визначає нейрон відображення для цієї операції.
+     *
+     * @param event подія інтерфейсу.
+     */
     public void handlePressed(NeuronView neuronView, MouseEvent event) {
         if (event.getButton() == MouseButton.SECONDARY) {
             if (!state.isIdle()) {
@@ -84,6 +120,13 @@ public final class NeuronDragController {
         event.consume();
     }
 
+    /**
+     * Обробляє «відповідну операцію».
+     *
+     * @param neuronView значення, що визначає нейрон відображення для цієї операції.
+     *
+     * @param event подія інтерфейсу.
+     */
     public void handleDragged(NeuronView neuronView, MouseEvent event) {
         if (!neuronView.isDragging()) {
             return;
@@ -107,6 +150,13 @@ public final class NeuronDragController {
         event.consume();
     }
 
+    /**
+     * Обробляє «відповідну операцію».
+     *
+     * @param neuronView значення, що визначає нейрон відображення для цієї операції.
+     *
+     * @param event подія інтерфейсу.
+     */
     public void handleReleased(NeuronView neuronView, MouseEvent event) {
         boolean dragged = neuronView.wasDragged();
         neuronView.endDrag();

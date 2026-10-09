@@ -10,26 +10,54 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-/** Writes complete neuron-map state inside the repository transaction. */
+/**
+ * Записує стан карти в таблиці бази даних SQLite.
+ */
 public final class SqliteMapWriter {
 
     private final java.sql.Connection connection;
     private final SqliteSettingsStore settings;
 
+    /**
+     * Повертає результат операції «SQLite карта».
+     *
+     * @param connection звʼязок між нейронами.
+     *
+     * @param settings набір налаштувань.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public SqliteMapWriter(
             java.sql.Connection connection,
             SqliteSettingsStore settings
     ) {
         if (connection == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException("connection must not be null");
         }
         if (settings == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException("settings must not be null");
         }
         this.connection = connection;
         this.settings = settings;
     }
 
+    /**
+     * Зберігає дані, повʼязані з «потрібні дані», у відповідному сховищі.
+     *
+     * @param model модель карти нейронів.
+     *
+     * @param cameraState значення, що визначає камера стан для цієї операції.
+     */
     public void save(
             NeuronMapModel model,
             CameraState cameraState
@@ -42,6 +70,9 @@ public final class SqliteMapWriter {
         saveCameraState(cameraState);
     }
 
+    /**
+     * Видаляє або скидає дані, повʼязані з «усі дані».
+     */
     private void deleteAllData() throws SQLException {
         try (Statement statement = connection.createStatement()) {
             statement.executeUpdate("DELETE FROM group_members");
@@ -52,6 +83,11 @@ public final class SqliteMapWriter {
         }
     }
 
+    /**
+     * Виконує операцію «нейрони».
+     *
+     * @param model модель карти нейронів.
+     */
     private void insertNeurons(NeuronMapModel model) throws SQLException {
         String sql = """
                 INSERT INTO neurons (
@@ -77,6 +113,11 @@ public final class SqliteMapWriter {
         }
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     *
+     * @param model модель карти нейронів.
+     */
     private void insertPresentations(NeuronMapModel model)
             throws SQLException {
         String sql = """
@@ -106,6 +147,11 @@ public final class SqliteMapWriter {
         }
     }
 
+    /**
+     * Виконує операцію «звʼязки».
+     *
+     * @param model модель карти нейронів.
+     */
     private void insertConnections(NeuronMapModel model)
             throws SQLException {
         String sql = """
@@ -128,6 +174,11 @@ public final class SqliteMapWriter {
         }
     }
 
+    /**
+     * Виконує операцію «групи».
+     *
+     * @param model модель карти нейронів.
+     */
     private void insertGroups(NeuronMapModel model) throws SQLException {
         String groupSql = "INSERT INTO groups (id) VALUES (?)";
         String memberSql = """
@@ -157,6 +208,11 @@ public final class SqliteMapWriter {
         }
     }
 
+    /**
+     * Зберігає дані, повʼязані з «камера стан», у відповідному сховищі.
+     *
+     * @param state стан обʼєкта або редактора.
+     */
     private void saveCameraState(CameraState state) throws SQLException {
         settings.write("zoom", Double.toString(state.zoom()));
         settings.write("panX", Double.toString(state.panX()));

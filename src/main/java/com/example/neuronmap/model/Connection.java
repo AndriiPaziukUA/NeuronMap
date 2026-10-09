@@ -3,7 +3,18 @@ package com.example.neuronmap.model;
 import java.util.Objects;
 
 /**
- * Directed semantic connection: source neuron -> target neuron.
+ * Повертає результат операції «звʼязок».
+ *
+ * @param id ідентифікатор обʼєкта.
+ *
+ * @param sourceId значення, що визначає джерело ідентифікатор для цієї операції.
+ *
+ * @param targetId значення, що визначає кінцевий ідентифікатор для цієї операції.
+ *
+ * @return значення або обʼєкт, визначений описаною операцією.
+ */
+/**
+ * Описує спрямований звʼязок між двома нейронами карти.
  */
 public record Connection(
         String id,
@@ -12,6 +23,11 @@ public record Connection(
 ) {
     public Connection {
         if (id == null || id.isBlank()) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     "Connection id must not be blank."
             );
@@ -27,6 +43,11 @@ public record Connection(
         );
 
         if (sourceId.equals(targetId)) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     "A neuron cannot connect to itself."
             );

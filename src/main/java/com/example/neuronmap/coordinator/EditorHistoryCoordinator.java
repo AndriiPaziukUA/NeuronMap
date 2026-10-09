@@ -12,7 +12,9 @@ import javafx.scene.Cursor;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-/** Owns editor undo/redo orchestration and resets transient UI state afterwards. */
+/**
+ * Організовує скасування й повторення змін редактора та синхронізацію його стану.
+ */
 public final class EditorHistoryCoordinator {
 
     private final HistoryService historyService;
@@ -27,6 +29,31 @@ public final class EditorHistoryCoordinator {
     private final Consumer<String> status;
     private final LocalizationService localization;
 
+    /**
+     * Повертає результат операції «історія».
+     *
+     * @param historyService значення, що визначає історія служба для цієї операції.
+     *
+     * @param simulationController значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param connectionController значення, що визначає звʼязок для цієї операції.
+     *
+     * @param neuronController значення, що визначає нейрон для цієї операції.
+     *
+     * @param state стан обʼєкта або редактора.
+     *
+     * @param workspace значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param removeDragPreview значення, що визначає видалити перетягування попередній перегляд для цієї операції.
+     *
+     * @param presentation значення, що визначає представлення для цієї операції.
+     *
+     * @param save значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param status стан операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public EditorHistoryCoordinator(
             HistoryService historyService,
             SimulationController simulationController,
@@ -54,6 +81,33 @@ public final class EditorHistoryCoordinator {
         );
     }
 
+    /**
+     * Повертає результат операції «історія».
+     *
+     * @param historyService значення, що визначає історія служба для цієї операції.
+     *
+     * @param simulationController значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param connectionController значення, що визначає звʼязок для цієї операції.
+     *
+     * @param neuronController значення, що визначає нейрон для цієї операції.
+     *
+     * @param state стан обʼєкта або редактора.
+     *
+     * @param workspace значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param removeDragPreview значення, що визначає видалити перетягування попередній перегляд для цієї операції.
+     *
+     * @param presentation значення, що визначає представлення для цієї операції.
+     *
+     * @param save значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param status стан операції.
+     *
+     * @param localization значення, що визначає локалізація для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public EditorHistoryCoordinator(
             HistoryService historyService,
             SimulationController simulationController,
@@ -80,6 +134,11 @@ public final class EditorHistoryCoordinator {
         this.localization = Objects.requireNonNull(localization, "localization");
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean undo() {
         simulationController.stop();
         if (!historyService.undo()) {
@@ -92,6 +151,11 @@ public final class EditorHistoryCoordinator {
         return true;
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean redo() {
         simulationController.stop();
         if (!historyService.redo()) {
@@ -104,6 +168,9 @@ public final class EditorHistoryCoordinator {
         return true;
     }
 
+    /**
+     * Видаляє або скидає дані, повʼязані з «після історія змінити».
+     */
     private void resetEditorAfterHistoryChange() {
         removeDragPreview.run();
         connectionController.cancelCreate();

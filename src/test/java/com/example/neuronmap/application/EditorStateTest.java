@@ -5,8 +5,14 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Перевіряє режими редактора, вибір обʼєктів і скидання стану.
+ */
 class EditorStateTest {
 
+    /**
+     * Перевіряє очікувану поведінку: не камера стан.
+     */
     @Test
     void specialModesDoNotLoseCameraState() {
         EditorState state =
@@ -23,6 +29,9 @@ class EditorStateTest {
         );
     }
 
+    /**
+     * Перевіряє очікувану поведінку: вибір із.
+     */
     @Test
     void selectionIsIndependentFromInteractionMode() {
         EditorState state =
@@ -42,6 +51,9 @@ class EditorStateTest {
         );
     }
 
+    /**
+     * Перевіряє очікувану поведінку: скинути до очищає тимчасовий і меню вибір.
+     */
     @Test
     void resetToIdleClearsTransientModeAndMenuSelection() {
         EditorState state =

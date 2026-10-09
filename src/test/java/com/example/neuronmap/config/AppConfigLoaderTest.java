@@ -7,8 +7,14 @@ import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Перевіряє читання конфігурації та відхилення некоректних параметрів.
+ */
 class AppConfigLoaderTest {
 
+    /**
+     * Перевіряє очікувану поведінку: конфігурація.
+     */
     @Test
     void parsesBaseConfiguration() throws Exception {
         AppConfig config = AppConfigLoader.parse(
@@ -33,6 +39,9 @@ class AppConfigLoaderTest {
         assertEquals(3000.0, config.simulation().maxTickMillis());
     }
 
+    /**
+     * Перевіряє очікувану поведінку: завантажує конфігурація.
+     */
     @Test
     void loadsBundledApplicationConfiguration() {
         AppConfig config = AppConfigLoader.load();
@@ -43,6 +52,9 @@ class AppConfigLoaderTest {
         assertEquals(650.0, config.simulation().defaultTickMillis());
     }
 
+    /**
+     * Перевіряє очікувану поведінку: відхиляє некоректний.
+     */
     @Test
     void rejectsInvalidSimulationRange() {
         assertThrows(

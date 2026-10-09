@@ -7,10 +7,16 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * Перевіряє геометрію графічного представлення нейрона.
+ */
 final class NeuronVisualGeometryTest {
 
     private static final double EPSILON = 0.0001;
 
+    /**
+     * Перевіряє очікувану поведінку: вихід трикутник із.
+     */
     @Test
     void outputTriangleIsCenteredOnRightEdgeWithHalfOutside() {
         Polygon triangle = new Polygon();
@@ -36,6 +42,9 @@ final class NeuronVisualGeometryTest {
         );
     }
 
+    /**
+     * Перевіряє очікувану поведінку: вихід трикутник із.
+     */
     @Test
     void reversedOutputTriangleIsCenteredOnLeftEdgeWithHalfOutside() {
         Polygon triangle = new Polygon();
@@ -58,6 +67,9 @@ final class NeuronVisualGeometryTest {
         );
     }
 
+    /**
+     * Перевіряє очікувану поведінку: звʼязок геометрія.
+     */
     @Test
     void connectionAnchorsMatchVisiblePortGeometry() {
         assertEquals(
@@ -83,6 +95,9 @@ final class NeuronVisualGeometryTest {
         );
     }
 
+    /**
+     * Перевіряє очікувану поведінку: вхід нейрон.
+     */
     @Test
     void inputPortStaysCenteredOnTheCorrectNeuronEdge() {
         Circle normal = new Circle(
@@ -115,6 +130,13 @@ final class NeuronVisualGeometryTest {
         assertTrue(normal.getCenterX() != reversed.getCenterX());
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @param polygon значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return числове значення, визначене методом.
+     */
     private static double minX(Polygon polygon) {
         double min = Double.POSITIVE_INFINITY;
         for (int i = 0; i < polygon.getPoints().size(); i += 2) {
@@ -123,6 +145,13 @@ final class NeuronVisualGeometryTest {
         return min;
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @param polygon значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return числове значення, визначене методом.
+     */
     private static double maxX(Polygon polygon) {
         double max = Double.NEGATIVE_INFINITY;
         for (int i = 0; i < polygon.getPoints().size(); i += 2) {

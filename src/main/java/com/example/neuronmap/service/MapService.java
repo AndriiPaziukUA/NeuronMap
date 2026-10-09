@@ -8,12 +8,23 @@ import com.example.neuronmap.persistence.MapRepository;
 import java.nio.file.Path;
 import java.util.Objects;
 
-/** Persistence-facing service for the current map and editor camera state. */
+/**
+ * Надає операції завантаження, зміни та збереження карти через контракт сховища.
+ */
 public final class MapService {
 
     private final NeuronMapModel model;
     private MapRepository repository;
 
+    /**
+     * Повертає результат операції «карта служба».
+     *
+     * @param model модель карти нейронів.
+     *
+     * @param repository значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public MapService(
             NeuronMapModel model,
             MapRepository repository
@@ -22,34 +33,74 @@ public final class MapService {
         this.repository = Objects.requireNonNull(repository, "repository");
     }
 
+    /**
+     * Повертає результат операції «модель».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public NeuronMapModel model() {
         return model;
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «потрібні дані».
+     */
     public void load() {
         repository.loadInto(model);
     }
 
+    /**
+     * Перевіряє, чи виконується умова «порожній».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean isEmpty() {
         return model.isEmpty();
     }
 
+    /**
+     * Перевіряє, чи виконується умова «відповідну операцію».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean isPersistent() {
         return repository.isPersistent();
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «камера стан».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public CameraState loadCameraState() {
         return repository.loadCameraState();
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «такт».
+     *
+     * @param fallbackMillis значення, що визначає резервний варіант для цієї операції.
+     *
+     * @return числове значення, визначене методом.
+     */
     public double loadSimulationTickMillis(double fallbackMillis) {
         return repository.loadSimulationTickMillis(fallbackMillis);
     }
 
+    /**
+     * Повертає результат операції «база даних шлях».
+     *
+     * @return шлях до відповідного файлу або каталогу.
+     */
     public Path databasePath() {
         return repository.databasePath();
     }
 
+    /**
+     * Зберігає дані, повʼязані з «потрібні дані», у відповідному сховищі.
+     *
+     * @param state стан обʼєкта або редактора.
+     */
     public void save(EditorState state) {
         Objects.requireNonNull(state, "state");
         repository.save(
@@ -62,12 +113,21 @@ public final class MapService {
         );
     }
 
+    /**
+     * Зберігає дані, повʼязані з «такт», у відповідному сховищі.
+     *
+     * @param millis значення, що визначає відповідну операцію для цієї операції.
+     */
     public void saveSimulationTickMillis(double millis) {
         repository.saveSimulationTickMillis(millis);
     }
 
-    /** Replaces the backing project without replacing the in-memory domain model. */
-    public void switchRepository(MapRepository newRepository) {
+/**
+ * Перемикає стан «відповідну операцію».
+ *
+ * @param newRepository значення, що визначає новий для цієї операції.
+ */
+public void switchRepository(MapRepository newRepository) {
         Objects.requireNonNull(newRepository, "newRepository");
 
         MapRepository oldRepository = repository;
@@ -75,6 +135,9 @@ public final class MapService {
         oldRepository.close();
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     */
     public void close() {
         repository.close();
     }

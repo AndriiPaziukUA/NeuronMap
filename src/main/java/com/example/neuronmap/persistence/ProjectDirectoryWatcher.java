@@ -13,7 +13,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** Watches the project storage tree and reports filesystem changes. */
+/**
+ * Спостерігає за змінами в папках проєктів і повідомляє про них за допомогою зворотного виклику.
+ */
 public final class ProjectDirectoryWatcher implements AutoCloseable {
 
     private final Path rootDirectory;
@@ -24,6 +26,15 @@ public final class ProjectDirectoryWatcher implements AutoCloseable {
     private WatchService watchService;
     private Thread watcherThread;
 
+    /**
+     * Повертає результат операції «проєкт каталог спостерігач».
+     *
+     * @param rootDirectory значення, що визначає каталог для цієї операції.
+     *
+     * @param changeListener значення, що визначає змінити слухач для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public ProjectDirectoryWatcher(
             Path rootDirectory,
             Runnable changeListener
@@ -37,6 +48,9 @@ public final class ProjectDirectoryWatcher implements AutoCloseable {
         );
     }
 
+    /**
+     * Запускає або планує дію, повʼязану з «потрібні дані».
+     */
     public synchronized void start() {
         if (running.get()) {
             return;
@@ -49,6 +63,13 @@ public final class ProjectDirectoryWatcher implements AutoCloseable {
             registerExistingProjectDirectories();
         } catch (IOException exception) {
             close();
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @param exception помилка, яку потрібно обробити.
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new PersistenceException(
                     "Не вдалося запустити спостереження за проєктами.",
                     exception
@@ -64,6 +85,9 @@ public final class ProjectDirectoryWatcher implements AutoCloseable {
         watcherThread.start();
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     */
     @Override
     public synchronized void close() {
         if (!running.getAndSet(false)) {
@@ -76,6 +100,9 @@ public final class ProjectDirectoryWatcher implements AutoCloseable {
         watchedDirectories.clear();
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     */
     private void watchLoop() {
         while (running.get()) {
             WatchKey key;
@@ -125,6 +152,9 @@ public final class ProjectDirectoryWatcher implements AutoCloseable {
         }
     }
 
+    /**
+     * Виконує операцію «наявний проєкт каталоги».
+     */
     private void registerExistingProjectDirectories() throws IOException {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(rootDirectory)) {
             for (Path child : stream) {
@@ -133,6 +163,11 @@ public final class ProjectDirectoryWatcher implements AutoCloseable {
         }
     }
 
+    /**
+     * Виконує операцію «каталог якщо».
+     *
+     * @param directory каталог для пошуку чи збереження.
+     */
     private synchronized void registerDirectoryIfNeeded(Path directory) {
         if (!Files.isDirectory(directory)) {
             return;
@@ -145,6 +180,11 @@ public final class ProjectDirectoryWatcher implements AutoCloseable {
         }
     }
 
+    /**
+     * Виконує операцію «каталог».
+     *
+     * @param directory каталог для пошуку чи збереження.
+     */
     private synchronized void registerDirectory(Path directory)
             throws IOException {
         if (watchService == null) {
@@ -160,6 +200,9 @@ public final class ProjectDirectoryWatcher implements AutoCloseable {
         watchedDirectories.put(key, directory);
     }
 
+    /**
+     * Обробляє «змінити».
+     */
     private void notifyChange() {
         try {
             changeListener.run();
@@ -168,6 +211,9 @@ public final class ProjectDirectoryWatcher implements AutoCloseable {
         }
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «служба».
+     */
     private synchronized void closeWatchServiceQuietly() {
         if (watchService == null) {
             return;

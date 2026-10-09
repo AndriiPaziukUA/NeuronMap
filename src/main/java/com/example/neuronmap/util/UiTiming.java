@@ -2,7 +2,9 @@ package com.example.neuronmap.util;
 
 import javafx.util.Duration;
 
-/** Central timing values for short-lived JavaFX UI feedback. */
+/**
+ * Зберігає спільні часові значення та допоміжні правила для поведінки інтерфейсу.
+ */
 public final class UiTiming {
 
     public static final Duration TOOLTIP_SHOW_DELAY =
@@ -17,6 +19,11 @@ public final class UiTiming {
     public static final Duration STATUS_MESSAGE_FADE_DURATION =
             Duration.seconds(1);
 
+    /**
+     * Повертає результат операції «інтерфейс».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private UiTiming() {
     }
 }

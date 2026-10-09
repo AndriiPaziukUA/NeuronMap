@@ -6,8 +6,14 @@ import java.math.BigInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Перевіряє збільшення номера такту та перевірку відʼємних значень.
+ */
 class SimulationTickTest {
 
+    /**
+     * Перевіряє очікувану поведінку: long без.
+     */
     @Test
     void advancesBeyondLongMaximumWithoutOverflow() {
         BigInteger nearLongLimit = BigInteger.valueOf(Long.MAX_VALUE);
@@ -21,6 +27,9 @@ class SimulationTickTest {
         );
     }
 
+    /**
+     * Перевіряє очікувану поведінку: відхиляє відʼємний такт.
+     */
     @Test
     void rejectsNegativeTick() {
         assertThrows(

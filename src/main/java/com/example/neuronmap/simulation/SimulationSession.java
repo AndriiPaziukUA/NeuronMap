@@ -10,7 +10,9 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
-/** One global synchronous simulation timeline shared by all manual starts. */
+/**
+ * Веде спільний відлік тактів і накопичує сигнали, які потрібно обробити на наступних тактах.
+ */
 public final class SimulationSession {
 
     private final NeuronMapModel model;
@@ -22,15 +24,36 @@ public final class SimulationSession {
     private BigInteger tick = BigInteger.ZERO;
     private boolean finished;
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @param model модель карти нейронів.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private SimulationSession(NeuronMapModel model) {
         this.model = model;
     }
 
+    /**
+     * Створює сеанс симуляції та ставить ручний запуск указаного нейрона в чергу.
+     *
+     * @param model модель карти нейронів.
+     *
+     * @param sourceNeuronId ідентифікатор початкового нейрона.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public static SimulationSession manual(
             NeuronMapModel model,
             String sourceNeuronId
     ) {
         if (model == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException("model must not be null");
         }
 
@@ -39,12 +62,14 @@ public final class SimulationSession {
         return session;
     }
 
-    /**
-     * Queues a manually triggered source for the next global simulation tick.
-     * Multiple distinct sources queued before that tick are activated together.
-     * Re-queuing the same source does not duplicate its outgoing signal.
-     */
-    public boolean queueManualStart(String sourceNeuronId) {
+/**
+ * Додає нейрон до списку ручних запусків наступного такту; повторне додавання не дублює запуск.
+ *
+ * @param sourceNeuronId ідентифікатор початкового нейрона.
+ *
+ * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+ */
+public boolean queueManualStart(String sourceNeuronId) {
         if (sourceNeuronId == null || sourceNeuronId.isBlank()) {
             return false;
         }
@@ -58,20 +83,39 @@ public final class SimulationSession {
         return true;
     }
 
+    /**
+     * Повертає ознаку того, що сеанс симуляції завершився.
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean isFinished() {
         return finished;
     }
 
+    /**
+     * Повертає номер поточного такту симуляції.
+     *
+     * @return номер такту симуляції.
+     */
     public BigInteger tick() {
         return tick;
     }
 
-    /** Returns whether there is work that can be processed on the next tick. */
-    public boolean hasPendingWork() {
+/**
+ * Перевіряє, чи залишилися сигнали або ручні запуски для наступного такту.
+ *
+ * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+ */
+public boolean hasPendingWork() {
         return !pendingSignals.isEmpty()
                 || !pendingManualStarts.isEmpty();
     }
 
+    /**
+     * Обчислює наступний такт симуляції; повертає null, коли роботи більше немає.
+     *
+     * @return наступний такт симуляції або null, якщо подальшої роботи немає.
+     */
     public SimulationStep nextStep() {
         if (finished || !hasPendingWork()) {
             finished = true;
@@ -140,6 +184,13 @@ public final class SimulationSession {
         return step;
     }
 
+    /**
+     * Виконує операцію «сигнали».
+     *
+     * @param neuron нейрон, над яким виконується операція.
+     *
+     * @param nextSignals значення, що визначає наступний сигнали для цієї операції.
+     */
     private void collectOutgoingSignals(
             Neuron neuron,
             Map<String, Integer> nextSignals

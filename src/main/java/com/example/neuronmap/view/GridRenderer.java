@@ -4,6 +4,9 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
 
+/**
+ * Малює координатну сітку робочої області редактора.
+ */
 public final class GridRenderer {
 
     private static final double GRID_SIZE = 40.0;
@@ -12,10 +15,30 @@ public final class GridRenderer {
 
     private final Canvas canvas;
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @param canvas значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public GridRenderer(Canvas canvas) {
         this.canvas = canvas;
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     *
+     * @param width ширина області.
+     *
+     * @param height висота області.
+     *
+     * @param zoom значення, що визначає масштаб для цієї операції.
+     *
+     * @param panX значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param panY значення, що визначає відповідну операцію для цієї операції.
+     */
     public void redraw(
             double width,
             double height,
@@ -97,6 +120,15 @@ public final class GridRenderer {
         }
     }
 
+    /**
+     * Повертає результат операції «карта».
+     *
+     * @param worldCoordinate значення, що визначає карта координата для цієї операції.
+     *
+     * @param floor значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return числове значення, визначене методом.
+     */
     private static long indexAtWorld(
             double worldCoordinate,
             boolean floor
@@ -107,23 +139,62 @@ public final class GridRenderer {
                 : (long) Math.ceil(index);
     }
 
+    /**
+     * Повертає результат операції «обмежити».
+     *
+     * @param start значення, що визначає запуск для цієї операції.
+     *
+     * @param end значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private static IndexRange clampRange(
             long start,
             long end
     ) {
         if (end - start <= MAX_LINES_PER_AXIS) {
+            /**
+             * Повертає результат операції «відповідну операцію».
+             *
+             * @param start значення, що визначає запуск для цієї операції.
+             *
+             * @param end значення, що визначає відповідну операцію для цієї операції.
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             return new IndexRange(start, end);
         }
 
         long center = Math.round((start + end) / 2.0);
         long half = MAX_LINES_PER_AXIS / 2L;
 
+        /**
+         * Повертає результат операції «відповідну операцію».
+         *
+         * @param half значення, що визначає відповідну операцію для цієї операції.
+         *
+         * @param half значення, що визначає відповідну операцію для цієї операції.
+         *
+         * @return значення або обʼєкт, визначений описаною операцією.
+         */
         return new IndexRange(
                 center - half,
                 center + half
         );
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @param start значення, що визначає запуск для цієї операції.
+     *
+     * @param end значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
+    /**
+     * Компонент IndexRange у складі NeuronMap. Його призначення та параметри операцій описані над відповідними методами.
+     */
     private record IndexRange(long start, long end) {
     }
 }

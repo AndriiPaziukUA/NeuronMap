@@ -15,7 +15,9 @@ import javafx.scene.input.MouseEvent;
 
 import java.util.Map;
 
-/** Coordinates rebuilding and refreshing the JavaFX representation of the map. */
+/**
+ * Координує оновлення графічного представлення карти після змін даних.
+ */
 public final class MapPresentationCoordinator {
 
     private static final double ROTATION_HANDLE_VIEW_ORDER = -10_000.0;
@@ -29,6 +31,27 @@ public final class MapPresentationCoordinator {
     private final ConnectionController connectionController;
     private final NeuronLayerOrderController layerOrderController;
 
+    /**
+     * Повертає результат операції «карта представлення».
+     *
+     * @param neuronService значення, що визначає нейрон служба для цієї операції.
+     *
+     * @param workspace значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param neuronViews значення, що визначає нейрон для цієї операції.
+     *
+     * @param connectionViews значення, що визначає звʼязок для цієї операції.
+     *
+     * @param rotationHandles значення, що визначає обертання обробляє для цієї операції.
+     *
+     * @param neuronController значення, що визначає нейрон для цієї операції.
+     *
+     * @param connectionController значення, що визначає звʼязок для цієї операції.
+     *
+     * @param layerOrderController значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public MapPresentationCoordinator(
             NeuronService neuronService,
             WorkspaceView workspace,
@@ -49,6 +72,9 @@ public final class MapPresentationCoordinator {
         this.layerOrderController = java.util.Objects.requireNonNull(layerOrderController, "layerOrderController");
     }
 
+    /**
+     * Обробляє «усі».
+     */
     public void refreshAll() {
         refreshNeurons();
         refreshConnections();
@@ -58,16 +84,27 @@ public final class MapPresentationCoordinator {
         bringRotationHandlesToFront();
     }
 
+    /**
+     * Обробляє «накладки».
+     */
     public void refreshScreenSpaceOverlays() {
         neuronController.refreshOverlayPositions();
         bringRotationHandlesToFront();
         connectionController.refreshPreviewAfterCameraChange();
     }
 
+    /**
+     * Обробляє «нейрони».
+     */
     public void refreshNeurons() {
         neuronController.refreshVisuals();
     }
 
+    /**
+     * Виконує операцію «нейрон до».
+     *
+     * @param event подія інтерфейсу.
+     */
     public void bringClickedNeuronToFront(MouseEvent event) {
         Node node = event.getTarget() instanceof Node targetNode ? targetNode : null;
         while (node != null) {
@@ -79,6 +116,9 @@ public final class MapPresentationCoordinator {
         }
     }
 
+    /**
+     * Виконує операцію «обертання обробляє до».
+     */
     public void bringRotationHandlesToFront() {
         for (RotationHandleView handle : rotationHandles.values()) {
             if (handle != null) {
@@ -87,6 +127,9 @@ public final class MapPresentationCoordinator {
         }
     }
 
+    /**
+     * Обробляє «звʼязки».
+     */
     public void refreshConnections() {
         for (Connection connection : neuronService.model().connections()) {
             ConnectionView connectionView = connectionViews.computeIfAbsent(
@@ -112,6 +155,13 @@ public final class MapPresentationCoordinator {
         });
     }
 
+    /**
+     * Створює обʼєкт із переданих даних «звʼязок відображення».
+     *
+     * @param connection звʼязок між нейронами.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public ConnectionView createConnectionView(Connection connection) {
         ConnectionView connectionView = new ConnectionView(
                 connection,
@@ -122,6 +172,9 @@ public final class MapPresentationCoordinator {
         return connectionView;
     }
 
+    /**
+     * Виконує операцію «із модель».
+     */
     public void synchronizeViewsWithModel() {
         for (NeuronView neuronView : neuronViews.values()) {
             removeFromParent(neuronView);
@@ -148,6 +201,9 @@ public final class MapPresentationCoordinator {
         refreshAll();
     }
 
+    /**
+     * Обробляє «групи».
+     */
     private void refreshGroups() {
         workspace.groupLayer().getChildren().clear();
         neuronService.model().groups().forEach(group ->
@@ -157,6 +213,11 @@ public final class MapPresentationCoordinator {
         );
     }
 
+    /**
+     * Видаляє або скидає дані, повʼязані з «із».
+     *
+     * @param node графічний вузол JavaFX.
+     */
     private static void removeFromParent(Node node) {
         Node parent = node.getParent();
         if (parent instanceof javafx.scene.layout.Pane pane) {

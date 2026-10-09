@@ -19,7 +19,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
-/** Adapts delete-key/context-menu actions to the neuron removal use case. */
+/**
+ * Організовує видалення вибраних нейронів і повʼязаних із ними елементів.
+ */
 public final class NeuronDeletionController {
 
     private final NeuronService neuronService;
@@ -36,6 +38,33 @@ public final class NeuronDeletionController {
     private final LocalizationService localization;
     private final EventHandler<KeyEvent> keyHandler = this::handleKeyPressed;
 
+    /**
+     * Повертає результат операції «нейрон».
+     *
+     * @param neuronService значення, що визначає нейрон служба для цієї операції.
+     *
+     * @param state стан обʼєкта або редактора.
+     *
+     * @param workspace значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param neuronViews значення, що визначає нейрон для цієї операції.
+     *
+     * @param rotationHandles значення, що визначає обертання обробляє для цієї операції.
+     *
+     * @param hideMenu значення, що визначає приховати меню для цієї операції.
+     *
+     * @param refreshVisuals значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param refreshPresentation значення, що визначає представлення для цієї операції.
+     *
+     * @param refreshDeleteHighlights значення, що визначає видалити для цієї операції.
+     *
+     * @param save значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param status стан операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public NeuronDeletionController(
             NeuronService neuronService,
             EditorState state,
@@ -65,6 +94,35 @@ public final class NeuronDeletionController {
         );
     }
 
+    /**
+     * Повертає результат операції «нейрон».
+     *
+     * @param neuronService значення, що визначає нейрон служба для цієї операції.
+     *
+     * @param state стан обʼєкта або редактора.
+     *
+     * @param workspace значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param neuronViews значення, що визначає нейрон для цієї операції.
+     *
+     * @param rotationHandles значення, що визначає обертання обробляє для цієї операції.
+     *
+     * @param hideMenu значення, що визначає приховати меню для цієї операції.
+     *
+     * @param refreshVisuals значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param refreshPresentation значення, що визначає представлення для цієї операції.
+     *
+     * @param refreshDeleteHighlights значення, що визначає видалити для цієї операції.
+     *
+     * @param save значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param status стан операції.
+     *
+     * @param localization значення, що визначає локалізація для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public NeuronDeletionController(
             NeuronService neuronService,
             EditorState state,
@@ -94,6 +152,9 @@ public final class NeuronDeletionController {
         installSceneKeyHandler();
     }
 
+    /**
+     * Виконує операцію «сцена ключ».
+     */
     private void installSceneKeyHandler() {
         workspace.node().sceneProperty().addListener(
                 (observable, oldScene, newScene) -> {
@@ -107,6 +168,11 @@ public final class NeuronDeletionController {
         );
     }
 
+    /**
+     * Обробляє «ключ».
+     *
+     * @param event подія інтерфейсу.
+     */
     private void handleKeyPressed(KeyEvent event) {
         if (event.getCode() != KeyCode.DELETE
                 || isTextInputTarget(event.getTarget())) {
@@ -118,6 +184,11 @@ public final class NeuronDeletionController {
         }
     }
 
+    /**
+     * Видаляє або скидає дані, повʼязані з «вибраний нейрони».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean deleteSelectedNeurons() {
         LinkedHashSet<String> selectedIds =
                 new LinkedHashSet<>(state.selectedNeuronIds());
@@ -138,6 +209,11 @@ public final class NeuronDeletionController {
         return true;
     }
 
+    /**
+     * Видаляє або скидає дані, повʼязані з «нейрон».
+     *
+     * @param neuronId ідентифікатор нейрона.
+     */
     public void deleteNeuron(String neuronId) {
         if (neuronId == null || neuronId.isBlank()) {
             return;
@@ -145,6 +221,11 @@ public final class NeuronDeletionController {
         deleteNeurons(Set.of(neuronId));
     }
 
+    /**
+     * Видаляє або скидає дані, повʼязані з «нейрони».
+     *
+     * @param neuronIds ідентифікатори нейронів.
+     */
     private void deleteNeurons(Collection<String> neuronIds) {
         LinkedHashSet<String> ids = new LinkedHashSet<>(neuronIds);
         boolean changed = false;
@@ -191,6 +272,13 @@ public final class NeuronDeletionController {
         );
     }
 
+    /**
+     * Перевіряє, чи виконується умова «текст вхід кінцевий».
+     *
+     * @param target значення, що визначає кінцевий для цієї операції.
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     private boolean isTextInputTarget(Object target) {
         Node node = target instanceof Node targetNode ? targetNode : null;
         while (node != null) {

@@ -12,8 +12,16 @@ import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * Перевіряє, що напрямок нейрона зберігається та відновлюється.
+ */
 class NeuronDirectionPersistenceTest {
 
+    /**
+     * Перевіряє очікувану поведінку: напрямок база даних.
+     *
+     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
+     */
     @Test
     void reversedDirectionSurvivesDatabaseRoundTrip(
             @TempDir Path tempDir

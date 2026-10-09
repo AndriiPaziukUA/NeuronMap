@@ -11,7 +11,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-/** Owns project naming, discovery and folder/file lifecycle. */
+/**
+ * Знаходить збережені проєкти у файловій системі, керує їхніми назвами та порядком у списку.
+ */
 public final class ProjectCatalogService {
 
     private static final String PROJECT_FILE_NAME = "project.db";
@@ -20,11 +22,25 @@ public final class ProjectCatalogService {
     private final Path storageDirectory;
     private final GlobalSettingsStore globalSettings;
 
+    /**
+     * Повертає результат операції «проєкт служба».
+     *
+     * @param storageDirectory значення, що визначає каталог для цієї операції.
+     *
+     * @param globalSettings значення, що визначає загальний налаштування для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public ProjectCatalogService(
             Path storageDirectory,
             GlobalSettingsStore globalSettings
     ) {
         if (storageDirectory == null || globalSettings == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     "storageDirectory and globalSettings must not be null"
             );
@@ -33,6 +49,11 @@ public final class ProjectCatalogService {
         this.globalSettings = globalSettings;
     }
 
+    /**
+     * Повертає збережені проєкти, знайдені у файловій системі.
+     *
+     * @return колекцію результатів; якщо елементів немає, колекція порожня.
+     */
     public List<ProjectDescriptor> listProjects() {
         if (!Files.isDirectory(storageDirectory)) {
             return List.of();
@@ -45,6 +66,13 @@ public final class ProjectCatalogService {
                     .filter(java.util.Objects::nonNull)
                     .forEach(projects::add);
         } catch (IOException exception) {
+            /**
+             * Повертає результат операції «стан виняток».
+             *
+             * @param exception помилка, яку потрібно обробити.
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalStateException(
                     "Не вдалося прочитати каталог проєктів.",
                     exception
@@ -63,14 +91,31 @@ public final class ProjectCatalogService {
         return List.copyOf(projects);
     }
 
+    /**
+     * Повертає результат операції «для база даних шлях».
+     *
+     * @param databasePath значення, що визначає база даних шлях для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public ProjectDescriptor descriptorForDatabasePath(Path databasePath) {
         if (databasePath == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException("databasePath must not be null");
         }
 
         Path normalized = databasePath.toAbsolutePath().normalize();
         Path directory = normalized.getParent();
         if (directory == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException("Project database has no parent directory");
         }
 
@@ -86,6 +131,13 @@ public final class ProjectCatalogService {
         );
     }
 
+    /**
+     * Створює обʼєкт із переданих даних «тимчасовий проєкт».
+     *
+     * @param defaultName значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public ProjectDescriptor createTransientProject(String defaultName) {
         String name = findAvailableName(defaultName);
         Path directory = storageDirectory.resolve(name);
@@ -97,11 +149,25 @@ public final class ProjectCatalogService {
         );
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @param project опис проєкту.
+     *
+     * @param requestedName значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public ProjectDescriptor rename(
             ProjectDescriptor project,
             String requestedName
     ) {
         if (project == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException("project must not be null");
         }
 
@@ -115,6 +181,11 @@ public final class ProjectCatalogService {
         Path targetDirectory = storageDirectory.resolve(uniqueName);
 
         if (sourceDirectory == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException("Project database has no parent directory");
         }
 
@@ -126,6 +197,13 @@ public final class ProjectCatalogService {
                     java.nio.file.attribute.FileTime.from(Instant.now())
             );
         } catch (IOException exception) {
+            /**
+             * Повертає результат операції «стан виняток».
+             *
+             * @param exception помилка, яку потрібно обробити.
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalStateException(
                     "Не вдалося перейменувати проєкт.",
                     exception
@@ -137,6 +215,11 @@ public final class ProjectCatalogService {
         );
     }
 
+    /**
+     * Видаляє або скидає дані, повʼязані з «потрібні дані».
+     *
+     * @param project опис проєкту.
+     */
     public void delete(ProjectDescriptor project) {
         if (project == null) {
             return;
@@ -147,6 +230,11 @@ public final class ProjectCatalogService {
             return;
         }
         if (!storageDirectory.equals(directory.getParent())) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     "Project directory is outside the project storage root"
             );
@@ -155,6 +243,13 @@ public final class ProjectCatalogService {
         try {
             deleteRecursively(directory);
         } catch (IOException exception) {
+            /**
+             * Повертає результат операції «стан виняток».
+             *
+             * @param exception помилка, яку потрібно обробити.
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalStateException(
                     "Не вдалося видалити проєкт.",
                     exception
@@ -167,6 +262,11 @@ public final class ProjectCatalogService {
         }
     }
 
+    /**
+     * Виконує операцію «останній».
+     *
+     * @param project опис проєкту.
+     */
     public void markLastOpened(ProjectDescriptor project) {
         globalSettings.save(
                 LAST_PROJECT_NAME_KEY,
@@ -174,6 +274,11 @@ public final class ProjectCatalogService {
         );
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «проєкт».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public ProjectDescriptor lastOpenedProject() {
         String lastName = globalSettings.load(LAST_PROJECT_NAME_KEY);
         if (lastName == null || lastName.isBlank()) {
@@ -186,10 +291,22 @@ public final class ProjectCatalogService {
                 .orElse(null);
     }
 
+    /**
+     * Повертає результат операції «каталог».
+     *
+     * @return шлях до відповідного файлу або каталогу.
+     */
     public Path storageDirectory() {
         return storageDirectory;
     }
 
+    /**
+     * Повертає результат операції «якщо збережений».
+     *
+     * @param directory каталог для пошуку чи збереження.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private ProjectDescriptor descriptorIfSaved(Path directory) {
         Path database = directory.resolve(PROJECT_FILE_NAME);
         if (!Files.isRegularFile(database)) {
@@ -198,10 +315,26 @@ public final class ProjectCatalogService {
         return descriptorForDatabasePath(database);
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «доступний».
+     *
+     * @param requestedName значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return текстове значення, сформоване або знайдене методом.
+     */
     private String findAvailableName(String requestedName) {
         return findAvailableName(requestedName, null);
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «доступний».
+     *
+     * @param requestedName значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param excludedProjectId значення, що визначає проєкт ідентифікатор для цієї операції.
+     *
+     * @return текстове значення, сформоване або знайдене методом.
+     */
     private String findAvailableName(
             String requestedName,
             String excludedProjectId
@@ -226,6 +359,15 @@ public final class ProjectCatalogService {
         return candidate;
     }
 
+    /**
+     * Перевіряє, чи виконується умова «ігнорувати».
+     *
+     * @param names значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param candidate значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     private static boolean containsIgnoreCase(
             List<String> names,
             String candidate
@@ -235,6 +377,11 @@ public final class ProjectCatalogService {
         );
     }
 
+    /**
+     * Виконує операцію «кінцевий».
+     *
+     * @param targetDirectory значення, що визначає кінцевий каталог для цієї операції.
+     */
     private void prepareRenameTarget(Path targetDirectory)
             throws IOException {
         if (Files.notExists(targetDirectory)) {
@@ -252,6 +399,11 @@ public final class ProjectCatalogService {
         deleteRecursively(targetDirectory);
     }
 
+    /**
+     * Видаляє або скидає дані, повʼязані з «відповідну операцію».
+     *
+     * @param root кореневий каталог.
+     */
     private static void deleteRecursively(Path root) throws IOException {
         List<Path> paths;
         try (var stream = Files.walk(root)) {
@@ -263,8 +415,20 @@ public final class ProjectCatalogService {
         }
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @param name назва або текстове імʼя обʼєкта.
+     *
+     * @return текстове значення, сформоване або знайдене методом.
+     */
     private static String normalizeName(String name) {
         if (name == null || name.isBlank()) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     "project name must not be blank"
             );
@@ -277,6 +441,11 @@ public final class ProjectCatalogService {
         if (normalized.isBlank()
                 || ".".equals(normalized)
                 || "..".equals(normalized)) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     "project name is not valid"
             );
@@ -288,6 +457,13 @@ public final class ProjectCatalogService {
         return normalized;
     }
 
+    /**
+     * Перевіряє, чи виконується умова «відповідну операцію».
+     *
+     * @param name назва або текстове імʼя обʼєкта.
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     private static boolean isReservedWindowsName(String name) {
         String upper = name.toUpperCase(java.util.Locale.ROOT);
         String base = upper.contains(".")
@@ -301,6 +477,13 @@ public final class ProjectCatalogService {
         };
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «відповідну операцію».
+     *
+     * @param path шлях до файлу або каталогу.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private static Instant lastModified(Path path) {
         try {
             return Files.getLastModifiedTime(path).toInstant();

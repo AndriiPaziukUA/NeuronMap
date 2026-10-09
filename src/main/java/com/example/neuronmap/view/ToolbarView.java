@@ -21,6 +21,9 @@ import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
+/**
+ * Створює панель інструментів із командами редактора та керуванням симуляцією.
+ */
 public final class ToolbarView {
 
     public static final double HEIGHT = 54.0;
@@ -46,6 +49,27 @@ public final class ToolbarView {
     private final Consumer<Locale> localizationListener = ignored -> refreshTexts();
     private boolean committingSpeed;
 
+    /**
+     * Повертає результат операції «панель інструментів відображення».
+     *
+     * @param addNeuron значення, що визначає додати нейрон для цієї операції.
+     *
+     * @param group група нейронів.
+     *
+     * @param ungroup значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param exitDelete значення, що визначає видалити для цієї операції.
+     *
+     * @param pauseResume значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param stopSignals значення, що визначає зупинити сигнали для цієї операції.
+     *
+     * @param speedChanged значення, що визначає швидкість для цієї операції.
+     *
+     * @param initialSpeedMillis значення, що визначає швидкість для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public ToolbarView(
             Consumer<NeuronType> addNeuron,
             Runnable group,
@@ -69,6 +93,29 @@ public final class ToolbarView {
         );
     }
 
+    /**
+     * Повертає результат операції «панель інструментів відображення».
+     *
+     * @param addNeuron значення, що визначає додати нейрон для цієї операції.
+     *
+     * @param group група нейронів.
+     *
+     * @param ungroup значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param exitDelete значення, що визначає видалити для цієї операції.
+     *
+     * @param pauseResume значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param stopSignals значення, що визначає зупинити сигнали для цієї операції.
+     *
+     * @param speedChanged значення, що визначає швидкість для цієї операції.
+     *
+     * @param initialSpeedMillis значення, що визначає швидкість для цієї операції.
+     *
+     * @param localization значення, що визначає локалізація для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public ToolbarView(
             Consumer<NeuronType> addNeuron,
             Runnable group,
@@ -177,23 +224,48 @@ public final class ToolbarView {
         refreshTexts();
     }
 
+    /**
+     * Повертає результат операції «вузол».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public HBox node() {
         return root;
     }
 
+    /**
+     * Повертає результат операції «додати кнопка».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public Button addExcitatoryButton() {
         return addExcitatoryButton;
     }
 
+    /**
+     * Повертає результат операції «додати кнопка».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public Button addInhibitoryButton() {
         return addInhibitoryButton;
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «видалити».
+     *
+     * @param visible ознака видимості елемента.
+     */
     public void setDeleteModeVisible(boolean visible) {
         exitDeleteButton.setVisible(visible);
         exitDeleteButton.setManaged(visible);
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «відповідну операцію».
+     *
+     * @param visible ознака видимості елемента.
+     */
     public void setSimulationControlsVisible(boolean visible) {
         simulationSeparator.setVisible(visible);
         simulationSeparator.setManaged(visible);
@@ -203,6 +275,11 @@ public final class ToolbarView {
         stopSignalsButton.setManaged(visible);
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «відповідну операцію».
+     *
+     * @param paused значення, що визначає відповідну операцію для цієї операції.
+     */
     public void setSimulationPaused(boolean paused) {
         pauseResumeButton.setText(paused ? "▶" : "❚❚");
         pauseResumeButton.setTooltip(new Tooltip(
@@ -212,10 +289,22 @@ public final class ToolbarView {
         ));
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «швидкість».
+     *
+     * @param millis значення, що визначає відповідну операцію для цієї операції.
+     */
     public void setSimulationSpeedMillis(double millis) {
         speedField.setText(formatSpeed(millis));
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «камера координати».
+     *
+     * @param x координата по горизонталі.
+     *
+     * @param y координата по вертикалі.
+     */
     public void setCameraCoordinates(double x, double y) {
         cameraCoordinatesLabel.setText(
                 "X: " + formatCoordinate(x)
@@ -223,6 +312,9 @@ public final class ToolbarView {
         );
     }
 
+    /**
+     * Обробляє «відповідну операцію».
+     */
     private void refreshTexts() {
         addExcitatoryButton.setText(localization.text("toolbar.excitatory"));
         addExcitatoryButton.setTooltip(new Tooltip(localization.text("toolbar.excitatory.tooltip")));
@@ -240,6 +332,11 @@ public final class ToolbarView {
         setSimulationPaused(pauseResumeButton.getText().equals("▶"));
     }
 
+    /**
+     * Обробляє «сцена».
+     *
+     * @param event подія інтерфейсу.
+     */
     private void handleSceneMousePressed(MouseEvent event) {
         if (!speedField.isFocused()) {
             return;
@@ -251,6 +348,9 @@ public final class ToolbarView {
         commitSpeedEdit();
     }
 
+    /**
+     * Виконує операцію «швидкість».
+     */
     private void commitSpeedEdit() {
         if (committingSpeed) {
             return;
@@ -264,6 +364,11 @@ public final class ToolbarView {
         }
     }
 
+    /**
+     * Повертає результат операції «швидкість».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private static UnaryOperator<TextFormatter.Change> numericSpeedFilter() {
         return change -> {
             String text = change.getControlNewText();
@@ -274,6 +379,15 @@ public final class ToolbarView {
         };
     }
 
+    /**
+     * Перевіряє, чи виконується умова «або».
+     *
+     * @param target значення, що визначає кінцевий для цієї операції.
+     *
+     * @param parent батьківський графічний вузол.
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     private static boolean isDescendantOrSelf(Node target, Node parent) {
         Node current = target;
         while (current != null) {
@@ -285,24 +399,50 @@ public final class ToolbarView {
         return false;
     }
 
+    /**
+     * Повертає результат операції «кнопка».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private static Button toolButton() {
         Button button = new Button();
         button.getStyleClass().add("tool-button");
         return button;
     }
 
+    /**
+     * Повертає результат операції «кнопка».
+     *
+     * @param text текст, який потрібно показати або обробити.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private static Button iconButton(String text) {
         Button button = new Button(text);
         button.getStyleClass().add("tool-button");
         return button;
     }
 
+    /**
+     * Повертає результат операції «швидкість».
+     *
+     * @param millis значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return текстове значення, сформоване або знайдене методом.
+     */
     private static String formatSpeed(double millis) {
         return Math.abs(millis - Math.rint(millis)) < 0.0001
                 ? String.format(Locale.ROOT, "%.0f", millis)
                 : String.format(Locale.ROOT, "%.1f", millis);
     }
 
+    /**
+     * Повертає результат операції «координата».
+     *
+     * @param value значення, яке потрібно передати або зберегти.
+     *
+     * @return текстове значення, сформоване або знайдене методом.
+     */
     private static String formatCoordinate(double value) {
         if (Math.abs(value - Math.rint(value)) < 0.0001) {
             return String.format(Locale.ROOT, "%.0f", value);

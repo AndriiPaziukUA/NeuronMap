@@ -6,8 +6,14 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Перевіряє збереження станів, скасування й повторення змін та межі історії.
+ */
 class FieldHistoryTest {
 
+    /**
+     * Перевіряє очікувану поведінку: і відновити поле стан.
+     */
     @Test
     void undoAndRedoRestoreFieldState() {
         NeuronMapModel model = new NeuronMapModel();
@@ -29,6 +35,9 @@ class FieldHistoryTest {
         assertFalse(history.canRedo());
     }
 
+    /**
+     * Перевіряє очікувану поведінку: новий змінити після гілка.
+     */
     @Test
     void newChangeAfterUndoDropsRedoBranch() {
         NeuronMapModel model = new NeuronMapModel();
@@ -50,6 +59,9 @@ class FieldHistoryTest {
         assertFalse(history.canRedo());
     }
 
+    /**
+     * Перевіряє очікувану поведінку: і лише не створити історія.
+     */
     @Test
     void unchangedAndRuntimeOnlySavesDoNotCreateHistory() {
         NeuronMapModel model = new NeuronMapModel();
@@ -66,6 +78,9 @@ class FieldHistoryTest {
         assertEquals(1, history.undoSize());
     }
 
+    /**
+     * Перевіряє очікувану поведінку: історія до кроки.
+     */
     @Test
     void historyIsLimitedToThirtyUndoSteps() {
         NeuronMapModel model = new NeuronMapModel();
@@ -91,6 +106,9 @@ class FieldHistoryTest {
         assertEquals(FieldHistory.MAX_UNDO_STEPS, history.redoSize());
     }
 
+    /**
+     * Перевіряє очікувану поведінку: запускає новий історія.
+     */
     @Test
     void initializeStartsCompletelyNewHistory() {
         NeuronMapModel model = new NeuronMapModel();

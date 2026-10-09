@@ -6,8 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * Перевіряє координати, обертання та інші дані представлення нейрона.
+ */
 final class NeuronPresentationTest {
 
+    /**
+     * Перевіряє очікувану поведінку: зберігає положення обертання і напрямок.
+     */
     @Test
     void storesPositionRotationAndDirection() {
         Neuron neuron = new Neuron(
@@ -30,6 +36,9 @@ final class NeuronPresentationTest {
         assertFalse(presentation.directionReversed());
     }
 
+    /**
+     * Перевіряє очікувану поведінку: рухається за.
+     */
     @Test
     void movesByDelta() {
         Neuron neuron = new Neuron(
@@ -52,6 +61,9 @@ final class NeuronPresentationTest {
         assertEquals(70.0, presentation.y(), 0.0001);
     }
 
+    /**
+     * Перевіряє очікувану поведінку: задає обертання градуси.
+     */
     @Test
     void setsRotationDegrees() {
         Neuron neuron = new Neuron(
@@ -77,6 +89,9 @@ final class NeuronPresentationTest {
         );
     }
 
+    /**
+     * Перевіряє очікувану поведінку: перемикає напрямок.
+     */
     @Test
     void togglesDirection() {
         Neuron neuron = new Neuron(

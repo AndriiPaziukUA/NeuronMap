@@ -12,8 +12,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * Перевіряє тимчасове зберігання нового проєкту й створення його папки за потреби.
+ */
 final class TransientProjectRepositoryTest {
 
+    /**
+     * Перевіряє очікувану поведінку: порожній проєкт не створити папка.
+     *
+     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
+     */
     @Test
     void emptyProjectDoesNotCreateFolder(@TempDir Path tempDir) {
         Path path = tempDir.resolve("Project").resolve("project.db");
@@ -27,6 +35,11 @@ final class TransientProjectRepositoryTest {
         repository.close();
     }
 
+    /**
+     * Перевіряє очікувану поведінку: перший проєкт і.
+     *
+     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
+     */
     @Test
     void firstElementMaterializesProjectAndCleansJunk(@TempDir Path tempDir)
             throws Exception {
@@ -50,6 +63,11 @@ final class TransientProjectRepositoryTest {
         repository.close();
     }
 
+    /**
+     * Перевіряє очікувану поведінку: порожній проєкт очікуваний панель інструментів і камера налаштування.
+     *
+     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
+     */
     @Test
     void emptyProjectRetainsPendingToolbarAndCameraSettings(@TempDir Path tempDir) {
         Path path = tempDir.resolve("Project").resolve("project.db");
@@ -66,6 +84,11 @@ final class TransientProjectRepositoryTest {
         repository.close();
     }
 
+    /**
+     * Перевіряє очікувану поведінку: наявний проєкт база даних.
+     *
+     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
+     */
     @Test
     void existingProjectDatabaseIsNeverOverwritten(@TempDir Path tempDir)
             throws Exception {

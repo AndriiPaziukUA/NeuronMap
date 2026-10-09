@@ -7,8 +7,16 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Перевіряє збереження геометрії вікна та обробку некоректних даних.
+ */
 class WindowStateStoreTest {
 
+    /**
+     * Перевіряє очікувану поведінку: і завантажує вікно геометрія.
+     *
+     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
+     */
     @Test
     void savesAndLoadsWindowGeometry(@TempDir Path tempDir) {
         Path file = tempDir.resolve("window.properties");
@@ -29,6 +37,11 @@ class WindowStateStoreTest {
         );
     }
 
+    /**
+     * Перевіряє очікувану поведінку: або некоректний стан до порожній.
+     *
+     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
+     */
     @Test
     void missingOrInvalidStateFallsBackToEmpty(@TempDir Path tempDir) throws Exception {
         Path file = tempDir.resolve("window.properties");

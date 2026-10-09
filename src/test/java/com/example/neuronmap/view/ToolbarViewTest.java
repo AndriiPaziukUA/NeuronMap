@@ -16,8 +16,14 @@ import java.util.function.Predicate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * Перевіряє склад і порядок елементів панелі інструментів.
+ */
 final class ToolbarViewTest {
 
+    /**
+     * Запускає або планує дію, повʼязану з «відповідну операцію».
+     */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -29,10 +35,18 @@ final class ToolbarViewTest {
         }
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
+            /**
+             * Повертає результат операції «стан виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalStateException("JavaFX startup timed out");
         }
     }
 
+    /**
+     * Перевіряє очікувану поведінку: швидкість поле приймає лише вхід і зберігає вирівнювання.
+     */
     @Test
     void speedFieldAcceptsOnlyNumericInputAndKeepsLeftAlignment()
             throws Exception {
@@ -62,6 +76,9 @@ final class ToolbarViewTest {
         });
     }
 
+    /**
+     * Перевіряє очікувану поведінку: швидкість поле перед.
+     */
     @Test
     void speedFieldStaysBeforeDynamicSimulationControls()
             throws Exception {
@@ -81,6 +98,11 @@ final class ToolbarViewTest {
         });
     }
 
+    /**
+     * Повертає результат операції «панель інструментів».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private static ToolbarView toolbar() {
         return new ToolbarView(
                 ignored -> { },
@@ -94,6 +116,13 @@ final class ToolbarViewTest {
         );
     }
 
+    /**
+     * Повертає результат операції «швидкість поле».
+     *
+     * @param toolbar значення, що визначає панель інструментів для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private static TextField speedField(ToolbarView toolbar) {
         return (TextField) toolbar.node().getChildren().stream()
                 .filter(TextField.class::isInstance)
@@ -101,6 +130,13 @@ final class ToolbarViewTest {
                 .orElseThrow();
     }
 
+    /**
+     * Повертає результат операції «швидкість поле».
+     *
+     * @param toolbar значення, що визначає панель інструментів для цієї операції.
+     *
+     * @return числове значення, визначене методом.
+     */
     private static int indexOfSpeedField(ToolbarView toolbar) {
         return indexOf(
                 toolbar.node().getChildren(),
@@ -108,6 +144,15 @@ final class ToolbarViewTest {
         );
     }
 
+    /**
+     * Повертає результат операції «кнопка».
+     *
+     * @param toolbar значення, що визначає панель інструментів для цієї операції.
+     *
+     * @param text текст, який потрібно показати або обробити.
+     *
+     * @return числове значення, визначене методом.
+     */
     private static int indexOfButton(
             ToolbarView toolbar,
             String text
@@ -119,6 +164,15 @@ final class ToolbarViewTest {
         );
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @param nodes значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param predicate значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return числове значення, визначене методом.
+     */
     private static int indexOf(
             List<Node> nodes,
             Predicate<Node> predicate
@@ -132,6 +186,11 @@ final class ToolbarViewTest {
         return -1;
     }
 
+    /**
+     * Запускає або планує дію, повʼязану з «відповідну операцію».
+     *
+     * @param action дія, яку потрібно виконати.
+     */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];
@@ -147,10 +206,20 @@ final class ToolbarViewTest {
         });
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
+            /**
+             * Повертає результат операції «стан виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalStateException("JavaFX test timed out");
         }
 
         if (failure[0] != null) {
+            /**
+             * Повертає результат операції «відповідну операцію».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new AssertionError(
                     "JavaFX test failed",
                     failure[0]

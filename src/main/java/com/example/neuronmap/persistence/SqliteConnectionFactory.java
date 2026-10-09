@@ -8,11 +8,26 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+/**
+ * Створює та налаштовує зʼєднання з базою даних SQLite.
+ */
 public final class SqliteConnectionFactory {
 
+    /**
+     * Повертає результат операції «SQLite звʼязок».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private SqliteConnectionFactory() {
     }
 
+    /**
+     * Повертає результат операції «відкрити».
+     *
+     * @param databasePath значення, що визначає база даних шлях для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public static Connection open(Path databasePath) {
         try {
             Path parent = databasePath.getParent();
@@ -34,6 +49,15 @@ public final class SqliteConnectionFactory {
                  | ClassNotFoundException
                  | IOException exception) {
 
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @param databasePath значення, що визначає база даних шлях для цієї операції.
+             *
+             * @param exception помилка, яку потрібно обробити.
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new PersistenceException(
                     "Не вдалося відкрити SQLite: "
                             + databasePath,
@@ -42,6 +66,11 @@ public final class SqliteConnectionFactory {
         }
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «потрібні дані».
+     *
+     * @param connection звʼязок між нейронами.
+     */
     private static void configure(
             Connection connection
     ) throws SQLException {

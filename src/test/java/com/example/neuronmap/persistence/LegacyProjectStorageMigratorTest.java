@@ -10,8 +10,16 @@ import java.util.Properties;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * Перевіряє сумісність перенесення даних зі старого розташування.
+ */
 final class LegacyProjectStorageMigratorTest {
 
+    /**
+     * Перевіряє очікувану поведінку: переносить старий формат і база даних.
+     *
+     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
+     */
     @Test
     void migratesLegacyCatalogAndRootDatabase(@TempDir Path tempDir)
             throws Exception {

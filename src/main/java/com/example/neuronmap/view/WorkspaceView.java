@@ -7,6 +7,9 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.transform.Scale;
 
+/**
+ * Створює робочу область, у якій відображається карта нейронів.
+ */
 public final class WorkspaceView {
 
     private final StackPane viewport = new StackPane();
@@ -29,6 +32,11 @@ public final class WorkspaceView {
             0.0
     );
 
+    /**
+     * Повертає результат операції «відображення».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public WorkspaceView() {
         viewport.getStyleClass().add("canvas");
         viewport.setPickOnBounds(true);
@@ -82,30 +90,69 @@ public final class WorkspaceView {
         );
     }
 
+    /**
+     * Повертає результат операції «вузол».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public StackPane node() {
         return viewport;
     }
 
+    /**
+     * Повертає результат операції «група».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public Pane groupLayer() {
         return groupLayer;
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public Pane edgeLayer() {
         return edgeLayer;
     }
 
+    /**
+     * Повертає результат операції «імпульс».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public Pane pulseLayer() {
         return pulseLayer;
     }
 
+    /**
+     * Повертає результат операції «вузол».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public Pane nodeLayer() {
         return nodeLayer;
     }
 
+    /**
+     * Повертає результат операції «накладка».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public Pane overlayLayer() {
         return overlayLayer;
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «карта».
+     *
+     * @param zoom значення, що визначає масштаб для цієї операції.
+     *
+     * @param panX значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param panY значення, що визначає відповідну операцію для цієї операції.
+     */
     public void setWorldTransform(
             double zoom,
             double panX,
@@ -119,6 +166,15 @@ public final class WorkspaceView {
         redrawGrid(zoom, panX, panY);
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     *
+     * @param zoom значення, що визначає масштаб для цієї операції.
+     *
+     * @param panX значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param panY значення, що визначає відповідну операцію для цієї операції.
+     */
     public void redrawGrid(
             double zoom,
             double panX,
@@ -133,6 +189,9 @@ public final class WorkspaceView {
         );
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     */
     private void redrawGrid() {
         redrawGrid(
                 worldScale.getX(),

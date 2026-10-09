@@ -6,8 +6,14 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+/**
+ * Перевіряє перетворення центра видимої області в координати карти.
+ */
 class CameraWorldCenterTest {
 
+    /**
+     * Перевіряє очікувану поведінку: обчислює карта видима область центр.
+     */
     @Test
     void calculatesWorldPointAtViewportCenter() {
         Point2D result = CameraWorldCenter.calculate(
@@ -22,6 +28,9 @@ class CameraWorldCenterTest {
         assertEquals(200.0, result.getY());
     }
 
+    /**
+     * Перевіряє очікувану поведінку: відхиляє некоректний камера значення.
+     */
     @Test
     void rejectsInvalidCameraValues() {
         assertThrows(

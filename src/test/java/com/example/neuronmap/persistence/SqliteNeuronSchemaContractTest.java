@@ -13,9 +13,16 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/** Regression contract for the persisted neuron model fields. */
+/**
+ * Перевіряє відповідність полів нейрона структурі бази даних.
+ */
 final class SqliteNeuronSchemaContractTest {
 
+    /**
+     * Перевіряє очікувану поведінку: нейрон таблиця містить усі нейрон стан.
+     *
+     * @param tempDir значення, що визначає відповідну операцію для цієї операції.
+     */
     @Test
     void neuronTableContainsAllPersistedNeuronState(
             @TempDir Path tempDir

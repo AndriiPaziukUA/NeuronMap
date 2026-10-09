@@ -24,9 +24,37 @@ import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
-/** In-window application menu overlay. No separate native window is created. */
+/**
+ * Створює графічне представлення головного меню та його сторінок.
+ */
 public final class MainMenuView extends StackPane {
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @param newProject значення, що визначає новий проєкт для цієї операції.
+     *
+     * @param load значення, що визначає завантажувати для цієї операції.
+     *
+     * @param settings набір налаштувань.
+     *
+     * @param exit значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param close значення, що визначає закриття для цієї операції.
+     *
+     * @param openProject значення, що визначає відкрити проєкт для цієї операції.
+     *
+     * @param renameProject значення, що визначає проєкт для цієї операції.
+     *
+     * @param deleteProject значення, що визначає видалити проєкт для цієї операції.
+     *
+     * @param back значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
+    /**
+     * Компонент Actions у складі NeuronMap. Його призначення та параметри операцій описані над відповідними методами.
+     */
     public record Actions(
             Runnable newProject,
             Runnable load,
@@ -51,6 +79,9 @@ public final class MainMenuView extends StackPane {
         }
     }
 
+    /**
+     * Компонент Page у складі NeuronMap. Його призначення та параметри операцій описані над відповідними методами. Визначає обмежений набір допустимих варіантів.
+     */
     private enum Page {
         MAIN,
         LOAD,
@@ -85,6 +116,15 @@ public final class MainMenuView extends StackPane {
     private boolean savingPendingChanges;
     private Consumer<Boolean> visibilityChanged = ignored -> { };
 
+    /**
+     * Повертає результат операції «меню відображення».
+     *
+     * @param localization значення, що визначає локалізація для цієї операції.
+     *
+     * @param visibilityChanged значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public MainMenuView(
             LocalizationService localization,
             Consumer<Boolean> visibilityChanged
@@ -134,11 +174,25 @@ public final class MainMenuView extends StackPane {
         languageSelector.setCellFactory(list -> languageCell());
         languageSelector.setButtonCell(languageCell());
         languageSelector.setConverter(new StringConverter<>() {
+            /**
+             * Повертає результат операції «до».
+             *
+             * @param object значення, що визначає відповідну операцію для цієї операції.
+             *
+             * @return текстове значення, сформоване або знайдене методом.
+             */
             @Override
             public String toString(SupportedLanguage object) {
                 return object == null ? "" : localization.displayName(object);
             }
 
+            /**
+             * Повертає результат операції «із».
+             *
+             * @param string значення, що визначає відповідну операцію для цієї операції.
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             @Override
             public SupportedLanguage fromString(String string) {
                 return null;
@@ -176,14 +230,27 @@ public final class MainMenuView extends StackPane {
         showMainPage();
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «відповідну операцію».
+     *
+     * @param actions значення, що визначає відповідну операцію для цієї операції.
+     */
     public void setActions(Actions actions) {
         this.actions = Objects.requireNonNull(actions, "actions");
     }
 
+    /**
+     * Перевіряє, чи виконується умова «меню».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean isMenuVisible() {
         return isVisible();
     }
 
+    /**
+     * Відображає «меню» в інтерфейсі.
+     */
     public void showMenu() {
         setVisible(true);
         setManaged(true);
@@ -191,6 +258,9 @@ public final class MainMenuView extends StackPane {
         requestFocus();
     }
 
+    /**
+     * Виконує операцію «приховати».
+     */
     public void hide() {
         if (!isVisible()) {
             return;
@@ -201,15 +271,32 @@ public final class MainMenuView extends StackPane {
         visibilityChanged.accept(false);
     }
 
+    /**
+     * Перевіряє, чи виконується умова «змінює».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean hasUnsavedChanges() {
         return settingsHaveUnsavedChanges()
                 || projectRows.stream().anyMatch(SavedProjectRowView::hasUnsavedChanges);
     }
 
+    /**
+     * Перевіряє, чи виконується умова «змінює».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean isConfirmingUnsavedChanges() {
         return unsavedChangesView.isShowing();
     }
 
+    /**
+     * Виконує операцію «змінює».
+     *
+     * @param saveAction значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param discardAction значення, що визначає відкинути для цієї операції.
+     */
     public void confirmUnsavedChanges(
             Runnable saveAction,
             Runnable discardAction
@@ -217,6 +304,9 @@ public final class MainMenuView extends StackPane {
         unsavedChangesView.show(saveAction, discardAction);
     }
 
+    /**
+     * Зберігає дані, повʼязані з «змінює», у відповідному сховищі.
+     */
     public void saveUnsavedChanges() {
         savingPendingChanges = true;
         try {
@@ -232,6 +322,9 @@ public final class MainMenuView extends StackPane {
         }
     }
 
+    /**
+     * Видаляє або скидає дані, повʼязані з «змінює».
+     */
     public void discardUnsavedChanges() {
         for (SavedProjectRowView row : projectRows) {
             row.discardPendingChange();
@@ -244,6 +337,9 @@ public final class MainMenuView extends StackPane {
         unsavedChangesView.hide();
     }
 
+    /**
+     * Відображає «відповідну операцію» в інтерфейсі.
+     */
     public void showMainPage() {
         page = Page.MAIN;
         clearProjectRows();
@@ -256,6 +352,11 @@ public final class MainMenuView extends StackPane {
         installPanel();
     }
 
+    /**
+     * Відображає «завантажувати» в інтерфейсі.
+     *
+     * @param projects значення, що визначає проєкти для цієї операції.
+     */
     public void showLoadPage(List<ProjectDescriptor> projects) {
         page = Page.LOAD;
         settingsOriginalLanguage = null;
@@ -291,6 +392,9 @@ public final class MainMenuView extends StackPane {
         installPanel();
     }
 
+    /**
+     * Відображає «налаштування» в інтерфейсі.
+     */
     public void showSettingsPage() {
         page = Page.SETTINGS;
         clearProjectRows();
@@ -305,14 +409,29 @@ public final class MainMenuView extends StackPane {
         installPanel();
     }
 
+    /**
+     * Перевіряє, чи виконується умова «завантажувати».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean isLoadPage() {
         return page == Page.LOAD;
     }
 
+    /**
+     * Перевіряє, чи виконується умова «налаштування».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean isSettingsPage() {
         return page == Page.SETTINGS;
     }
 
+    /**
+     * Повертає результат операції «кнопка для».
+     *
+     * @return колекцію результатів; якщо елементів немає, колекція порожня.
+     */
     public List<String> mainButtonTextsForTest() {
         return List.of(
                 newProjectButton.getText(),
@@ -322,36 +441,65 @@ public final class MainMenuView extends StackPane {
         );
     }
 
+    /**
+     * Повертає результат операції «мова для».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public ComboBox<SupportedLanguage> languageSelectorForTest() {
         return languageSelector;
     }
 
+    /**
+     * Повертає результат операції «кнопка для».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public Button backButtonForTest() {
         return backButton;
     }
 
+    /**
+     * Повертає результат операції «проєкт для».
+     *
+     * @return колекцію результатів; якщо елементів немає, колекція порожня.
+     */
     List<SavedProjectRowView> projectRowsForTest() {
         return List.copyOf(projectRows);
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     */
     public void dispose() {
         clearProjectRows();
         unsavedChangesView.hide();
         localization.removeListener(localizationListener);
     }
 
+    /**
+     * Повертає результат операції «налаштування змінює».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     private boolean settingsHaveUnsavedChanges() {
         return page == Page.SETTINGS
                 && settingsOriginalLanguage != null
                 && settingsOriginalLanguage != localization.language();
     }
 
+    /**
+     * Обробляє «відповідну операцію».
+     */
     private void handleRenameCommitted() {
         if (!savingPendingChanges && isLoadPage()) {
             actions.load().run();
         }
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     */
     private void installPanel() {
         HBox footer = new HBox(backButton);
         footer.setAlignment(Pos.BOTTOM_LEFT);
@@ -365,6 +513,9 @@ public final class MainMenuView extends StackPane {
         );
     }
 
+    /**
+     * Видаляє або скидає дані, повʼязані з «проєкт».
+     */
     private void clearProjectRows() {
         for (SavedProjectRowView row : projectRows) {
             row.dispose();
@@ -373,6 +524,9 @@ public final class MainMenuView extends StackPane {
         projectList.getChildren().clear();
     }
 
+    /**
+     * Виконує операцію «мова».
+     */
     private void reloadLanguageSelector() {
         SupportedLanguage current = localization.language();
         languageSelector.getItems().setAll(
@@ -381,6 +535,9 @@ public final class MainMenuView extends StackPane {
         languageSelector.setValue(current);
     }
 
+    /**
+     * Обробляє «відповідну операцію».
+     */
     private void refreshTexts() {
         titleLabel.setText(
                 page == Page.MAIN
@@ -401,8 +558,20 @@ public final class MainMenuView extends StackPane {
         reloadLanguageSelector();
     }
 
+    /**
+     * Повертає результат операції «мова».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private ListCell<SupportedLanguage> languageCell() {
         return new ListCell<>() {
+            /**
+             * Задає або оновлює значення, повʼязані з «відповідну операцію».
+             *
+             * @param item значення, що визначає відповідну операцію для цієї операції.
+             *
+             * @param empty значення, що визначає порожній для цієї операції.
+             */
             @Override
             protected void updateItem(SupportedLanguage item, boolean empty) {
                 super.updateItem(item, empty);
@@ -413,6 +582,11 @@ public final class MainMenuView extends StackPane {
         };
     }
 
+    /**
+     * Повертає результат операції «меню кнопка».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private static Button menuButton() {
         Button button = new Button();
         button.getStyleClass().add("main-menu-button");
@@ -423,6 +597,11 @@ public final class MainMenuView extends StackPane {
         return button;
     }
 
+    /**
+     * Повертає результат операції «кнопка».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private static Button secondaryButton() {
         Button button = new Button();
         button.getStyleClass().add("main-menu-back-button");

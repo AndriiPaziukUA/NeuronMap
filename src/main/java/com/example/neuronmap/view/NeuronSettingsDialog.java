@@ -14,18 +14,46 @@ import javafx.stage.Window;
 
 import java.util.Optional;
 
-/** Dialog for changing user-controlled neuron signal parameters. */
+/**
+ * Створює діалог редагування параметрів нейрона.
+ */
 public final class NeuronSettingsDialog {
 
+    /**
+     * Повертає результат операції «нейрон налаштування діалог».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private NeuronSettingsDialog() {
     }
 
+    /**
+     * Повертає результат операції «значення».
+     *
+     * @param signalStrength сила сигналу нейрона.
+     *
+     * @param activationThreshold поріг активації нейрона.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
+    /**
+     * Компонент Values у складі NeuronMap. Його призначення та параметри операцій описані над відповідними методами.
+     */
     public record Values(
             int signalStrength,
             int activationThreshold
     ) {
     }
 
+    /**
+     * Відображає «потрібні дані» в інтерфейсі.
+     *
+     * @param owner значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param neuron нейрон, над яким виконується операція.
+     *
+     * @return знайдене значення або порожній Optional, якщо результату немає.
+     */
     public static Optional<Values> show(
             Window owner,
             Neuron neuron
@@ -37,6 +65,17 @@ public final class NeuronSettingsDialog {
         );
     }
 
+    /**
+     * Відображає «потрібні дані» в інтерфейсі.
+     *
+     * @param owner значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param neuron нейрон, над яким виконується операція.
+     *
+     * @param localization значення, що визначає локалізація для цієї операції.
+     *
+     * @return знайдене значення або порожній Optional, якщо результату немає.
+     */
     public static Optional<Values> show(
             Window owner,
             Neuron neuron,
@@ -107,12 +146,28 @@ public final class NeuronSettingsDialog {
                 return null;
             }
 
+            /**
+             * Повертає результат операції «значення».
+             *
+             * @param signalStrength сила сигналу нейрона.
+             *
+             * @param activationThreshold поріг активації нейрона.
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             return new Values(signalStrength, activationThreshold);
         });
 
         return dialog.showAndWait();
     }
 
+    /**
+     * Повертає результат операції «додатний».
+     *
+     * @param text текст, який потрібно показати або обробити.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private static Integer parsePositive(String text) {
         if (text == null || text.isBlank()) {
             return null;

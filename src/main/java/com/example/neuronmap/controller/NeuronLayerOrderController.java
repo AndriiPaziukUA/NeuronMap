@@ -12,9 +12,7 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
- * Controls visual stacking order of neurons and their connections.
- * Neurons remain above the edge layer; only ordering inside each
- * existing parent layer is changed.
+ * Змінює порядок відображення нейронів у графічному шарі.
  */
 public final class NeuronLayerOrderController {
 
@@ -23,6 +21,19 @@ public final class NeuronLayerOrderController {
     private final Map<String, ConnectionView> connectionViews;
     private final Supplier<Iterable<Connection>> connections;
 
+    /**
+     * Повертає результат операції «нейрон».
+     *
+     * @param workspace значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param neuronViews значення, що визначає нейрон для цієї операції.
+     *
+     * @param connectionViews значення, що визначає звʼязок для цієї операції.
+     *
+     * @param connections значення, що визначає звʼязки для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public NeuronLayerOrderController(
             WorkspaceView workspace,
             Map<String, NeuronView> neuronViews,
@@ -38,12 +49,12 @@ public final class NeuronLayerOrderController {
         this.connections = Objects.requireNonNull(connections, "connections");
     }
 
-    /**
-     * Raises the clicked neuron above other neurons and raises all of its
-     * incident connections above other connections. Connections themselves
-     * remain below the neuron layer because their parent layer is unchanged.
-     */
-    public void bringNeuronToFront(String neuronId) {
+/**
+ * Виконує операцію «нейрон до».
+ *
+ * @param neuronId ідентифікатор нейрона.
+ */
+public void bringNeuronToFront(String neuronId) {
         if (neuronId == null) {
             return;
         }
@@ -63,6 +74,11 @@ public final class NeuronLayerOrderController {
         }
     }
 
+    /**
+     * Переміщує обʼєкт «до» відповідно до переданого зміщення.
+     *
+     * @param node графічний вузол JavaFX.
+     */
     private static void moveToEnd(Node node) {
         if (node == null || !(node.getParent() instanceof Pane layer)) {
             return;

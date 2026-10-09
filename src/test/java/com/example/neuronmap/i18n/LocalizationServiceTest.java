@@ -7,8 +7,14 @@ import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+/**
+ * Перевіряє переклади, зміну мови, сповіщення та порядок варіантів мови.
+ */
 final class LocalizationServiceTest {
 
+    /**
+     * Перевіряє очікувану поведінку: мова поточний мова.
+     */
     @Test
     void languageNamesAreSortedUsingCurrentLanguage() {
         LocalizationService localization =
@@ -39,6 +45,9 @@ final class LocalizationServiceTest {
         assertEquals("Украинский", localization.displayName(SupportedLanguage.UKRAINIAN));
     }
 
+    /**
+     * Перевіряє очікувану поведінку: мова слухачі.
+     */
     @Test
     void switchingLanguageNotifiesListeners() {
         LocalizationService localization =
@@ -52,6 +61,9 @@ final class LocalizationServiceTest {
         assertEquals("New Project", localization.text("menu.new_project"));
     }
 
+    /**
+     * Перевіряє очікувану поведінку: попередній перегляд мова не зберігати і.
+     */
     @Test
     void previewLanguageDoesNotPersistAndCanBeReverted() {
         LocalizationService localization =

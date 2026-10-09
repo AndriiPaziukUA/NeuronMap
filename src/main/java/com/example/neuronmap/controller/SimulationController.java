@@ -15,7 +15,9 @@ import java.math.BigInteger;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-/** Coordinates one global synchronous simulation timeline. */
+/**
+ * Повʼязує керування симуляцією в інтерфейсі з обчисленням тактів і показом результатів.
+ */
 public final class SimulationController {
 
     private final NeuronService neuronService;
@@ -35,6 +37,29 @@ public final class SimulationController {
     private boolean paused;
     private boolean modalSuspended;
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @param neuronService значення, що визначає нейрон служба для цієї операції.
+     *
+     * @param stepPresenter значення, що визначає крок для цієї операції.
+     *
+     * @param save значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param status стан операції.
+     *
+     * @param pausedStateConsumer значення, що визначає стан для цієї операції.
+     *
+     * @param simulationActivityConsumer значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param initialTickMillis значення, що визначає такт для цієї операції.
+     *
+     * @param minTickMillis значення, що визначає такт для цієї операції.
+     *
+     * @param maxTickMillis значення, що визначає такт для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public SimulationController(
             NeuronService neuronService,
             SimulationStepPresenter stepPresenter,
@@ -60,6 +85,31 @@ public final class SimulationController {
         );
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @param neuronService значення, що визначає нейрон служба для цієї операції.
+     *
+     * @param stepPresenter значення, що визначає крок для цієї операції.
+     *
+     * @param save значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param status стан операції.
+     *
+     * @param pausedStateConsumer значення, що визначає стан для цієї операції.
+     *
+     * @param simulationActivityConsumer значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param initialTickMillis значення, що визначає такт для цієї операції.
+     *
+     * @param minTickMillis значення, що визначає такт для цієї операції.
+     *
+     * @param maxTickMillis значення, що визначає такт для цієї операції.
+     *
+     * @param localization значення, що визначає локалізація для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public SimulationController(
             NeuronService neuronService,
             SimulationStepPresenter stepPresenter,
@@ -107,6 +157,11 @@ public final class SimulationController {
         pausedStateConsumer.accept(false);
     }
 
+    /**
+     * Виконує операцію «імпульс».
+     *
+     * @param sourceNeuronId ідентифікатор початкового нейрона.
+     */
     public void emitPulse(String sourceNeuronId) {
         if (neuronService.find(sourceNeuronId) == null) {
             return;
@@ -148,6 +203,9 @@ public final class SimulationController {
         updateSimulationControlsVisibility();
     }
 
+    /**
+     * Виконує операцію «або».
+     */
     public void pauseOrResume() {
         if (!hasActiveSimulation()) {
             return;
@@ -159,8 +217,12 @@ public final class SimulationController {
         }
     }
 
-    /** Temporarily suspends the simulation for a modal in-window menu. */
-    public boolean pauseForModal() {
+/**
+ * Повертає результат операції «для».
+ *
+ * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+ */
+public boolean pauseForModal() {
         if (!hasActiveSimulation() || paused) {
             modalSuspended = false;
             return false;
@@ -171,8 +233,10 @@ public final class SimulationController {
         return true;
     }
 
-    /** Resumes the simulation only when this menu pause actually suspended it. */
-    public void resumeFromModal() {
+/**
+ * Виконує операцію «із».
+ */
+public void resumeFromModal() {
         if (!modalSuspended) {
             return;
         }
@@ -183,10 +247,20 @@ public final class SimulationController {
         resumeInternal();
     }
 
+    /**
+     * Перевіряє, чи виконується умова «відповідну операцію».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean isPaused() {
         return paused;
     }
 
+    /**
+     * Перевіряє, чи виконується умова «відповідну операцію».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     public boolean hasActiveSimulation() {
         return session != null
                 || timeline != null
@@ -194,6 +268,9 @@ public final class SimulationController {
                 || stepPresenter.hasActiveAnimations();
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «сигнали».
+     */
     public void stopSignals() {
         resetRuntime();
         paused = false;
@@ -205,6 +282,11 @@ public final class SimulationController {
         status.accept(localization.text("status.simulation_stopped"));
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «такт».
+     *
+     * @param millis значення, що визначає відповідну операцію для цієї операції.
+     */
     public void setTickDurationMillis(double millis) {
         tickMillis = SimulationSpeed.requireMillis(
                 millis,
@@ -233,6 +315,9 @@ public final class SimulationController {
         );
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     */
     public void stop() {
         resetRuntime();
         paused = false;
@@ -242,6 +327,9 @@ public final class SimulationController {
         updateSimulationControlsVisibility();
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     */
     public void shutdown() {
         resetRuntime();
         paused = false;
@@ -250,6 +338,9 @@ public final class SimulationController {
         updateSimulationControlsVisibility();
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     */
     private void pause() {
         if (!hasActiveSimulation()) {
             return;
@@ -258,6 +349,9 @@ public final class SimulationController {
         status.accept(localization.text("status.simulation_paused"));
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     */
     private void pauseInternal() {
         paused = true;
         if (timeline != null) {
@@ -271,11 +365,17 @@ public final class SimulationController {
         updateSimulationControlsVisibility();
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     */
     private void resume() {
         resumeInternal();
         status.accept(localization.text("status.simulation_resumed"));
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     */
     private void resumeInternal() {
         paused = false;
         startTimelineIfNeeded();
@@ -287,6 +387,9 @@ public final class SimulationController {
         updateSimulationControlsVisibility();
     }
 
+    /**
+     * Обробляє «наступний крок».
+     */
     private void processNextStep() {
         if (session == null) {
             return;
@@ -312,6 +415,9 @@ public final class SimulationController {
         }
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «відповідну операцію».
+     */
     private void finishSimulation() {
         if (timeline != null) {
             timeline.stop();
@@ -326,6 +432,9 @@ public final class SimulationController {
         updateSimulationControlsVisibility();
     }
 
+    /**
+     * Видаляє або скидає дані, повʼязані з «відповідну операцію».
+     */
     private void resetRuntime() {
         if (timeline != null) {
             timeline.stop();
@@ -336,6 +445,9 @@ public final class SimulationController {
         stepPresenter.clearRuntime();
     }
 
+    /**
+     * Створює обʼєкт із переданих даних «відповідну операцію».
+     */
     private void createTimeline() {
         timeline = new Timeline(
                 new KeyFrame(
@@ -346,6 +458,9 @@ public final class SimulationController {
         timeline.setCycleCount(Timeline.INDEFINITE);
     }
 
+    /**
+     * Запускає або планує дію, повʼязану з «якщо».
+     */
     private void startTimelineIfNeeded() {
         if (session == null || paused || !session.hasPendingWork()) {
             return;
@@ -360,14 +475,27 @@ public final class SimulationController {
         }
     }
 
+    /**
+     * Обробляє «стан».
+     */
     private void notifyPausedState() {
         pausedStateConsumer.accept(paused);
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «відповідну операцію».
+     */
     private void updateSimulationControlsVisibility() {
         simulationActivityConsumer.accept(hasActiveSimulation());
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @param value значення, яке потрібно передати або зберегти.
+     *
+     * @return текстове значення, сформоване або знайдене методом.
+     */
     private static String formatMillis(double value) {
         return Math.abs(value - Math.rint(value)) < 0.0001
                 ? String.format(java.util.Locale.ROOT, "%.0f", value)

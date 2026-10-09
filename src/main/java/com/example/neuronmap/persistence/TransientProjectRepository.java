@@ -9,7 +9,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
-/** Keeps a new project in memory until its first real board element is persisted. */
+/**
+ * Тимчасово зберігає стан нового проєкту в памʼяті та створює постійний файл лише за потреби.
+ */
 public final class TransientProjectRepository implements MapRepository {
 
     private final Path databasePath;
@@ -18,22 +20,44 @@ public final class TransientProjectRepository implements MapRepository {
     private Double pendingSimulationTickMillis;
     private boolean closed;
 
+    /**
+     * Повертає результат операції «тимчасовий проєкт».
+     *
+     * @param databasePath значення, що визначає база даних шлях для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public TransientProjectRepository(Path databasePath) {
         this.databasePath = Objects.requireNonNull(databasePath, "databasePath")
                 .toAbsolutePath()
                 .normalize();
     }
 
+    /**
+     * Повертає результат операції «база даних шлях».
+     *
+     * @return шлях до відповідного файлу або каталогу.
+     */
     @Override
     public Path databasePath() {
         return databasePath;
     }
 
+    /**
+     * Перевіряє, чи виконується умова «відповідну операцію».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     @Override
     public boolean isPersistent() {
         return delegate != null && delegate.isPersistent();
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «камера стан».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     @Override
     public CameraState loadCameraState() {
         return delegate == null
@@ -41,6 +65,13 @@ public final class TransientProjectRepository implements MapRepository {
                 : delegate.loadCameraState();
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «такт».
+     *
+     * @param fallbackMillis значення, що визначає резервний варіант для цієї операції.
+     *
+     * @return числове значення, визначене методом.
+     */
     @Override
     public double loadSimulationTickMillis(double fallbackMillis) {
         if (delegate == null) {
@@ -51,9 +82,19 @@ public final class TransientProjectRepository implements MapRepository {
         return delegate.loadSimulationTickMillis(fallbackMillis);
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «відповідну операцію».
+     *
+     * @param model модель карти нейронів.
+     */
     @Override
     public void loadInto(NeuronMapModel model) {
         if (model == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException("model must not be null");
         }
         if (delegate == null) {
@@ -63,6 +104,11 @@ public final class TransientProjectRepository implements MapRepository {
         delegate.loadInto(model);
     }
 
+    /**
+     * Зберігає дані, повʼязані з «такт», у відповідному сховищі.
+     *
+     * @param millis значення, що визначає відповідну операцію для цієї операції.
+     */
     @Override
     public void saveSimulationTickMillis(double millis) {
         ensureOpen();
@@ -73,6 +119,13 @@ public final class TransientProjectRepository implements MapRepository {
         delegate.saveSimulationTickMillis(millis);
     }
 
+    /**
+     * Зберігає дані, повʼязані з «потрібні дані», у відповідному сховищі.
+     *
+     * @param model модель карти нейронів.
+     *
+     * @param cameraState значення, що визначає камера стан для цієї операції.
+     */
     @Override
     public synchronized void save(
             NeuronMapModel model,
@@ -80,6 +133,11 @@ public final class TransientProjectRepository implements MapRepository {
     ) {
         ensureOpen();
         if (model == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException("model must not be null");
         }
         pendingCameraState = Objects.requireNonNull(
@@ -101,6 +159,9 @@ public final class TransientProjectRepository implements MapRepository {
         }
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     */
     @Override
     public synchronized void close() {
         if (closed) {
@@ -119,11 +180,21 @@ public final class TransientProjectRepository implements MapRepository {
         pendingSimulationTickMillis = null;
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     */
     private void materialize() {
         try {
             prepareProjectDirectory();
             delegate = new SqliteMapRepository(databasePath);
         } catch (IOException exception) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @param exception помилка, яку потрібно обробити.
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new PersistenceException(
                     "Не вдалося підготувати папку проєкту.",
                     exception
@@ -131,13 +202,28 @@ public final class TransientProjectRepository implements MapRepository {
         }
     }
 
+    /**
+     * Виконує операцію «проєкт каталог».
+     */
     private void prepareProjectDirectory() throws IOException {
         Path directory = databasePath.getParent();
         if (directory == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IOException("Project database has no parent directory");
         }
 
         if (Files.isRegularFile(databasePath)) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @param databasePath значення, що визначає база даних шлях для цієї операції.
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IOException(
                     "Project database already exists: " + databasePath
             );
@@ -151,6 +237,11 @@ public final class TransientProjectRepository implements MapRepository {
         clearDirectory(directory);
     }
 
+    /**
+     * Видаляє або скидає дані, повʼязані з «каталог».
+     *
+     * @param directory каталог для пошуку чи збереження.
+     */
     private static void clearDirectory(Path directory) throws IOException {
         List<Path> paths;
         try (var stream = Files.walk(directory)) {
@@ -164,8 +255,16 @@ public final class TransientProjectRepository implements MapRepository {
         }
     }
 
+    /**
+     * Виконує операцію «відкрити».
+     */
     private void ensureOpen() {
         if (closed) {
+            /**
+             * Повертає результат операції «стан виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalStateException("Project repository is closed");
         }
     }

@@ -8,10 +8,7 @@ import javafx.scene.shape.Rectangle;
 import java.util.Map;
 
 /**
- * Visual representation of a neuron group.
- *
- * GroupView intentionally reads geometry from NeuronView instances rather
- * than from Neuron. Semantic neuron data contains no board coordinates.
+ * Відображає групу нейронів і її межі на карті.
  */
 public final class GroupView extends Pane {
 
@@ -24,17 +21,36 @@ public final class GroupView extends Pane {
     private final Rectangle border =
             new Rectangle();
 
+    /**
+     * Повертає результат операції «група відображення».
+     *
+     * @param group група нейронів.
+     *
+     * @param neuronViews значення, що визначає нейрон для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public GroupView(
             NeuronGroup group,
             Map<String, NeuronView> neuronViews
     ) {
         if (group == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     "group must not be null"
             );
         }
 
         if (neuronViews == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     "neuronViews must not be null"
             );
@@ -58,14 +74,19 @@ public final class GroupView extends Pane {
         refresh();
     }
 
+    /**
+     * Повертає результат операції «група».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public NeuronGroup group() {
         return group;
     }
 
-    /**
-     * Recalculates the group bounds from the actual rendered neuron views.
-     */
-    public void refresh() {
+/**
+ * Обробляє «потрібні дані».
+ */
+public void refresh() {
         if (group.memberIds().isEmpty()) {
             border.setWidth(MIN_SIZE);
             border.setHeight(MIN_SIZE);

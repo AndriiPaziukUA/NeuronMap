@@ -17,7 +17,9 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-/** Owns viewport camera interaction and camera persistence. */
+/**
+ * Керує рухом і масштабом камери редактора у відповідь на дії користувача.
+ */
 public final class CameraController {
 
     private final EditorState state;
@@ -38,6 +40,29 @@ public final class CameraController {
     private double lastMouseX;
     private double lastMouseY;
 
+    /**
+     * Повертає результат операції «камера».
+     *
+     * @param state стан обʼєкта або редактора.
+     *
+     * @param workspace значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param refreshOverlay значення, що визначає накладка для цієї операції.
+     *
+     * @param save значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param interactionActive значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param interactiveTarget значення, що визначає кінцевий для цієї операції.
+     *
+     * @param status стан операції.
+     *
+     * @param cameraCenterWorldConsumer значення, що визначає камера центр карта для цієї операції.
+     *
+     * @param zoomFactor значення, що визначає масштаб для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public CameraController(
             EditorState state,
             WorkspaceView workspace,
@@ -63,6 +88,31 @@ public final class CameraController {
         );
     }
 
+    /**
+     * Повертає результат операції «камера».
+     *
+     * @param state стан обʼєкта або редактора.
+     *
+     * @param workspace значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param refreshOverlay значення, що визначає накладка для цієї операції.
+     *
+     * @param save значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param interactionActive значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param interactiveTarget значення, що визначає кінцевий для цієї операції.
+     *
+     * @param status стан операції.
+     *
+     * @param cameraCenterWorldConsumer значення, що визначає камера центр карта для цієї операції.
+     *
+     * @param zoomFactor значення, що визначає масштаб для цієї операції.
+     *
+     * @param localization значення, що визначає локалізація для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public CameraController(
             EditorState state,
             WorkspaceView workspace,
@@ -87,6 +137,11 @@ public final class CameraController {
                 ? new LocalizationService(java.util.Locale.forLanguageTag("uk"))
                 : localization;
         if (!Double.isFinite(zoomFactor) || zoomFactor <= 1.0) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException("zoomFactor must be > 1");
         }
         this.zoomFactor = zoomFactor;
@@ -94,6 +149,9 @@ public final class CameraController {
         saveDebounce.setOnFinished(event -> save.run());
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     */
     public void install() {
         workspace.node().addEventFilter(
                 MouseEvent.MOUSE_PRESSED,
@@ -120,6 +178,9 @@ public final class CameraController {
         );
     }
 
+    /**
+     * Обробляє «потрібні дані».
+     */
     public void apply() {
         workspace.setWorldTransform(
                 state.zoom(),
@@ -130,12 +191,19 @@ public final class CameraController {
         refreshCameraCoordinates();
     }
 
-    /** Cancels a pending debounced persistence callback before a project switch. */
-    public void cancelPendingSave() {
+/**
+ * Завершує або скасовує дію, повʼязану з «очікуваний».
+ */
+public void cancelPendingSave() {
         saveDebounce.stop();
         panning = false;
     }
 
+    /**
+     * Обробляє «відповідну операцію».
+     *
+     * @param event подія інтерфейсу.
+     */
     private void handlePressed(MouseEvent event) {
         if (event.getButton() != MouseButton.PRIMARY) {
             return;
@@ -154,6 +222,11 @@ public final class CameraController {
         event.consume();
     }
 
+    /**
+     * Обробляє «відповідну операцію».
+     *
+     * @param event подія інтерфейсу.
+     */
     private void handleDragged(MouseEvent event) {
         if (!panning) {
             return;
@@ -172,6 +245,11 @@ public final class CameraController {
         event.consume();
     }
 
+    /**
+     * Обробляє «відповідну операцію».
+     *
+     * @param event подія інтерфейсу.
+     */
     private void handleReleased(MouseEvent event) {
         if (!panning) {
             return;
@@ -182,6 +260,11 @@ public final class CameraController {
         scheduleSave();
     }
 
+    /**
+     * Обробляє «масштаб».
+     *
+     * @param event подія інтерфейсу.
+     */
     private void handleZoom(ScrollEvent event) {
         if (event.getDeltaY() == 0.0) {
             return;
@@ -213,6 +296,9 @@ public final class CameraController {
         event.consume();
     }
 
+    /**
+     * Обробляє «камера координати».
+     */
     private void refreshCameraCoordinates() {
         if (cameraCenterWorldConsumer == null) {
             return;
@@ -236,10 +322,20 @@ public final class CameraController {
         );
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     */
     private void scheduleSave() {
         saveDebounce.playFromStart();
     }
 
+    /**
+     * Повертає результат операції «масштаб».
+     *
+     * @param zoom значення, що визначає масштаб для цієї операції.
+     *
+     * @return текстове значення, сформоване або знайдене методом.
+     */
     private static String formatZoom(double zoom) {
         double percent = zoom * 100.0;
         return Math.abs(percent - Math.rint(percent)) < 0.0001

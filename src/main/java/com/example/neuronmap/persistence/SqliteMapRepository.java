@@ -5,7 +5,9 @@ import com.example.neuronmap.model.NeuronMapModel;
 import java.nio.file.Path;
 import java.sql.SQLException;
 
-/** Coordinates SQLite schema, loading, writing and scalar settings. */
+/**
+ * Реалізує контракт сховища карти за допомогою бази даних SQLite.
+ */
 public final class SqliteMapRepository implements MapRepository {
 
     private final Path databasePath;
@@ -15,12 +17,29 @@ public final class SqliteMapRepository implements MapRepository {
     private final SqliteMapWriter writer;
     private boolean closed;
 
+    /**
+     * Повертає результат операції «SQLite карта».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public SqliteMapRepository() {
         this(DatabasePathResolver.resolve());
     }
 
+    /**
+     * Повертає результат операції «SQLite карта».
+     *
+     * @param databasePath значення, що визначає база даних шлях для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public SqliteMapRepository(Path databasePath) {
         if (databasePath == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException("databasePath must not be null");
         }
 
@@ -33,21 +52,43 @@ public final class SqliteMapRepository implements MapRepository {
         this.writer = new SqliteMapWriter(this.connection, settings);
     }
 
+    /**
+     * Перевіряє, чи виконується умова «відповідну операцію».
+     *
+     * @return true, якщо умову виконано або операція завершилася успішно; інакше false.
+     */
     @Override
     public boolean isPersistent() {
         return !closed;
     }
 
+    /**
+     * Повертає результат операції «база даних шлях».
+     *
+     * @return шлях до відповідного файлу або каталогу.
+     */
     @Override
     public Path databasePath() {
         return databasePath;
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «такт».
+     *
+     * @param fallbackMillis значення, що визначає резервний варіант для цієї операції.
+     *
+     * @return числове значення, визначене методом.
+     */
     @Override
     public double loadSimulationTickMillis(double fallbackMillis) {
         return settings.loadSimulationTickMillis(fallbackMillis);
     }
 
+    /**
+     * Зберігає дані, повʼязані з «такт», у відповідному сховищі.
+     *
+     * @param millis значення, що визначає відповідну операцію для цієї операції.
+     */
     @Override
     public synchronized void saveSimulationTickMillis(double millis) {
         ensureOpen();
@@ -55,6 +96,11 @@ public final class SqliteMapRepository implements MapRepository {
         touchDatabaseFile();
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «камера стан».
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     @Override
     public CameraState loadCameraState() {
         ensureOpen();
@@ -73,6 +119,11 @@ public final class SqliteMapRepository implements MapRepository {
         }
     }
 
+    /**
+     * Повертає або знаходить дані, повʼязані з «відповідну операцію».
+     *
+     * @param model модель карти нейронів.
+     */
     @Override
     public void loadInto(NeuronMapModel model) {
         ensureOpen();
@@ -86,6 +137,13 @@ public final class SqliteMapRepository implements MapRepository {
         }
     }
 
+    /**
+     * Зберігає дані, повʼязані з «потрібні дані», у відповідному сховищі.
+     *
+     * @param model модель карти нейронів.
+     *
+     * @param cameraState значення, що визначає камера стан для цієї операції.
+     */
     @Override
     public synchronized void save(
             NeuronMapModel model,
@@ -108,6 +166,9 @@ public final class SqliteMapRepository implements MapRepository {
         }
     }
 
+    /**
+     * Завершує або скасовує дію, повʼязану з «потрібні дані».
+     */
     @Override
     public synchronized void close() {
         if (closed) {
@@ -121,6 +182,9 @@ public final class SqliteMapRepository implements MapRepository {
         }
     }
 
+    /**
+     * Виконує операцію «база даних файл».
+     */
     private void touchDatabaseFile() {
         try {
             java.nio.file.Files.setLastModifiedTime(
@@ -135,12 +199,23 @@ public final class SqliteMapRepository implements MapRepository {
         }
     }
 
+    /**
+     * Виконує операцію «відкрити».
+     */
     private void ensureOpen() {
         if (closed) {
+            /**
+             * Повертає результат операції «стан виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalStateException("SQLite repository is closed");
         }
     }
 
+    /**
+     * Виконує операцію «відповідну операцію».
+     */
     private void rollbackQuietly() {
         try {
             connection.rollback();
@@ -149,6 +224,9 @@ public final class SqliteMapRepository implements MapRepository {
         }
     }
 
+    /**
+     * Задає або оновлює значення, повʼязані з «відповідну операцію».
+     */
     private void restoreAutoCommit() {
         try {
             connection.setAutoCommit(true);
@@ -160,10 +238,28 @@ public final class SqliteMapRepository implements MapRepository {
         }
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @param message повідомлення для показу чи журналювання.
+     *
+     * @param cause значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private PersistenceException failure(
             String message,
             Throwable cause
     ) {
+        /**
+         * Повертає результат операції «виняток».
+         *
+         * @param databasePath значення, що визначає база даних шлях для цієї операції.
+         *
+         * @param cause значення, що визначає відповідну операцію для цієї операції.
+         *
+         * @return значення або обʼєкт, визначений описаною операцією.
+         */
         return new PersistenceException(
                 message + " Database: " + databasePath,
                 cause

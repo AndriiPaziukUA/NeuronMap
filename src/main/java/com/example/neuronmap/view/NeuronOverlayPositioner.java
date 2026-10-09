@@ -6,11 +6,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 
 /**
- * Single owner of all overlay coordinates for neuron controls.
- *
- * <p>Neuron controls live in the unscaled overlay layer. Their positions are
- * therefore calculated in scene coordinates from the neuron's real transform
- * and converted exactly once into the overlay parent's coordinates.</p>
+ * Обчислює положення меню та інших накладок відносно нейрона й вікна.
  */
 public final class NeuronOverlayPositioner {
 
@@ -21,8 +17,20 @@ public final class NeuronOverlayPositioner {
 
     private final WorkspaceView workspace;
 
+    /**
+     * Повертає результат операції «нейрон накладка».
+     *
+     * @param workspace значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     public NeuronOverlayPositioner(WorkspaceView workspace) {
         if (workspace == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     "workspace must not be null"
             );
@@ -30,10 +38,16 @@ public final class NeuronOverlayPositioner {
         this.workspace = workspace;
     }
 
-    /**
-     * Positions all visible overlays for one neuron.
-     */
-    public void position(
+/**
+ * Виконує операцію «положення».
+ *
+ * @param neuronView значення, що визначає нейрон відображення для цієї операції.
+ *
+ * @param menu значення, що визначає меню для цієї операції.
+ *
+ * @param handle значення, що визначає обробити для цієї операції.
+ */
+public void position(
             NeuronView neuronView,
             VBox menu,
             RotationHandleView handle
@@ -70,11 +84,16 @@ public final class NeuronOverlayPositioner {
         }
     }
 
-    /**
-     * Positions a handle in an arbitrary parent coordinate space.
-     * This is the only public handle-positioning entry point.
-     */
-    public static void positionRotationHandleInParent(
+/**
+ * Виконує операцію «положення обертання обробити».
+ *
+ * @param neuronView значення, що визначає нейрон відображення для цієї операції.
+ *
+ * @param handle значення, що визначає обробити для цієї операції.
+ *
+ * @param coordinateSpace значення, що визначає координата для цієї операції.
+ */
+public static void positionRotationHandleInParent(
             NeuronView neuronView,
             RotationHandleView handle,
             Node coordinateSpace
@@ -94,19 +113,35 @@ public final class NeuronOverlayPositioner {
         handle.setVisualRotation(neuronView.getRotate());
     }
 
-    /**
-     * Exact neuron center in the supplied coordinate space.
-     */
-    public Point2D rectangleCenterIn(
+/**
+ * Повертає результат операції «центр».
+ *
+ * @param neuronView значення, що визначає нейрон відображення для цієї операції.
+ *
+ * @param coordinateSpace значення, що визначає координата для цієї операції.
+ *
+ * @return значення або обʼєкт, визначений описаною операцією.
+ */
+public Point2D rectangleCenterIn(
             NeuronView neuronView,
             Node coordinateSpace
     ) {
         if (neuronView == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     "neuronView must not be null"
             );
         }
         if (coordinateSpace == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     "coordinateSpace must not be null"
             );
@@ -120,25 +155,35 @@ public final class NeuronOverlayPositioner {
         );
     }
 
-    /**
-     * Rotation-handle center in the supplied coordinate space.
-     *
-     * <p>The anchor is the actual midpoint of the neuron's bottom edge in
-     * scene coordinates. Only the outward normal is normalized; the final
-     * offset from that edge is therefore a true screen-pixel distance. This
-     * keeps the visible gap between the neuron and the fixed-size handle
-     * independent of workspace zoom.</p>
-     */
-    public Point2D handleCenterInParent(
+/**
+ * Обробляє «центр».
+ *
+ * @param neuronView значення, що визначає нейрон відображення для цієї операції.
+ *
+ * @param coordinateSpace значення, що визначає координата для цієї операції.
+ *
+ * @return значення або обʼєкт, визначений описаною операцією.
+ */
+public Point2D handleCenterInParent(
             NeuronView neuronView,
             Node coordinateSpace
     ) {
         if (neuronView == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     "neuronView must not be null"
             );
         }
         if (coordinateSpace == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     "coordinateSpace must not be null"
             );
@@ -149,25 +194,48 @@ public final class NeuronOverlayPositioner {
         );
     }
 
-    /**
-     * Pure geometry helper used by unit tests.
-     */
-    static Point2D offsetAlongNormal(
+/**
+ * Повертає результат операції «відповідну операцію».
+ *
+ * @param anchor значення, що визначає відповідну операцію для цієї операції.
+ *
+ * @param directionPoint значення, що визначає напрямок для цієї операції.
+ *
+ * @param distance значення, що визначає відповідну операцію для цієї операції.
+ *
+ * @return значення або обʼєкт, визначений описаною операцією.
+ */
+static Point2D offsetAlongNormal(
             Point2D anchor,
             Point2D directionPoint,
             double distance
     ) {
         if (anchor == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     "anchor must not be null"
             );
         }
         if (directionPoint == null) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     "directionPoint must not be null"
             );
         }
         if (!Double.isFinite(distance) || distance < 0.0) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     "distance must be finite and non-negative"
             );
@@ -178,6 +246,11 @@ public final class NeuronOverlayPositioner {
         double length = Math.hypot(dx, dy);
 
         if (length == 0.0) {
+            /**
+             * Повертає результат операції «виняток».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new IllegalArgumentException(
                     "anchor and directionPoint must differ"
             );
@@ -189,6 +262,13 @@ public final class NeuronOverlayPositioner {
         );
     }
 
+    /**
+     * Обробляє «центр сцена».
+     *
+     * @param neuronView значення, що визначає нейрон відображення для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private static Point2D handleCenterInScene(
             NeuronView neuronView
     ) {
@@ -230,6 +310,19 @@ public final class NeuronOverlayPositioner {
         );
     }
 
+    /**
+     * Повертає результат операції «до».
+     *
+     * @param neuronView значення, що визначає нейрон відображення для цієї операції.
+     *
+     * @param localX значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param localY значення, що визначає відповідну операцію для цієї операції.
+     *
+     * @param coordinateSpace значення, що визначає координата для цієї операції.
+     *
+     * @return значення або обʼєкт, визначений описаною операцією.
+     */
     private Point2D toParent(
             NeuronView neuronView,
             double localX,
@@ -243,6 +336,15 @@ public final class NeuronOverlayPositioner {
         return coordinateSpace.sceneToLocal(scenePoint);
     }
 
+    /**
+     * Виконує операцію «положення меню».
+     *
+     * @param menu значення, що визначає меню для цієї операції.
+     *
+     * @param rectangleCenter значення, що визначає центр для цієї операції.
+     *
+     * @param rectangleTopY значення, що визначає відповідну операцію для цієї операції.
+     */
     private void positionMenu(
             VBox menu,
             Point2D rectangleCenter,
@@ -269,6 +371,15 @@ public final class NeuronOverlayPositioner {
         );
     }
 
+    /**
+     * Повертає результат операції «відповідну операцію».
+     *
+     * @param neuronView значення, що визначає нейрон відображення для цієї операції.
+     *
+     * @param overlay значення, що визначає накладка для цієї операції.
+     *
+     * @return числове значення, визначене методом.
+     */
     private double rectangleTopYInParent(
             NeuronView neuronView,
             Pane overlay

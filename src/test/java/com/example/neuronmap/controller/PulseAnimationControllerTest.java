@@ -19,8 +19,14 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * Перевіряє керування анімацією імпульсів і поведінку після видалення звʼязку.
+ */
 class PulseAnimationControllerTest {
 
+    /**
+     * Запускає або планує дію, повʼязану з «відповідну операцію».
+     */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -32,6 +38,9 @@ class PulseAnimationControllerTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
     }
 
+    /**
+     * Перевіряє очікувану поведінку: імпульс видалення звʼязок відображення.
+     */
     @Test
     void pulseSurvivesRemovalOfOriginalConnectionView() throws Exception {
         runOnFxThread(() -> {
@@ -92,6 +101,11 @@ class PulseAnimationControllerTest {
         });
     }
 
+    /**
+     * Запускає або планує дію, повʼязану з «відповідну операцію».
+     *
+     * @param action дія, яку потрібно виконати.
+     */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];
@@ -108,6 +122,11 @@ class PulseAnimationControllerTest {
 
         assertTrue(latch.await(5, TimeUnit.SECONDS));
         if (failure[0] != null) {
+            /**
+             * Повертає результат операції «відповідну операцію».
+             *
+             * @return значення або обʼєкт, визначений описаною операцією.
+             */
             throw new AssertionError("JavaFX test failed", failure[0]);
         }
     }
