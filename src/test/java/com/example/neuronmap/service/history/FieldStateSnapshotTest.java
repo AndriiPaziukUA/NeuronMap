@@ -1,4 +1,4 @@
-package com.example.neuronmap.application.history;
+package com.example.neuronmap.service.history;
 
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronMapModel;
@@ -51,8 +51,7 @@ class FieldStateSnapshotTest {
                 )
         );
 
-        FieldStateSnapshot snapshot =
-                FieldStateSnapshot.capture(model);
+        FieldStateSnapshot snapshot = FieldStateSnapshot.capture(model);
 
         first.setActivation(99);
         first.setType(NeuronType.INHIBITORY);
@@ -99,13 +98,11 @@ class FieldStateSnapshotTest {
                 0
         );
 
-        FieldStateSnapshot before =
-                FieldStateSnapshot.capture(model);
+        FieldStateSnapshot before = FieldStateSnapshot.capture(model);
 
         neuron.setActivation(42);
 
-        FieldStateSnapshot after =
-                FieldStateSnapshot.capture(model);
+        FieldStateSnapshot after = FieldStateSnapshot.capture(model);
 
         assertEquals(before, after);
     }

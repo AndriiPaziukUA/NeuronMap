@@ -1,4 +1,4 @@
-package com.example.neuronmap.application.history;
+package com.example.neuronmap.service.history;
 
 import com.example.neuronmap.model.Connection;
 import com.example.neuronmap.model.Neuron;
@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Зберігає повний знімок даних карти, потрібних для історії: нейрони, їхнє подання, зв’язки та групи.
+ * Зберігає незмінний знімок даних карти, необхідних для скасування й повторення змін.
  */
 public final class FieldStateSnapshot {
 
@@ -22,12 +22,12 @@ public final class FieldStateSnapshot {
     private final List<GroupState> groups;
 
     /**
-     * Створює знімок карти з копіями станів нейронів, їхніх подань, зв’язків і груп.
+     * Створює знімок із незмінних списків станів елементів карти.
      *
-     * @param neurons список знімків стану нейронів, які входять до карти.
-     * @param presentations список знімків візуального подання нейронів.
-     * @param connections набір напрямлених зв’язків моделі.
-     * @param groups список знімків груп нейронів.
+     * @param neurons знімки станів нейронів.
+     * @param presentations знімки візуальних подань нейронів.
+     * @param connections знімки зв’язків між нейронами.
+     * @param groups знімки груп нейронів.
      */
     private FieldStateSnapshot(
             List<NeuronState> neurons,
@@ -42,9 +42,11 @@ public final class FieldStateSnapshot {
     }
 
     /**
-     * Збирає з моделі нейрони та їхні налаштування, візуальні подання, зв’язки й групи.
+     * Створює знімок усіх збережених даних моделі карти.
      *
-     * @param model модель карти нейронів.
+     * @param model модель карти, яку потрібно зафіксувати.
+     * @return незмінний знімок стану карти.
+     * @throws IllegalArgumentException якщо модель не задано.
      */
     public static FieldStateSnapshot capture(NeuronMapModel model) {
         requireModel(model);
@@ -103,12 +105,14 @@ public final class FieldStateSnapshot {
         );
     }
 
-/**
- * Відновлює знімок у модель, створюючи збережену структуру нейронів, подань, зв’язків і груп.
- *
- * @param model модель карти нейронів.
- */
-public void restoreInto(NeuronMapModel model) {
+    /**
+     * Відновлює знімок у переданій моделі карти.
+     *
+     * @param model модель, стан якої потрібно відновити.
+     * @throws IllegalArgumentException якщо модель не задано.
+     * @throws IllegalStateException якщо в знімку відсутнє подання потрібного нейрона.
+     */
+    public void restoreInto(NeuronMapModel model) {
         requireModel(model);
 
         model.clear();
@@ -165,45 +169,46 @@ public void restoreInto(NeuronMapModel model) {
     }
 
     /**
-     * Повертає незмінний список станів нейронів, що входять до знімка.
+     * Повертає незмінний список станів нейронів зі знімка.
      *
-     * @return незмінний список станів нейронів, що входять до знімка.
+     * @return список станів нейронів.
      */
     public List<NeuronState> neurons() {
         return neurons;
     }
 
     /**
-     * Повертає незмінний список візуальних подань нейронів у знімку.
+     * Повертає незмінний список станів візуальних подань нейронів.
      *
-     * @return незмінний список візуальних подань нейронів у знімку.
+     * @return список станів візуальних подань.
      */
     public List<PresentationState> presentations() {
         return presentations;
     }
 
     /**
-     * Повертає незмінний список зв’язків, збережених у знімку.
+     * Повертає незмінний список станів зв’язків зі знімка.
      *
-     * @return незмінний список зв’язків, збережених у знімку.
+     * @return список станів зв’язків.
      */
     public List<ConnectionState> connections() {
         return connections;
     }
 
     /**
-     * Повертає незмінний список груп, збережених у знімку.
+     * Повертає незмінний список станів груп зі знімка.
      *
-     * @return незмінний список груп, збережених у знімку.
+     * @return список станів груп.
      */
     public List<GroupState> groups() {
         return groups;
     }
 
     /**
-     * Порівнює знімки за збереженими нейронами, поданнями, зв’язками та групами.
+     * Порівнює знімки за всіма даними карти, що зберігаються в історії.
      *
-     * @param other інший об’єкт, з яким порівнюють поточний об’єкт.
+     * @param other об’єкт для порівняння з поточним знімком.
+     * @return {@code true}, якщо знімки містять однакові дані; інакше {@code false}.
      */
     @Override
     public boolean equals(Object other) {
@@ -222,9 +227,9 @@ public void restoreInto(NeuronMapModel model) {
     }
 
     /**
-     * Перевіряє, чи є h code у поточному стані.
+     * Обчислює хеш-код на основі всіх даних знімка.
      *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
+     * @return хеш-код поточного знімка.
      */
     @Override
     public int hashCode() {
@@ -237,19 +242,24 @@ public void restoreInto(NeuronMapModel model) {
     }
 
     /**
-     * Перевіряє, що передано ненульову модель карти.
+     * Перевіряє, що посилання на модель карти не дорівнює {@code null}.
      *
-     * @param model модель карти нейронів.
+     * @param model модель для перевірки.
+     * @throws IllegalArgumentException якщо модель не задано.
      */
     private static void requireModel(NeuronMapModel model) {
         if (model == null) {
-
             throw new IllegalArgumentException("Model must not be null.");
         }
     }
 
     /**
-     * Зберігає ідентифікатор, тип, силу сигналу й поріг активації нейрона на момент знімка.
+     * Зберігає знімок основних параметрів нейрона.
+     *
+     * @param id ідентифікатор нейрона.
+     * @param type тип нейрона.
+     * @param signalStrength сила сигналу.
+     * @param activationThreshold поріг активації.
      */
     public record NeuronState(
             String id,
@@ -260,7 +270,13 @@ public void restoreInto(NeuronMapModel model) {
     }
 
     /**
-     * Зберігає координати, кут обертання й напрямок візуального подання нейрона.
+     * Зберігає стан візуального подання нейрона.
+     *
+     * @param neuronId ідентифікатор нейрона.
+     * @param x горизонтальна координата.
+     * @param y вертикальна координата.
+     * @param rotationDegrees кут обертання у градусах.
+     * @param directionReversed ознака зворотного напрямку.
      */
     public record PresentationState(
             String neuronId,
@@ -272,7 +288,11 @@ public void restoreInto(NeuronMapModel model) {
     }
 
     /**
-     * Зберігає ідентифікатор зв’язку та ідентифікатори його початкового й кінцевого нейронів.
+     * Зберігає ідентифікатори зв’язку та його початкового й кінцевого нейронів.
+     *
+     * @param id ідентифікатор зв’язку.
+     * @param sourceId ідентифікатор початкового нейрона.
+     * @param targetId ідентифікатор кінцевого нейрона.
      */
     public record ConnectionState(
             String id,
@@ -282,12 +302,21 @@ public void restoreInto(NeuronMapModel model) {
     }
 
     /**
-     * Зберігає ідентифікатор групи й незмінний перелік її учасників.
+     * Зберігає ідентифікатор групи та перелік її учасників.
+     *
+     * @param id ідентифікатор групи.
+     * @param memberIds ідентифікатори нейронів у групі.
      */
     public record GroupState(
             String id,
             List<String> memberIds
     ) {
+        /**
+         * Створює стан групи з незмінним переліком учасників.
+         *
+         * @param id ідентифікатор групи.
+         * @param memberIds ідентифікатори нейронів у групі.
+         */
         public GroupState {
             memberIds = List.copyOf(memberIds);
         }

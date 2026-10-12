@@ -1,4 +1,4 @@
-package com.example.neuronmap.application.history;
+package com.example.neuronmap.service.history;
 
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronType;
