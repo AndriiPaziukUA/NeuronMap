@@ -3,6 +3,7 @@ package com.example.neuronmap.controller;
 import com.example.neuronmap.view.ConnectionPulseSnapshot;
 import com.example.neuronmap.view.ConnectionView;
 import com.example.neuronmap.view.PulseAnimationView;
+import com.example.neuronmap.view.PulseAnimator;
 import com.example.neuronmap.view.WorkspaceView;
 
 import java.util.ArrayList;
@@ -12,14 +13,14 @@ import java.util.Objects;
 /**
  * Керує запуском, призупиненням, відновленням і зупиненням анімацій імпульсів на зв’язках.
  */
-public final class PulseAnimationController {
+public final class PulseAnimationController implements PulseAnimator {
 
     private final WorkspaceView workspace;
     private final Runnable activityChanged;
     private final List<PulseAnimationView> activeAnimations = new ArrayList<>();
 
     /**
-     * Створює екземпляр PulseAnimationController та зберігає передані залежності, потрібні для його роботи.
+     * Створює контролер анімацій імпульсів.
      *
      * @param workspace полотно редактора.
      */
@@ -28,10 +29,10 @@ public final class PulseAnimationController {
     }
 
     /**
-     * Створює екземпляр PulseAnimationController та зберігає передані залежності, потрібні для його роботи.
+     * Створює контролер анімацій імпульсів із callback-ом зміни активності.
      *
      * @param workspace полотно редактора.
-     * @param activityChanged callback, який повідомляє про зміну активності анімацій.
+     * @param activityChanged дія, що виконується після зміни активності анімацій.
      */
     public PulseAnimationController(
             WorkspaceView workspace,
@@ -49,6 +50,7 @@ public final class PulseAnimationController {
      *
      * @param connectionView візуальне подання зв’язку.
      */
+    @Override
     public void play(ConnectionView connectionView) {
         if (connectionView == null) {
             return;
@@ -59,12 +61,11 @@ public final class PulseAnimationController {
             return;
         }
 
-        PulseAnimationView animation =
-                new PulseAnimationView(
-                        snapshot,
-                        connectionView::capturePulseSnapshot,
-                        this::handleAnimationFinished
-                );
+        PulseAnimationView animation = new PulseAnimationView(
+                snapshot,
+                connectionView::capturePulseSnapshot,
+                this::handleAnimationFinished
+        );
 
         workspace.pulseLayer().getChildren().add(animation);
         activeAnimations.add(animation);
@@ -74,8 +75,9 @@ public final class PulseAnimationController {
     }
 
     /**
-     * Призупиняє «all», зберігаючи можливість подальшого відновлення.
+     * Призупиняє всі активні анімації імпульсів.
      */
+    @Override
     public void pauseAll() {
         pruneFinished();
         for (PulseAnimationView animation : activeAnimations) {
@@ -84,8 +86,9 @@ public final class PulseAnimationController {
     }
 
     /**
-     * Відновлює «all» після призупинення.
+     * Відновлює всі призупинені анімації імпульсів.
      */
+    @Override
     public void resumeAll() {
         pruneFinished();
         for (PulseAnimationView animation : activeAnimations) {
@@ -94,8 +97,9 @@ public final class PulseAnimationController {
     }
 
     /**
-     * Зупиняє all та очищає пов’язаний активний стан.
+     * Зупиняє всі активні анімації імпульсів і очищає їхнє відображення.
      */
+    @Override
     public void stopAll() {
         for (PulseAnimationView animation : List.copyOf(activeAnimations)) {
             animation.stop();
@@ -105,17 +109,20 @@ public final class PulseAnimationController {
     }
 
     /**
-     * Перевіряє, чи є active animations у поточному стані.
+     * Перевіряє, чи є анімації, які ще виконуються.
      *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
+     * @return {@code true}, якщо є активні анімації; інакше {@code false}.
      */
+    @Override
     public boolean hasActiveAnimations() {
         pruneFinished();
         return !activeAnimations.isEmpty();
     }
 
     /**
-     * Надає тестам доступ до «active animation count» для перевірки стану інтерфейсу.
+     * Надає тестам кількість анімацій, які ще виконуються.
+     *
+     * @return кількість активних анімацій.
      */
     int activeAnimationCountForTest() {
         pruneFinished();
@@ -123,7 +130,7 @@ public final class PulseAnimationController {
     }
 
     /**
-     * Обробляє подію «animation finished» і передає її до відповідної операції редактора.
+     * Обробляє завершення анімації та повідомляє про зміну активності.
      */
     private void handleAnimationFinished() {
         pruneFinished();

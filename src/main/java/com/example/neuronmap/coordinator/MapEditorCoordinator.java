@@ -12,7 +12,7 @@ import com.example.neuronmap.controller.NeuronLayerOrderController;
 import com.example.neuronmap.controller.NeuronMenuCustomizer;
 import com.example.neuronmap.controller.SelectionController;
 import com.example.neuronmap.controller.SimulationController;
-import com.example.neuronmap.controller.SimulationStepPresenter;
+import com.example.neuronmap.controller.PulseAnimationController;
 import com.example.neuronmap.controller.StatusMessagePresenter;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
@@ -34,6 +34,7 @@ import com.example.neuronmap.view.ImmediateTooltipManager;
 import com.example.neuronmap.view.MainView;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.RotationHandleView;
+import com.example.neuronmap.view.SimulationStepPresenter;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
@@ -194,10 +195,10 @@ public final class MapEditorCoordinator {
         historyInitialized = true;
 
         SimulationStepPresenter stepPresenter = new SimulationStepPresenter(
-                neuronService,
                 view.workspace(),
                 neuronViews,
-                this::refreshNeuronVisuals
+                this::refreshNeuronVisuals,
+                new PulseAnimationController(view.workspace())
         );
         simulationController = new SimulationController(
                 neuronService,

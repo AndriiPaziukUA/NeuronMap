@@ -12,7 +12,6 @@ import com.example.neuronmap.view.RotationHandleView;
 import com.example.neuronmap.view.WorkspaceView;
 import javafx.application.Platform;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
@@ -43,7 +42,6 @@ final class NeuronInteractionControllerMouseButtonTest {
             latch.countDown();
         }
         if (!latch.await(5, TimeUnit.SECONDS)) {
-
             throw new IllegalStateException("JavaFX startup timed out");
         }
     }
@@ -74,7 +72,7 @@ final class NeuronInteractionControllerMouseButtonTest {
     }
 
     /**
-     * Перевіряє сценарій «fixture» і відповідність результату очікуваній поведінці.
+     * Створює набір компонентів, потрібний для ізольованої перевірки взаємодії з нейроном.
      */
     private static Fixture fixture() {
         NeuronMapModel model = new NeuronMapModel();
@@ -101,7 +99,6 @@ final class NeuronInteractionControllerMouseButtonTest {
         );
 
         SimulationStepPresenter stepPresenter = new SimulationStepPresenter(
-                neuronService,
                 workspace,
                 neuronViews,
                 () -> { }
@@ -172,7 +169,7 @@ final class NeuronInteractionControllerMouseButtonTest {
     }
 
     /**
-     * Перевіряє сценарій «click» і відповідність результату очікуваній поведінці.
+     * Викликає події натискання, відпускання та клацання миші для зазначеного подання нейрона.
      */
     private static void click(NeuronView neuronView, MouseButton button) {
         fire(neuronView, MouseEvent.MOUSE_PRESSED, button);
@@ -181,7 +178,7 @@ final class NeuronInteractionControllerMouseButtonTest {
     }
 
     /**
-     * Перевіряє сценарій «fire» і відповідність результату очікуваній поведінці.
+     * Надсилає подію миші до подання нейрона.
      */
     private static void fire(
             NeuronView neuronView,
@@ -212,7 +209,7 @@ final class NeuronInteractionControllerMouseButtonTest {
     }
 
     /**
-     * Перевіряє сценарій «has visible menu» і відповідність результату очікуваній поведінці.
+     * Перевіряє, чи містить полотно видиме контекстне меню.
      */
     private static boolean hasVisibleMenu(WorkspaceView workspace) {
         return workspace.overlayLayer().getChildren().stream()
@@ -220,6 +217,9 @@ final class NeuronInteractionControllerMouseButtonTest {
                         && node.isVisible());
     }
 
+    /**
+     * Виконує перевірку на потоці JavaFX та передає помилку потоку тесту.
+     */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];
@@ -235,11 +235,9 @@ final class NeuronInteractionControllerMouseButtonTest {
         });
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
-
             throw new IllegalStateException("JavaFX test timed out");
         }
         if (failure[0] != null) {
-
             throw new AssertionError("JavaFX test failed", failure[0]);
         }
     }

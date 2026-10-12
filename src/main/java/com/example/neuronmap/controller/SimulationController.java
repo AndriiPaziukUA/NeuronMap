@@ -2,6 +2,7 @@ package com.example.neuronmap.controller;
 
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.service.NeuronService;
+import com.example.neuronmap.simulation.SimulationRuntimeState;
 import com.example.neuronmap.simulation.SimulationSession;
 import com.example.neuronmap.simulation.SimulationSpeed;
 import com.example.neuronmap.simulation.SimulationStep;
@@ -21,7 +22,8 @@ import java.util.function.Consumer;
 public final class SimulationController {
 
     private final NeuronService neuronService;
-    private final SimulationStepPresenter stepPresenter;
+    private final SimulationRuntimeState runtimeState;
+    private final com.example.neuronmap.view.SimulationStepPresenter stepPresenter;
     private final Runnable save;
     private final Consumer<String> status;
     private final Consumer<Boolean> pausedStateConsumer;
@@ -52,7 +54,7 @@ public final class SimulationController {
      */
     public SimulationController(
             NeuronService neuronService,
-            SimulationStepPresenter stepPresenter,
+            com.example.neuronmap.view.SimulationStepPresenter stepPresenter,
             Runnable save,
             Consumer<String> status,
             Consumer<Boolean> pausedStateConsumer,
@@ -91,7 +93,7 @@ public final class SimulationController {
      */
     public SimulationController(
             NeuronService neuronService,
-            SimulationStepPresenter stepPresenter,
+            com.example.neuronmap.view.SimulationStepPresenter stepPresenter,
             Runnable save,
             Consumer<String> status,
             Consumer<Boolean> pausedStateConsumer,
@@ -102,6 +104,7 @@ public final class SimulationController {
             LocalizationService localization
     ) {
         this.neuronService = Objects.requireNonNull(neuronService, "neuronService");
+        this.runtimeState = new SimulationRuntimeState(neuronService.model());
         this.stepPresenter = Objects.requireNonNull(stepPresenter, "stepPresenter");
         this.save = Objects.requireNonNull(save, "save");
         this.status = Objects.requireNonNull(status, "status");
@@ -123,6 +126,7 @@ public final class SimulationController {
                 return;
             }
 
+            runtimeState.clear();
             stepPresenter.clearRuntime();
             session = null;
             timeline = null;
@@ -196,10 +200,10 @@ public final class SimulationController {
         }
     }
 
-/**
- * Призупиняє симуляцію для показу модального вікна та повідомляє, чи потрібно буде її відновити.
- */
-public boolean pauseForModal() {
+    /**
+     * Призупиняє симуляцію для показу модального вікна та повідомляє, чи потрібно буде її відновити.
+     */
+    public boolean pauseForModal() {
         if (!hasActiveSimulation() || paused) {
             modalSuspended = false;
             return false;
@@ -210,10 +214,10 @@ public boolean pauseForModal() {
         return true;
     }
 
-/**
- * Відновлює симуляцію після закриття модального вікна, якщо вона була активною до показу діалогу.
- */
-public void resumeFromModal() {
+    /**
+     * Відновлює симуляцію після закриття модального вікна, якщо вона була активною до показу діалогу.
+     */
+    public void resumeFromModal() {
         if (!modalSuspended) {
             return;
         }
@@ -225,18 +229,18 @@ public void resumeFromModal() {
     }
 
     /**
-     * Перевіряє, чи paused за поточного стану компонента.
+     * Повертає ознаку призупинення симуляції.
      *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
+     * @return {@code true}, якщо симуляцію призупинено; інакше {@code false}.
      */
     public boolean isPaused() {
         return paused;
     }
 
     /**
-     * Перевіряє, чи є active simulation у поточному стані.
+     * Перевіряє, чи є активна симуляція в поточному стані.
      *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
+     * @return {@code true}, якщо є активний сеанс, таймер або анімація; інакше {@code false}.
      */
     public boolean hasActiveSimulation() {
         return session != null
@@ -293,7 +297,7 @@ public void resumeFromModal() {
     }
 
     /**
-     * Зупиняє  та очищає пов’язаний активний стан.
+     * Зупиняє симуляцію та очищує пов’язаний активний стан.
      */
     public void stop() {
         resetRuntime();
@@ -378,6 +382,7 @@ public void resumeFromModal() {
             return;
         }
 
+        runtimeState.apply(step);
         stepPresenter.apply(step);
 
         status.accept(
@@ -417,13 +422,14 @@ public void resumeFromModal() {
             timeline.stop();
         }
         finishDelay.stop();
+        runtimeState.clear();
         timeline = null;
         session = null;
         stepPresenter.clearRuntime();
     }
 
     /**
-     * Створює timeline з переданих параметрів.
+     * Створює часову шкалу для обробки тактів симуляції.
      */
     private void createTimeline() {
         timeline = new Timeline(
@@ -469,7 +475,8 @@ public void resumeFromModal() {
     /**
      * Форматує тривалість такту в мілісекундах для показу в полі швидкості симуляції.
      *
-     * @param value значення, яке потрібно зберегти або перевірити.
+     * @param value тривалість такту в мілісекундах.
+     * @return відформатована тривалість без зайвих десяткових знаків.
      */
     private static String formatMillis(double value) {
         return Math.abs(value - Math.rint(value)) < 0.0001
