@@ -21,12 +21,7 @@ import com.example.neuronmap.persistence.CameraState;
 import com.example.neuronmap.persistence.GlobalSettingsStore;
 import com.example.neuronmap.persistence.ProjectDirectoryWatcher;
 import com.example.neuronmap.persistence.ProjectStorageDirectoryResolver;
-import com.example.neuronmap.persistence.GlobalSettingsStore;
-import com.example.neuronmap.persistence.ProjectDirectoryWatcher;
-import com.example.neuronmap.persistence.ProjectStorageDirectoryResolver;
 import com.example.neuronmap.persistence.MapRepository;
-import com.example.neuronmap.persistence.SqliteMapRepository;
-import com.example.neuronmap.persistence.TransientProjectRepository;
 import com.example.neuronmap.service.ConnectionService;
 import com.example.neuronmap.service.GroupService;
 import com.example.neuronmap.service.HistoryService;
@@ -43,15 +38,14 @@ import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
 
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
-import java.nio.file.Path;
-import java.nio.file.Path;
 import java.util.Map;
 import java.util.Objects;
 
 /**
- * Координує основні сценарії редактора: керування проєктами, взаємодію з картою, симуляцію, збереження та завершення роботи.
+ * Координує основні сценарії редактора: взаємодію з картою, симуляцію, збереження та завершення роботи.
  */
 public final class MapEditorCoordinator {
 
@@ -61,6 +55,7 @@ public final class MapEditorCoordinator {
     private final GroupService groupService;
     private final HistoryService historyService;
     private final ProjectCatalogService projectCatalog;
+    private final ProjectWorkflowCoordinator projectWorkflowCoordinator;
     private final LocalizationService localization;
     private final EditorState state;
     private final MainView view;
@@ -94,7 +89,7 @@ public final class MapEditorCoordinator {
     private Scene scene;
 
     /**
-     * Створює екземпляр MapEditorCoordinator та зберігає передані залежності, потрібні для його роботи.
+     * Створює координатор редактора з локалізацією українською мовою та порожньою дією завершення роботи.
      *
      * @param application прикладна служба, яка надає доступ до служб карти й збереження.
      * @param config завантажена конфігурація застосунку.
@@ -112,12 +107,12 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Створює екземпляр MapEditorCoordinator та зберігає передані залежності, потрібні для його роботи.
+     * Створює координатор редактора з переданими службами та дією завершення роботи.
      *
      * @param application прикладна служба, яка надає доступ до служб карти й збереження.
      * @param config завантажена конфігурація застосунку.
      * @param localization служба локалізації інтерфейсу.
-     * @param exitApplication callback завершення роботи застосунку.
+     * @param exitApplication дія завершення роботи застосунку.
      */
     public MapEditorCoordinator(
             NeuronMapApplicationService application,
@@ -315,14 +310,25 @@ public final class MapEditorCoordinator {
                 localization
         );
 
+        projectWorkflowCoordinator = new ProjectWorkflowCoordinator(
+                projectCatalog,
+                localization,
+                mapService,
+                () -> currentProject,
+                project -> currentProject = project,
+                this::prepareForProjectSwitch,
+                this::saveNow,
+                this::activateProject
+        );
+
         mainMenuController = new MainMenuController(
                 view.mainMenu(),
                 localization,
                 projectCatalog::listProjects,
-                this::createNewProject,
-                this::openProject,
-                this::renameProject,
-                this::deleteProject,
+                projectWorkflowCoordinator::createNewProject,
+                projectWorkflowCoordinator::openProject,
+                projectWorkflowCoordinator::renameProject,
+                projectWorkflowCoordinator::deleteProject,
                 exitApplication,
                 this::pauseForMenu,
                 this::resumeAfterMenu
@@ -339,7 +345,6 @@ public final class MapEditorCoordinator {
         interaction.install();
         cameraController.install();
         connectionController.install();
-
     }
 
     /**
@@ -387,7 +392,7 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Обчислює початкове зміщення камери, щоб початкова область карти була видимою в центрі полотна.
+     * Розміщує камеру так, щоб початковий вигляд карти був центрований у вікні.
      */
     public void centerInitialView() {
         cameraController.apply();
@@ -432,7 +437,7 @@ public final class MapEditorCoordinator {
     /**
      * Розбирає значення зі списку швидкостей і передає його контролеру симуляції.
      *
-     * @param text текст, який потрібно показати або розібрати.
+     * @param text значення швидкості, вибране користувачем.
      */
     private void changeSimulationSpeed(String text) {
         try {
@@ -476,126 +481,6 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Створює новий тимчасовий проєкт і активує його в редакторі.
-     */
-    private void createNewProject() {
-        prepareForProjectSwitch();
-        ProjectDescriptor project = projectCatalog.createTransientProject(
-                localization.text("project.default_name")
-        );
-        TransientProjectRepository repository = new TransientProjectRepository(
-                project.databasePath()
-        );
-        activateProject(project, repository, false);
-    }
-
-    /**
-     * Відкриває вказаний проєкт після підготовки поточного проєкту до перемикання.
-     *
-     * @param project опис проєкту, над яким виконується дія.
-     */
-    private void openProject(ProjectDescriptor project) {
-        if (project == null) {
-            return;
-        }
-        if (currentProject != null
-                && currentProject.id().equals(project.id())) {
-            return;
-        }
-
-        prepareForProjectSwitch();
-        SqliteMapRepository repository = new SqliteMapRepository(
-                project.databasePath()
-        );
-        try {
-            activateProject(project, repository, true);
-        } catch (RuntimeException exception) {
-            repository.close();
-            throw exception;
-        }
-    }
-
-    /**
-     * Перейменовує проєкт через каталог і повертає його оновлений опис.
-     *
-     * @param project опис проєкту, над яким виконується дія.
-     * @param name назва, яку потрібно перевірити або зберегти.
-     */
-    private ProjectDescriptor renameProject(
-            ProjectDescriptor project,
-            String name
-    ) {
-        if (project == null || name == null || name.isBlank()) {
-            return project;
-        }
-
-        boolean active = currentProject != null
-                && currentProject.databasePath().equals(project.databasePath());
-        if (!active) {
-            return projectCatalog.rename(project, name);
-        }
-
-        saveNow();
-        mapService.close();
-
-        try {
-            ProjectDescriptor renamed = projectCatalog.rename(project, name);
-            mapService.switchRepository(
-                    new SqliteMapRepository(renamed.databasePath())
-            );
-            currentProject = renamed;
-            projectCatalog.markLastOpened(renamed);
-            return renamed;
-        } catch (RuntimeException exception) {
-            try {
-                mapService.switchRepository(
-                        new SqliteMapRepository(project.databasePath())
-                );
-                currentProject = projectCatalog.descriptorForDatabasePath(
-                        project.databasePath()
-                );
-            } catch (RuntimeException ignored) {
-
-            }
-            throw exception;
-        }
-    }
-
-    /**
-     * Видаляє проєкт і оновлює активний стан редактора, якщо це потрібно.
-     *
-     * @param project опис проєкту, над яким виконується дія.
-     */
-    private void deleteProject(ProjectDescriptor project) {
-        if (project == null) {
-            return;
-        }
-
-        boolean active = currentProject != null
-                && currentProject.id().equals(project.id());
-
-        if (!active) {
-            projectCatalog.delete(project);
-            return;
-        }
-
-        prepareForProjectSwitch();
-        ProjectDescriptor replacement = projectCatalog.createTransientProject(
-                localization.text("project.default_name")
-        );
-        TransientProjectRepository repository = new TransientProjectRepository(
-                replacement.databasePath()
-        );
-        activateProject(replacement, repository, false);
-        projectCatalog.delete(project);
-
-        List<ProjectDescriptor> remaining = projectCatalog.listProjects();
-        if (!remaining.isEmpty()) {
-            openProject(remaining.get(0));
-        }
-    }
-
-    /**
      * Зупиняє тимчасові взаємодії й готує поточний проєкт до закриття або заміни.
      */
     private void prepareForProjectSwitch() {
@@ -614,7 +499,7 @@ public final class MapEditorCoordinator {
     /**
      * Підключає репозиторій вибраного проєкту та за потреби завантажує його дані.
      *
-     * @param project опис проєкту, над яким виконується дія.
+     * @param project опис проєкту, який потрібно активувати.
      * @param repository сховище, через яке читають і зберігають карту.
      * @param loadExisting ознака, чи потрібно завантажити наявний вміст проєкту.
      */
@@ -666,10 +551,10 @@ public final class MapEditorCoordinator {
         view.mainMenu().showMainPage();
     }
 
-/**
- * Створює демонстраційну карту з прикладом нейронів і зв’язків.
- */
-private void createDemoMap() {
+    /**
+     * Створює демонстраційну карту з прикладом нейронів і зв’язків.
+     */
+    private void createDemoMap() {
         Neuron first = neuronService.create(NeuronType.EXCITATORY, 250, 220);
         Neuron second = neuronService.create(NeuronType.INHIBITORY, 520, 340);
         Neuron third = neuronService.create(NeuronType.EXCITATORY, 790, 210);
@@ -679,7 +564,7 @@ private void createDemoMap() {
     }
 
     /**
-     * Починає операцію add neuron mode та готує стан взаємодії.
+     * Починає режим додавання нейрона та готує стан взаємодії.
      *
      * @param type тип нейрона або елемента.
      */
@@ -755,7 +640,7 @@ private void createDemoMap() {
     /**
      * Передає текст повідомлення до рядка стану інтерфейсу.
      *
-     * @param text текст, який потрібно показати або розібрати.
+     * @param text текст повідомлення, яке потрібно показати.
      */
     private void updateStatus(String text) {
         statusMessagePresenter.show(text);
@@ -768,6 +653,7 @@ private void createDemoMap() {
      * @param fallbackMillis резервна тривалість такту, якщо збереженого значення немає.
      * @param minMillis мінімальна допустима тривалість такту в мілісекундах.
      * @param maxMillis максимальна допустима тривалість такту в мілісекундах.
+     * @return коректна початкова тривалість такту симуляції.
      */
     private static double resolveInitialSimulationTickMillis(
             double persistedMillis,
