@@ -1,5 +1,6 @@
 package com.example.neuronmap.coordinator;
 
+import com.example.neuronmap.application.DemoMapFactory;
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.application.NeuronMapApplicationService;
 import com.example.neuronmap.project.ProjectDescriptor;
@@ -14,7 +15,6 @@ import com.example.neuronmap.controller.SelectionController;
 import com.example.neuronmap.controller.SimulationController;
 import com.example.neuronmap.controller.PulseAnimationController;
 import com.example.neuronmap.i18n.LocalizationService;
-import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.model.CameraState;
 import com.example.neuronmap.persistence.ProjectDirectoryWatcher;
@@ -52,6 +52,7 @@ public final class MapEditorCoordinator {
     private final ConnectionService connectionService;
     private final GroupService groupService;
     private final HistoryService historyService;
+    private final EditorSaveCoordinator editorSaveCoordinator;
     private final ProjectCatalogService projectCatalog;
     private final ProjectWorkflowCoordinator projectWorkflowCoordinator;
     private final LocalizationService localization;
@@ -119,6 +120,11 @@ public final class MapEditorCoordinator {
         );
 
         this.historyService = new HistoryService(neuronService.model());
+        this.editorSaveCoordinator = new EditorSaveCoordinator(
+                mapService,
+                projectCatalog,
+                historyService
+        );
         this.minSimulationTickMillis = config.simulation().minTickMillis();
         this.maxSimulationTickMillis = config.simulation().maxTickMillis();
         this.defaultSimulationTickMillis = config.simulation().defaultTickMillis();
@@ -144,7 +150,6 @@ public final class MapEditorCoordinator {
                 localization
         );
 
-
         layerOrderController = new NeuronLayerOrderController(
                 view.workspace(),
                 neuronViews,
@@ -163,7 +168,8 @@ public final class MapEditorCoordinator {
         mapService.load();
         if (neuronService.model().isEmpty()
                 && !currentProject.isPersisted()) {
-            createDemoMap();
+            DemoMapFactory.populate(neuronService, connectionService);
+            updateStatus(localization.text("status.demo_created"));
             saveNow();
         }
         historyService.initialize();
@@ -529,18 +535,6 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Створює демонстраційну карту з прикладом нейронів і зв’язків.
-     */
-    private void createDemoMap() {
-        Neuron first = neuronService.create(NeuronType.EXCITATORY, 250, 220);
-        Neuron second = neuronService.create(NeuronType.INHIBITORY, 520, 340);
-        Neuron third = neuronService.create(NeuronType.EXCITATORY, 790, 210);
-        connectionService.create(first.id(), second.id());
-        connectionService.create(second.id(), third.id());
-        updateStatus(localization.text("status.demo_created"));
-    }
-
-    /**
      * Починає режим додавання нейрона та готує стан взаємодії.
      *
      * @param type тип нейрона або елемента.
@@ -597,26 +591,14 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Негайно зберігає карту, стан камери, дані активного проєкту й поточний стан історії змін.
+     * Зберігає карту, стан камери, метадані активного проєкту та історію змін.
      */
     private void saveNow() {
-        CameraState cameraState = new CameraState(
-                state.zoom(),
-                state.panX(),
-                state.panY()
+        currentProject = editorSaveCoordinator.save(
+                state,
+                currentProject,
+                historyInitialized
         );
-        mapService.save(cameraState);
-
-        if (mapService.isPersistent()) {
-            currentProject = projectCatalog.descriptorForDatabasePath(
-                    mapService.databasePath()
-            );
-            projectCatalog.markLastOpened(currentProject);
-        }
-
-        if (historyInitialized) {
-            historyService.commitSavedState();
-        }
     }
 
     /**
