@@ -7,6 +7,7 @@ import com.example.neuronmap.service.ConnectionService;
 import com.example.neuronmap.service.GroupService;
 import com.example.neuronmap.service.NeuronClipboardService;
 import com.example.neuronmap.service.NeuronService;
+import com.example.neuronmap.simulation.SimulationService;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.RotationHandleView;
 import com.example.neuronmap.view.WorkspaceView;
@@ -105,6 +106,7 @@ final class NeuronInteractionControllerMouseButtonTest {
         );
         SimulationController simulation = new SimulationController(
                 neuronService,
+                new SimulationService(),
                 stepPresenter,
                 () -> { },
                 ignored -> { },

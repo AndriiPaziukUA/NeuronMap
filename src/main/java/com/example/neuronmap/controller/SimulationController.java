@@ -3,6 +3,7 @@ package com.example.neuronmap.controller;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.simulation.SimulationRuntimeState;
+import com.example.neuronmap.simulation.SimulationService;
 import com.example.neuronmap.simulation.SimulationSession;
 import com.example.neuronmap.simulation.SimulationSpeed;
 import com.example.neuronmap.simulation.SimulationStep;
@@ -22,6 +23,7 @@ import java.util.function.Consumer;
 public final class SimulationController {
 
     private final NeuronService neuronService;
+    private final SimulationService simulationService;
     private final SimulationRuntimeState runtimeState;
     private final com.example.neuronmap.view.SimulationStepPresenter stepPresenter;
     private final Runnable save;
@@ -43,6 +45,7 @@ public final class SimulationController {
      * Створює екземпляр SimulationController та зберігає передані залежності, потрібні для його роботи.
      *
      * @param neuronService служба операцій над нейронами.
+     * @param simulationService служба створення сеансів симуляції.
      * @param stepPresenter компонент, що відображає результат такту симуляції.
      * @param save функція зворотного виклику для відповідної дії.
      * @param status callback для показу повідомлення в рядку стану.
@@ -54,6 +57,7 @@ public final class SimulationController {
      */
     public SimulationController(
             NeuronService neuronService,
+            SimulationService simulationService,
             com.example.neuronmap.view.SimulationStepPresenter stepPresenter,
             Runnable save,
             Consumer<String> status,
@@ -65,6 +69,7 @@ public final class SimulationController {
     ) {
         this(
                 neuronService,
+                simulationService,
                 stepPresenter,
                 save,
                 status,
@@ -81,6 +86,7 @@ public final class SimulationController {
      * Створює екземпляр SimulationController та зберігає передані залежності, потрібні для його роботи.
      *
      * @param neuronService служба операцій над нейронами.
+     * @param simulationService служба створення сеансів симуляції.
      * @param stepPresenter компонент, що відображає результат такту симуляції.
      * @param save функція зворотного виклику для відповідної дії.
      * @param status callback для показу повідомлення в рядку стану.
@@ -93,6 +99,7 @@ public final class SimulationController {
      */
     public SimulationController(
             NeuronService neuronService,
+            SimulationService simulationService,
             com.example.neuronmap.view.SimulationStepPresenter stepPresenter,
             Runnable save,
             Consumer<String> status,
@@ -104,6 +111,7 @@ public final class SimulationController {
             LocalizationService localization
     ) {
         this.neuronService = Objects.requireNonNull(neuronService, "neuronService");
+        this.simulationService = Objects.requireNonNull(simulationService, "simulationService");
         this.runtimeState = new SimulationRuntimeState(neuronService.model());
         this.stepPresenter = Objects.requireNonNull(stepPresenter, "stepPresenter");
         this.save = Objects.requireNonNull(save, "save");
@@ -146,15 +154,14 @@ public final class SimulationController {
      * @param sourceNeuronId ідентифікатор початкового нейрона.
      */
     public void emitPulse(String sourceNeuronId) {
-        if (neuronService.find(sourceNeuronId) == null) {
-            return;
-        }
-
         if (session == null) {
-            session = SimulationSession.manual(
+            session = simulationService.start(
                     neuronService.model(),
                     sourceNeuronId
             );
+            if (session == null) {
+                return;
+            }
             paused = false;
             modalSuspended = false;
             notifyPausedState();
@@ -176,7 +183,9 @@ public final class SimulationController {
             return;
         }
 
-        session.queueManualStart(sourceNeuronId);
+        if (!session.queueManualStart(sourceNeuronId)) {
+            return;
+        }
         finishDelay.stop();
 
         if (!paused) {

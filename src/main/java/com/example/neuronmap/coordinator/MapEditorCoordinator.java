@@ -29,6 +29,7 @@ import com.example.neuronmap.service.MapService;
 import com.example.neuronmap.service.NeuronClipboardService;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.service.ProjectCatalogService;
+import com.example.neuronmap.simulation.SimulationService;
 import com.example.neuronmap.simulation.SimulationSpeed;
 import com.example.neuronmap.view.ImmediateTooltipManager;
 import com.example.neuronmap.view.MainView;
@@ -202,6 +203,7 @@ public final class MapEditorCoordinator {
         );
         simulationController = new SimulationController(
                 neuronService,
+                new SimulationService(),
                 stepPresenter,
                 this::saveNow,
                 this::updateStatus,
