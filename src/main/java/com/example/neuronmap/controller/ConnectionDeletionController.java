@@ -4,23 +4,21 @@ import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Connection;
 import com.example.neuronmap.service.ConnectionService;
+import com.example.neuronmap.view.ConnectionHitTester;
 import com.example.neuronmap.view.ConnectionView;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.WorkspaceView;
-import javafx.geometry.Point2D;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
-import javafx.scene.Parent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.shape.Shape;
 
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * Обробляє вибір і видалення зв’язку, знаходячи його видиму геометрію під вказівником та підсвічуючи доступні зв’язки.
+ * Обробляє вибір і видалення зв’язку та підсвічує доступні для видалення зв’язки.
  */
 final class ConnectionDeletionController {
 
@@ -28,21 +26,22 @@ final class ConnectionDeletionController {
     private final EditorState state;
     private final WorkspaceView workspace;
     private final Map<String, NeuronView> neuronViews;
+    private final ConnectionHitTester connectionHitTester;
     private final Runnable refresh;
     private final Runnable save;
     private final Consumer<String> status;
     private final LocalizationService localization;
 
     /**
-     * Створює екземпляр ConnectionDeletionController та зберігає передані залежності, потрібні для його роботи.
+     * Створює контролер видалення зв’язків зі стандартною українською локалізацією.
      *
      * @param connectionService служба операцій над зв’язками.
-     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param state стан редактора.
      * @param workspace полотно редактора.
-     * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
-     * @param refresh callback для оновлення інтерфейсу після зміни моделі.
-     * @param save функція зворотного виклику для відповідної дії.
-     * @param status callback для показу повідомлення в рядку стану.
+     * @param neuronViews візуальні подання нейронів за їхніми ідентифікаторами.
+     * @param refresh дія оновлення інтерфейсу після зміни моделі.
+     * @param save дія збереження змін.
+     * @param status дія показу повідомлення в рядку стану.
      */
     ConnectionDeletionController(
             ConnectionService connectionService,
@@ -66,15 +65,15 @@ final class ConnectionDeletionController {
     }
 
     /**
-     * Створює екземпляр ConnectionDeletionController та зберігає передані залежності, потрібні для його роботи.
+     * Створює контролер видалення зв’язків.
      *
      * @param connectionService служба операцій над зв’язками.
-     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param state стан редактора.
      * @param workspace полотно редактора.
-     * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
-     * @param refresh callback для оновлення інтерфейсу після зміни моделі.
-     * @param save функція зворотного виклику для відповідної дії.
-     * @param status callback для показу повідомлення в рядку стану.
+     * @param neuronViews візуальні подання нейронів за їхніми ідентифікаторами.
+     * @param refresh дія оновлення інтерфейсу після зміни моделі.
+     * @param save дія збереження змін.
+     * @param status дія показу повідомлення в рядку стану.
      * @param localization служба локалізації інтерфейсу.
      */
     ConnectionDeletionController(
@@ -91,6 +90,7 @@ final class ConnectionDeletionController {
         this.state = Objects.requireNonNull(state, "state");
         this.workspace = Objects.requireNonNull(workspace, "workspace");
         this.neuronViews = Objects.requireNonNull(neuronViews, "neuronViews");
+        this.connectionHitTester = new ConnectionHitTester(workspace);
         this.refresh = Objects.requireNonNull(refresh, "refresh");
         this.save = Objects.requireNonNull(save, "save");
         this.status = Objects.requireNonNull(status, "status");
@@ -98,7 +98,7 @@ final class ConnectionDeletionController {
     }
 
     /**
-     * Починає операцію delete та готує стан взаємодії.
+     * Починає режим видалення зв’язку від указаного нейрона.
      *
      * @param sourceNeuronId ідентифікатор початкового нейрона.
      */
@@ -151,7 +151,7 @@ final class ConnectionDeletionController {
     }
 
     /**
-     * Очищає delete highlights від тимчасових або застарілих значень.
+     * Очищає тимчасове підсвічування зв’язків.
      */
     void clearDeleteHighlights() {
         for (Node node : workspace.edgeLayer().getChildren()) {
@@ -195,9 +195,15 @@ final class ConnectionDeletionController {
             return;
         }
 
-        ConnectionView connectionView = JavaFxNodeLookup.findAncestor(event.getTarget(), ConnectionView.class);
+        ConnectionView connectionView = JavaFxNodeLookup.findAncestor(
+                event.getTarget(),
+                ConnectionView.class
+        );
         if (connectionView == null) {
-            connectionView = findConnectionViewAt(event.getSceneX(), event.getSceneY());
+            connectionView = connectionHitTester.findConnectionViewAt(
+                    event.getSceneX(),
+                    event.getSceneY()
+            );
         }
 
         if (connectionView != null && connectionView.isDeleteHighlighted()) {
@@ -214,69 +220,12 @@ final class ConnectionDeletionController {
     }
 
     /**
-     * Перевіряє, чи є connections у поточному стані.
+     * Перевіряє, чи має нейрон зв’язки.
      *
      * @param neuronId ідентифікатор нейрона.
-     *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
+     * @return {@code true}, якщо нейрон має зв’язки; інакше {@code false}.
      */
     boolean hasConnections(String neuronId) {
         return connectionService.hasConnections(neuronId);
-    }
-
-    /**
-     * Знаходить видиме подання зв’язку в точці сцени, по якій клацнув користувач.
-     *
-     * @param sceneX горизонтальна координата точки у системі координат сцени JavaFX.
-     * @param sceneY вертикальна координата точки у системі координат сцени JavaFX.
-     */
-    private ConnectionView findConnectionViewAt(double sceneX, double sceneY) {
-        Point2D scenePoint = new Point2D(sceneX, sceneY);
-
-        for (int index = workspace.edgeLayer().getChildren().size() - 1;
-             index >= 0;
-             index--) {
-            Node node = workspace.edgeLayer().getChildren().get(index);
-            if (!(node instanceof ConnectionView connectionView)) {
-                continue;
-            }
-
-            if (containsVisibleShape(connectionView, scenePoint)) {
-                return connectionView;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Перевіряє, чи містить видима форма вузла вказану точку сцени.
-     *
-     * @param node вузол JavaFX, який потрібно перевірити або змінити.
-     * @param scenePoint точка в координатах сцени JavaFX.
-     *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
-     */
-    private static boolean containsVisibleShape(Node node, Point2D scenePoint) {
-        if (!node.isVisible()) {
-            return false;
-        }
-
-        if (node instanceof Shape shape) {
-            Point2D localPoint = shape.sceneToLocal(scenePoint);
-            if (shape.contains(localPoint)) {
-                return true;
-            }
-        }
-
-        if (node instanceof Parent parent) {
-            for (Node child : parent.getChildrenUnmodifiable()) {
-                if (containsVisibleShape(child, scenePoint)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 }
