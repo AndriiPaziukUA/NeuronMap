@@ -1,9 +1,6 @@
 package com.example.neuronmap.persistence;
 
-import com.example.neuronmap.model.Neuron;
-import com.example.neuronmap.model.NeuronMapModel;
-import com.example.neuronmap.model.NeuronPresentation;
-import com.example.neuronmap.model.NeuronType;
+import com.example.neuronmap.model.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 

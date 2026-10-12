@@ -3,7 +3,7 @@ package com.example.neuronmap.application;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronType;
-import com.example.neuronmap.persistence.CameraState;
+import com.example.neuronmap.model.CameraState;
 import com.example.neuronmap.persistence.MapRepository;
 import org.junit.jupiter.api.Test;
 

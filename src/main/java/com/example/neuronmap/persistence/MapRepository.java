@@ -1,5 +1,6 @@
 package com.example.neuronmap.persistence;
 
+import com.example.neuronmap.model.CameraState;
 import com.example.neuronmap.model.NeuronMapModel;
 
 import java.nio.file.Path;

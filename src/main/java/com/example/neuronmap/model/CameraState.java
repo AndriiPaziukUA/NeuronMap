@@ -1,4 +1,4 @@
-package com.example.neuronmap.persistence;
+package com.example.neuronmap.model;
 
 /**
  * Зберігає масштаб і зміщення камери карти.

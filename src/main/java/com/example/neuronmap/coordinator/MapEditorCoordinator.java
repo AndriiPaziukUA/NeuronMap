@@ -16,7 +16,7 @@ import com.example.neuronmap.controller.PulseAnimationController;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronType;
-import com.example.neuronmap.persistence.CameraState;
+import com.example.neuronmap.model.CameraState;
 import com.example.neuronmap.persistence.GlobalSettingsStore;
 import com.example.neuronmap.persistence.ProjectDirectoryWatcher;
 import com.example.neuronmap.persistence.ProjectStorageDirectoryResolver;
@@ -41,7 +41,6 @@ import javafx.scene.input.MouseEvent;
 
 import java.nio.file.Path;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 

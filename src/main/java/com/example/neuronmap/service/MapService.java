@@ -2,7 +2,7 @@ package com.example.neuronmap.service;
 
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.model.NeuronMapModel;
-import com.example.neuronmap.persistence.CameraState;
+import com.example.neuronmap.model.CameraState;
 import com.example.neuronmap.persistence.MapRepository;
 
 import java.nio.file.Path;
