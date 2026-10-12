@@ -5,10 +5,12 @@ import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.config.AppConfig;
 import com.example.neuronmap.config.AppConfigLoader;
 import com.example.neuronmap.controller.NeuronMapController;
+import com.example.neuronmap.i18n.LanguagePreferenceStore;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.persistence.DatabasePathResolver;
 import com.example.neuronmap.persistence.FileSystemProjectCatalogRepository;
+import com.example.neuronmap.persistence.GlobalSettingsLanguagePreferenceStore;
 import com.example.neuronmap.persistence.GlobalSettingsStore;
 import com.example.neuronmap.persistence.LegacyProjectStorageMigrator;
 import com.example.neuronmap.persistence.MapRepository;
@@ -52,7 +54,9 @@ public final class NeuronMapApp extends Application {
                 globalSettings
         );
 
-        LocalizationService localization = new LocalizationService(globalSettings);
+        LanguagePreferenceStore languagePreferenceStore =
+                new GlobalSettingsLanguagePreferenceStore(globalSettings);
+        LocalizationService localization = new LocalizationService(languagePreferenceStore);
         ProjectCatalogService projectCatalog = new ProjectCatalogService(
                 new FileSystemProjectCatalogRepository(storageDirectory, globalSettings)
         );

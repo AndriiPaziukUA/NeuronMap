@@ -1,10 +1,13 @@
 package com.example.neuronmap.i18n;
 
+import com.example.neuronmap.persistence.GlobalSettingsLanguagePreferenceStore;
 import com.example.neuronmap.persistence.GlobalSettingsStore;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.ResourceBundle;
@@ -13,23 +16,80 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Regression tests for localization defaults, localized sorting, listener updates, and resource consistency. */
+/**
+ * Перевіряє початкову мову, перемикання локалей, сповіщення слухачів і узгодженість ресурсних наборів.
+ */
 final class LocalizationServiceTest {
 
     @TempDir
     Path temporaryDirectory;
 
-    /** Verifies that a missing language preference defaults to English. */
+    /**
+     * Перевіряє, що за відсутності збереженого вибору початковою мовою стає англійська.
+     */
     @Test
     void missingLanguagePreferenceDefaultsToEnglish() {
-        LocalizationService localization = new LocalizationService(
-                new GlobalSettingsStore(temporaryDirectory.resolve("missing-settings.properties")));
+        LanguagePreferenceStore preferences = new GlobalSettingsLanguagePreferenceStore(
+                new GlobalSettingsStore(temporaryDirectory.resolve("missing-settings.properties"))
+        );
+        LocalizationService localization = new LocalizationService(preferences);
 
         assertEquals(SupportedLanguage.ENGLISH, localization.language());
         assertEquals("New Project", localization.text("menu.new_project"));
     }
 
-    /** Verifies sorting of supported-language names using the currently active locale. */
+    /**
+     * Перевіряє, що служба локалізації працює через абстракцію та зберігає мову лише на вимогу.
+     */
+    @Test
+    void languagePreferenceIsPersistedThroughThePort() {
+        GlobalSettingsStore settings = new GlobalSettingsStore(
+                temporaryDirectory.resolve("language-settings.properties")
+        );
+        LanguagePreferenceStore preferences = new GlobalSettingsLanguagePreferenceStore(settings);
+        LocalizationService localization = new LocalizationService(preferences);
+
+        localization.setLanguage(SupportedLanguage.UKRAINIAN);
+        assertEquals("uk", settings.load("language"));
+
+        localization.previewLanguage(SupportedLanguage.RUSSIAN);
+        assertEquals("uk", settings.load("language"));
+
+        localization.persistCurrentLanguage();
+        assertEquals("ru", settings.load("language"));
+    }
+
+    /**
+     * Перевіряє, що служба локалізації не залежить від конкретного класу глобального сховища.
+     */
+    @Test
+    void doesNotDependOnConcreteGlobalSettingsStore() {
+        boolean hasConcreteField = Arrays.stream(LocalizationService.class.getDeclaredFields())
+                .anyMatch(field -> field.getType() == GlobalSettingsStore.class);
+        boolean hasConcreteConstructor = Arrays.stream(LocalizationService.class.getConstructors())
+                .flatMap(constructor -> Arrays.stream(constructor.getParameterTypes()))
+                .anyMatch(type -> type == GlobalSettingsStore.class);
+        boolean hasConcreteMethodSignature = Arrays.stream(LocalizationService.class.getDeclaredMethods())
+                .anyMatch(method -> methodHasConcreteSettingsType(method));
+
+        assertFalse(hasConcreteField || hasConcreteConstructor || hasConcreteMethodSignature);
+    }
+
+    /**
+     * Перевіряє типи параметрів і результату методу на залежність від конкретного сховища.
+     *
+     * @param method метод, сигнатуру якого потрібно перевірити.
+     * @return {@code true}, якщо сигнатура містить {@link GlobalSettingsStore}.
+     */
+    private static boolean methodHasConcreteSettingsType(Method method) {
+        return method.getReturnType() == GlobalSettingsStore.class
+                || Arrays.stream(method.getParameterTypes())
+                .anyMatch(type -> type == GlobalSettingsStore.class);
+    }
+
+    /**
+     * Перевіряє сортування назв підтримуваних мов відповідно до активної локалі.
+     */
     @Test
     void languageNamesAreSortedUsingCurrentLanguage() {
         LocalizationService localization = new LocalizationService(Locale.forLanguageTag("uk"));
@@ -52,7 +112,9 @@ final class LocalizationServiceTest {
         assertEquals("Украинский", localization.displayName(SupportedLanguage.UKRAINIAN));
     }
 
-    /** Verifies that language changes notify listeners and load the corresponding text bundle. */
+    /**
+     * Перевіряє, що зміна мови сповіщає слухачів і завантажує відповідний набір перекладів.
+     */
     @Test
     void switchingLanguageNotifiesListeners() {
         LocalizationService localization = new LocalizationService(Locale.forLanguageTag("uk"));
@@ -65,7 +127,9 @@ final class LocalizationServiceTest {
         assertEquals("New Project", localization.text("menu.new_project"));
     }
 
-    /** Verifies that previewing a language does not persist it and can be reverted. */
+    /**
+     * Перевіряє, що попередній перегляд мови дозволяє змінити її та повернути попереднє значення.
+     */
     @Test
     void previewLanguageDoesNotPersistAndCanBeReverted() {
         LocalizationService localization = new LocalizationService(Locale.forLanguageTag("uk"));
@@ -78,7 +142,9 @@ final class LocalizationServiceTest {
         assertEquals(SupportedLanguage.UKRAINIAN, localization.language());
     }
 
-    /** Ensures that the new menu labels exist in every supported bundle and the removed hint is absent. */
+    /**
+     * Перевіряє наявність нових підписів меню в усіх підтримуваних ресурсних наборах і відсутність вилученої підказки.
+     */
     @Test
     void menuTranslationsAreConsistentAcrossSupportedLocales() {
         for (Locale locale : List.of(
@@ -95,7 +161,9 @@ final class LocalizationServiceTest {
         assertEquals("Продовжити", ukrainian.text("menu.continue"));
     }
 
-    /** Verifies that unsupported or null locales resolve to English rather than another fallback language. */
+    /**
+     * Перевіряє, що непідтримувані або порожні локалі замінюються англійською.
+     */
     @Test
     void unsupportedLocalesFallBackToEnglish() {
         assertEquals(SupportedLanguage.ENGLISH, SupportedLanguage.fromLocale(null));

@@ -1,74 +1,79 @@
 package com.example.neuronmap.i18n;
 
-import com.example.neuronmap.persistence.GlobalSettingsStore;
-
 import java.text.Collator;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.function.Consumer;
 
-/** Provides localized UI text, manages the active language, and persists the user's language choice. */
+/**
+ * Керує активною мовою інтерфейсу, завантажує переклади та повідомляє слухачів про зміну мови.
+ */
 public final class LocalizationService {
 
-    public static final String LANGUAGE_KEY = "language";
     private static final String BUNDLE_BASE_NAME = "i18n.messages";
 
-    private final GlobalSettingsStore settings;
+    private final LanguagePreferenceStore languagePreferenceStore;
     private final List<Consumer<Locale>> listeners = new ArrayList<>();
 
     private Locale locale;
     private ResourceBundle bundle;
 
     /**
-     * Creates the localization service from a persistent global-settings store.
-     * A missing or invalid preference defaults to English.
+     * Створює службу локалізації з абстракцією для читання та збереження вибраної мови.
+     * Якщо значення відсутнє або некоректне, початковою мовою буде англійська.
      *
-     * @param settings global application settings store; may be null for an in-memory service.
+     * @param languagePreferenceStore сховище налаштування мови.
+     * @throws NullPointerException якщо сховище не задано.
      */
-    public LocalizationService(GlobalSettingsStore settings) {
-        this.settings = settings;
-        this.locale = loadInitialLocale(settings);
+    public LocalizationService(LanguagePreferenceStore languagePreferenceStore) {
+        this.languagePreferenceStore = Objects.requireNonNull(
+                languagePreferenceStore,
+                "languagePreferenceStore"
+        );
+        this.locale = loadInitialLocale(languagePreferenceStore);
         this.bundle = loadBundle(locale);
     }
 
     /**
-     * Creates an in-memory localization service using the supplied initial locale.
+     * Створює службу локалізації в пам’яті з указаною початковою мовою.
+     * Вибрана мова не зберігатиметься між запусками.
      *
-     * @param initialLocale locale to use initially; unsupported or null values fall back to English.
+     * @param initialLocale початкова мова; непідтримуване або порожнє значення замінюється англійською.
      */
     public LocalizationService(Locale initialLocale) {
-        this.settings = null;
+        this.languagePreferenceStore = null;
         this.locale = SupportedLanguage.fromLocale(initialLocale).locale();
         this.bundle = loadBundle(locale);
     }
 
     /**
-     * Returns the current UI locale.
+     * Повертає поточну мову інтерфейсу.
      *
-     * @return current normalized locale.
+     * @return нормалізована поточна локаль.
      */
     public Locale locale() {
         return locale;
     }
 
     /**
-     * Returns the currently active supported language.
+     * Повертає підтримувану мову, що відповідає поточній локалі.
      *
-     * @return the language corresponding to the active locale.
+     * @return активна підтримувана мова.
      */
     public SupportedLanguage language() {
         return SupportedLanguage.fromLocale(locale);
     }
 
     /**
-     * Resolves a localized message by key, returning the key itself when no translation exists.
+     * Повертає переклад за ключем або сам ключ, якщо переклад відсутній.
      *
-     * @param key resource-bundle message key.
-     * @return translated text, or the key when the translation is missing or the key is blank.
+     * @param key ключ повідомлення в ресурсному наборі.
+     * @return перекладений текст або ключ, якщо перекладу немає чи ключ порожній.
      */
     public String text(String key) {
         if (key == null || key.isBlank()) {
@@ -78,30 +83,30 @@ public final class LocalizationService {
     }
 
     /**
-     * Resolves a localized message and formats it with the supplied arguments.
+     * Повертає перекладене повідомлення з підставленими аргументами.
      *
-     * @param key resource-bundle message key.
-     * @param arguments values substituted into the message template.
-     * @return formatted localized text.
+     * @param key ключ шаблону повідомлення.
+     * @param arguments значення, що підставляються в шаблон.
+     * @return відформатоване локалізоване повідомлення.
      */
     public String text(String key, Object... arguments) {
         return MessageFormat.format(text(key), arguments);
     }
 
     /**
-     * Returns a translated display name for a supported language.
+     * Повертає перекладену назву підтримуваної мови.
      *
-     * @param language language whose display name should be resolved.
-     * @return translated language name, or an empty string for null.
+     * @param language мова, назву якої потрібно показати.
+     * @return перекладена назва мови або порожній рядок, якщо мову не задано.
      */
     public String displayName(SupportedLanguage language) {
         return language == null ? "" : text(language.displayKey());
     }
 
     /**
-     * Returns supported languages sorted according to their localized display names.
+     * Повертає підтримувані мови, відсортовані за локалізованими назвами.
      *
-     * @return immutable list of languages in display order.
+     * @return незмінний список мов у порядку відображення.
      */
     public List<SupportedLanguage> supportedLanguagesInDisplayOrder() {
         List<SupportedLanguage> languages = new ArrayList<>(List.of(SupportedLanguage.values()));
@@ -110,43 +115,71 @@ public final class LocalizationService {
         return List.copyOf(languages);
     }
 
-    /** Registers a listener to receive notifications when the active locale changes. */
+    /**
+     * Реєструє слухача, який отримуватиме сповіщення про зміну активної локалі.
+     *
+     * @param listener слухач зміни локалі; значення {@code null} і повторна реєстрація ігноруються.
+     */
     public void addListener(Consumer<Locale> listener) {
         if (listener != null && !listeners.contains(listener)) {
             listeners.add(listener);
         }
     }
 
-    /** Removes a previously registered locale-change listener. */
+    /**
+     * Вилучає раніше зареєстрованого слухача зміни локалі.
+     *
+     * @param listener слухач, якого потрібно вилучити.
+     */
     public void removeListener(Consumer<Locale> listener) {
         listeners.remove(listener);
     }
 
-    /** Applies a supported language and persists it to global settings when a store is available. */
+    /**
+     * Застосовує підтримувану мову та зберігає вибір через передане сховище, якщо воно доступне.
+     *
+     * @param language мова, яку потрібно застосувати.
+     */
     public void setLanguage(SupportedLanguage language) {
         applyLanguage(language, true);
     }
 
-    /** Previews a supported language without persisting it, so the user can still discard the change. */
+    /**
+     * Тимчасово застосовує мову без її збереження, щоб користувач міг скасувати зміну.
+     *
+     * @param language мова для попереднього перегляду.
+     */
     public void previewLanguage(SupportedLanguage language) {
         applyLanguage(language, false);
     }
 
-    /** Persists the currently active language without changing the displayed locale. */
+    /**
+     * Зберігає поточну мову, не змінюючи активну локаль.
+     */
     public void persistCurrentLanguage() {
-        if (settings != null) {
-            settings.save(LANGUAGE_KEY, locale.toLanguageTag());
+        if (languagePreferenceStore != null) {
+            languagePreferenceStore.saveLanguageTag(locale.toLanguageTag());
         }
     }
 
-    /** Applies a language if it is non-null and optionally persists it. */
+    /**
+     * Застосовує мову, якщо її задано, та за потреби зберігає вибір.
+     *
+     * @param language мова, яку потрібно застосувати.
+     * @param persist ознака, чи потрібно зберегти вибрану мову.
+     */
     private void applyLanguage(SupportedLanguage language, boolean persist) {
         if (language != null) {
             setLocale(language.locale(), persist);
         }
     }
 
-    /** Normalizes and applies a locale, notifies listeners, and optionally saves the selection. */
+    /**
+     * Нормалізує та застосовує локаль, сповіщає слухачів і за потреби зберігає вибір.
+     *
+     * @param newLocale нова локаль.
+     * @param persist ознака, чи потрібно зберегти вибрану мову.
+     */
     private void setLocale(Locale newLocale, boolean persist) {
         SupportedLanguage supported = SupportedLanguage.fromLocale(newLocale);
         Locale normalized = supported.locale();
@@ -168,12 +201,14 @@ public final class LocalizationService {
         }
     }
 
-    /** Loads a stored language preference or falls back to English when none is available. */
-    private static Locale loadInitialLocale(GlobalSettingsStore settings) {
-        if (settings == null) {
-            return SupportedLanguage.ENGLISH.locale();
-        }
-        String stored = settings.load(LANGUAGE_KEY);
+    /**
+     * Завантажує збережений мовний тег або повертає англійську мову, якщо значення відсутнє чи некоректне.
+     *
+     * @param languagePreferenceStore сховище налаштування мови.
+     * @return початкова підтримувана локаль.
+     */
+    private static Locale loadInitialLocale(LanguagePreferenceStore languagePreferenceStore) {
+        String stored = languagePreferenceStore.loadLanguageTag();
         if (stored == null || stored.isBlank()) {
             return SupportedLanguage.ENGLISH.locale();
         }
@@ -184,7 +219,12 @@ public final class LocalizationService {
         }
     }
 
-    /** Loads the resource bundle associated with a supported locale. */
+    /**
+     * Завантажує ресурсний набір перекладів для заданої локалі.
+     *
+     * @param locale локаль, для якої потрібно завантажити переклади.
+     * @return ресурсний набір перекладів.
+     */
     private static ResourceBundle loadBundle(Locale locale) {
         return ResourceBundle.getBundle(BUNDLE_BASE_NAME, locale);
     }

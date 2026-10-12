@@ -3,6 +3,7 @@ package com.example.neuronmap.view;
 import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.i18n.SupportedLanguage;
+import com.example.neuronmap.persistence.GlobalSettingsLanguagePreferenceStore;
 import com.example.neuronmap.persistence.GlobalSettingsStore;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -35,6 +36,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Перевіряє навігацію меню, адаптивне компонування, збереження та скасування налаштувань і локалізовані написи.
  */
 final class MainMenuViewTest {
+
+    private static final String LANGUAGE_KEY = "language";
 
     @TempDir
     Path tempDirectory;
@@ -101,8 +104,10 @@ final class MainMenuViewTest {
     @Test
     void settingsSaveButtonTracksDirtyStateAndPersistsLanguage() throws Exception {
         GlobalSettingsStore store = new GlobalSettingsStore(tempDirectory.resolve("settings.properties"));
+        LocalizationService localization = new LocalizationService(
+                new GlobalSettingsLanguagePreferenceStore(store)
+        );
         runOnFxThread(() -> {
-            LocalizationService localization = new LocalizationService(store);
             MainMenuView view = new MainMenuView(localization, ignored -> { });
             view.setPersistLanguageAction(localization::persistCurrentLanguage);
             view.showSettingsPage();
@@ -118,7 +123,7 @@ final class MainMenuViewTest {
             view.saveSettingsButtonForTest().fire();
             assertFalse(view.hasUnsavedChanges());
             assertFalse(view.saveSettingsButtonForTest().isVisible());
-            assertEquals("uk", store.load(LocalizationService.LANGUAGE_KEY));
+            assertEquals("uk", store.load(LANGUAGE_KEY));
             view.dispose();
         });
     }
@@ -129,15 +134,17 @@ final class MainMenuViewTest {
         GlobalSettingsStore store = new GlobalSettingsStore(
                 tempDirectory.resolve("settings-without-callback.properties")
         );
+        LocalizationService localization = new LocalizationService(
+                new GlobalSettingsLanguagePreferenceStore(store)
+        );
         runOnFxThread(() -> {
-            LocalizationService localization = new LocalizationService(store);
             MainMenuView view = new MainMenuView(localization, ignored -> { });
             view.showSettingsPage();
 
             chooseLanguage(view.languageSelectorForTest(), SupportedLanguage.UKRAINIAN);
             view.saveSettingsButtonForTest().fire();
 
-            assertNull(store.load(LocalizationService.LANGUAGE_KEY));
+            assertNull(store.load(LANGUAGE_KEY));
             view.dispose();
         });
     }
