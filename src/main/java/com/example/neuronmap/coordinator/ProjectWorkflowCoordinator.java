@@ -3,8 +3,7 @@ package com.example.neuronmap.coordinator;
 import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.persistence.MapRepository;
-import com.example.neuronmap.persistence.SqliteMapRepository;
-import com.example.neuronmap.persistence.TransientProjectRepository;
+import com.example.neuronmap.persistence.MapRepositoryFactory;
 import com.example.neuronmap.service.MapService;
 import com.example.neuronmap.service.ProjectCatalogService;
 
@@ -21,6 +20,7 @@ public final class ProjectWorkflowCoordinator {
     private final ProjectCatalogService projectCatalog;
     private final LocalizationService localization;
     private final MapService mapService;
+    private final MapRepositoryFactory mapRepositoryFactory;
     private final Supplier<ProjectDescriptor> currentProjectSupplier;
     private final Consumer<ProjectDescriptor> currentProjectConsumer;
     private final Runnable prepareForProjectSwitch;
@@ -33,6 +33,7 @@ public final class ProjectWorkflowCoordinator {
      * @param projectCatalog служба каталогу проєктів.
      * @param localization служба локалізації інтерфейсу.
      * @param mapService служба активної карти та її сховища.
+     * @param mapRepositoryFactory фабрика репозиторіїв тимчасових і збережених проєктів.
      * @param currentProjectSupplier постачальник опису поточного проєкту.
      * @param currentProjectConsumer отримувач оновленого опису поточного проєкту.
      * @param prepareForProjectSwitch підготовка редактора до зміни проєкту.
@@ -43,6 +44,7 @@ public final class ProjectWorkflowCoordinator {
             ProjectCatalogService projectCatalog,
             LocalizationService localization,
             MapService mapService,
+            MapRepositoryFactory mapRepositoryFactory,
             Supplier<ProjectDescriptor> currentProjectSupplier,
             Consumer<ProjectDescriptor> currentProjectConsumer,
             Runnable prepareForProjectSwitch,
@@ -52,6 +54,7 @@ public final class ProjectWorkflowCoordinator {
         this.projectCatalog = Objects.requireNonNull(projectCatalog, "projectCatalog");
         this.localization = Objects.requireNonNull(localization, "localization");
         this.mapService = Objects.requireNonNull(mapService, "mapService");
+        this.mapRepositoryFactory = Objects.requireNonNull(mapRepositoryFactory, "mapRepositoryFactory");
         this.currentProjectSupplier = Objects.requireNonNull(currentProjectSupplier, "currentProjectSupplier");
         this.currentProjectConsumer = Objects.requireNonNull(currentProjectConsumer, "currentProjectConsumer");
         this.prepareForProjectSwitch = Objects.requireNonNull(prepareForProjectSwitch, "prepareForProjectSwitch");
@@ -67,9 +70,7 @@ public final class ProjectWorkflowCoordinator {
         ProjectDescriptor project = projectCatalog.createTransientProject(
                 localization.text("project.default_name")
         );
-        TransientProjectRepository repository = new TransientProjectRepository(
-                project.databasePath()
-        );
+        MapRepository repository = mapRepositoryFactory.createTransientProjectRepository(project);
         projectActivator.activate(project, repository, false);
     }
 
@@ -88,9 +89,7 @@ public final class ProjectWorkflowCoordinator {
         }
 
         prepareForProjectSwitch.run();
-        SqliteMapRepository repository = new SqliteMapRepository(
-                project.databasePath()
-        );
+        MapRepository repository = mapRepositoryFactory.createSavedProjectRepository(project);
         try {
             projectActivator.activate(project, repository, true);
         } catch (RuntimeException exception) {
@@ -127,7 +126,7 @@ public final class ProjectWorkflowCoordinator {
         try {
             ProjectDescriptor renamed = projectCatalog.rename(project, name);
             mapService.switchRepository(
-                    new SqliteMapRepository(renamed.databasePath())
+                    mapRepositoryFactory.createSavedProjectRepository(renamed)
             );
             currentProjectConsumer.accept(renamed);
             projectCatalog.markLastOpened(renamed);
@@ -135,7 +134,7 @@ public final class ProjectWorkflowCoordinator {
         } catch (RuntimeException exception) {
             try {
                 mapService.switchRepository(
-                        new SqliteMapRepository(project.databasePath())
+                        mapRepositoryFactory.createSavedProjectRepository(project)
                 );
                 currentProjectConsumer.accept(projectCatalog.descriptorForDatabasePath(
                         project.databasePath()
@@ -169,9 +168,7 @@ public final class ProjectWorkflowCoordinator {
         ProjectDescriptor replacement = projectCatalog.createTransientProject(
                 localization.text("project.default_name")
         );
-        TransientProjectRepository repository = new TransientProjectRepository(
-                replacement.databasePath()
-        );
+        MapRepository repository = mapRepositoryFactory.createTransientProjectRepository(replacement);
         projectActivator.activate(replacement, repository, false);
         projectCatalog.delete(project);
 

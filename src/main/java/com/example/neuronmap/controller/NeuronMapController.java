@@ -4,6 +4,7 @@ import com.example.neuronmap.application.NeuronMapApplicationService;
 import com.example.neuronmap.config.AppConfig;
 import com.example.neuronmap.coordinator.MapEditorCoordinator;
 import com.example.neuronmap.i18n.LocalizationService;
+import com.example.neuronmap.persistence.MapRepositoryFactory;
 import com.example.neuronmap.service.ProjectCatalogService;
 import javafx.scene.Scene;
 
@@ -23,14 +24,16 @@ public final class NeuronMapController {
      * @param config завантажена конфігурація застосунку.
      * @param localization готова служба локалізації інтерфейсу.
      * @param projectCatalog готова служба каталогу проєктів.
+     * @param mapRepositoryFactory фабрика репозиторіїв проєктів.
      */
     public NeuronMapController(
             NeuronMapApplicationService application,
             AppConfig config,
             LocalizationService localization,
-            ProjectCatalogService projectCatalog
+            ProjectCatalogService projectCatalog,
+            MapRepositoryFactory mapRepositoryFactory
     ) {
-        this(application, config, localization, projectCatalog, () -> { });
+        this(application, config, localization, projectCatalog, mapRepositoryFactory, () -> { });
     }
 
     /**
@@ -40,6 +43,7 @@ public final class NeuronMapController {
      * @param config завантажена конфігурація застосунку.
      * @param localization готова служба локалізації інтерфейсу.
      * @param projectCatalog готова служба каталогу проєктів.
+     * @param mapRepositoryFactory фабрика репозиторіїв проєктів.
      * @param exitApplication callback завершення роботи застосунку.
      */
     public NeuronMapController(
@@ -47,18 +51,21 @@ public final class NeuronMapController {
             AppConfig config,
             LocalizationService localization,
             ProjectCatalogService projectCatalog,
+            MapRepositoryFactory mapRepositoryFactory,
             Runnable exitApplication
     ) {
         Objects.requireNonNull(application, "application");
         Objects.requireNonNull(config, "config");
         Objects.requireNonNull(localization, "localization");
         Objects.requireNonNull(projectCatalog, "projectCatalog");
+        Objects.requireNonNull(mapRepositoryFactory, "mapRepositoryFactory");
 
         this.coordinator = new MapEditorCoordinator(
                 application,
                 config,
                 localization,
                 projectCatalog,
+                mapRepositoryFactory,
                 Objects.requireNonNull(exitApplication, "exitApplication")
         );
     }

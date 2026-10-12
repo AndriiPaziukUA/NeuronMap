@@ -19,6 +19,7 @@ import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.model.CameraState;
 import com.example.neuronmap.persistence.ProjectDirectoryWatcher;
 import com.example.neuronmap.persistence.MapRepository;
+import com.example.neuronmap.persistence.MapRepositoryFactory;
 import com.example.neuronmap.service.ConnectionService;
 import com.example.neuronmap.service.GroupService;
 import com.example.neuronmap.service.HistoryService;
@@ -91,6 +92,7 @@ public final class MapEditorCoordinator {
      * @param config завантажена конфігурація застосунку.
      * @param localization служба локалізації інтерфейсу.
      * @param projectCatalog готова служба каталогу проєктів.
+     * @param mapRepositoryFactory фабрика репозиторіїв проєктів.
      * @param exitApplication дія завершення роботи застосунку.
      */
     public MapEditorCoordinator(
@@ -98,6 +100,7 @@ public final class MapEditorCoordinator {
             AppConfig config,
             LocalizationService localization,
             ProjectCatalogService projectCatalog,
+            MapRepositoryFactory mapRepositoryFactory,
             Runnable exitApplication
     ) {
         Objects.requireNonNull(application, "application");
@@ -105,6 +108,7 @@ public final class MapEditorCoordinator {
 
         this.localization = Objects.requireNonNull(localization, "localization");
         this.projectCatalog = Objects.requireNonNull(projectCatalog, "projectCatalog");
+        Objects.requireNonNull(mapRepositoryFactory, "mapRepositoryFactory");
         this.exitApplication = Objects.requireNonNull(exitApplication, "exitApplication");
         this.mapService = application.map();
         this.neuronService = application.neurons();
@@ -287,6 +291,7 @@ public final class MapEditorCoordinator {
                 projectCatalog,
                 localization,
                 mapService,
+                mapRepositoryFactory,
                 () -> currentProject,
                 project -> currentProject = project,
                 this::prepareForProjectSwitch,

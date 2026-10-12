@@ -6,6 +6,7 @@ import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.persistence.FileSystemProjectCatalogRepository;
 import com.example.neuronmap.persistence.GlobalSettingsStore;
 import com.example.neuronmap.persistence.MapRepository;
+import com.example.neuronmap.persistence.MapRepositoryFactory;
 import com.example.neuronmap.persistence.TransientProjectRepository;
 import com.example.neuronmap.service.MapService;
 import com.example.neuronmap.service.ProjectCatalogService;
@@ -56,6 +57,7 @@ final class ProjectWorkflowCoordinatorTest {
                 catalog,
                 new LocalizationService(Locale.ENGLISH),
                 mapService,
+                testRepositoryFactory(),
                 current::get,
                 current::set,
                 prepared::incrementAndGet,
@@ -98,6 +100,7 @@ final class ProjectWorkflowCoordinatorTest {
                 catalog,
                 new LocalizationService(Locale.ENGLISH),
                 mapService,
+                testRepositoryFactory(),
                 active::get,
                 active::set,
                 prepared::incrementAndGet,
@@ -134,6 +137,7 @@ final class ProjectWorkflowCoordinatorTest {
                 catalog,
                 new LocalizationService(Locale.ENGLISH),
                 mapService,
+                testRepositoryFactory(),
                 current::get,
                 current::set,
                 () -> { },
@@ -171,6 +175,7 @@ final class ProjectWorkflowCoordinatorTest {
                 catalog,
                 new LocalizationService(Locale.ENGLISH),
                 mapService,
+                testRepositoryFactory(),
                 current::get,
                 current::set,
                 prepared::incrementAndGet,
@@ -185,6 +190,25 @@ final class ProjectWorkflowCoordinatorTest {
         assertEquals(0, activations.get());
         assertEquals("Active", current.get().name());
         mapService.close();
+    }
+
+    /**
+     * Створює тестову фабрику, яка надає тимчасове сховище без запуску SQLite.
+     *
+     * @return фабрика репозиторіїв для ізольованих тестів сценаріїв проєктів.
+     */
+    private static MapRepositoryFactory testRepositoryFactory() {
+        return new MapRepositoryFactory() {
+            @Override
+            public MapRepository createTransientProjectRepository(ProjectDescriptor project) {
+                return new TransientProjectRepository(project.databasePath());
+            }
+
+            @Override
+            public MapRepository createSavedProjectRepository(ProjectDescriptor project) {
+                throw new UnsupportedOperationException("Saved repository is not needed in this test");
+            }
+        };
     }
 
     /**

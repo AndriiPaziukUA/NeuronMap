@@ -12,11 +12,11 @@ import com.example.neuronmap.persistence.DatabasePathResolver;
 import com.example.neuronmap.persistence.FileSystemProjectCatalogRepository;
 import com.example.neuronmap.persistence.GlobalSettingsLanguagePreferenceStore;
 import com.example.neuronmap.persistence.GlobalSettingsStore;
+import com.example.neuronmap.persistence.DefaultMapRepositoryFactory;
 import com.example.neuronmap.persistence.LegacyProjectStorageMigrator;
 import com.example.neuronmap.persistence.MapRepository;
+import com.example.neuronmap.persistence.MapRepositoryFactory;
 import com.example.neuronmap.persistence.ProjectStorageDirectoryResolver;
-import com.example.neuronmap.persistence.SqliteMapRepository;
-import com.example.neuronmap.persistence.TransientProjectRepository;
 import com.example.neuronmap.persistence.WindowState;
 import com.example.neuronmap.persistence.WindowStateStore;
 import com.example.neuronmap.service.ProjectCatalogService;
@@ -68,9 +68,10 @@ public final class NeuronMapApp extends Application {
                     .orElseGet(() -> projectCatalog.createTransientProject("Project"));
         }
 
+        MapRepositoryFactory mapRepositoryFactory = new DefaultMapRepositoryFactory();
         MapRepository repository = initialProject.isPersisted()
-                ? new SqliteMapRepository(initialProject.databasePath())
-                : new TransientProjectRepository(initialProject.databasePath());
+                ? mapRepositoryFactory.createSavedProjectRepository(initialProject)
+                : mapRepositoryFactory.createTransientProjectRepository(initialProject);
 
         NeuronMapModel model = new NeuronMapModel();
         NeuronMapApplicationService application =
@@ -80,6 +81,7 @@ public final class NeuronMapApp extends Application {
                 config,
                 localization,
                 projectCatalog,
+                mapRepositoryFactory,
                 stage::close
         );
 
