@@ -13,7 +13,6 @@ import com.example.neuronmap.controller.NeuronMenuCustomizer;
 import com.example.neuronmap.controller.SelectionController;
 import com.example.neuronmap.controller.SimulationController;
 import com.example.neuronmap.controller.PulseAnimationController;
-import com.example.neuronmap.controller.StatusMessagePresenter;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronType;
@@ -61,7 +60,6 @@ public final class MapEditorCoordinator {
     private final LocalizationService localization;
     private final EditorState state;
     private final MainView view;
-    private final StatusMessagePresenter statusMessagePresenter;
     private final double minSimulationTickMillis;
     private final double maxSimulationTickMillis;
     private final double defaultSimulationTickMillis;
@@ -169,7 +167,6 @@ public final class MapEditorCoordinator {
                 localization
         );
 
-        statusMessagePresenter = new StatusMessagePresenter(view::setStatus);
 
         layerOrderController = new NeuronLayerOrderController(
                 view.workspace(),
@@ -389,7 +386,6 @@ public final class MapEditorCoordinator {
                 presentation::bringClickedNeuronToFront
         );
         mainMenuController.install(scene);
-        statusMessagePresenter.attach(scene);
         tooltipManager = ImmediateTooltipManager.install(scene);
         return scene;
     }
@@ -412,7 +408,7 @@ public final class MapEditorCoordinator {
         interaction.dispose();
         neuronController.dispose();
         cameraController.cancelPendingSave();
-        statusMessagePresenter.dispose();
+        view.dispose();
         if (tooltipManager != null) {
             tooltipManager.dispose();
             tooltipManager = null;
@@ -646,7 +642,7 @@ public final class MapEditorCoordinator {
      * @param text текст повідомлення, яке потрібно показати.
      */
     private void updateStatus(String text) {
-        statusMessagePresenter.show(text);
+        view.setStatus(text);
     }
 
     /**

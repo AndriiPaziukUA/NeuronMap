@@ -12,7 +12,7 @@ import java.util.Locale;
 import java.util.function.Consumer;
 
 /**
- * Assembles the editor workspace, toolbar, status bar, and main-menu overlay into the application scene.
+ * Збирає робочу область редактора, панель інструментів, рядок стану та накладку головного меню в одну сцену.
  */
 public final class MainView {
 
@@ -21,19 +21,21 @@ public final class MainView {
     private final ToolbarView toolbar;
     private final WorkspaceView workspace = new WorkspaceView();
     private final StatusBarView statusBar = new StatusBarView();
+    private final StatusMessagePresenter statusMessagePresenter =
+            new StatusMessagePresenter(statusBar::setText);
     private final MainMenuView mainMenu;
 
     /**
-     * Creates the editor view using English as the default UI language.
+     * Створює подання редактора з англійською мовою інтерфейсу за замовчуванням.
      *
-     * @param addNeuron action for adding a neuron of the selected type.
-     * @param group action for grouping the current selection.
-     * @param ungroup action for ungrouping the current selection.
-     * @param exitDelete action for leaving connection-deletion mode.
-     * @param pauseResume action for toggling simulation pause state.
-     * @param stopSignals action for stopping signal transmission.
-     * @param speedChanged callback for a changed simulation speed value.
-     * @param initialSpeedMillis initial simulation tick duration in milliseconds.
+     * @param addNeuron дія додавання нейрона вибраного типу.
+     * @param group дія групування поточного вибору.
+     * @param ungroup дія розгрупування поточного вибору.
+     * @param exitDelete дія виходу з режиму видалення зв’язків.
+     * @param pauseResume дія перемикання паузи симуляції.
+     * @param stopSignals дія зупинки передачі сигналів.
+     * @param speedChanged обробник зміни швидкості симуляції.
+     * @param initialSpeedMillis початкова тривалість такту симуляції в мілісекундах.
      */
     public MainView(
             Consumer<NeuronType> addNeuron,
@@ -50,17 +52,17 @@ public final class MainView {
     }
 
     /**
-     * Creates the editor view with the supplied localization service.
+     * Створює подання редактора з переданою службою локалізації.
      *
-     * @param addNeuron action for adding a neuron of the selected type.
-     * @param group action for grouping the current selection.
-     * @param ungroup action for ungrouping the current selection.
-     * @param exitDelete action for leaving connection-deletion mode.
-     * @param pauseResume action for toggling simulation pause state.
-     * @param stopSignals action for stopping signal transmission.
-     * @param speedChanged callback for a changed simulation speed value.
-     * @param initialSpeedMillis initial simulation tick duration in milliseconds.
-     * @param localization service providing localized UI messages.
+     * @param addNeuron дія додавання нейрона вибраного типу.
+     * @param group дія групування поточного вибору.
+     * @param ungroup дія розгрупування поточного вибору.
+     * @param exitDelete дія виходу з режиму видалення зв’язків.
+     * @param pauseResume дія перемикання паузи симуляції.
+     * @param stopSignals дія зупинки передачі сигналів.
+     * @param speedChanged обробник зміни швидкості симуляції.
+     * @param initialSpeedMillis початкова тривалість такту симуляції в мілісекундах.
+     * @param localization служба локалізації повідомлень інтерфейсу.
      */
     public MainView(
             Consumer<NeuronType> addNeuron,
@@ -89,11 +91,11 @@ public final class MainView {
     }
 
     /**
-     * Creates a JavaFX scene and attaches the application's main stylesheet.
+     * Створює сцену JavaFX, додає основну таблицю стилів і під’єднує подання повідомлень до сцени.
      *
-     * @param width initial scene width.
-     * @param height initial scene height.
-     * @return the configured editor scene.
+     * @param width початкова ширина сцени.
+     * @param height початкова висота сцени.
+     * @return налаштована сцена редактора.
      */
     public Scene createScene(double width, double height) {
         Scene scene = new Scene(root, width, height);
@@ -103,60 +105,72 @@ public final class MainView {
         }
         scene.getStylesheets().add(css.toExternalForm());
         root.layout();
+        statusMessagePresenter.attach(scene);
         return scene;
     }
 
     /**
-     * Returns the root node of the editor UI.
+     * Звільняє ресурси подання повідомлень перед завершенням роботи редактора.
+     */
+    public void dispose() {
+        statusMessagePresenter.dispose();
+    }
+
+    /**
+     * Повертає кореневий вузол інтерфейсу.
      *
-     * @return editor root node.
+     * @return кореневий вузол інтерфейсу.
      */
     public StackPane node() {
         return root;
     }
 
     /**
-     * Returns the editor workspace.
+     * Повертає робочу область редактора.
      *
-     * @return workspace view.
+     * @return подання робочої області.
      */
     public WorkspaceView workspace() {
         return workspace;
     }
 
     /**
-     * Returns the toolbar.
+     * Повертає панель інструментів.
      *
-     * @return editor toolbar view.
+     * @return подання панелі інструментів.
      */
     public ToolbarView toolbar() {
         return toolbar;
     }
 
     /**
-     * Returns the main-menu overlay.
+     * Повертає накладку головного меню.
      *
-     * @return menu view.
+     * @return подання головного меню.
      */
     public MainMenuView mainMenu() {
         return mainMenu;
     }
 
-    /** Updates the text displayed in the status bar. */
+    /**
+     * Передає повідомлення рядку стану та механізму його відображення.
+     *
+     * @param text текст повідомлення, яке потрібно показати.
+     */
     public void setStatus(String text) {
-        statusBar.setText(text);
+        statusMessagePresenter.show(text);
     }
 
-    /** Blurs and disables editor content whenever the main-menu overlay is visible. */
+    /** Оновлює розмиття та доступність вмісту редактора, коли відкрита накладка головного меню. */
     private void setMainMenuVisualState(boolean visible) {
         content.setDisable(visible);
         content.setEffect(visible ? new GaussianBlur(7.0) : null);
     }
 
-    /** Lays out the toolbar, workspace viewport, and status bar within the available scene bounds. */
+    /** Розміщує панель інструментів, робочу область і рядок стану в межах доступного простору. */
     private static final class RootPane extends Pane {
 
-        /** Positions the toolbar, main viewport, and status bar without changing their layer order. */
+        /** Розміщує панель інструментів, область перегляду та рядок стану без зміни їхнього порядку шарів. */
         @Override
         protected void layoutChildren() {
             double width = getWidth();
