@@ -1,7 +1,8 @@
 package com.example.neuronmap.service;
 
-import com.example.neuronmap.project.ProjectDescriptor;
+import com.example.neuronmap.persistence.FileSystemProjectCatalogRepository;
 import com.example.neuronmap.persistence.GlobalSettingsStore;
+import com.example.neuronmap.project.ProjectDescriptor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -18,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 final class ProjectCatalogServiceTest {
 
+    /** Перевіряє, що каталог повертає лише проєкти з файлом бази даних. */
     @Test
     void listsOnlyDirectoriesContainingProjectDatabase(@TempDir Path tempDir)
             throws Exception {
@@ -25,7 +27,7 @@ final class ProjectCatalogServiceTest {
         GlobalSettingsStore settings = new GlobalSettingsStore(
                 root.resolve("neuronmap-global.properties")
         );
-        ProjectCatalogService catalog = new ProjectCatalogService(root, settings);
+        ProjectCatalogService catalog = catalog(root, settings);
 
         Files.createDirectories(root.resolve("Visible"));
         Files.writeString(root.resolve("Visible").resolve("project.db"), "db");
@@ -41,14 +43,12 @@ final class ProjectCatalogServiceTest {
         ));
     }
 
+    /** Перевіряє, що створення тимчасового проєкту повторно використовує назву незбереженого каталогу. */
     @Test
     void generatedNamesReuseFoldersWithoutProjectDatabase(@TempDir Path tempDir)
             throws Exception {
         Path root = tempDir.resolve("NeuronMap");
-        ProjectCatalogService catalog = new ProjectCatalogService(
-                root,
-                new GlobalSettingsStore(root.resolve("settings.properties"))
-        );
+        ProjectCatalogService catalog = catalog(root);
 
         Files.createDirectories(root.resolve("Project"));
         Files.writeString(root.resolve("Project").resolve("junk.txt"), "junk");
@@ -61,14 +61,12 @@ final class ProjectCatalogServiceTest {
                 .anyMatch(saved -> saved.name().equals("Project")));
     }
 
+    /** Перевіряє вибір першого вільного суфікса для назви нового проєкту. */
     @Test
     void generatedNamesUseFirstAvailableSuffix(@TempDir Path tempDir)
             throws Exception {
         Path root = tempDir.resolve("NeuronMap");
-        ProjectCatalogService catalog = new ProjectCatalogService(
-                root,
-                new GlobalSettingsStore(root.resolve("settings.properties"))
-        );
+        ProjectCatalogService catalog = catalog(root);
         Files.createDirectories(root.resolve("Project"));
         Files.writeString(root.resolve("Project/project.db"), "1");
         Files.createDirectories(root.resolve("Project 1"));
@@ -79,15 +77,13 @@ final class ProjectCatalogServiceTest {
         assertEquals("Project 2", next.name());
     }
 
+    /** Перевіряє очищення каталогу-призначення без бази даних під час перейменування. */
     @Test
     void renameReusesAndCleansDirectoryWithoutProjectDatabase(
             @TempDir Path tempDir
     ) throws Exception {
         Path root = tempDir.resolve("NeuronMap");
-        ProjectCatalogService catalog = new ProjectCatalogService(
-                root,
-                new GlobalSettingsStore(root.resolve("settings.properties"))
-        );
+        ProjectCatalogService catalog = catalog(root);
         Path source = root.resolve("Project");
         Path target = root.resolve("Experiment");
         Files.createDirectories(source);
@@ -105,14 +101,12 @@ final class ProjectCatalogServiceTest {
         assertFalse(Files.exists(target.resolve("junk.txt")));
     }
 
+    /** Перевіряє перенесення каталогу проєкту й збереження файла бази даних під час перейменування. */
     @Test
     void renameMovesTheProjectFolderAndKeepsDatabase(@TempDir Path tempDir)
             throws Exception {
         Path root = tempDir.resolve("NeuronMap");
-        ProjectCatalogService catalog = new ProjectCatalogService(
-                root,
-                new GlobalSettingsStore(root.resolve("settings.properties"))
-        );
+        ProjectCatalogService catalog = catalog(root);
         Path source = root.resolve("Project");
         Files.createDirectories(source);
         Files.writeString(source.resolve("project.db"), "db");
@@ -127,14 +121,12 @@ final class ProjectCatalogServiceTest {
         assertFalse(Files.exists(source));
     }
 
+    /** Перевіряє виявлення наявного проєкту без окремих метаданих каталогу. */
     @Test
     void externalProjectIsDiscoverableWithoutCatalogMetadata(@TempDir Path tempDir)
             throws Exception {
         Path root = tempDir.resolve("NeuronMap");
-        ProjectCatalogService catalog = new ProjectCatalogService(
-                root,
-                new GlobalSettingsStore(root.resolve("settings.properties"))
-        );
+        ProjectCatalogService catalog = catalog(root);
         Path database = root.resolve("Copied").resolve("project.db");
         Files.createDirectories(database.getParent());
         Files.writeString(database, "copied");
@@ -142,14 +134,12 @@ final class ProjectCatalogServiceTest {
         assertEquals("Copied", catalog.listProjects().getFirst().name());
     }
 
+    /** Перевіряє сортування проєктів за часом останньої зміни. */
     @Test
     void projectsAreOrderedByModificationTime(@TempDir Path tempDir)
             throws Exception {
         Path root = tempDir.resolve("NeuronMap");
-        ProjectCatalogService catalog = new ProjectCatalogService(
-                root,
-                new GlobalSettingsStore(root.resolve("settings.properties"))
-        );
+        ProjectCatalogService catalog = catalog(root);
         Path older = root.resolve("Older").resolve("project.db");
         Path newer = root.resolve("Newer").resolve("project.db");
         Files.createDirectories(older.getParent());
@@ -161,6 +151,7 @@ final class ProjectCatalogServiceTest {
         assertEquals("Newer", catalog.listProjects().getFirst().name());
     }
 
+    /** Перевіряє збереження та повторне читання назви останнього відкритого проєкту. */
     @Test
     void lastOpenedProjectIsStoredOutsideProjectFiles(@TempDir Path tempDir)
             throws Exception {
@@ -168,7 +159,7 @@ final class ProjectCatalogServiceTest {
         GlobalSettingsStore settings = new GlobalSettingsStore(
                 root.resolve("settings.properties")
         );
-        ProjectCatalogService catalog = new ProjectCatalogService(root, settings);
+        ProjectCatalogService catalog = catalog(root, settings);
         Path database = root.resolve("Experiment").resolve("project.db");
         Files.createDirectories(database.getParent());
         Files.writeString(database, "db");
@@ -176,7 +167,28 @@ final class ProjectCatalogServiceTest {
 
         catalog.markLastOpened(project);
 
-        ProjectCatalogService reloaded = new ProjectCatalogService(root, settings);
+        ProjectCatalogService reloaded = catalog(root, settings);
         assertEquals("Experiment", reloaded.lastOpenedProject().name());
+    }
+
+    /**
+     * Створює службу каталогу з новим файловим адаптером і стандартним файлом налаштувань.
+     *
+     * @param root кореневий каталог тестових проєктів.
+     * @return службу каталогу для тестового файлового сховища.
+     */
+    private static ProjectCatalogService catalog(Path root) {
+        return catalog(root, new GlobalSettingsStore(root.resolve("settings.properties")));
+    }
+
+    /**
+     * Створює службу каталогу з переданим сховищем глобальних налаштувань.
+     *
+     * @param root кореневий каталог тестових проєктів.
+     * @param settings тестове сховище глобальних налаштувань.
+     * @return службу каталогу для тестового файлового сховища.
+     */
+    private static ProjectCatalogService catalog(Path root, GlobalSettingsStore settings) {
+        return new ProjectCatalogService(new FileSystemProjectCatalogRepository(root, settings));
     }
 }

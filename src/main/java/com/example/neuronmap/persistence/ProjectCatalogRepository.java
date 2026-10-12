@@ -33,6 +33,14 @@ public interface ProjectCatalogRepository {
     ProjectDescriptor descriptorForDatabasePath(Path databasePath);
 
     /**
+     * Створює опис тимчасового проєкту з указаною назвою без створення файлів на диску.
+     *
+     * @param projectName нормалізована назва тимчасового проєкту.
+     * @return опис тимчасового проєкту з файловими шляхами, визначеними репозиторієм.
+     */
+    ProjectDescriptor descriptorForTransientProject(String projectName);
+
+    /**
      * Перейменовує каталог збереженого проєкту та повертає його оновлений опис.
      *
      * @param project опис проєкту, який потрібно перейменувати.

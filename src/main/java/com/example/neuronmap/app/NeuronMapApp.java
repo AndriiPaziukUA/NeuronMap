@@ -8,6 +8,7 @@ import com.example.neuronmap.controller.NeuronMapController;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.persistence.DatabasePathResolver;
+import com.example.neuronmap.persistence.FileSystemProjectCatalogRepository;
 import com.example.neuronmap.persistence.GlobalSettingsStore;
 import com.example.neuronmap.persistence.LegacyProjectStorageMigrator;
 import com.example.neuronmap.persistence.MapRepository;
@@ -53,8 +54,7 @@ public final class NeuronMapApp extends Application {
 
         LocalizationService localization = new LocalizationService(globalSettings);
         ProjectCatalogService projectCatalog = new ProjectCatalogService(
-                storageDirectory,
-                globalSettings
+                new FileSystemProjectCatalogRepository(storageDirectory, globalSettings)
         );
         ProjectDescriptor initialProject = projectCatalog.lastOpenedProject();
         if (initialProject == null) {
@@ -75,6 +75,7 @@ public final class NeuronMapApp extends Application {
                 application,
                 config,
                 localization,
+                projectCatalog,
                 stage::close
         );
 

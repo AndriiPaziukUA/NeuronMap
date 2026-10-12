@@ -17,9 +17,7 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.model.CameraState;
-import com.example.neuronmap.persistence.GlobalSettingsStore;
 import com.example.neuronmap.persistence.ProjectDirectoryWatcher;
-import com.example.neuronmap.persistence.ProjectStorageDirectoryResolver;
 import com.example.neuronmap.persistence.MapRepository;
 import com.example.neuronmap.service.ConnectionService;
 import com.example.neuronmap.service.GroupService;
@@ -39,7 +37,6 @@ import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
 
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -88,55 +85,32 @@ public final class MapEditorCoordinator {
     private Scene scene;
 
     /**
-     * Створює координатор редактора з локалізацією українською мовою та порожньою дією завершення роботи.
-     *
-     * @param application прикладна служба, яка надає доступ до служб карти й збереження.
-     * @param config завантажена конфігурація застосунку.
-     */
-    public MapEditorCoordinator(
-            NeuronMapApplicationService application,
-            AppConfig config
-    ) {
-        this(
-                application,
-                config,
-                new LocalizationService(java.util.Locale.forLanguageTag("uk")),
-                () -> { }
-        );
-    }
-
-    /**
      * Створює координатор редактора з переданими службами та дією завершення роботи.
      *
      * @param application прикладна служба, яка надає доступ до служб карти й збереження.
      * @param config завантажена конфігурація застосунку.
      * @param localization служба локалізації інтерфейсу.
+     * @param projectCatalog готова служба каталогу проєктів.
      * @param exitApplication дія завершення роботи застосунку.
      */
     public MapEditorCoordinator(
             NeuronMapApplicationService application,
             AppConfig config,
             LocalizationService localization,
+            ProjectCatalogService projectCatalog,
             Runnable exitApplication
     ) {
         Objects.requireNonNull(application, "application");
         Objects.requireNonNull(config, "config");
 
         this.localization = Objects.requireNonNull(localization, "localization");
+        this.projectCatalog = Objects.requireNonNull(projectCatalog, "projectCatalog");
         this.exitApplication = Objects.requireNonNull(exitApplication, "exitApplication");
         this.mapService = application.map();
         this.neuronService = application.neurons();
         this.connectionService = application.connections();
         this.groupService = application.groups();
-        Path storageDirectory = ProjectStorageDirectoryResolver.resolve();
-        GlobalSettingsStore globalSettings = new GlobalSettingsStore(
-                storageDirectory.resolve("neuronmap-global.properties")
-        );
-        this.projectCatalog = new ProjectCatalogService(
-                storageDirectory,
-                globalSettings
-        );
-        this.currentProject = projectCatalog.descriptorForDatabasePath(
+        this.currentProject = this.projectCatalog.descriptorForDatabasePath(
                 mapService.databasePath()
         );
 

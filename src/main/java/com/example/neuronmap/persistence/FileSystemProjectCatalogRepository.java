@@ -100,6 +100,31 @@ public final class FileSystemProjectCatalogRepository implements ProjectCatalogR
     }
 
     /**
+     * Створює опис тимчасового проєкту, визначаючи його каталог і файл бази даних у файловому сховищі.
+     *
+     * @param projectName нормалізована назва тимчасового проєкту.
+     * @return опис тимчасового проєкту без часу зміни.
+     * @throws IllegalArgumentException якщо назву не задано або вона виходить за межі кореневого каталогу.
+     */
+    @Override
+    public ProjectDescriptor descriptorForTransientProject(String projectName) {
+        if (projectName == null || projectName.isBlank()) {
+            throw new IllegalArgumentException("projectName must not be blank");
+        }
+
+        Path directory = storageDirectory.resolve(projectName).normalize();
+        if (!storageDirectory.equals(directory.getParent())) {
+            throw new IllegalArgumentException("Project directory is outside the project storage root");
+        }
+        return new ProjectDescriptor(
+                directory.toString(),
+                directory.getFileName().toString(),
+                directory.resolve(PROJECT_FILE_NAME),
+                null
+        );
+    }
+
+    /**
      * Перейменовує каталог проєкту та повертає опис із новим шляхом і назвою.
      *
      * @param project опис проєкту, який потрібно перейменувати.

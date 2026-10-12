@@ -1,7 +1,5 @@
 package com.example.neuronmap.service;
 
-import com.example.neuronmap.persistence.FileSystemProjectCatalogRepository;
-import com.example.neuronmap.persistence.GlobalSettingsStore;
 import com.example.neuronmap.persistence.ProjectCatalogRepository;
 import com.example.neuronmap.project.ProjectDescriptor;
 
@@ -14,19 +12,7 @@ import java.util.List;
  */
 public final class ProjectCatalogService {
 
-    private static final String PROJECT_FILE_NAME = "project.db";
-
     private final ProjectCatalogRepository repository;
-
-    /**
-     * Створює службу каталогу з файловим репозиторієм для наявних місць виклику.
-     *
-     * @param storageDirectory кореневий каталог збереження проєктів.
-     * @param globalSettings сховище глобальних налаштувань застосунку.
-     */
-    public ProjectCatalogService(Path storageDirectory, GlobalSettingsStore globalSettings) {
-        this(new FileSystemProjectCatalogRepository(storageDirectory, globalSettings));
-    }
 
     /**
      * Створює службу каталогу з переданим репозиторієм.
@@ -72,13 +58,7 @@ public final class ProjectCatalogService {
      */
     public ProjectDescriptor createTransientProject(String defaultName) {
         String name = findAvailableName(defaultName);
-        Path directory = repository.storageDirectory().resolve(name);
-        return new ProjectDescriptor(
-                directory.toString(),
-                name,
-                directory.resolve(PROJECT_FILE_NAME),
-                null
-        );
+        return repository.descriptorForTransientProject(name);
     }
 
     /**

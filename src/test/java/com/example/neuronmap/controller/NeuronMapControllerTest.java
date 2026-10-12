@@ -5,6 +5,7 @@ import com.example.neuronmap.config.AppConfig;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.persistence.GlobalSettingsStore;
 import com.example.neuronmap.persistence.ProjectStorageDirectoryResolver;
+import com.example.neuronmap.service.ProjectCatalogService;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Constructor;
@@ -16,15 +17,15 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє, що контролер отримує службу локалізації ззовні та не приймає файлову інфраструктуру.
+ * Перевіряє, що контролер отримує служби локалізації й каталогу ззовні та не приймає файлову інфраструктуру.
  */
 final class NeuronMapControllerTest {
 
     /**
-     * Перевіряє, що публічні конструктори вимагають передати готову службу локалізації.
+     * Перевіряє, що публічні конструктори вимагають передати готові служби локалізації та каталогу проєктів.
      */
     @Test
-    void requiresInjectedLocalizationService() {
+    void requiresInjectedLocalizationAndProjectCatalogServices() {
         List<Class<?>[]> signatures = Arrays.stream(NeuronMapController.class.getConstructors())
                 .map(Constructor::getParameterTypes)
                 .toList();
@@ -32,21 +33,25 @@ final class NeuronMapControllerTest {
         assertTrue(signatures.stream().anyMatch(signature -> Arrays.equals(signature, new Class<?>[]{
                 NeuronMapApplicationService.class,
                 AppConfig.class,
-                LocalizationService.class
+                LocalizationService.class,
+                ProjectCatalogService.class
         })));
         assertTrue(signatures.stream().anyMatch(signature -> Arrays.equals(signature, new Class<?>[]{
                 NeuronMapApplicationService.class,
                 AppConfig.class,
                 LocalizationService.class,
+                ProjectCatalogService.class,
                 Runnable.class
         })));
         assertFalse(signatures.stream().anyMatch(signature -> Arrays.equals(signature, new Class<?>[]{
                 NeuronMapApplicationService.class,
-                AppConfig.class
+                AppConfig.class,
+                LocalizationService.class
         })));
         assertFalse(signatures.stream().anyMatch(signature -> Arrays.equals(signature, new Class<?>[]{
                 NeuronMapApplicationService.class,
                 AppConfig.class,
+                LocalizationService.class,
                 Runnable.class
         })));
     }

@@ -4,6 +4,7 @@ import com.example.neuronmap.application.NeuronMapApplicationService;
 import com.example.neuronmap.config.AppConfig;
 import com.example.neuronmap.coordinator.MapEditorCoordinator;
 import com.example.neuronmap.i18n.LocalizationService;
+import com.example.neuronmap.service.ProjectCatalogService;
 import javafx.scene.Scene;
 
 import java.util.Objects;
@@ -16,42 +17,48 @@ public final class NeuronMapController {
     private final MapEditorCoordinator coordinator;
 
     /**
-     * Створює контролер карти з готовою службою локалізації.
+     * Створює контролер карти з готовими службами локалізації та каталогу проєктів.
      *
      * @param application прикладна служба, яка надає доступ до служб карти й збереження.
      * @param config завантажена конфігурація застосунку.
      * @param localization готова служба локалізації інтерфейсу.
+     * @param projectCatalog готова служба каталогу проєктів.
      */
     public NeuronMapController(
             NeuronMapApplicationService application,
             AppConfig config,
-            LocalizationService localization
+            LocalizationService localization,
+            ProjectCatalogService projectCatalog
     ) {
-        this(application, config, localization, () -> { });
+        this(application, config, localization, projectCatalog, () -> { });
     }
 
     /**
-     * Створює контролер карти з готовою службою локалізації та callback завершення роботи.
+     * Створює контролер карти з готовими службами та callback завершення роботи.
      *
      * @param application прикладна служба, яка надає доступ до служб карти й збереження.
      * @param config завантажена конфігурація застосунку.
      * @param localization готова служба локалізації інтерфейсу.
+     * @param projectCatalog готова служба каталогу проєктів.
      * @param exitApplication callback завершення роботи застосунку.
      */
     public NeuronMapController(
             NeuronMapApplicationService application,
             AppConfig config,
             LocalizationService localization,
+            ProjectCatalogService projectCatalog,
             Runnable exitApplication
     ) {
         Objects.requireNonNull(application, "application");
         Objects.requireNonNull(config, "config");
         Objects.requireNonNull(localization, "localization");
+        Objects.requireNonNull(projectCatalog, "projectCatalog");
 
         this.coordinator = new MapEditorCoordinator(
                 application,
                 config,
                 localization,
+                projectCatalog,
                 Objects.requireNonNull(exitApplication, "exitApplication")
         );
     }

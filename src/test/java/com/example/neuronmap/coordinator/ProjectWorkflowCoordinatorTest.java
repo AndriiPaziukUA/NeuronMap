@@ -3,6 +3,7 @@ package com.example.neuronmap.coordinator;
 import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.NeuronMapModel;
+import com.example.neuronmap.persistence.FileSystemProjectCatalogRepository;
 import com.example.neuronmap.persistence.GlobalSettingsStore;
 import com.example.neuronmap.persistence.MapRepository;
 import com.example.neuronmap.persistence.TransientProjectRepository;
@@ -186,11 +187,17 @@ final class ProjectWorkflowCoordinatorTest {
         mapService.close();
     }
 
+    /**
+     * Створює службу каталогу на основі файлового адаптера для тестового каталогу.
+     *
+     * @param root кореневий каталог тестових проєктів.
+     * @return службу каталогу, що використовує тимчасову файлову інфраструктуру.
+     */
     private static ProjectCatalogService catalog(Path root) {
-        return new ProjectCatalogService(
+        return new ProjectCatalogService(new FileSystemProjectCatalogRepository(
                 root,
                 new GlobalSettingsStore(root.resolve("neuronmap-global.properties"))
-        );
+        ));
     }
 
     private static MapService mapService(Path databasePath) {
