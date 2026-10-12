@@ -2,6 +2,7 @@ package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.service.NeuronService;
+import com.example.neuronmap.util.NeuronRotationMath;
 import com.example.neuronmap.view.NeuronOverlayPositioner;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.RotationHandleView;
@@ -15,7 +16,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Керує ручкою обертання нейрона та обчислює зміну кута під час перетягування покажчика.
+ * Керує ручкою обертання нейрона та координує застосування обчисленого кута під час перетягування покажчика.
  */
 public final class NeuronRotationController {
 
@@ -38,18 +39,18 @@ public final class NeuronRotationController {
     private double rotationStartDegrees;
 
     /**
-     * Створює екземпляр NeuronRotationController та зберігає передані залежності, потрібні для його роботи.
+     * Створює контролер обертання та зберігає залежності, потрібні для керування ручками й оновлення редактора.
      *
      * @param neuronService служба операцій над нейронами.
-     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param state стан редактора.
      * @param workspace полотно редактора.
      * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
      * @param rotationHandles мапа ручок обертання нейронів за ідентифікаторами.
-     * @param hideMenu callback для приховування контекстного меню.
-     * @param refreshVisuals callback, який оновлює вигляд нейронів.
-     * @param refreshConnections callback, який оновлює геометрію та вигляд зв’язків.
-     * @param refreshOverlays callback, який оновлює положення меню та ручок обертання.
-     * @param save функція зворотного виклику для відповідної дії.
+     * @param hideMenu дія приховування контекстного меню.
+     * @param refreshVisuals дія оновлення вигляду нейронів.
+     * @param refreshConnections дія оновлення геометрії та вигляду зв’язків.
+     * @param refreshOverlays дія оновлення положення меню та ручок обертання.
+     * @param save дія збереження змін.
      */
     public NeuronRotationController(
             NeuronService neuronService,
@@ -77,7 +78,7 @@ public final class NeuronRotationController {
     }
 
     /**
-     * Створює ручку обертання для подання нейрона.
+     * Створює ручку обертання для подання нейрона та реєструє її обробники миші.
      *
      * @param neuronView візуальне подання нейрона.
      */
@@ -112,7 +113,7 @@ public final class NeuronRotationController {
     }
 
     /**
-     * Приховує всі ручки обертання.
+     * Приховує всі ручки обертання та очищує тимчасовий стан жесту.
      */
     public void hideAll() {
         for (RotationHandleView handle : rotationHandles.values()) {
@@ -144,7 +145,7 @@ public final class NeuronRotationController {
      * Запам’ятовує початковий кут нейрона й покажчика перед початком перетягування ручки.
      *
      * @param neuronId ідентифікатор нейрона.
-     * @param event подія інтерфейсу, яку потрібно обробити.
+     * @param event подія миші.
      * @param handle ручка обертання нейрона.
      */
     private void beginRotation(String neuronId, MouseEvent event, RotationHandleView handle) {
@@ -169,10 +170,10 @@ public final class NeuronRotationController {
     }
 
     /**
-     * Обчислює та застосовує кут нейрона під час руху покажчика.
+     * Обчислює кут нейрона через геометричний helper і передає його службі доменної логіки.
      *
      * @param neuronId ідентифікатор нейрона.
-     * @param event подія інтерфейсу, яку потрібно обробити.
+     * @param event подія миші.
      */
     private void dragRotation(String neuronId, MouseEvent event) {
         if (!neuronId.equals(rotatingNeuronId) || rotationCenter == null) {
@@ -196,10 +197,10 @@ public final class NeuronRotationController {
     }
 
     /**
-     * Завершує обертання та фіксує кінцевий стан нейрона.
+     * Завершує обертання, відновлює стан курсора й зберігає змінений кут нейрона.
      *
      * @param neuronId ідентифікатор нейрона.
-     * @param event подія інтерфейсу, яку потрібно обробити.
+     * @param event подія миші.
      * @param handle ручка обертання нейрона.
      */
     private void endRotation(String neuronId, MouseEvent event, RotationHandleView handle) {
