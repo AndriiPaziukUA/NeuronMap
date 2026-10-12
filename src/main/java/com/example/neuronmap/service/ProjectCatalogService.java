@@ -1,121 +1,78 @@
 package com.example.neuronmap.service;
 
 import com.example.neuronmap.application.project.ProjectDescriptor;
+import com.example.neuronmap.persistence.FileSystemProjectCatalogRepository;
 import com.example.neuronmap.persistence.GlobalSettingsStore;
+import com.example.neuronmap.persistence.ProjectCatalogRepository;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
 /**
- * Керує каталогом проєктів: переліком, створенням, перейменуванням, видаленням і визначенням останнього відкритого проєкту.
+ * Керує правилами каталогу проєктів, не виконуючи файлових операцій безпосередньо.
  */
 public final class ProjectCatalogService {
 
     private static final String PROJECT_FILE_NAME = "project.db";
-    private static final String LAST_PROJECT_NAME_KEY = "last_project_name";
 
-    private final Path storageDirectory;
-    private final GlobalSettingsStore globalSettings;
+    private final ProjectCatalogRepository repository;
 
     /**
-     * Створює екземпляр ProjectCatalogService та зберігає передані залежності, потрібні для його роботи.
+     * Створює службу каталогу з файловим репозиторієм для сумісності з наявними місцями виклику.
      *
-     * @param storageDirectory значення «storage directory», яке використовується в цьому методі.
-     * @param globalSettings значення «global settings», яке використовується в цьому методі.
+     * @param storageDirectory кореневий каталог збереження проєктів.
+     * @param globalSettings сховище глобальних налаштувань застосунку.
      */
-    public ProjectCatalogService(
-            Path storageDirectory,
-            GlobalSettingsStore globalSettings
-    ) {
-        if (storageDirectory == null || globalSettings == null) {
-
-            throw new IllegalArgumentException(
-                    "storageDirectory and globalSettings must not be null"
-            );
-        }
-        this.storageDirectory = storageDirectory.toAbsolutePath().normalize();
-        this.globalSettings = globalSettings;
+    public ProjectCatalogService(Path storageDirectory, GlobalSettingsStore globalSettings) {
+        this(new FileSystemProjectCatalogRepository(storageDirectory, globalSettings));
     }
 
     /**
-     * Повертає доступні проєкти з каталогу сховища.
+     * Створює службу каталогу з переданим репозиторієм.
      *
-     * @return доступні проєкти з каталогу сховища.
+     * @param repository репозиторій для доступу до збережених проєктів і метаданих каталогу.
+     */
+    public ProjectCatalogService(ProjectCatalogRepository repository) {
+        if (repository == null) {
+            throw new IllegalArgumentException("repository must not be null");
+        }
+        this.repository = repository;
+    }
+
+    /**
+     * Повертає збережені проєкти, упорядковані за часом зміни та назвою.
+     *
+     * @return незмінний список доступних збережених проєктів.
      */
     public List<ProjectDescriptor> listProjects() {
-        if (!Files.isDirectory(storageDirectory)) {
-            return List.of();
-        }
-
-        List<ProjectDescriptor> projects = new ArrayList<>();
-        try (var stream = Files.list(storageDirectory)) {
-            stream.filter(Files::isDirectory)
-                    .map(this::descriptorIfSaved)
-                    .filter(java.util.Objects::nonNull)
-                    .forEach(projects::add);
-        } catch (IOException exception) {
-
-            throw new IllegalStateException(
-                    "Не вдалося прочитати каталог проєктів.",
-                    exception
-            );
-        }
-
-        projects.sort(
-                Comparator.comparing(
+        return repository.listSavedProjects().stream()
+                .sorted(Comparator.comparing(
                         ProjectDescriptor::modifiedAt,
                         Comparator.nullsLast(Comparator.reverseOrder())
-                ).thenComparing(
-                        ProjectDescriptor::name,
-                        String.CASE_INSENSITIVE_ORDER
-                )
-        );
-        return List.copyOf(projects);
+                ).thenComparing(ProjectDescriptor::name, String.CASE_INSENSITIVE_ORDER))
+                .toList();
     }
 
     /**
-     * Створює опис проєкту для вказаного шляху до бази даних.
+     * Створює опис проєкту для заданого шляху до бази даних.
      *
      * @param databasePath шлях до файлу бази даних проєкту.
+     * @return опис проєкту, що відповідає заданому шляху.
      */
     public ProjectDescriptor descriptorForDatabasePath(Path databasePath) {
-        if (databasePath == null) {
-
-            throw new IllegalArgumentException("databasePath must not be null");
-        }
-
-        Path normalized = databasePath.toAbsolutePath().normalize();
-        Path directory = normalized.getParent();
-        if (directory == null) {
-
-            throw new IllegalArgumentException("Project database has no parent directory");
-        }
-
-        Instant modifiedAt = Files.isRegularFile(normalized)
-                ? lastModified(normalized)
-                : null;
-
-        return new ProjectDescriptor(
-                directory.toString(),
-                directory.getFileName().toString(),
-                normalized,
-                modifiedAt
-        );
+        return repository.descriptorForDatabasePath(databasePath);
     }
 
     /**
      * Створює опис тимчасового проєкту без негайного створення каталогу на диску.
      *
-     * @param defaultName значення «default name», яке використовується в цьому методі.
+     * @param defaultName початкова назва нового проєкту.
+     * @return опис тимчасового проєкту з доступною назвою.
      */
     public ProjectDescriptor createTransientProject(String defaultName) {
         String name = findAvailableName(defaultName);
-        Path directory = storageDirectory.resolve(name);
+        Path directory = repository.storageDirectory().resolve(name);
         return new ProjectDescriptor(
                 directory.toString(),
                 name,
@@ -125,17 +82,14 @@ public final class ProjectCatalogService {
     }
 
     /**
-     * Перевіряє й застосовує нову назву проєкту.
+     * Перевіряє та застосовує нову назву збереженого проєкту.
      *
-     * @param project опис проєкту, над яким виконується дія.
-     * @param requestedName значення «requested name», яке використовується в цьому методі.
+     * @param project опис проєкту, який потрібно перейменувати.
+     * @param requestedName запитана нова назва проєкту.
+     * @return опис проєкту після перейменування або початковий опис, якщо назва не змінилася.
      */
-    public ProjectDescriptor rename(
-            ProjectDescriptor project,
-            String requestedName
-    ) {
+    public ProjectDescriptor rename(ProjectDescriptor project, String requestedName) {
         if (project == null) {
-
             throw new IllegalArgumentException("project must not be null");
         }
 
@@ -145,94 +99,45 @@ public final class ProjectCatalogService {
         }
 
         String uniqueName = findAvailableName(normalizedName, project.id());
-        Path sourceDirectory = project.databasePath().getParent();
-        Path targetDirectory = storageDirectory.resolve(uniqueName);
-
-        if (sourceDirectory == null) {
-
-            throw new IllegalArgumentException("Project database has no parent directory");
-        }
-
-        try {
-            prepareRenameTarget(targetDirectory);
-            Files.move(sourceDirectory, targetDirectory);
-            Files.setLastModifiedTime(
-                    targetDirectory.resolve(PROJECT_FILE_NAME),
-                    java.nio.file.attribute.FileTime.from(Instant.now())
-            );
-        } catch (IOException exception) {
-
-            throw new IllegalStateException(
-                    "Не вдалося перейменувати проєкт.",
-                    exception
-            );
-        }
-
-        return descriptorForDatabasePath(
-                targetDirectory.resolve(PROJECT_FILE_NAME)
-        );
+        return repository.renameProject(project, uniqueName);
     }
 
     /**
-     * Видаляє  та очищає пов’язані дані.
+     * Видаляє проєкт і очищує його назву з налаштування останнього відкритого проєкту, якщо потрібно.
      *
-     * @param project опис проєкту, над яким виконується дія.
+     * @param project опис проєкту, який потрібно видалити.
      */
     public void delete(ProjectDescriptor project) {
         if (project == null) {
             return;
         }
 
-        Path directory = project.databasePath().getParent();
-        if (directory == null) {
-            return;
-        }
-        if (!storageDirectory.equals(directory.getParent())) {
-
-            throw new IllegalArgumentException(
-                    "Project directory is outside the project storage root"
-            );
-        }
-
-        try {
-            deleteRecursively(directory);
-        } catch (IOException exception) {
-
-            throw new IllegalStateException(
-                    "Не вдалося видалити проєкт.",
-                    exception
-            );
-        }
-
-        String lastName = globalSettings.load(LAST_PROJECT_NAME_KEY);
+        repository.deleteProjectFiles(project);
+        String lastName = repository.loadLastOpenedProjectName();
         if (lastName != null && project.name().equalsIgnoreCase(lastName)) {
-            globalSettings.save(LAST_PROJECT_NAME_KEY, null);
+            repository.saveLastOpenedProjectName(null);
         }
     }
 
     /**
-     * Зберігає ідентифікатор або шлях проєкту як останній відкритий.
+     * Зберігає назву проєкту як останнього відкритого.
      *
-     * @param project опис проєкту, над яким виконується дія.
+     * @param project опис проєкту або {@code null}, щоб очистити значення.
      */
     public void markLastOpened(ProjectDescriptor project) {
-        globalSettings.save(
-                LAST_PROJECT_NAME_KEY,
-                project == null ? null : project.name()
-        );
+        repository.saveLastOpenedProjectName(project == null ? null : project.name());
     }
 
     /**
-     * Повертає опис останнього відкритого проєкту, якщо він усе ще доступний.
+     * Повертає опис останнього відкритого проєкту, якщо він досі доступний.
      *
-     * @return опис останнього відкритого проєкту, якщо він усе ще доступний.
+     * @return опис останнього відкритого проєкту або {@code null}, якщо такого проєкту немає.
      */
     public ProjectDescriptor lastOpenedProject() {
-        String lastName = globalSettings.load(LAST_PROJECT_NAME_KEY);
+        String lastName = repository.loadLastOpenedProjectName();
         if (lastName == null || lastName.isBlank()) {
             return null;
         }
-
         return listProjects().stream()
                 .filter(project -> lastName.equalsIgnoreCase(project.name()))
                 .findFirst()
@@ -240,50 +145,35 @@ public final class ProjectCatalogService {
     }
 
     /**
-     * Повертає каталог зберігання проєктів.
+     * Повертає кореневий каталог зберігання проєктів.
      *
-     * @return каталог зберігання проєктів.
+     * @return кореневий каталог зберігання проєктів.
      */
     public Path storageDirectory() {
-        return storageDirectory;
+        return repository.storageDirectory();
     }
 
     /**
-     * Створює опис проєкту, якщо в каталозі вже є його збережені дані; інакше повертає null.
+     * Підбирає вільну назву проєкту, щоб не конфліктувати з наявними збереженими проєктами.
      *
-     * @param directory каталог, який потрібно обробити.
-     */
-    private ProjectDescriptor descriptorIfSaved(Path directory) {
-        Path database = directory.resolve(PROJECT_FILE_NAME);
-        if (!Files.isRegularFile(database)) {
-            return null;
-        }
-        return descriptorForDatabasePath(database);
-    }
-
-    /**
-     * Підбирає вільну назву проєкту, щоб не перезаписати наявний проєкт.
-     *
-     * @param requestedName значення «requested name», яке використовується в цьому методі.
+     * @param requestedName запитана назва проєкту.
+     * @return доступна назва проєкту.
      */
     private String findAvailableName(String requestedName) {
         return findAvailableName(requestedName, null);
     }
 
     /**
-     * Підбирає вільну назву проєкту, щоб не перезаписати наявний проєкт.
+     * Підбирає вільну назву проєкту, виключаючи за потреби поточний проєкт зі списку конфліктів.
      *
-     * @param requestedName значення «requested name», яке використовується в цьому методі.
-     * @param excludedProjectId ідентифікатор елемента, над яким виконується дія.
+     * @param requestedName запитана назва проєкту.
+     * @param excludedProjectId ідентифікатор проєкту, який не потрібно враховувати під час перевірки.
+     * @return доступна назва проєкту.
      */
-    private String findAvailableName(
-            String requestedName,
-            String excludedProjectId
-    ) {
+    private String findAvailableName(String requestedName, String excludedProjectId) {
         String normalized = normalizeName(requestedName);
         List<String> existingNames = listProjects().stream()
-                .filter(project -> excludedProjectId == null
-                        || !excludedProjectId.equals(project.id()))
+                .filter(project -> excludedProjectId == null || !excludedProjectId.equals(project.id()))
                 .map(ProjectDescriptor::name)
                 .toList();
 
@@ -296,91 +186,38 @@ public final class ProjectCatalogService {
         do {
             candidate = normalized + " " + suffix++;
         } while (containsIgnoreCase(existingNames, candidate));
-
         return candidate;
     }
 
     /**
-     * Перевіряє наявність назви в списку без урахування регістру літер.
+     * Перевіряє наявність назви в списку без урахування регістру.
      *
-     * @param names значення «names», яке використовується в цьому методі.
-     * @param candidate значення «candidate», яке використовується в цьому методі.
-     *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
+     * @param names список наявних назв.
+     * @param candidate назва, яку потрібно перевірити.
+     * @return {@code true}, якщо назва вже є у списку; інакше {@code false}.
      */
-    private static boolean containsIgnoreCase(
-            List<String> names,
-            String candidate
-    ) {
-        return names.stream().anyMatch(
-                name -> name.equalsIgnoreCase(candidate)
-        );
+    private static boolean containsIgnoreCase(List<String> names, String candidate) {
+        return names.stream().anyMatch(name -> name.equalsIgnoreCase(candidate));
     }
 
     /**
-     * Готує цільове розташування для перейменування проєкту, перевіряючи конфлікти та каталог призначення.
+     * Нормалізує назву проєкту перед використанням у файловому каталозі.
      *
-     * @param targetDirectory значення «target directory», яке використовується в цьому методі.
-     */
-    private void prepareRenameTarget(Path targetDirectory)
-            throws IOException {
-        if (Files.notExists(targetDirectory)) {
-            return;
-        }
-
-        if (Files.isRegularFile(
-                targetDirectory.resolve(PROJECT_FILE_NAME)
-        )) {
-            throw new IOException(
-                    "Проєкт з такою назвою вже існує: " + targetDirectory.getFileName()
-            );
-        }
-
-        deleteRecursively(targetDirectory);
-    }
-
-    /**
-     * Видаляє каталог проєкту разом із його вмістом.
-     *
-     * @param root значення «root», яке використовується в цьому методі.
-     */
-    private static void deleteRecursively(Path root) throws IOException {
-        List<Path> paths;
-        try (var stream = Files.walk(root)) {
-            paths = stream.sorted(Comparator.reverseOrder()).toList();
-        }
-
-        for (Path path : paths) {
-            Files.deleteIfExists(path);
-        }
-    }
-
-    /**
-     * Нормалізує введену назву проєкту перед використанням у каталозі.
-     *
-     * @param name назва, яку потрібно перевірити або зберегти.
+     * @param name назва, яку потрібно нормалізувати.
+     * @return нормалізована назва проєкту.
+     * @throws IllegalArgumentException якщо назва порожня або неприпустима.
      */
     private static String normalizeName(String name) {
         if (name == null || name.isBlank()) {
-
-            throw new IllegalArgumentException(
-                    "project name must not be blank"
-            );
+            throw new IllegalArgumentException("project name must not be blank");
         }
 
         String normalized = name.trim()
                 .replaceAll("[<>:\"/\\\\|?*]", "_")
                 .replaceAll("[. ]+$", "");
-
-        if (normalized.isBlank()
-                || ".".equals(normalized)
-                || "..".equals(normalized)) {
-
-            throw new IllegalArgumentException(
-                    "project name is not valid"
-            );
+        if (normalized.isBlank() || ".".equals(normalized) || "..".equals(normalized)) {
+            throw new IllegalArgumentException("project name is not valid");
         }
-
         if (isReservedWindowsName(normalized)) {
             normalized = "_" + normalized;
         }
@@ -390,35 +227,17 @@ public final class ProjectCatalogService {
     /**
      * Перевіряє, чи є назва зарезервованою назвою пристрою у Windows.
      *
-     * @param name назва, яку потрібно перевірити або зберегти.
-     *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
+     * @param name назва проєкту.
+     * @return {@code true}, якщо назва зарезервована у Windows; інакше {@code false}.
      */
     private static boolean isReservedWindowsName(String name) {
         String upper = name.toUpperCase(java.util.Locale.ROOT);
-        String base = upper.contains(".")
-                ? upper.substring(0, upper.indexOf('.'))
-                : upper;
+        String base = upper.contains(".") ? upper.substring(0, upper.indexOf('.')) : upper;
         return switch (base) {
             case "CON", "PRN", "AUX", "NUL",
                     "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
                     "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9" -> true;
             default -> false;
         };
-    }
-
-    /**
-     * Повертає час останньої зміни файлу або каталогу.
-     *
-     * @param path шлях до файлу або каталогу.
-     *
-     * @return час останньої зміни файлу або каталогу.
-     */
-    private static Instant lastModified(Path path) {
-        try {
-            return Files.getLastModifiedTime(path).toInstant();
-        } catch (IOException exception) {
-            return Instant.EPOCH;
-        }
     }
 }
