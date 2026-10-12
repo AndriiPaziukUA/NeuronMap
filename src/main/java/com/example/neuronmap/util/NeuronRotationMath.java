@@ -3,7 +3,8 @@ package com.example.neuronmap.util;
 import javafx.geometry.Point2D;
 
 /**
- * Містить геометричні обчислення кутів для обертання, зокрема нормалізацію та найкоротшу кутову різницю.
+ * Виконує геометричні обчислення кутів обертання з використанням JavaFX {@link Point2D}.
+ * Клас належить до UI-геометрії та не є незалежним від JavaFX.
  */
 public final class NeuronRotationMath {
 
@@ -16,9 +17,10 @@ public final class NeuronRotationMath {
     /**
      * Обчислює кут у градусах між центром нейрона та положенням покажчика.
      *
-     * @param center центр нейрона у координатах сцени.
-     * @param pointer положення покажчика миші у координатах сцени.
+     * @param center центр нейрона у координатах JavaFX-сцени.
+     * @param pointer положення покажчика миші у координатах JavaFX-сцени.
      * @return нормалізований кут у діапазоні від 0 включно до 360 невключно.
+     * @throws IllegalArgumentException якщо одну з точок не задано.
      */
     public static double pointerAngleDegrees(
             Point2D center,
@@ -44,6 +46,7 @@ public final class NeuronRotationMath {
      * @param initialPointerAngleDegrees кут покажчика на момент початку перетягування.
      * @param currentPointerAngleDegrees поточний кут покажчика під час перетягування.
      * @return новий нормалізований кут нейрона.
+     * @throws IllegalArgumentException якщо один із кутів не є скінченним числом.
      */
     public static double rotationForDrag(
             double initialRotationDegrees,
@@ -68,6 +71,7 @@ public final class NeuronRotationMath {
      * @param from початковий кут у градусах.
      * @param to кінцевий кут у градусах.
      * @return різниця в діапазоні від -180 до 180 градусів.
+     * @throws IllegalArgumentException якщо один із кутів не є скінченним числом.
      */
     public static double shortestSignedDelta(
             double from,
@@ -88,6 +92,7 @@ public final class NeuronRotationMath {
      *
      * @param degrees кут у градусах.
      * @return нормалізований кут у діапазоні від 0 включно до 360 невключно.
+     * @throws IllegalArgumentException якщо кут не є скінченним числом.
      */
     public static double normalize360(double degrees) {
         requireFinite(degrees, "degrees");
@@ -100,6 +105,7 @@ public final class NeuronRotationMath {
      *
      * @param value значення, яке потрібно перевірити.
      * @param name назва параметра для повідомлення про помилку.
+     * @throws IllegalArgumentException якщо значення нескінченне або не є числом.
      */
     private static void requireFinite(double value, String name) {
         if (!Double.isFinite(value)) {
