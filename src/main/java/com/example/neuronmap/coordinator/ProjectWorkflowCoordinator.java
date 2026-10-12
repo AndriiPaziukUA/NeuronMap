@@ -1,6 +1,6 @@
 package com.example.neuronmap.coordinator;
 
-import com.example.neuronmap.application.project.ProjectDescriptor;
+import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.persistence.MapRepository;
 import com.example.neuronmap.persistence.SqliteMapRepository;

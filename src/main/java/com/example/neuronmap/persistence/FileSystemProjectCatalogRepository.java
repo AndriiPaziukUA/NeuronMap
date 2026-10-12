@@ -1,6 +1,6 @@
 package com.example.neuronmap.persistence;
 
-import com.example.neuronmap.application.project.ProjectDescriptor;
+import com.example.neuronmap.project.ProjectDescriptor;
 
 import java.io.IOException;
 import java.nio.file.Files;

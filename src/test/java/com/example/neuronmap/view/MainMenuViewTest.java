@@ -1,6 +1,6 @@
 package com.example.neuronmap.view;
 
-import com.example.neuronmap.application.project.ProjectDescriptor;
+import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.i18n.SupportedLanguage;
 import com.example.neuronmap.persistence.GlobalSettingsStore;
@@ -31,13 +31,15 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Regression tests for menu navigation, responsive layout, settings save/discard, and localized text. */
+/**
+ * Перевіряє навігацію меню, адаптивне компонування, збереження та скасування налаштувань і локалізовані написи.
+ */
 final class MainMenuViewTest {
 
     @TempDir
     Path tempDirectory;
 
-    /** Starts the JavaFX toolkit once so controls can be tested on the JavaFX thread. */
+    /** Запускає JavaFX toolkit один раз перед виконанням тестів інтерфейсу. */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -49,7 +51,7 @@ final class MainMenuViewTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
     }
 
-    /** Verifies that Continue is first and the main page does not attach a Back button. */
+    /** Перевіряє порядок кнопок головної сторінки та відсутність кнопки повернення на ній. */
     @Test
     void mainPageStartsWithContinueAndDoesNotShowBackButton() throws Exception {
         runOnFxThread(() -> {
@@ -95,7 +97,7 @@ final class MainMenuViewTest {
         });
     }
 
-    /** Verifies that the settings Save button appears only for unsaved changes and hides after saving. */
+    /** Перевіряє показ кнопки збереження мови лише за наявності незбережених змін. */
     @Test
     void settingsSaveButtonTracksDirtyStateAndPersistsLanguage() throws Exception {
         GlobalSettingsStore store = new GlobalSettingsStore(tempDirectory.resolve("settings.properties"));
@@ -121,9 +123,7 @@ final class MainMenuViewTest {
         });
     }
 
-    /**
-     * Перевіряє, що подання не зберігає мовні налаштування без callback-а контролера.
-     */
+    /** Перевіряє, що подання налаштувань не зберігає мову без переданого callback-а. */
     @Test
     void settingsViewDoesNotPersistLanguageWithoutCallback() throws Exception {
         GlobalSettingsStore store = new GlobalSettingsStore(
@@ -142,7 +142,7 @@ final class MainMenuViewTest {
         });
     }
 
-    /** Verifies that discarding a language preview restores the original language and hides Save. */
+    /** Перевіряє, що скасування попереднього перегляду мови відновлює початкове значення. */
     @Test
     void settingsLanguagePreviewCanBeDiscarded() throws Exception {
         runOnFxThread(() -> {
@@ -162,7 +162,7 @@ final class MainMenuViewTest {
         });
     }
 
-    /** Verifies that a pending project rename is committed by the existing save workflow. */
+    /** Перевіряє, що перейменування проєкту лишається незбереженою зміною до підтвердження. */
     @Test
     void renamingProjectCreatesPendingChangeUntilCommitted() throws Exception {
         runOnFxThread(() -> {
@@ -210,8 +210,9 @@ final class MainMenuViewTest {
     }
 
     /**
-     * Verifies that the rendered caret is placed after the saved name on the first edit and after
-     * creating a fresh project list again, rather than merely checking the text field's caret index.
+     * Перевіряє положення курсора після першого відкриття режиму редагування та повторного показу списку проєктів.
+     *
+     * @throws Exception якщо дія JavaFX не виконується в межах заданого часу.
      */
     @Test
     void renameCaretPositionIsAtEndAfterFirstShowAndReopeningProjectList() throws Exception {
@@ -237,7 +238,6 @@ final class MainMenuViewTest {
 
         runOnFxThreadAfterTurns(() -> assertRenameCaretPositionAtEnd(rowReference.get()), 4);
 
-        // Rebuilding the saved-project rows reproduces the first-edit path seen after reopening the menu.
         runOnFxThread(() -> {
             MainMenuView view = menuReference.get();
             view.showMainPage();
@@ -256,12 +256,9 @@ final class MainMenuViewTest {
     }
 
     /**
-     * Verifies the public text-input state after renaming starts without depending on private skin nodes.
-     * JavaFX may not create or expose the internal {@code .caret} node when a scene is tested without a
-     * shown window, so the regression check uses the stable TextField API and confirms that the field
-     * has a usable layout slot. The first-show and reopen paths are both exercised by the calling test.
+     * Перевіряє відкритий режим редагування через стабільний API TextField і доступну ширину компонента.
      *
-     * @param row project row currently in rename mode.
+     * @param row рядок проєкту в режимі перейменування.
      */
     private static void assertRenameCaretPositionAtEnd(SavedProjectRowView row) {
         assertNotNull(row);
@@ -278,7 +275,7 @@ final class MainMenuViewTest {
         assertEquals("", field.getSelectedText(), "The project name must not remain selected");
     }
 
-    /** Verifies that the saved-project page uses the maximum panel height and a functional conditional scrollbar. */
+    /** Перевіряє адаптивну висоту сторінки проєктів і роботу вертикальної смуги прокручування. */
     @Test
     void savedProjectListUsesMaximumHeightAndAsNeededScrollbar() throws Exception {
         runOnFxThread(() -> {
@@ -330,9 +327,7 @@ final class MainMenuViewTest {
         });
     }
 
-    /**
-     * Verifies that project names keep usable width and rename controls stay inside the row bounds.
-     */
+    /** Перевіряє доступну ширину назви проєкту та розміщення елементів рядка в режимі перейменування. */
     @Test
     void projectRowAdaptsItsLayoutWhenEnteringRenameMode() throws Exception {
         runOnFxThread(() -> {
@@ -362,7 +357,7 @@ final class MainMenuViewTest {
         });
     }
 
-    /** Guards against the confirmation card stretching to the application height or left-aligning its prompt. */
+    /** Перевіряє, що вікно підтвердження має бажану висоту та центрований текст запитання. */
     @Test
     void unsavedChangesDialogKeepsPreferredHeightAndCenteredQuestion() throws Exception {
         runOnFxThread(() -> {
@@ -381,10 +376,10 @@ final class MainMenuViewTest {
     }
 
     /**
-     * Finds the JavaFX vertical scrollbar created by a scroll pane skin.
+     * Знаходить вертикальну смугу прокручування, створену шкірою JavaFX для ScrollPane.
      *
-     * @param scrollPane pane whose skin is searched for a vertical scrollbar.
-     * @return the vertical scrollbar, or {@code null} if the skin has not created one.
+     * @param scrollPane контейнер, у якому потрібно знайти смугу прокручування.
+     * @return вертикальна смуга прокручування або {@code null}, якщо шкіру ще не створено.
      */
     private static ScrollBar verticalScrollBarForTest(ScrollPane scrollPane) {
         scrollPane.applyCss();
@@ -396,7 +391,7 @@ final class MainMenuViewTest {
                 .orElse(null);
     }
 
-    /** Selects a language and fires its change event as a user interaction would. */
+    /** Вибирає мову та викликає її обробник так, як це відбулося б під час дії користувача. */
     private static void chooseLanguage(
             ComboBox<SupportedLanguage> selector,
             SupportedLanguage language
@@ -406,12 +401,11 @@ final class MainMenuViewTest {
     }
 
     /**
-     * Executes a test action on the JavaFX thread after the requested number of deferred event-queue turns.
-     * This is used for assertions that depend on focus, skin creation, or layout settling.
+     * Виконує дію в потоці JavaFX після заданої кількості відкладених проходів черги подій.
      *
-     * @param action assertion or UI operation to run after the deferred turns.
-     * @param turns number of additional JavaFX event-queue turns to wait for; must not be negative.
-     * @throws Exception if the FX-thread action fails or does not complete within the timeout.
+     * @param action перевірка або операція, яку потрібно виконати.
+     * @param turns кількість додаткових проходів черги подій; не може бути від’ємною.
+     * @throws Exception якщо дія завершується помилкою або не встигає завершитися.
      */
     private static void runOnFxThreadAfterTurns(Runnable action, int turns) throws Exception {
         if (turns < 0) {
@@ -427,12 +421,12 @@ final class MainMenuViewTest {
     }
 
     /**
-     * Requeues a test action until its requested number of JavaFX event-queue turns has elapsed.
+     * Повторно додає дію до черги JavaFX, доки не мине задана кількість проходів.
      *
-     * @param action action to execute once the remaining turns reach zero.
-     * @param remainingTurns number of event-queue turns still to defer the action.
-     * @param latch latch completed after the action finishes or throws.
-     * @param failure storage for any throwable raised by the action.
+     * @param action дія, яку потрібно виконати після завершення відкладення.
+     * @param remainingTurns кількість проходів черги, що залишилися.
+     * @param latch сигналізує про завершення дії.
+     * @param failure зберігає виняток, який виник під час виконання дії.
      */
     private static void executeAfterFxTurns(
             Runnable action,
@@ -454,7 +448,7 @@ final class MainMenuViewTest {
         }
     }
 
-    /** Executes a test action on the JavaFX application thread and rethrows any test failure. */
+    /** Виконує дію в потоці JavaFX і передає помилку тесту до потоку JUnit. */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];

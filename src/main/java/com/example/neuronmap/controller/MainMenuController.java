@@ -1,6 +1,6 @@
 package com.example.neuronmap.controller;
 
-import com.example.neuronmap.application.project.ProjectDescriptor;
+import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.view.MainMenuView;
 import javafx.application.Platform;
@@ -15,7 +15,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * Controls main-menu navigation, saved-project operations, and keyboard shortcuts for the menu.
+ * Керує навігацією головного меню, операціями зі збереженими проєктами та клавіатурними скороченнями меню.
  */
 public final class MainMenuController {
 
@@ -33,18 +33,18 @@ public final class MainMenuController {
     private boolean installed;
 
     /**
-     * Creates the controller and wires view actions to application operations.
+     * Створює контролер і пов'язує дії подання з операціями застосунку.
      *
-     * @param view visual menu component controlled by this controller.
-     * @param localization localization service used by the menu view.
-     * @param projectsSupplier supplies the current saved-project catalog.
-     * @param newProjectAction callback for creating a project.
-     * @param openProjectAction callback for opening a project.
-     * @param renameProjectAction callback for renaming a project.
-     * @param deleteProjectAction callback for deleting a project.
-     * @param exitAction callback for exiting the application.
-     * @param pauseForMenuAction callback that pauses editor actions while the menu is open.
-     * @param resumeAfterMenuAction callback that resumes editor actions after the menu closes.
+     * @param view візуальний компонент меню, яким керує контролер.
+     * @param localization служба локалізації, яку використовує подання меню.
+     * @param projectsSupplier постачальник поточного каталогу збережених проєктів.
+     * @param newProjectAction дія створення проєкту.
+     * @param openProjectAction дія відкриття проєкту.
+     * @param renameProjectAction дія перейменування проєкту.
+     * @param deleteProjectAction дія видалення проєкту.
+     * @param exitAction дія завершення роботи застосунку.
+     * @param pauseForMenuAction дія призупинення роботи редактора на час відкритого меню.
+     * @param resumeAfterMenuAction дія відновлення роботи редактора після закриття меню.
      */
     public MainMenuController(
             MainMenuView view,
@@ -86,7 +86,7 @@ public final class MainMenuController {
         ));
     }
 
-    /** Installs the menu keyboard handler on the supplied JavaFX scene. */
+    /** Встановлює обробник клавіатури меню на переданій сцені JavaFX. */
     public void install(Scene scene) {
         Objects.requireNonNull(scene, "scene");
         if (installed) {
@@ -96,7 +96,7 @@ public final class MainMenuController {
         installed = true;
     }
 
-    /** Opens the main menu and pauses editor actions while it remains open. */
+    /** Відкриває головне меню та призупиняє роботу редактора, поки меню залишається відкритим. */
     public void open() {
         if (view.isMenuVisible()) {
             return;
@@ -106,14 +106,14 @@ public final class MainMenuController {
         view.showMenu();
     }
 
-    /** Closes the menu after resolving any pending changes. */
+    /** Закриває меню після розв'язання всіх незбережених змін. */
     public void close() {
         requestCloseMenu();
     }
 
     /**
-     * Refreshes the visible saved-project list from the latest catalog snapshot.
-     * The refresh is scheduled on the JavaFX thread when necessary and skipped when edits are pending.
+     * Оновлює видимий список проєктів за найновішими даними каталогу.
+     * Оновлення виконується в потоці JavaFX, якщо це необхідно, і пропускається за наявності незбережених змін.
      */
     public void refreshProjects() {
         Runnable refresh = () -> {
@@ -131,15 +131,15 @@ public final class MainMenuController {
     }
 
     /**
-     * Reports whether the menu is currently open.
+     * Перевіряє, чи відкрито меню.
      *
-     * @return true when the menu is visible.
+     * @return {@code true}, якщо меню видиме.
      */
     public boolean isOpen() {
         return view.isMenuVisible();
     }
 
-    /** Removes the scene key handler, discards pending edits, and releases view resources. */
+    /** Вилучає обробник клавіатури, скидає незбережені зміни та звільняє ресурси подання. */
     public void dispose(Scene scene) {
         if (scene != null && installed) {
             scene.removeEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
@@ -152,7 +152,7 @@ public final class MainMenuController {
         view.dispose();
     }
 
-    /** Opens the selected project, then closes the menu. */
+    /** Відкриває вибраний проєкт, а потім закриває меню. */
     private void handleOpenProject(ProjectDescriptor project) {
         requestLeave(() -> {
             openProjectAction.accept(project);
@@ -160,12 +160,12 @@ public final class MainMenuController {
         });
     }
 
-    /** Delegates project renaming to the project catalog operation. */
+    /** Передає перейменування проєкту до відповідної операції каталогу. */
     private ProjectDescriptor handleRenameProject(ProjectDescriptor project, String name) {
         return renameProjectAction.apply(project, name);
     }
 
-    /** Deletes a project and refreshes the saved-project page when the menu remains open. */
+    /** Видаляє проєкт і оновлює список збережених проєктів, якщо меню лишається відкритим. */
     private void handleDeleteProject(ProjectDescriptor project) {
         requestLeave(() -> {
             deleteProjectAction.accept(project);
@@ -175,9 +175,7 @@ public final class MainMenuController {
         });
     }
 
-    /**
-     * Navigates from a submenu back to the main page, or closes the menu when already at the main page.
-     */
+    /** Повертається з підсторінки до головної або закриває меню, якщо вже відкрита головна сторінка. */
     private void handleBack() {
         if (view.isLoadPage() || view.isSettingsPage()) {
             requestLeave(view::showMainPage);
@@ -186,7 +184,7 @@ public final class MainMenuController {
         }
     }
 
-    /** Runs the requested navigation action immediately when clean, or asks how to resolve pending edits. */
+    /** Виконує навігацію відразу або запитує, як розв'язати незбережені зміни. */
     private void requestLeave(Runnable action) {
         if (!view.hasUnsavedChanges()) {
             action.run();
@@ -204,7 +202,7 @@ public final class MainMenuController {
         );
     }
 
-    /** Closes the menu after resolving pending edits and then invokes the supplied action. */
+    /** Закриває меню після розв'язання незбережених змін і викликає задану дію. */
     private void requestClose(Runnable action) {
         requestLeave(() -> {
             view.hide();
@@ -213,7 +211,7 @@ public final class MainMenuController {
         });
     }
 
-    /** Requests menu closure while preserving the unsaved-changes workflow. */
+    /** Запитує закриття меню зі збереженням сценарію обробки незбережених змін. */
     private void requestCloseMenu() {
         if (!view.isMenuVisible()) {
             return;
@@ -221,7 +219,7 @@ public final class MainMenuController {
         requestClose(() -> { });
     }
 
-    /** Immediately closes the menu after a successful project transition. */
+    /** Негайно закриває меню після успішного переходу між проєктами. */
     private void closeMenuImmediately() {
         if (!view.isMenuVisible()) {
             return;
@@ -231,10 +229,10 @@ public final class MainMenuController {
     }
 
     /**
-     * Routes Escape according to the currently active menu page. Escape backs out of subpages,
-     * closes the main page, and continues opening the main menu when used from the editor.
+     * Обробляє Escape відповідно до поточної сторінки меню.
+     * Клавіша повертає з підсторінки, закриває головне меню або відкриває його з редактора.
      *
-     * @param event JavaFX key event to handle.
+     * @param event подія натискання клавіші JavaFX.
      */
     private void handleKeyPressed(KeyEvent event) {
         if (event.getCode() == KeyCode.ESCAPE) {

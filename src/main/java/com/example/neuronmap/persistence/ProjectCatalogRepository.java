@@ -1,12 +1,12 @@
 package com.example.neuronmap.persistence;
 
-import com.example.neuronmap.application.project.ProjectDescriptor;
+import com.example.neuronmap.project.ProjectDescriptor;
 
 import java.nio.file.Path;
 import java.util.List;
 
 /**
- * Визначає операції збереження та отримання даних каталогу проєктів.
+ * Визначає контракт збереження та отримання даних каталогу проєктів без залежності від прикладного шару.
  */
 public interface ProjectCatalogRepository {
 

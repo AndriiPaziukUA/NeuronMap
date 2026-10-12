@@ -1,9 +1,9 @@
 package com.example.neuronmap.service;
 
-import com.example.neuronmap.application.project.ProjectDescriptor;
 import com.example.neuronmap.persistence.FileSystemProjectCatalogRepository;
 import com.example.neuronmap.persistence.GlobalSettingsStore;
 import com.example.neuronmap.persistence.ProjectCatalogRepository;
+import com.example.neuronmap.project.ProjectDescriptor;
 
 import java.nio.file.Path;
 import java.util.Comparator;
@@ -19,7 +19,7 @@ public final class ProjectCatalogService {
     private final ProjectCatalogRepository repository;
 
     /**
-     * Створює службу каталогу з файловим репозиторієм для сумісності з наявними місцями виклику.
+     * Створює службу каталогу з файловим репозиторієм для наявних місць виклику.
      *
      * @param storageDirectory кореневий каталог збереження проєктів.
      * @param globalSettings сховище глобальних налаштувань застосунку.

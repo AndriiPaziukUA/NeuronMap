@@ -1,6 +1,6 @@
 package com.example.neuronmap.view;
 
-import com.example.neuronmap.application.project.ProjectDescriptor;
+import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.i18n.SupportedLanguage;
 import javafx.application.Platform;
@@ -27,9 +27,8 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 /**
- * Builds the main menu, saved-project page, settings page, and unsaved-changes confirmation.
- * Main and settings pages adapt to their content; the saved-project page uses the maximum panel height
- * whenever the available scene space permits it.
+ * Створює головне меню, сторінки збережених проєктів і налаштувань та підтвердження незбережених змін.
+ * Розмір панелі підлаштовується до вмісту; сторінка проєктів використовує максимальну висоту за наявності місця.
  */
 public final class MainMenuView extends StackPane {
 
@@ -37,17 +36,17 @@ public final class MainMenuView extends StackPane {
     private static final double MAX_PANEL_HEIGHT = 430.0;
 
     /**
-     * Holds callbacks for menu navigation and saved-project operations.
+     * Зберігає зворотні виклики навігації меню та операцій над проєктами.
      *
-     * @param newProject action that creates a project.
-     * @param load action that opens the saved-project page.
-     * @param settings action that opens the settings page.
-     * @param exit action that exits the application.
-     * @param close action that closes the menu.
-     * @param openProject action that opens a selected project.
-     * @param renameProject action that renames a project and returns its updated descriptor.
-     * @param deleteProject action that deletes a project.
-     * @param back action that navigates to the previous menu page.
+     * @param newProject дія створення проєкту.
+     * @param load дія відкриття сторінки збережених проєктів.
+     * @param settings дія відкриття сторінки налаштувань.
+     * @param exit дія завершення роботи застосунку.
+     * @param close дія закриття меню.
+     * @param openProject дія відкриття вибраного проєкту.
+     * @param renameProject дія перейменування проєкту з поверненням оновленого опису.
+     * @param deleteProject дія видалення проєкту.
+     * @param back дія повернення на попередню сторінку меню.
      */
     public record Actions(
             Runnable newProject,
@@ -61,17 +60,17 @@ public final class MainMenuView extends StackPane {
             Runnable back
     ) {
         /**
-         * Validates and stores all menu action callbacks.
+         * Перевіряє та зберігає всі зворотні виклики дій меню.
          *
-         * @param newProject action that creates a project.
-         * @param load action that opens the saved-project page.
-         * @param settings action that opens the settings page.
-         * @param exit action that exits the application.
-         * @param close action that closes the menu.
-         * @param openProject action that opens a selected project.
-         * @param renameProject action that renames a project.
-         * @param deleteProject action that deletes a project.
-         * @param back action that navigates to the previous menu page.
+         * @param newProject дія створення проєкту.
+         * @param load дія відкриття списку збережених проєктів.
+         * @param settings дія відкриття налаштувань.
+         * @param exit дія завершення роботи застосунку.
+         * @param close дія закриття меню.
+         * @param openProject дія відкриття вибраного проєкту.
+         * @param renameProject дія перейменування проєкту.
+         * @param deleteProject дія видалення проєкту.
+         * @param back дія повернення на попередню сторінку.
          */
         public Actions {
             newProject = Objects.requireNonNull(newProject, "newProject");
@@ -86,7 +85,7 @@ public final class MainMenuView extends StackPane {
         }
     }
 
-    /** Identifies the page currently shown in the menu. */
+    /** Позначає сторінку, яку наразі показує меню. */
     private enum Page {
         MAIN,
         LOAD,
@@ -127,10 +126,10 @@ public final class MainMenuView extends StackPane {
     private Runnable persistLanguageAction = () -> { };
 
     /**
-     * Creates the menu view and connects it to localization and visibility-state notifications.
+     * Створює подання меню та підключає локалізацію й сповіщення про зміну видимості.
      *
-     * @param localization service that provides localized text and manages the active language.
-     * @param visibilityChanged callback notified when the menu becomes visible or hidden; may be null.
+     * @param localization служба локалізації текстів і активної мови.
+     * @param visibilityChanged зворотний виклик при показі або приховуванні меню; може бути {@code null}.
      */
     public MainMenuView(
             LocalizationService localization,
@@ -239,9 +238,9 @@ public final class MainMenuView extends StackPane {
     }
 
     /**
-     * Replaces the callbacks used by menu controls.
+     * Замінює зворотні виклики, які використовують елементи меню.
      *
-     * @param actions callbacks for navigation, application exit, and project actions.
+     * @param actions зворотні виклики навігації, завершення роботи та операцій із проєктами.
      */
     public void setActions(Actions actions) {
         this.actions = Objects.requireNonNull(actions, "actions");
@@ -257,9 +256,7 @@ public final class MainMenuView extends StackPane {
     }
 
     /**
-     * Lays out the overlay, adapting the main/settings pages to their content while keeping the
-     * saved-project page at the maximum panel height when the available scene size permits it.
-     * The backdrop and confirmation layer still fill the whole scene.
+     * Розміщує накладку меню, підлаштовуючи висоту сторінок до їхнього вмісту й зберігаючи потрібний розмір списку проєктів.
      */
     @Override
     protected void layoutChildren() {
@@ -287,15 +284,15 @@ public final class MainMenuView extends StackPane {
     }
 
     /**
-     * Returns whether the menu overlay is currently visible.
+     * Перевіряє, чи відображається накладка меню.
      *
-     * @return true when the menu is visible.
+     * @return {@code true}, якщо меню видиме.
      */
     public boolean isMenuVisible() {
         return isVisible();
     }
 
-    /** Shows the menu overlay and notifies the owner that it is active. */
+    /** Показує меню та сповіщає власника про його відкриття. */
     public void showMenu() {
         setVisible(true);
         setManaged(true);
@@ -303,7 +300,7 @@ public final class MainMenuView extends StackPane {
         restoreMenuPanelFocus();
     }
 
-    /** Hides the menu and its confirmation dialog, then notifies the owner. */
+    /** Приховує меню й діалог підтвердження та сповіщає власника про закриття. */
     public void hide() {
         if (!isVisible()) {
             return;
@@ -315,9 +312,9 @@ public final class MainMenuView extends StackPane {
     }
 
     /**
-     * Reports whether any visible menu page contains uncommitted changes.
+     * Перевіряє наявність незбережених змін на сторінках меню.
      *
-     * @return true if settings or a saved-project row has pending changes.
+     * @return {@code true}, якщо змінилися налаштування мови або назва проєкту.
      */
     public boolean hasUnsavedChanges() {
         return settingsHaveUnsavedChanges()
@@ -325,33 +322,30 @@ public final class MainMenuView extends StackPane {
     }
 
     /**
-     * Reports whether the unsaved-changes confirmation is visible.
+     * Перевіряє, чи показано підтвердження незбережених змін.
      *
-     * @return true when the confirmation dialog is showing.
+     * @return {@code true}, якщо діалог підтвердження видимий.
      */
     public boolean isConfirmingUnsavedChanges() {
         return unsavedChangesView.isShowing();
     }
 
     /**
-     * Displays the unsaved-changes confirmation before a potentially destructive navigation action.
+     * Показує підтвердження незбережених змін перед дією, яка може їх втратити.
      *
-     * @param saveAction callback run after the pending changes are saved.
-     * @param discardAction callback run after the pending changes are discarded.
+     * @param saveAction дія після збереження незавершених змін.
+     * @param discardAction дія після відхилення незавершених змін.
      */
     public void confirmUnsavedChanges(Runnable saveAction, Runnable discardAction) {
         unsavedChangesView.show(saveAction, discardAction);
     }
 
-    /**
-     * Chooses the discard-and-continue option of an active confirmation, such as when Escape is pressed.
-     * Does nothing when no confirmation is visible.
-     */
+    /** Вибирає варіант відхилення змін і продовження дії в активному діалозі. */
     public void discardAndContinueUnsavedChanges() {
         unsavedChangesView.discardAndContinue();
     }
 
-    /** Saves all pending project edits and persists a previewed settings language. */
+    /** Зберігає незавершені зміни назв проєктів і попередньо вибрану мову. */
     public void saveUnsavedChanges() {
         savingPendingChanges = true;
         try {
@@ -366,7 +360,7 @@ public final class MainMenuView extends StackPane {
         }
     }
 
-    /** Discards pending project edits and restores the settings language selected before editing. */
+    /** Відхиляє незавершені зміни назв проєктів і повертає мову до збереженого стану. */
     public void discardUnsavedChanges() {
         for (SavedProjectRowView row : projectRows) {
             row.discardPendingChange();
@@ -379,7 +373,7 @@ public final class MainMenuView extends StackPane {
         updateSaveButtonVisibility();
     }
 
-    /** Shows the main menu page, with Continue as its first action and no Back button. */
+    /** Показує головну сторінку меню без кнопки повернення. */
     public void showMainPage() {
         page = Page.MAIN;
         clearProjectRows();
@@ -395,9 +389,9 @@ public final class MainMenuView extends StackPane {
     }
 
     /**
-     * Shows the saved-project page and builds a scrollable list of the supplied projects.
+     * Показує сторінку збережених проєктів і створює прокручуваний список.
      *
-     * @param projects descriptors for available saved projects; null is treated as an empty list.
+     * @param projects описи доступних збережених проєктів; {@code null} трактується як порожній список.
      */
     public void showLoadPage(List<ProjectDescriptor> projects) {
         page = Page.LOAD;
@@ -435,7 +429,7 @@ public final class MainMenuView extends StackPane {
         installPanel();
     }
 
-    /** Shows the settings page and records the language to which unsaved changes can be reverted. */
+    /** Показує сторінку налаштувань і запам'ятовує мову для можливого скасування змін. */
     public void showSettingsPage() {
         page = Page.SETTINGS;
         clearProjectRows();
@@ -451,27 +445,27 @@ public final class MainMenuView extends StackPane {
     }
 
     /**
-     * Reports whether the saved-project page is active.
+     * Перевіряє, чи активна сторінка збережених проєктів.
      *
-     * @return true when the menu displays saved projects.
+     * @return {@code true}, якщо меню показує збережені проєкти.
      */
     public boolean isLoadPage() {
         return page == Page.LOAD;
     }
 
     /**
-     * Reports whether the settings page is active.
+     * Перевіряє, чи активна сторінка налаштувань.
      *
-     * @return true when the menu displays settings.
+     * @return {@code true}, якщо меню показує налаштування.
      */
     public boolean isSettingsPage() {
         return page == Page.SETTINGS;
     }
 
     /**
-     * Returns the localized labels of main-page actions for UI regression tests.
+     * Повертає підписи кнопок головної сторінки для регресійних тестів інтерфейсу.
      *
-     * @return button labels in displayed order.
+     * @return підписи кнопок у відображуваному порядку.
      */
     public List<String> mainButtonTextsForTest() {
         return List.of(
@@ -484,105 +478,105 @@ public final class MainMenuView extends StackPane {
     }
 
     /**
-     * Exposes the language selector for UI tests.
+     * Надає вибір мови для тестів інтерфейсу.
      *
-     * @return the settings language selector.
+     * @return список вибору мови на сторінці налаштувань.
      */
     public ComboBox<SupportedLanguage> languageSelectorForTest() {
         return languageSelector;
     }
 
     /**
-     * Exposes the Back button for UI tests.
+     * Надає кнопку повернення для тестів інтерфейсу.
      *
-     * @return the Back button, which is attached only to submenu footers.
+     * @return кнопка, яка додається лише внизу підсторінок меню.
      */
     public Button backButtonForTest() {
         return backButton;
     }
 
     /**
-     * Exposes the settings Save button for UI tests.
+     * Надає кнопку збереження налаштувань для тестів інтерфейсу.
      *
-     * @return the settings Save button.
+     * @return кнопка збереження налаштувань.
      */
     public Button saveSettingsButtonForTest() {
         return saveSettingsButton;
     }
 
     /**
-     * Exposes the current page title for regression tests.
+     * Повертає заголовок поточної сторінки для регресійних тестів.
      *
-     * @return the text displayed at the top of the active menu page.
+     * @return текст у верхній частині активної сторінки меню.
      */
     public String pageTitleForTest() {
         return titleLabel.getText();
     }
 
     /**
-     * Exposes the current saved-project scroll pane for UI tests.
+     * Надає прокручуваний список проєктів для тестів інтерфейсу.
      *
-     * @return the current project list scroll pane, or null before the project page is created.
+     * @return прокручуваний список або {@code null}, якщо сторінку проєктів ще не створено.
      */
     ScrollPane projectScrollPaneForTest() {
         return projectScrollPane;
     }
 
     /**
-     * Exposes the menu panel for focus-restoration regression tests.
+     * Надає панель меню для тестів відновлення фокусу.
      *
-     * @return the focus-traversable container that receives focus after menu-page transitions.
+     * @return контейнер панелі, який може отримувати фокус.
      */
     Region menuPanelForTest() {
         return panel;
     }
 
     /**
-     * Exposes the menu panel's maximum width for responsive-layout regression tests.
+     * Повертає максимальну ширину панелі для тестів адаптивного розташування.
      *
-     * @return the configured maximum panel width in pixels.
+     * @return налаштована максимальна ширина панелі в пікселях.
      */
     double panelMaxWidthForTest() {
         return panel.getMaxWidth();
     }
 
     /**
-     * Exposes the actual menu panel width for responsive-layout regression tests.
+     * Повертає поточну фактичну ширину панелі для регресійних тестів.
      *
-     * @return the panel's current width in pixels.
+     * @return ширина панелі в пікселях.
      */
     double panelWidthForTest() {
         return panel.getWidth();
     }
 
     /**
-     * Exposes the actual menu panel height for responsive-layout regression tests.
+     * Повертає поточну фактичну висоту панелі для регресійних тестів.
      *
-     * @return the panel's current height in pixels.
+     * @return висота панелі в пікселях.
      */
     double panelHeightForTest() {
         return panel.getHeight();
     }
 
     /**
-     * Exposes the menu panel's maximum height for responsive-layout regression tests.
+     * Повертає максимальну висоту панелі для адаптивних тестів.
      *
-     * @return the configured maximum panel height in pixels.
+     * @return налаштована максимальна висота панелі в пікселях.
      */
     double panelMaxHeightForTest() {
         return panel.getMaxHeight();
     }
 
     /**
-     * Exposes saved-project rows for UI tests.
+     * Повертає рядки збережених проєктів для тестів інтерфейсу.
      *
-     * @return an immutable snapshot of current project rows.
+     * @return незмінна копія поточного списку рядків проєктів.
      */
     List<SavedProjectRowView> projectRowsForTest() {
         return List.copyOf(projectRows);
     }
 
-    /** Releases row listeners and detaches the localization listener. */
+    /** Звільняє ресурси рядків проєктів і від'єднує слухача локалізації. */
     public void dispose() {
         clearProjectRows();
         unsavedChangesView.hide();
@@ -590,7 +584,7 @@ public final class MainMenuView extends StackPane {
     }
 
     /**
-     * Передає збереження вибраної мови callback-у контролера та оновлює базовий стан налаштувань.
+     * Зберігає вибрану мову через callback контролера та оновлює базовий стан налаштувань.
      */
     public void saveSettings() {
         if (!isSettingsPage()) {
@@ -602,9 +596,9 @@ public final class MainMenuView extends StackPane {
     }
 
     /**
-     * Checks whether the selected settings language differs from the saved baseline.
+     * Перевіряє, чи відрізняється вибрана мова від збереженого стану.
      *
-     * @return true when a new language has been previewed but not saved.
+     * @return {@code true}, якщо мову вибрано, але ще не збережено.
      */
     private boolean settingsHaveUnsavedChanges() {
         return page == Page.SETTINGS
@@ -612,19 +606,16 @@ public final class MainMenuView extends StackPane {
                 && settingsOriginalLanguage != localization.language();
     }
 
-    /** Refreshes the project list after a rename is committed outside a bulk save operation. */
+    /** Оновлює список проєктів після підтвердженого перейменування поза пакетним збереженням змін. */
     private void handleRenameCommitted() {
         if (!savingPendingChanges && isLoadPage()) {
             actions.load().run();
         }
     }
 
-    /**
-     * Builds the page footer and lays out the panel without forcing it to its previous fixed size.
-     */
+    /** Формує нижню панель сторінки та розміщує елементи відповідно до активної сторінки. */
     private void installPanel() {
         if (page == Page.MAIN) {
-            // A detached footer still owns its child nodes; clear it so Back is truly absent on Main.
             footer.getChildren().clear();
             panel.getChildren().setAll(titleLabel, new Separator(), content);
         } else {
@@ -639,9 +630,7 @@ public final class MainMenuView extends StackPane {
     }
 
     /**
-     * Moves keyboard focus away from the previously activated control after a menu-page transition.
-     * A second request after the current layout pass prevents JavaFX from auto-focusing the first
-     * button again when controls are detached and reattached to the panel.
+     * Переносить клавіатурний фокус із попередньої кнопки на панель після переходу між сторінками.
      */
     private void restoreMenuPanelFocus() {
         if (!isMenuVisible() || panel.getScene() == null) {
@@ -655,7 +644,7 @@ public final class MainMenuView extends StackPane {
         });
     }
 
-    /** Releases row-specific listeners and clears the current project list. */
+    /** Звільняє слухачів рядків і очищує поточний список проєктів. */
     private void clearProjectRows() {
         for (SavedProjectRowView row : projectRows) {
             row.dispose();
@@ -669,14 +658,14 @@ public final class MainMenuView extends StackPane {
         projectScrollPane = null;
     }
 
-    /** Reloads supported languages and selects the active language. */
+    /** Перезавантажує список мов і вибирає активну мову. */
     private void reloadLanguageSelector() {
         SupportedLanguage current = localization.language();
         languageSelector.getItems().setAll(localization.supportedLanguagesInDisplayOrder());
         languageSelector.setValue(current);
     }
 
-    /** Updates visible text and synchronizes the Save button with the current dirty state. */
+    /** Оновлює видимий текст та узгоджує кнопку збереження зі станом незбережених змін. */
     private void refreshTexts() {
         updatePageTitle();
         continueButton.setText(localization.text("menu.continue"));
@@ -693,8 +682,7 @@ public final class MainMenuView extends StackPane {
         updateSaveButtonVisibility();
     }
 
-
-    /** Updates the title to match the currently visible menu page. */
+    /** Оновлює заголовок відповідно до поточної сторінки меню. */
     private void updatePageTitle() {
         String title = switch (page) {
             case MAIN -> "NeuronMap";
@@ -704,14 +692,14 @@ public final class MainMenuView extends StackPane {
         titleLabel.setText(title);
     }
 
-    /** Shows or hides the Save button according to whether settings changes need to be persisted. */
+    /** Показує або приховує кнопку збереження залежно від наявності змін у налаштуваннях. */
     private void updateSaveButtonVisibility() {
         boolean showSave = settingsHaveUnsavedChanges();
         saveSettingsButton.setVisible(showSave);
         saveSettingsButton.setManaged(showSave);
     }
 
-    /** Creates a language list cell that displays the localized name of each supported language. */
+    /** Створює елемент списку мов із локалізованою назвою кожної мови. */
     private ListCell<SupportedLanguage> languageCell() {
         return new ListCell<>() {
             @Override
@@ -722,7 +710,7 @@ public final class MainMenuView extends StackPane {
         };
     }
 
-    /** Creates a full-width primary button used by the menu. */
+    /** Створює основну кнопку меню на всю доступну ширину. */
     private static Button menuButton() {
         Button button = new Button();
         button.getStyleClass().add("main-menu-button");
@@ -733,7 +721,7 @@ public final class MainMenuView extends StackPane {
         return button;
     }
 
-    /** Creates the secondary Back button used on submenu pages. */
+    /** Створює допоміжну кнопку повернення для підсторінок меню. */
     private static Button secondaryButton() {
         Button button = new Button();
         button.getStyleClass().add("main-menu-back-button");

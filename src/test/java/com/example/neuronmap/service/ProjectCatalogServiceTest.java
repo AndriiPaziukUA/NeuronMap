@@ -1,6 +1,6 @@
 package com.example.neuronmap.service;
 
-import com.example.neuronmap.application.project.ProjectDescriptor;
+import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.persistence.GlobalSettingsStore;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;

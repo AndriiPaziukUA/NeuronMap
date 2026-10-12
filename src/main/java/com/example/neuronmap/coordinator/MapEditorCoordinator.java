@@ -2,7 +2,7 @@ package com.example.neuronmap.coordinator;
 
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.application.NeuronMapApplicationService;
-import com.example.neuronmap.application.project.ProjectDescriptor;
+import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.config.AppConfig;
 import com.example.neuronmap.controller.CameraController;
 import com.example.neuronmap.controller.ConnectionController;

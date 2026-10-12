@@ -1,7 +1,7 @@
 package com.example.neuronmap.app;
 
 import com.example.neuronmap.application.NeuronMapApplicationService;
-import com.example.neuronmap.application.project.ProjectDescriptor;
+import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.config.AppConfig;
 import com.example.neuronmap.config.AppConfigLoader;
 import com.example.neuronmap.controller.NeuronMapController;
