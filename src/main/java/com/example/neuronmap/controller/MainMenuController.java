@@ -60,6 +60,7 @@ public final class MainMenuController {
     ) {
         this.view = Objects.requireNonNull(view, "view");
         Objects.requireNonNull(localization, "localization");
+        view.setPersistLanguageAction(localization::persistCurrentLanguage);
         this.projectsSupplier = Objects.requireNonNull(projectsSupplier, "projectsSupplier");
         this.newProjectAction = Objects.requireNonNull(newProjectAction, "newProjectAction");
         this.openProjectAction = Objects.requireNonNull(openProjectAction, "openProjectAction");

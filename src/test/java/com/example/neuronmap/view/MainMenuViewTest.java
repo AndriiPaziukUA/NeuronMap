@@ -102,6 +102,7 @@ final class MainMenuViewTest {
         runOnFxThread(() -> {
             LocalizationService localization = new LocalizationService(store);
             MainMenuView view = new MainMenuView(localization, ignored -> { });
+            view.setPersistLanguageAction(localization::persistCurrentLanguage);
             view.showSettingsPage();
 
             assertFalse(view.saveSettingsButtonForTest().isVisible());
@@ -116,6 +117,27 @@ final class MainMenuViewTest {
             assertFalse(view.hasUnsavedChanges());
             assertFalse(view.saveSettingsButtonForTest().isVisible());
             assertEquals("uk", store.load(LocalizationService.LANGUAGE_KEY));
+            view.dispose();
+        });
+    }
+
+    /**
+     * Перевіряє, що подання не зберігає мовні налаштування без callback-а контролера.
+     */
+    @Test
+    void settingsViewDoesNotPersistLanguageWithoutCallback() throws Exception {
+        GlobalSettingsStore store = new GlobalSettingsStore(
+                tempDirectory.resolve("settings-without-callback.properties")
+        );
+        runOnFxThread(() -> {
+            LocalizationService localization = new LocalizationService(store);
+            MainMenuView view = new MainMenuView(localization, ignored -> { });
+            view.showSettingsPage();
+
+            chooseLanguage(view.languageSelectorForTest(), SupportedLanguage.UKRAINIAN);
+            view.saveSettingsButtonForTest().fire();
+
+            assertNull(store.load(LocalizationService.LANGUAGE_KEY));
             view.dispose();
         });
     }

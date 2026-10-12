@@ -124,6 +124,7 @@ public final class MainMenuView extends StackPane {
     private SupportedLanguage settingsOriginalLanguage;
     private boolean savingPendingChanges;
     private Consumer<Boolean> visibilityChanged = ignored -> { };
+    private Runnable persistLanguageAction = () -> { };
 
     /**
      * Creates the menu view and connects it to localization and visibility-state notifications.
@@ -244,6 +245,15 @@ public final class MainMenuView extends StackPane {
      */
     public void setActions(Actions actions) {
         this.actions = Objects.requireNonNull(actions, "actions");
+    }
+
+    /**
+     * Встановлює дію збереження мови, яку виконує контролер застосунку.
+     *
+     * @param action дія збереження поточної мови.
+     */
+    public void setPersistLanguageAction(Runnable action) {
+        this.persistLanguageAction = Objects.requireNonNull(action, "action");
     }
 
     /**
@@ -580,13 +590,13 @@ public final class MainMenuView extends StackPane {
     }
 
     /**
-     * Persists the current previewed language and hides the Save button by resetting the baseline.
+     * Передає збереження вибраної мови callback-у контролера та оновлює базовий стан налаштувань.
      */
     public void saveSettings() {
         if (!isSettingsPage()) {
             return;
         }
-        localization.persistCurrentLanguage();
+        persistLanguageAction.run();
         settingsOriginalLanguage = localization.language();
         updateSaveButtonVisibility();
     }
