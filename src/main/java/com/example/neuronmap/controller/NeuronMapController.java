@@ -4,11 +4,8 @@ import com.example.neuronmap.application.NeuronMapApplicationService;
 import com.example.neuronmap.config.AppConfig;
 import com.example.neuronmap.coordinator.MapEditorCoordinator;
 import com.example.neuronmap.i18n.LocalizationService;
-import com.example.neuronmap.persistence.GlobalSettingsStore;
-import com.example.neuronmap.persistence.ProjectStorageDirectoryResolver;
 import javafx.scene.Scene;
 
-import java.nio.file.Path;
 import java.util.Objects;
 
 /**
@@ -19,43 +16,37 @@ public final class NeuronMapController {
     private final MapEditorCoordinator coordinator;
 
     /**
-     * Створює екземпляр NeuronMapController та зберігає передані залежності, потрібні для його роботи.
+     * Створює контролер карти з готовою службою локалізації.
      *
      * @param application прикладна служба, яка надає доступ до служб карти й збереження.
      * @param config завантажена конфігурація застосунку.
+     * @param localization готова служба локалізації інтерфейсу.
      */
     public NeuronMapController(
             NeuronMapApplicationService application,
-            AppConfig config
+            AppConfig config,
+            LocalizationService localization
     ) {
-        this(
-                application,
-                config,
-                () -> { }
-        );
+        this(application, config, localization, () -> { });
     }
 
     /**
-     * Створює екземпляр NeuronMapController та зберігає передані залежності, потрібні для його роботи.
+     * Створює контролер карти з готовою службою локалізації та callback завершення роботи.
      *
      * @param application прикладна служба, яка надає доступ до служб карти й збереження.
      * @param config завантажена конфігурація застосунку.
+     * @param localization готова служба локалізації інтерфейсу.
      * @param exitApplication callback завершення роботи застосунку.
      */
     public NeuronMapController(
             NeuronMapApplicationService application,
             AppConfig config,
+            LocalizationService localization,
             Runnable exitApplication
     ) {
         Objects.requireNonNull(application, "application");
         Objects.requireNonNull(config, "config");
-
-        Path storageDirectory = ProjectStorageDirectoryResolver.resolve();
-        LocalizationService localization = new LocalizationService(
-                new GlobalSettingsStore(
-                        storageDirectory.resolve("neuronmap-global.properties")
-                )
-        );
+        Objects.requireNonNull(localization, "localization");
 
         this.coordinator = new MapEditorCoordinator(
                 application,
@@ -70,6 +61,7 @@ public final class NeuronMapController {
      *
      * @param width ширина видимої області.
      * @param height висота видимої області.
+     * @return створена сцена редактора.
      */
     public Scene createScene(double width, double height) {
         return coordinator.createScene(width, height);

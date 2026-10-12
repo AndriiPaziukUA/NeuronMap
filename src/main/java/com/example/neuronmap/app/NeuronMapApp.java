@@ -5,6 +5,7 @@ import com.example.neuronmap.application.project.ProjectDescriptor;
 import com.example.neuronmap.config.AppConfig;
 import com.example.neuronmap.config.AppConfigLoader;
 import com.example.neuronmap.controller.NeuronMapController;
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.persistence.DatabasePathResolver;
 import com.example.neuronmap.persistence.GlobalSettingsStore;
@@ -23,7 +24,7 @@ import javafx.stage.Stage;
 import java.nio.file.Path;
 
 /**
- * Запускає JavaFX-застосунок, завантажує конфігурацію та готує початкове вікно редактора карти нейронів.
+ * Запускає JavaFX-застосунок, збирає його основні залежності та готує початкове вікно редактора карти нейронів.
  */
 public final class NeuronMapApp extends Application {
 
@@ -40,7 +41,6 @@ public final class NeuronMapApp extends Application {
         GlobalSettingsStore globalSettings = new GlobalSettingsStore(
                 storageDirectory.resolve("neuronmap-global.properties")
         );
-
         Path legacyDatabasePath = DatabasePathResolver.resolve();
         LegacyProjectStorageMigrator.migrateIfNeeded(
                 storageDirectory,
@@ -51,6 +51,7 @@ public final class NeuronMapApp extends Application {
                 globalSettings
         );
 
+        LocalizationService localization = new LocalizationService(globalSettings);
         ProjectCatalogService projectCatalog = new ProjectCatalogService(
                 storageDirectory,
                 globalSettings
@@ -73,6 +74,7 @@ public final class NeuronMapApp extends Application {
         NeuronMapController controller = new NeuronMapController(
                 application,
                 config,
+                localization,
                 stage::close
         );
 
