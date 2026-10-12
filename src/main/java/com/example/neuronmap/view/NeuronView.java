@@ -33,7 +33,7 @@ public final class NeuronView extends StackPane {
     private final Label inputSignalLabel = new Label();
     private final Label outputSignalLabel = new Label();
 
-private Integer displayedInputSignal;
+    private Integer displayedInputSignal;
 
     private boolean dragging;
     private boolean wasDragged;
@@ -50,7 +50,6 @@ private Integer displayedInputSignal;
      */
     public NeuronView(NeuronPresentation presentation) {
         if (presentation == null) {
-
             throw new IllegalArgumentException(
                     "presentation must not be null"
             );
@@ -172,6 +171,7 @@ private Integer displayedInputSignal;
      * Обчислює горизонтальне зміщення від початку перетягування.
      *
      * @param sceneX горизонтальна координата точки у системі координат сцени JavaFX.
+     * @return горизонтальне зміщення від попередньої точки перетягування.
      */
     public double dragDeltaX(double sceneX) {
         double delta = sceneX - lastSceneX;
@@ -183,6 +183,7 @@ private Integer displayedInputSignal;
      * Обчислює вертикальне зміщення від початку перетягування.
      *
      * @param sceneY вертикальна координата точки у системі координат сцени JavaFX.
+     * @return вертикальне зміщення від попередньої точки перетягування.
      */
     public double dragDeltaY(double sceneY) {
         double delta = sceneY - lastSceneY;
@@ -212,52 +213,44 @@ private Integer displayedInputSignal;
         dragging = false;
     }
 
-/**
- * Показує на нейроні індикатор із величиною отриманого вхідного сигналу.
- *
- * @param signal значення «signal», яке використовується в цьому методі.
- */
-public void showInputSignal(int signal) {
+    /**
+     * Показує на нейроні індикатор із величиною отриманого вхідного сигналу.
+     *
+     * @param signal величина вхідного сигналу.
+     */
+    public void showInputSignal(int signal) {
         displayedInputSignal = signal;
         inputSignalLabel.setText(Integer.toString(signal));
     }
 
-/**
- * Приховує індикатор вхідного сигналу.
- */
-public void hideInputSignal() {
+    /**
+     * Приховує індикатор вхідного сигналу.
+     */
+    public void hideInputSignal() {
         displayedInputSignal = null;
         inputSignalLabel.setText("0");
     }
 
-/**
- * Очищає текст і стан відображення вхідного сигналу.
- */
-public void clearDisplayedInputSignal() {
+    /**
+     * Очищає текст і стан відображення вхідного сигналу.
+     */
+    public void clearDisplayedInputSignal() {
         hideInputSignal();
     }
 
     /**
-     * Перевіряє, чи direction reversed за поточного стану компонента.
+     * Перевіряє, чи має подання нейрона розвернутий напрямок.
      *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
+     * @return {@code true}, якщо напрямок розвернуто; інакше {@code false}.
      */
     public boolean isDirectionReversed() {
         return presentation.directionReversed();
     }
 
     /**
-     * Перемикає напрямок портів нейрона та оновлює його видиме подання.
-     */
-    public void toggleDirection() {
-        presentation.toggleDirection();
-        positionFixedChildren();
-    }
-
-    /**
      * Оновлює колір, напрямок і позначення нейрона з урахуванням його стану та вибору.
      *
-     * @param selected значення «selected», яке використовується в цьому методі.
+     * @param selected ознака вибраного нейрона.
      */
     public void refreshVisuals(boolean selected) {
         setLayoutX(presentation.x());
@@ -291,12 +284,12 @@ public void clearDisplayedInputSignal() {
         positionFixedChildren();
     }
 
-/**
- * Повертає світову точку на вихідному порту нейрона, до якої має приєднуватися зв’язок.
- *
- * @return світову точку на вихідному порту нейрона, до якої має приєднуватися зв’язок.
- */
-public Point2D outputPoint() {
+    /**
+     * Повертає світову точку на вихідному порту нейрона, до якої має приєднуватися зв’язок.
+     *
+     * @return світова точка на вихідному порту нейрона, до якої має приєднуватися зв’язок.
+     */
+    public Point2D outputPoint() {
         return localPointToWorld(
                 new Point2D(
                         NeuronVisualGeometry.outputTipX(
@@ -307,12 +300,12 @@ public Point2D outputPoint() {
         );
     }
 
-/**
- * Повертає світову точку на вхідному порту нейрона, до якої має приєднуватися зв’язок.
- *
- * @return світову точку на вхідному порту нейрона, до якої має приєднуватися зв’язок.
- */
-public Point2D inputPoint() {
+    /**
+     * Повертає світову точку на вхідному порту нейрона, до якої має приєднуватися зв’язок.
+     *
+     * @return світову точку на вхідному порту нейрона, до якої має приєднуватися зв’язок.
+     */
+    public Point2D inputPoint() {
         return localPointToWorld(
                 new Point2D(
                         NeuronVisualGeometry.inputPortX(
@@ -379,7 +372,8 @@ public Point2D inputPoint() {
     /**
      * Перетворює точку з локальних координат нейрона на світові координати полотна.
      *
-     * @param localPoint значення «local point», яке використовується в цьому методі.
+     * @param localPoint точка в локальних координатах нейрона.
+     * @return точка в координатах полотна.
      */
     private Point2D localPointToWorld(Point2D localPoint) {
         double centerX = WIDTH / 2.0;
@@ -410,9 +404,9 @@ public Point2D inputPoint() {
     }
 
     /**
-     * Налаштовує signal label для роботи з відповідним елементом інтерфейсу.
+     * Налаштовує позначку вхідного або вихідного сигналу.
      *
-     * @param label значення «label», яке використовується в цьому методі.
+     * @param label позначка, яку потрібно налаштувати.
      */
     private void configureSignalLabel(Label label) {
         label.getStyleClass().add("neuron-activation");
