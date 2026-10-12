@@ -1,6 +1,5 @@
 package com.example.neuronmap.service;
 
-import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.CameraState;
 import com.example.neuronmap.persistence.MapRepository;
@@ -90,20 +89,13 @@ public final class MapService {
     }
 
     /**
-     * Зберігає карту та параметри камери через активний репозиторій.
+     * Зберігає модель карти разом із переданим станом камери через активний репозиторій.
      *
-     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param cameraState стан камери, який потрібно зберегти разом із картою.
      */
-    public void save(EditorState state) {
-        Objects.requireNonNull(state, "state");
-        repository.save(
-                model,
-                new CameraState(
-                        state.zoom(),
-                        state.panX(),
-                        state.panY()
-                )
-        );
+    public void save(CameraState cameraState) {
+        Objects.requireNonNull(cameraState, "cameraState");
+        repository.save(model, cameraState);
     }
 
     /**

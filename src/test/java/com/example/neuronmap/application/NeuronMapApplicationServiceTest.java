@@ -40,14 +40,11 @@ final class NeuronMapApplicationServiceTest {
         assertSame(model, service.neurons().model());
         assertEquals(1, model.neurons().size());
 
-        EditorState state = new EditorState(1.5, -10, 25);
-        service.map().save(state);
+        CameraState cameraState = new CameraState(1.5, -10, 25);
+        service.map().save(cameraState);
 
         assertNotNull(repository.savedModel);
-        assertEquals(
-                new CameraState(1.5, -10, 25),
-                repository.savedCamera
-        );
+        assertEquals(cameraState, repository.savedCamera);
     }
 
     /**

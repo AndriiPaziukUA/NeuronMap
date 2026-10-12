@@ -618,10 +618,15 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Негайно зберігає поточну карту й пов’язані налаштування.
+     * Негайно зберігає карту, стан камери, дані активного проєкту й поточний стан історії змін.
      */
     private void saveNow() {
-        mapService.save(state);
+        CameraState cameraState = new CameraState(
+                state.zoom(),
+                state.panX(),
+                state.panY()
+        );
+        mapService.save(cameraState);
 
         if (mapService.isPersistent()) {
             currentProject = projectCatalog.descriptorForDatabasePath(
