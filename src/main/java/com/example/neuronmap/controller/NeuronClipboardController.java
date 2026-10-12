@@ -4,6 +4,7 @@ import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.service.NeuronClipboardService;
+import com.example.neuronmap.util.WorldCoordinateMapper;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.WorkspaceView;
 import javafx.event.EventHandler;
@@ -118,14 +119,14 @@ public final class NeuronClipboardController {
     }
 
     /**
-     * Очищає  від тимчасових або застарілих значень.
+     * Очищає внутрішній буфер копіювання нейронів.
      */
     public void clear() {
         clipboardService.clear();
     }
 
     /**
-     * Реєструє обробники подій, потрібні для mouse tracking.
+     * Реєструє обробники подій, потрібні для відстеження положення курсора.
      */
     private void installMouseTracking() {
         workspace.node().addEventFilter(
@@ -183,7 +184,7 @@ public final class NeuronClipboardController {
     }
 
     /**
-     * Обробляє подію «key pressed» і передає її до відповідної операції редактора.
+     * Обробляє натискання клавіш і передає його до відповідної операції редактора.
      *
      * @param event подія інтерфейсу, яку потрібно обробити.
      */
@@ -250,15 +251,19 @@ public final class NeuronClipboardController {
             return false;
         }
 
-        double worldX = (lastMouseX - state.panX()) / state.zoom();
-        double worldY = (lastMouseY - state.panY()) / state.zoom();
+        Point2D worldPoint = WorldCoordinateMapper.viewportToWorld(
+                new Point2D(lastMouseX, lastMouseY),
+                state.zoom(),
+                state.panX(),
+                state.panY()
+        );
 
         hideMenu.run();
         state.clearSelection();
 
         List<Neuron> pasted = clipboardService.paste(
-                worldX - NeuronView.WIDTH / 2.0,
-                worldY - NeuronView.HEIGHT / 2.0
+                worldPoint.getX() - NeuronView.WIDTH / 2.0,
+                worldPoint.getY() - NeuronView.HEIGHT / 2.0
         );
 
         for (Neuron neuron : pasted) {
@@ -280,11 +285,10 @@ public final class NeuronClipboardController {
     }
 
     /**
-     * Перевіряє, чи перебуває фокус у текстовому полі, де клавіатурні команди копіювання не мають перехоплюватися редактором.
+     * Перевіряє, чи перебуває фокус у текстовому полі, де команди копіювання не мають перехоплюватися редактором.
      *
-     * @param target цільовий вузол або об’єкт інтерфейсу, який потрібно перевірити чи знайти.
-     *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
+     * @param target цільовий вузол або об’єкт інтерфейсу, який потрібно перевірити.
+     * @return {@code true}, якщо фокус перебуває в текстовому полі; інакше {@code false}.
      */
     private boolean isTextInputTarget(Object target) {
         Node node = target instanceof Node targetNode ? targetNode : null;

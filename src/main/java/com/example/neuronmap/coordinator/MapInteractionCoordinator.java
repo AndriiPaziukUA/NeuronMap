@@ -11,6 +11,7 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.service.NeuronService;
+import com.example.neuronmap.util.WorldCoordinateMapper;
 import com.example.neuronmap.view.ConnectionView;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.WorkspaceView;
@@ -20,7 +21,6 @@ import javafx.scene.control.Button;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 
-import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -43,18 +43,18 @@ public final class MapInteractionCoordinator {
     private final NeuronToolDragController toolDragController;
 
     /**
-     * Створює екземпляр MapInteractionCoordinator та зберігає передані залежності, потрібні для його роботи.
+     * Створює координатор взаємодії редактора з локалізацією українською мовою.
      *
      * @param neuronService служба операцій над нейронами.
-     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param state стан взаємодії редактора.
      * @param workspace полотно редактора.
      * @param selectionController контролер вибору нейронів.
-     * @param connectionController значення «connection controller», яке використовується в цьому методі.
-     * @param neuronController значення «neuron controller», яке використовується в цьому методі.
-     * @param simulationController значення «simulation controller», яке використовується в цьому методі.
-     * @param presentation візуальне подання нейрона.
-     * @param save функція зворотного виклику для відповідної дії.
-     * @param status callback для показу повідомлення в рядку стану.
+     * @param connectionController контролер створення й видалення зв’язків.
+     * @param neuronController контролер взаємодії з нейронами.
+     * @param simulationController контролер симуляції.
+     * @param presentation координатор оновлення візуальних подань.
+     * @param save функція збереження поточного стану.
+     * @param status callback для повідомлень стану.
      */
     public MapInteractionCoordinator(
             NeuronService neuronService,
@@ -84,18 +84,18 @@ public final class MapInteractionCoordinator {
     }
 
     /**
-     * Створює екземпляр MapInteractionCoordinator та зберігає передані залежності, потрібні для його роботи.
+     * Створює координатор взаємодії редактора з переданою службою локалізації.
      *
      * @param neuronService служба операцій над нейронами.
-     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param state стан взаємодії редактора.
      * @param workspace полотно редактора.
      * @param selectionController контролер вибору нейронів.
-     * @param connectionController значення «connection controller», яке використовується в цьому методі.
-     * @param neuronController значення «neuron controller», яке використовується в цьому методі.
-     * @param simulationController значення «simulation controller», яке використовується в цьому методі.
-     * @param presentation візуальне подання нейрона.
-     * @param save функція зворотного виклику для відповідної дії.
-     * @param status callback для показу повідомлення в рядку стану.
+     * @param connectionController контролер створення й видалення зв’язків.
+     * @param neuronController контролер взаємодії з нейронами.
+     * @param simulationController контролер симуляції.
+     * @param presentation координатор оновлення візуальних подань.
+     * @param save функція збереження поточного стану.
+     * @param status callback для повідомлень стану.
      * @param localization служба локалізації інтерфейсу.
      */
     public MapInteractionCoordinator(
@@ -138,9 +138,9 @@ public final class MapInteractionCoordinator {
     }
 
     /**
-     * Починає операцію add neuron mode та готує стан взаємодії.
+     * Починає режим додавання нейрона та готує стан взаємодії.
      *
-     * @param type тип нейрона або елемента.
+     * @param type тип нейрона.
      */
     public void beginAddNeuronMode(NeuronType type) {
         simulationController.stop();
@@ -155,8 +155,6 @@ public final class MapInteractionCoordinator {
 
     /**
      * Скасовує незавершені режими взаємодії, включно зі створенням зв’язку та перетягуванням.
-     *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public void cancelInteractions() {
         toolDragController.clearPreview();
@@ -171,9 +169,9 @@ public final class MapInteractionCoordinator {
     /**
      * Створює нейрон обраного типу в заданих координатах карти.
      *
-     * @param type тип нейрона або елемента.
-     * @param x координата X.
-     * @param y координата Y.
+     * @param type тип нейрона.
+     * @param x світова координата X.
+     * @param y світова координата Y.
      */
     public void addNeuronAt(NeuronType type, double x, double y) {
         if (type == null) {
@@ -212,7 +210,7 @@ public final class MapInteractionCoordinator {
     }
 
     /**
-     * Від’єднує обробники подій і звільняє ресурси, якими керує компонент.
+     * Очищає тимчасовий попередній перегляд перетягування.
      */
     public void dispose() {
         toolDragController.clearPreview();
@@ -221,7 +219,7 @@ public final class MapInteractionCoordinator {
     /**
      * Обробляє клацання по полотну відповідно до активного режиму редактора.
      *
-     * @param event подія інтерфейсу, яку потрібно обробити.
+     * @param event подія миші.
      */
     private void handleCanvasClick(MouseEvent event) {
         if (event.getButton() != MouseButton.PRIMARY) {
@@ -234,7 +232,16 @@ public final class MapInteractionCoordinator {
         }
 
         if (state.mode() == EditorState.Mode.ADD_NEURON) {
-            Point2D worldPoint = screenToWorld(event.getX(), event.getY());
+            Point2D viewportPoint = workspace.node().sceneToLocal(
+                    event.getSceneX(),
+                    event.getSceneY()
+            );
+            Point2D worldPoint = WorldCoordinateMapper.viewportToWorld(
+                    viewportPoint,
+                    state.zoom(),
+                    state.panX(),
+                    state.panY()
+            );
             addNeuronAt(
                     state.pendingNeuronType(),
                     worldPoint.getX() - NeuronView.WIDTH / 2.0,
@@ -256,7 +263,7 @@ public final class MapInteractionCoordinator {
     /**
      * Створює нейрон у світових координатах, куди користувач відпустив інструмент.
      *
-     * @param type тип нейрона або елемента.
+     * @param type тип нейрона.
      * @param worldPoint точка у світових координатах карти.
      */
     private void handleToolDrop(NeuronType type, Point2D worldPoint) {
@@ -275,18 +282,5 @@ public final class MapInteractionCoordinator {
      */
     public void configureToolbarButtons(Button excitatoryButton, Button inhibitoryButton) {
         toolDragController.configureToolbarButtons(excitatoryButton, inhibitoryButton);
-    }
-
-    /**
-     * Перетворює екранні координати на координати карти з урахуванням поточної камери.
-     *
-     * @param screenX горизонтальна екранна координата.
-     * @param screenY вертикальна екранна координата.
-     */
-    private Point2D screenToWorld(double screenX, double screenY) {
-        return new Point2D(
-                (screenX - state.panX()) / state.zoom(),
-                (screenY - state.panY()) / state.zoom()
-        );
     }
 }

@@ -2,6 +2,7 @@ package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.model.NeuronType;
+import com.example.neuronmap.util.WorldCoordinateMapper;
 import com.example.neuronmap.view.NeuronDragPreviewFactory;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.WorkspaceView;
@@ -19,7 +20,7 @@ import java.util.Objects;
 import java.util.function.BiConsumer;
 
 /**
- * Обробляє перетягування інструментів створення з панелі на полотно та перетворює екранні координати на координати карти.
+ * Обробляє перетягування інструментів створення з панелі на полотно та перетворює координати на координати карти.
  */
 public final class NeuronToolDragController {
 
@@ -141,7 +142,12 @@ public final class NeuronToolDragController {
                         event.getSceneX(),
                         event.getSceneY()
                 );
-                Point2D worldPoint = screenToWorld(viewportPoint);
+                Point2D worldPoint = WorldCoordinateMapper.viewportToWorld(
+                        viewportPoint,
+                        state.zoom(),
+                        state.panX(),
+                        state.panY()
+                );
                 dropConsumer.accept(type, worldPoint);
                 success = true;
             }
@@ -182,18 +188,6 @@ public final class NeuronToolDragController {
                 cursor.getY() - NeuronView.HEIGHT / 2.0
         );
         dragPreview.toFront();
-    }
-
-    /**
-     * Перетворює екранну точку на координати карти з урахуванням масштабу й зміщення камери.
-     *
-     * @param screenPoint точка в екранних координатах.
-     */
-    private Point2D screenToWorld(Point2D screenPoint) {
-        return new Point2D(
-                (screenPoint.getX() - state.panX()) / state.zoom(),
-                (screenPoint.getY() - state.panY()) / state.zoom()
-        );
     }
 
     /**
