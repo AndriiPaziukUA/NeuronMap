@@ -8,7 +8,6 @@ import com.example.neuronmap.controller.NeuronToolDragController;
 import com.example.neuronmap.controller.SelectionController;
 import com.example.neuronmap.controller.SimulationController;
 import com.example.neuronmap.i18n.LocalizationService;
-import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.util.WorldCoordinateMapper;
@@ -25,7 +24,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * Об’єднує обробники подій полотна, вибору, створення нейронів, групування та створення зв’язків.
+ * Координує обробку подій полотна та передає зміни моделі до координатора презентації.
  */
 public final class MapInteractionCoordinator {
 
@@ -43,18 +42,18 @@ public final class MapInteractionCoordinator {
     private final NeuronToolDragController toolDragController;
 
     /**
-     * Створює координатор взаємодії редактора з переданою службою локалізації.
+     * Створює координатор взаємодії редактора з переданими службами та контролерами.
      *
      * @param neuronService служба операцій над нейронами.
      * @param state стан взаємодії редактора.
      * @param workspace полотно редактора.
      * @param selectionController контролер вибору нейронів.
-     * @param connectionController контролер створення й видалення зв’язків.
-     * @param neuronController контролер взаємодії з нейронами.
+     * @param connectionController контролер створення й видалення зв'язків.
+     * @param neuronController контролер подій нейронів.
      * @param simulationController контролер симуляції.
-     * @param presentation координатор оновлення візуальних подань.
-     * @param save функція збереження поточного стану.
-     * @param status callback для повідомлень стану.
+     * @param presentation координатор візуальних подань.
+     * @param save дія збереження поточного стану.
+     * @param status дія показу повідомлень стану.
      * @param localization служба локалізації інтерфейсу.
      */
     public MapInteractionCoordinator(
@@ -113,7 +112,7 @@ public final class MapInteractionCoordinator {
     }
 
     /**
-     * Скасовує незавершені режими взаємодії, включно зі створенням зв’язку та перетягуванням.
+     * Скасовує незавершені режими взаємодії та очищує тимчасові подання.
      */
     public void cancelInteractions() {
         toolDragController.clearPreview();
@@ -126,7 +125,7 @@ public final class MapInteractionCoordinator {
     }
 
     /**
-     * Створює нейрон обраного типу в заданих координатах карти.
+     * Створює нейрон у заданих координатах і синхронізує карту одним викликом координатора презентації.
      *
      * @param type тип нейрона.
      * @param x світова координата X.
@@ -137,15 +136,14 @@ public final class MapInteractionCoordinator {
             return;
         }
 
-        Neuron neuron = neuronService.create(type, x, y);
-        neuronController.addViewForNeuron(neuron);
+        neuronService.create(type, x, y);
         presentation.refreshAll();
         save.run();
         status.accept(localization.text("status.new_neuron"));
     }
 
     /**
-     * Створює групу з вибраних нейронів через службу групування.
+     * Створює групу з вибраних нейронів через відповідну службу вибору.
      */
     public void groupSelection() {
         selectionController.groupSelection();
@@ -161,7 +159,7 @@ public final class MapInteractionCoordinator {
     }
 
     /**
-     * Завершує режим видалення зв’язків і очищає тимчасове підсвічування.
+     * Завершує режим видалення зв'язків і прибирає його тимчасове підсвічування.
      */
     public void exitDeleteConnectionMode() {
         connectionController.exitDelete();
@@ -220,7 +218,7 @@ public final class MapInteractionCoordinator {
     }
 
     /**
-     * Створює нейрон у світових координатах, куди користувач відпустив інструмент.
+     * Створює нейрон у точці, куди користувач відпустив інструмент перетягування.
      *
      * @param type тип нейрона.
      * @param worldPoint точка у світових координатах карти.
@@ -234,7 +232,7 @@ public final class MapInteractionCoordinator {
     }
 
     /**
-     * Під’єднує перетягування до кнопок додавання збуджувального й гальмівного нейронів.
+     * Під'єднує перетягування до кнопок додавання збуджувального й гальмівного нейронів.
      *
      * @param excitatoryButton кнопка додавання збуджувального нейрона.
      * @param inhibitoryButton кнопка додавання гальмівного нейрона.

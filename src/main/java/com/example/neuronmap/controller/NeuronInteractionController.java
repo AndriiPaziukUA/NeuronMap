@@ -2,7 +2,6 @@ package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.i18n.LocalizationService;
-import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.service.GroupService;
 import com.example.neuronmap.service.NeuronClipboardService;
 import com.example.neuronmap.service.NeuronService;
@@ -18,7 +17,8 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * Створює й підтримує візуальні подання нейронів та координує кліки, контекстне меню й інтерактивні стани нейронів.
+ * Обробляє користувацьку взаємодію з нейронами та координує підлеглі контролери.
+ * Створення, вилучення й синхронізацію самих графічних подань делегує координатору презентації.
  */
 public final class NeuronInteractionController {
 
@@ -33,24 +33,25 @@ public final class NeuronInteractionController {
     private final NeuronMenuController menuController;
     private final NeuronRotationController rotationController;
     private final NeuronDragController dragController;
+    private Runnable neuronViewSynchronizer;
 
     /**
-     * Створює екземпляр NeuronInteractionController та зберігає передані залежності, потрібні для його роботи.
+     * Створює контролер взаємодії з типовою українською локалізацією.
      *
      * @param neuronService служба операцій над нейронами.
      * @param groupService служба операцій над групами нейронів.
      * @param selectionController контролер вибору нейронів.
      * @param clipboardService служба копіювання та вставлення нейронів.
-     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param state стан редактора.
      * @param workspace полотно редактора.
-     * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
-     * @param rotationHandles мапа ручок обертання нейронів за ідентифікаторами.
-     * @param connections набір напрямлених зв’язків моделі.
-     * @param simulation налаштування часу одного такту симуляції.
-     * @param save функція зворотного виклику для відповідної дії.
-     * @param refreshConnections callback, який оновлює геометрію та вигляд зв’язків.
-     * @param status callback для показу повідомлення в рядку стану.
-     * @param menuCustomizer компонент, що налаштовує кнопки контекстного меню нейрона.
+     * @param neuronViews спільна мапа візуальних подань нейронів.
+     * @param rotationHandles спільна мапа ручок обертання.
+     * @param connections контролер роботи зі зв'язками.
+     * @param simulation контролер симуляції.
+     * @param save дія збереження поточного стану.
+     * @param refreshConnections дія оновлення всієї презентації карти.
+     * @param status дія показу повідомлення стану.
+     * @param menuCustomizer компонент оформлення контекстного меню.
      */
     public NeuronInteractionController(
             NeuronService neuronService,
@@ -88,23 +89,23 @@ public final class NeuronInteractionController {
     }
 
     /**
-     * Створює екземпляр NeuronInteractionController та зберігає передані залежності, потрібні для його роботи.
+     * Створює контролер і підлеглі обробники кліків, перетягування, вибору, буфера обміну та видалення.
      *
      * @param neuronService служба операцій над нейронами.
      * @param groupService служба операцій над групами нейронів.
      * @param selectionController контролер вибору нейронів.
      * @param clipboardService служба копіювання та вставлення нейронів.
-     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param state стан редактора.
      * @param workspace полотно редактора.
-     * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
-     * @param rotationHandles мапа ручок обертання нейронів за ідентифікаторами.
-     * @param connections набір напрямлених зв’язків моделі.
-     * @param simulation налаштування часу одного такту симуляції.
-     * @param save функція зворотного виклику для відповідної дії.
-     * @param refreshConnections callback, який оновлює геометрію та вигляд зв’язків.
-     * @param status callback для показу повідомлення в рядку стану.
-     * @param menuCustomizer компонент, що налаштовує кнопки контекстного меню нейрона.
-     * @param localization служба локалізації інтерфейсу.
+     * @param neuronViews спільна мапа візуальних подань нейронів.
+     * @param rotationHandles спільна мапа ручок обертання.
+     * @param connections контролер роботи зі зв'язками.
+     * @param simulation контролер симуляції.
+     * @param save дія збереження поточного стану.
+     * @param refreshConnections дія оновлення всієї презентації карти.
+     * @param status дія показу повідомлення стану.
+     * @param menuCustomizer компонент оформлення контекстного меню.
+     * @param localization спільна служба локалізації.
      */
     public NeuronInteractionController(
             NeuronService neuronService,
@@ -141,7 +142,6 @@ public final class NeuronInteractionController {
                 state,
                 workspace,
                 this::hideMenu,
-                this::addViewForNeuron,
                 refreshConnections,
                 save,
                 status,
@@ -152,12 +152,8 @@ public final class NeuronInteractionController {
                 neuronService,
                 state,
                 workspace,
-                neuronViews,
-                rotationHandles,
                 this::hideMenu,
-                this::refreshVisuals,
                 refreshConnections,
-                connections::refreshDeleteHighlights,
                 save,
                 status,
                 sharedLocalization
@@ -208,36 +204,68 @@ public final class NeuronInteractionController {
     }
 
     /**
-     * Створює візуальні подання для нейронів, які вже є в моделі.
+     * Передає координатору презентації запит на синхронізацію нейронних подань.
+     * Використовується точкою складання застосунку після створення координатора.
+     *
+     * @param synchronizer дія синхронізації подань із моделлю.
      */
-    public void loadViews() {
-        for (Neuron neuron : neuronService.neurons()) {
-            createView(neuron);
+    public void setNeuronViewSynchronizer(Runnable synchronizer) {
+        if (neuronViewSynchronizer != null) {
+            throw new IllegalStateException("Neuron view synchronizer is already configured");
         }
-        refreshVisuals();
-        refreshOverlayPositions();
+        neuronViewSynchronizer = Objects.requireNonNull(synchronizer, "synchronizer");
     }
 
     /**
-     * Створює подання для нового нейрона та додає його до шару вузлів.
-     *
-     * @param neuron нейрон моделі.
+     * Забезпечує початкову синхронізацію подань через їхнього єдиного власника.
+     * Зберігає сумісність із наявною точкою складання редактора.
      */
-    public void addViewForNeuron(Neuron neuron) {
-        if (neuronViews.containsKey(neuron.id())) {
-            return;
+    public void loadViews() {
+        if (neuronViewSynchronizer == null) {
+            throw new IllegalStateException(
+                    "Neuron view synchronizer must be configured before loading views"
+            );
         }
-        createView(neuron);
-        refreshVisuals();
-        refreshOverlayPositions();
+        neuronViewSynchronizer.run();
+    }
+
+    /**
+     * Встановлює обробники користувацьких подій на вже створене координатором подання нейрона.
+     *
+     * @param neuronView подання, для якого потрібно активувати взаємодію.
+     * @param rotationHandle ручка обертання, створена координатором презентації.
+     */
+    public void installInteractionHandlers(
+            NeuronView neuronView,
+            RotationHandleView rotationHandle
+    ) {
+        Objects.requireNonNull(neuronView, "neuronView");
+        Objects.requireNonNull(rotationHandle, "rotationHandle");
+        rotationController.installHandleHandlers(neuronView, rotationHandle);
+
+        neuronView.addEventHandler(
+                MouseEvent.MOUSE_PRESSED,
+                event -> dragController.handlePressed(neuronView, event)
+        );
+        neuronView.addEventHandler(
+                MouseEvent.MOUSE_DRAGGED,
+                event -> dragController.handleDragged(neuronView, event)
+        );
+        neuronView.addEventHandler(
+                MouseEvent.MOUSE_RELEASED,
+                event -> dragController.handleReleased(neuronView)
+        );
+        neuronView.addEventHandler(
+                MouseEvent.MOUSE_CLICKED,
+                event -> handleNeuronClicked(neuronView, event)
+        );
     }
 
     /**
      * Перевіряє, чи є ціль подією інтерактивним елементом, який має сам обробляти взаємодію.
      *
-     * @param target цільовий вузол або об’єкт інтерфейсу, який потрібно перевірити чи знайти.
-     *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
+     * @param target цільовий вузол або об'єкт інтерфейсу.
+     * @return {@code true}, якщо подію має обробити вкладений інтерактивний елемент.
      */
     public boolean isInteractiveTarget(Object target) {
         Node node = target instanceof Node targetNode ? targetNode : null;
@@ -297,14 +325,16 @@ public final class NeuronInteractionController {
     }
 
     /**
-     * Передає видалення поточного вибору відповідному обробнику й повертає результат операції.
+     * Передає видалення поточного вибору відповідному обробнику.
+     *
+     * @return {@code true}, якщо видалено принаймні один нейрон.
      */
     public boolean deleteSelectedNeurons() {
         return deletionController.deleteSelectedNeurons();
     }
 
     /**
-     * Від’єднує обробники та очищає ресурси, створені контролером взаємодії.
+     * Від'єднує обробники й очищає ресурси, створені контролером взаємодії.
      */
     public void dispose() {
         clipboardController.clear();
@@ -312,44 +342,10 @@ public final class NeuronInteractionController {
     }
 
     /**
-     * Створює й додає до полотна візуальне подання нейрона.
-     *
-     * @param neuron нейрон моделі.
-     */
-    private void createView(Neuron neuron) {
-        var presentation = neuronService.presentation(neuron.id());
-        if (presentation == null) {
-            throw new IllegalStateException("Missing presentation for neuron " + neuron.id());
-        }
-
-        NeuronView neuronView = new NeuronView(presentation);
-        neuronViews.put(neuron.id(), neuronView);
-        workspace.nodeLayer().getChildren().add(neuronView);
-        rotationController.createHandle(neuronView);
-
-        neuronView.addEventHandler(
-                MouseEvent.MOUSE_PRESSED,
-                event -> dragController.handlePressed(neuronView, event)
-        );
-        neuronView.addEventHandler(
-                MouseEvent.MOUSE_DRAGGED,
-                event -> dragController.handleDragged(neuronView, event)
-        );
-        neuronView.addEventHandler(
-                MouseEvent.MOUSE_RELEASED,
-                event -> dragController.handleReleased(neuronView)
-        );
-        neuronView.addEventHandler(
-                MouseEvent.MOUSE_CLICKED,
-                event -> handleNeuronClicked(neuronView, event)
-        );
-    }
-
-    /**
      * Обробляє клацання по нейрону з урахуванням кнопки миші та активного режиму редактора.
      *
-     * @param neuronView візуальне подання нейрона.
-     * @param event подія інтерфейсу, яку потрібно обробити.
+     * @param neuronView подання нейрона, по якому клацнули.
+     * @param event подія миші.
      */
     private void handleNeuronClicked(NeuronView neuronView, MouseEvent event) {
         if (event.getButton() == MouseButton.SECONDARY) {

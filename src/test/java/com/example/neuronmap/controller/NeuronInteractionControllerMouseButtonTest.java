@@ -1,6 +1,7 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
+import com.example.neuronmap.coordinator.MapPresentationCoordinator;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.service.ConnectionService;
@@ -8,8 +9,10 @@ import com.example.neuronmap.service.GroupService;
 import com.example.neuronmap.service.NeuronClipboardService;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.simulation.SimulationService;
+import com.example.neuronmap.view.ConnectionView;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.RotationHandleView;
+import com.example.neuronmap.view.SimulationStepPresenter;
 import com.example.neuronmap.view.WorkspaceView;
 import javafx.application.Platform;
 import javafx.scene.Scene;
@@ -73,7 +76,7 @@ final class NeuronInteractionControllerMouseButtonTest {
     }
 
     /**
-     * Створює набір компонентів, потрібний для ізольованої перевірки взаємодії з нейроном.
+     * Створює контролери редактора разом із координатором, який є власником синхронізації подань.
      */
     private static Fixture fixture() {
         NeuronMapModel model = new NeuronMapModel();
@@ -89,6 +92,7 @@ final class NeuronInteractionControllerMouseButtonTest {
         EditorState state = new EditorState(1.0, 0.0, 0.0);
         WorkspaceView workspace = new WorkspaceView();
         Map<String, NeuronView> neuronViews = new HashMap<>();
+        Map<String, ConnectionView> connectionViews = new HashMap<>();
         Map<String, RotationHandleView> rotationHandles = new HashMap<>();
 
         SelectionController selectionController = new SelectionController(
@@ -102,7 +106,8 @@ final class NeuronInteractionControllerMouseButtonTest {
         SimulationStepPresenter stepPresenter = new SimulationStepPresenter(
                 workspace,
                 neuronViews,
-                () -> { }
+                () -> { },
+                new PulseAnimationController(workspace)
         );
         SimulationController simulation = new SimulationController(
                 neuronService,
@@ -149,6 +154,21 @@ final class NeuronInteractionControllerMouseButtonTest {
                 () -> { },
                 ignored -> { },
                 menuCustomizer
+        );
+
+        new MapPresentationCoordinator(
+                neuronService,
+                workspace,
+                neuronViews,
+                connectionViews,
+                rotationHandles,
+                controller,
+                connections,
+                new NeuronLayerOrderController(
+                        neuronViews,
+                        connectionViews,
+                        model::connections
+                )
         );
 
         Pane root = new Pane(workspace.node());

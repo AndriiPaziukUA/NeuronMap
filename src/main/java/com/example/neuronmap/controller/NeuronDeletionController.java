@@ -3,8 +3,6 @@ package com.example.neuronmap.controller;
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.service.NeuronService;
-import com.example.neuronmap.view.NeuronView;
-import com.example.neuronmap.view.RotationHandleView;
 import com.example.neuronmap.view.WorkspaceView;
 import javafx.event.EventHandler;
 import javafx.scene.Cursor;
@@ -15,76 +13,63 @@ import javafx.scene.input.KeyEvent;
 
 import java.util.Collection;
 import java.util.LinkedHashSet;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * Видаляє вибрані або окремі нейрони та оновлює пов’язані візуальні елементи й стан редактора.
+ * Обробляє запити на видалення нейронів і оновлює редакторський стан після успішної операції.
+ * Синхронізацію графічних подань делегує координатору презентації через callback.
  */
 public final class NeuronDeletionController {
 
     private final NeuronService neuronService;
     private final EditorState state;
     private final WorkspaceView workspace;
-    private final Map<String, NeuronView> neuronViews;
-    private final Map<String, RotationHandleView> rotationHandles;
     private final Runnable hideMenu;
-    private final Runnable refreshVisuals;
     private final Runnable refreshPresentation;
-    private final Runnable refreshDeleteHighlights;
     private final Runnable save;
     private final Consumer<String> status;
     private final LocalizationService localization;
     private final EventHandler<KeyEvent> keyHandler = this::handleKeyPressed;
 
     /**
-     * Створює екземпляр NeuronDeletionController та зберігає передані залежності, потрібні для його роботи.
+     * Створює обробник видалення, який не керує мапами подань і вузлами JavaFX напряму.
      *
-     * @param neuronService служба операцій над нейронами.
-     * @param state стан об’єкта, який потрібно зберегти або відновити.
-     * @param workspace полотно редактора.
-     * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
-     * @param rotationHandles мапа ручок обертання нейронів за ідентифікаторами.
-     * @param hideMenu callback для приховування контекстного меню.
-     * @param refreshVisuals callback, який оновлює вигляд нейронів.
-     * @param refreshPresentation callback, який синхронізує візуальні подання з моделлю.
-     * @param refreshDeleteHighlights callback, який оновлює підсвічування зв’язків, доступних для видалення.
-     * @param save функція зворотного виклику для відповідної дії.
-     * @param status callback для показу повідомлення в рядку стану.
-     * @param localization служба локалізації інтерфейсу.
+     * @param neuronService служба видалення нейронів із моделі.
+     * @param state стан вибору та режимів редактора.
+     * @param workspace робоча область, курсор якої потрібно відновити після видалення.
+     * @param hideMenu дія приховування активного контекстного меню.
+     * @param refreshPresentation дія синхронізації всіх подань карти з моделлю.
+     * @param save дія збереження зміненої карти.
+     * @param status дія відображення повідомлення користувачу.
+     * @param localization служба локалізації повідомлень.
      */
     public NeuronDeletionController(
             NeuronService neuronService,
             EditorState state,
             WorkspaceView workspace,
-            Map<String, NeuronView> neuronViews,
-            Map<String, RotationHandleView> rotationHandles,
             Runnable hideMenu,
-            Runnable refreshVisuals,
             Runnable refreshPresentation,
-            Runnable refreshDeleteHighlights,
             Runnable save,
             Consumer<String> status,
             LocalizationService localization
     ) {
-        this.neuronService = neuronService;
-        this.state = state;
-        this.workspace = workspace;
-        this.neuronViews = neuronViews;
-        this.rotationHandles = rotationHandles;
-        this.hideMenu = hideMenu;
-        this.refreshVisuals = refreshVisuals;
-        this.refreshPresentation = refreshPresentation;
-        this.refreshDeleteHighlights = refreshDeleteHighlights;
-        this.save = save;
-        this.status = status;
-        this.localization = localization;
+        this.neuronService = java.util.Objects.requireNonNull(neuronService, "neuronService");
+        this.state = java.util.Objects.requireNonNull(state, "state");
+        this.workspace = java.util.Objects.requireNonNull(workspace, "workspace");
+        this.hideMenu = java.util.Objects.requireNonNull(hideMenu, "hideMenu");
+        this.refreshPresentation = java.util.Objects.requireNonNull(
+                refreshPresentation,
+                "refreshPresentation"
+        );
+        this.save = java.util.Objects.requireNonNull(save, "save");
+        this.status = java.util.Objects.requireNonNull(status, "status");
+        this.localization = java.util.Objects.requireNonNull(localization, "localization");
         installSceneKeyHandler();
     }
 
     /**
-     * Реєструє обробники подій, потрібні для scene key handler.
+     * Реєструє обробник клавіші Delete для сцени, до якої приєднана робоча область.
      */
     private void installSceneKeyHandler() {
         workspace.node().sceneProperty().addListener(
@@ -100,9 +85,9 @@ public final class NeuronDeletionController {
     }
 
     /**
-     * Обробляє подію «key pressed» і передає її до відповідної операції редактора.
+     * Передає команду Delete операції видалення, якщо фокус не перебуває в текстовому полі.
      *
-     * @param event подія інтерфейсу, яку потрібно обробити.
+     * @param event подія натискання клавіші.
      */
     private void handleKeyPressed(KeyEvent event) {
         if (event.getCode() != KeyCode.DELETE
@@ -116,7 +101,9 @@ public final class NeuronDeletionController {
     }
 
     /**
-     * Видаляє всі вибрані нейрони й повертає ознаку того, чи змінилася модель.
+     * Видаляє вибрані нейрони або нейрон, для якого відкрите контекстне меню.
+     *
+     * @return {@code true}, якщо видалено принаймні один нейрон.
      */
     public boolean deleteSelectedNeurons() {
         LinkedHashSet<String> selectedIds =
@@ -139,9 +126,9 @@ public final class NeuronDeletionController {
     }
 
     /**
-     * Видаляє нейрон за ідентифікатором і очищає пов’язані елементи інтерфейсу.
+     * Видаляє один нейрон за його ідентифікатором.
      *
-     * @param neuronId ідентифікатор нейрона.
+     * @param neuronId ідентифікатор нейрона, який потрібно видалити.
      */
     public void deleteNeuron(String neuronId) {
         if (neuronId == null || neuronId.isBlank()) {
@@ -151,49 +138,29 @@ public final class NeuronDeletionController {
     }
 
     /**
-     * Видаляє набір нейронів та оновлює залежні візуальні елементи.
+     * Видаляє наявні нейрони через службу й один раз синхронізує подання після завершення операції.
      *
-     * @param neuronIds ідентифікатори нейронів, які потрібно обробити.
+     * @param neuronIds ідентифікатори нейронів, які потрібно видалити.
      */
     private void deleteNeurons(Collection<String> neuronIds) {
         LinkedHashSet<String> ids = new LinkedHashSet<>(neuronIds);
         boolean changed = false;
 
         hideMenu.run();
-
         for (String neuronId : ids) {
-            if (neuronService.remove(neuronId) == null) {
-                continue;
-            }
-
-            changed = true;
-            neuronViews.remove(neuronId);
-
-            RotationHandleView removedHandle = rotationHandles.remove(neuronId);
-            if (removedHandle != null) {
-                removedHandle.dispose();
-                workspace.overlayLayer().getChildren().remove(removedHandle);
-            }
+            changed |= neuronService.remove(neuronId) != null;
         }
 
         if (!changed) {
             return;
         }
 
-        workspace.nodeLayer().getChildren().removeIf(
-                node -> node instanceof NeuronView neuronView
-                        && neuronService.find(neuronView.model().id()) == null
-        );
-
         state.clearSelection();
         state.resetToIdle();
         workspace.node().setCursor(Cursor.DEFAULT);
 
-        refreshVisuals.run();
         refreshPresentation.run();
-        refreshDeleteHighlights.run();
         save.run();
-
         status.accept(
                 ids.size() == 1
                         ? localization.text("status.delete_neuron")
@@ -204,9 +171,8 @@ public final class NeuronDeletionController {
     /**
      * Перевіряє, чи має фокус текстовий елемент, щоб не перехоплювати введення користувача.
      *
-     * @param target цільовий вузол або об’єкт інтерфейсу, який потрібно перевірити чи знайти.
-     *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
+     * @param target цільовий вузол JavaFX.
+     * @return {@code true}, якщо фокус перебуває в текстовому полі.
      */
     private boolean isTextInputTarget(Object target) {
         Node node = target instanceof Node targetNode ? targetNode : null;

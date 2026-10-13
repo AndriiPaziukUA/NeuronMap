@@ -4,6 +4,8 @@ import com.example.neuronmap.controller.ConnectionController;
 import com.example.neuronmap.controller.NeuronInteractionController;
 import com.example.neuronmap.controller.NeuronLayerOrderController;
 import com.example.neuronmap.model.Connection;
+import com.example.neuronmap.model.Neuron;
+import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.view.ConnectionView;
 import com.example.neuronmap.view.GroupView;
@@ -12,11 +14,16 @@ import com.example.neuronmap.view.RotationHandleView;
 import com.example.neuronmap.view.WorkspaceView;
 import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Pane;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
- * Синхронізує візуальні подання нейронів, зв’язків, груп і накладок із поточним станом моделі карти.
+ * Єдиний власник синхронізації графічних подань карти з поточним станом моделі.
+ * Створює та вилучає подання нейронів, зв'язків, груп і ручок обертання,
+ * а контролерам взаємодії делегує лише встановлення обробників подій.
  */
 public final class MapPresentationCoordinator {
 
@@ -32,16 +39,16 @@ public final class MapPresentationCoordinator {
     private final NeuronLayerOrderController layerOrderController;
 
     /**
-     * Створює екземпляр MapPresentationCoordinator та зберігає передані залежності, потрібні для його роботи.
+     * Створює координатор подань і реєструє його як власника синхронізації нейронних подань.
      *
-     * @param neuronService служба операцій над нейронами.
-     * @param workspace полотно редактора.
-     * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
-     * @param connectionViews мапа візуальних подань зв’язків за ідентифікаторами.
-     * @param rotationHandles мапа ручок обертання нейронів за ідентифікаторами.
-     * @param neuronController значення «neuron controller», яке використовується в цьому методі.
-     * @param connectionController значення «connection controller», яке використовується в цьому методі.
-     * @param layerOrderController контролер, який керує порядком шарів елементів полотна.
+     * @param neuronService служба доступу до моделі нейронів.
+     * @param workspace графічне полотно редактора.
+     * @param neuronViews спільна мапа подань нейронів за ідентифікаторами.
+     * @param connectionViews спільна мапа подань зв'язків за ідентифікаторами.
+     * @param rotationHandles спільна мапа ручок обертання за ідентифікаторами.
+     * @param neuronController контролер, який встановлює обробники взаємодії на готові подання.
+     * @param connectionController контролер режимів роботи зі зв'язками.
+     * @param layerOrderController компонент керування порядком шарів.
      */
     public MapPresentationCoordinator(
             NeuronService neuronService,
@@ -53,18 +60,19 @@ public final class MapPresentationCoordinator {
             ConnectionController connectionController,
             NeuronLayerOrderController layerOrderController
     ) {
-        this.neuronService = java.util.Objects.requireNonNull(neuronService, "neuronService");
-        this.workspace = java.util.Objects.requireNonNull(workspace, "workspace");
-        this.neuronViews = java.util.Objects.requireNonNull(neuronViews, "neuronViews");
-        this.connectionViews = java.util.Objects.requireNonNull(connectionViews, "connectionViews");
-        this.rotationHandles = java.util.Objects.requireNonNull(rotationHandles, "rotationHandles");
-        this.neuronController = java.util.Objects.requireNonNull(neuronController, "neuronController");
-        this.connectionController = java.util.Objects.requireNonNull(connectionController, "connectionController");
-        this.layerOrderController = java.util.Objects.requireNonNull(layerOrderController, "layerOrderController");
+        this.neuronService = Objects.requireNonNull(neuronService, "neuronService");
+        this.workspace = Objects.requireNonNull(workspace, "workspace");
+        this.neuronViews = Objects.requireNonNull(neuronViews, "neuronViews");
+        this.connectionViews = Objects.requireNonNull(connectionViews, "connectionViews");
+        this.rotationHandles = Objects.requireNonNull(rotationHandles, "rotationHandles");
+        this.neuronController = Objects.requireNonNull(neuronController, "neuronController");
+        this.connectionController = Objects.requireNonNull(connectionController, "connectionController");
+        this.layerOrderController = Objects.requireNonNull(layerOrderController, "layerOrderController");
+        this.neuronController.setNeuronViewSynchronizer(this::synchronizeNeuronViews);
     }
 
     /**
-     * Оновлює всі візуальні подання карти та розташування накладок.
+     * Оновлює всі подання карти та відповідні накладки згідно з поточною моделлю.
      */
     public void refreshAll() {
         refreshNeurons();
@@ -85,9 +93,10 @@ public final class MapPresentationCoordinator {
     }
 
     /**
-     * Оновлює всі подання нейронів за поточними даними моделі.
+     * Узгоджує набір подань нейронів із моделлю та оновлює їхній видимий стан.
      */
     public void refreshNeurons() {
+        synchronizeNeuronViews();
         neuronController.refreshVisuals();
     }
 
@@ -119,7 +128,7 @@ public final class MapPresentationCoordinator {
     }
 
     /**
-     * Оновлює геометрію та відображення всіх зв’язків.
+     * Оновлює геометрію та відображення всіх зв'язків, прибираючи подання відсутніх зв'язків.
      */
     public void refreshConnections() {
         for (Connection connection : neuronService.model().connections()) {
@@ -147,9 +156,10 @@ public final class MapPresentationCoordinator {
     }
 
     /**
-     * Створює видиме подання для напрямленого зв’язку.
+     * Створює видиме подання для напрямленого зв'язку та додає його до відповідного шару.
      *
-     * @param connection напрямлений зв’язок між нейронами.
+     * @param connection напрямлений зв'язок між нейронами.
+     * @return створене подання зв'язку.
      */
     public ConnectionView createConnectionView(Connection connection) {
         ConnectionView connectionView = new ConnectionView(
@@ -162,21 +172,13 @@ public final class MapPresentationCoordinator {
     }
 
     /**
-     * Додає відсутні й прибирає застарілі подання так, щоб інтерфейс відповідав моделі.
+     * Повністю перебудовує подання після заміни або відновлення моделі карти.
      */
     public void synchronizeViewsWithModel() {
-        for (NeuronView neuronView : neuronViews.values()) {
-            removeFromParent(neuronView);
+        neuronController.hideMenu();
+        for (String neuronId : List.copyOf(neuronViews.keySet())) {
+            removeNeuronView(neuronId);
         }
-        neuronViews.clear();
-
-        for (RotationHandleView handle : rotationHandles.values()) {
-            if (handle != null) {
-                handle.dispose();
-                workspace.overlayLayer().getChildren().remove(handle);
-            }
-        }
-        rotationHandles.clear();
 
         for (ConnectionView connectionView : connectionViews.values()) {
             if (connectionView != null) {
@@ -185,9 +187,77 @@ public final class MapPresentationCoordinator {
         }
         connectionViews.clear();
         workspace.edgeLayer().getChildren().clear();
+        workspace.groupLayer().getChildren().clear();
 
-        neuronController.loadViews();
         refreshAll();
+    }
+
+    /**
+     * Узгоджує мапу та графічний шар нейронів із моделлю.
+     * Застарілі подання вилучаються, а відсутні створюються рівно один раз.
+     */
+    private void synchronizeNeuronViews() {
+        for (String neuronId : List.copyOf(neuronViews.keySet())) {
+            NeuronPresentation presentation = neuronService.presentation(neuronId);
+            NeuronView view = neuronViews.get(neuronId);
+            if (presentation == null || view == null || view.presentation() != presentation) {
+                removeNeuronView(neuronId);
+            }
+        }
+
+        for (Neuron neuron : neuronService.neurons()) {
+            if (!neuronViews.containsKey(neuron.id())) {
+                createNeuronView(neuron);
+            }
+        }
+    }
+
+    /**
+     * Створює нейронне подання, додає його до мапи та графічного шару й реєструє обробники взаємодії.
+     *
+     * @param neuron нейрон, який існує в поточній моделі.
+     */
+    private void createNeuronView(Neuron neuron) {
+        NeuronPresentation presentation = neuronService.presentation(neuron.id());
+        if (presentation == null) {
+            throw new IllegalStateException(
+                    "Missing presentation for neuron " + neuron.id()
+            );
+        }
+
+        NeuronView view = new NeuronView(presentation);
+        neuronViews.put(neuron.id(), view);
+        workspace.nodeLayer().getChildren().add(view);
+
+        RotationHandleView handle = new RotationHandleView();
+        handle.setVisible(false);
+        rotationHandles.put(neuron.id(), handle);
+        workspace.overlayLayer().getChildren().add(handle);
+
+        try {
+            neuronController.installInteractionHandlers(view, handle);
+        } catch (RuntimeException | Error failure) {
+            removeNeuronView(neuron.id());
+            throw failure;
+        }
+    }
+
+    /**
+     * Вилучає подання нейрона й пов'язану ручку обертання з мап та графічних шарів.
+     *
+     * @param neuronId ідентифікатор нейрона, подання якого потрібно вилучити.
+     */
+    private void removeNeuronView(String neuronId) {
+        NeuronView view = neuronViews.remove(neuronId);
+        if (view != null) {
+            removeFromParent(view);
+        }
+
+        RotationHandleView handle = rotationHandles.remove(neuronId);
+        if (handle != null) {
+            handle.dispose();
+            removeFromParent(handle);
+        }
     }
 
     /**
@@ -203,13 +273,13 @@ public final class MapPresentationCoordinator {
     }
 
     /**
-     * Видаляє from parent з поточної моделі або подання.
+     * Вилучає графічний вузол із батьківського контейнера, якщо вузол до нього приєднаний.
      *
-     * @param node вузол JavaFX, який потрібно перевірити або змінити.
+     * @param node графічний вузол, який потрібно вилучити.
      */
     private static void removeFromParent(Node node) {
         Node parent = node.getParent();
-        if (parent instanceof javafx.scene.layout.Pane pane) {
+        if (parent instanceof Pane pane) {
             pane.getChildren().remove(node);
         }
     }

@@ -5,7 +5,7 @@
             title="NeuronMap"
             width="1280"
             height="720"
-            stateFile="neuronmap-window.properties"/>
+            stateFile="window.properties"/>
 
     <!-- Camera behavior, not the persisted current camera position. -->
     <camera

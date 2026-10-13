@@ -42,7 +42,7 @@ public final class NeuronMapApp extends Application {
 
         Path storageDirectory = ProjectStorageDirectoryResolver.resolve();
         GlobalSettingsStore globalSettings = new GlobalSettingsStore(
-                storageDirectory.resolve("neuronmap-global.properties")
+                storageDirectory.resolve("global.properties")
         );
 
         LanguagePreferenceStore languagePreferenceStore =

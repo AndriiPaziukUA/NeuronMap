@@ -22,7 +22,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * Обробляє копіювання й вставлення вибраних нейронів через буфер обміну та розміщує вставлені нейрони біля курсора.
+ * Обробляє команди копіювання й вставлення, відстежує курсор і делегує побудову подань координатору презентації.
  */
 public final class NeuronClipboardController {
 
@@ -30,7 +30,6 @@ public final class NeuronClipboardController {
     private final EditorState state;
     private final WorkspaceView workspace;
     private final Runnable hideMenu;
-    private final Consumer<Neuron> addView;
     private final Runnable refreshPresentation;
     private final Runnable save;
     private final Consumer<String> status;
@@ -44,38 +43,41 @@ public final class NeuronClipboardController {
     private double lastMouseY;
 
     /**
-     * Створює екземпляр NeuronClipboardController та зберігає передані залежності, потрібні для його роботи.
+     * Створює обробник команд буфера обміну без прямої залежності від створення візуальних подань.
      *
      * @param clipboardService служба копіювання та вставлення нейронів.
-     * @param state стан об’єкта, який потрібно зберегти або відновити.
-     * @param workspace полотно редактора.
-     * @param hideMenu callback для приховування контекстного меню.
-     * @param addView callback, що додає візуальне подання нового нейрона.
-     * @param refreshPresentation callback, який синхронізує візуальні подання з моделлю.
-     * @param save функція зворотного виклику для відповідної дії.
-     * @param status callback для показу повідомлення в рядку стану.
-     * @param localization служба локалізації інтерфейсу.
+     * @param state стан вибору й координат камери редактора.
+     * @param workspace робоча область для відстеження курсора.
+     * @param hideMenu дія приховування контекстного меню.
+     * @param refreshPresentation дія синхронізації візуальних подань з моделлю.
+     * @param save дія збереження зміненої карти.
+     * @param status дія показу повідомлень.
+     * @param localization служба локалізації.
      */
     public NeuronClipboardController(
             NeuronClipboardService clipboardService,
             EditorState state,
             WorkspaceView workspace,
             Runnable hideMenu,
-            Consumer<Neuron> addView,
             Runnable refreshPresentation,
             Runnable save,
             Consumer<String> status,
             LocalizationService localization
     ) {
-        this.clipboardService = clipboardService;
-        this.state = state;
-        this.workspace = workspace;
-        this.hideMenu = hideMenu;
-        this.addView = addView;
-        this.refreshPresentation = refreshPresentation;
-        this.save = save;
-        this.status = status;
-        this.localization = localization;
+        this.clipboardService = java.util.Objects.requireNonNull(
+                clipboardService,
+                "clipboardService"
+        );
+        this.state = java.util.Objects.requireNonNull(state, "state");
+        this.workspace = java.util.Objects.requireNonNull(workspace, "workspace");
+        this.hideMenu = java.util.Objects.requireNonNull(hideMenu, "hideMenu");
+        this.refreshPresentation = java.util.Objects.requireNonNull(
+                refreshPresentation,
+                "refreshPresentation"
+        );
+        this.save = java.util.Objects.requireNonNull(save, "save");
+        this.status = java.util.Objects.requireNonNull(status, "status");
+        this.localization = java.util.Objects.requireNonNull(localization, "localization");
         this.keyHandler = this::handleKeyPressed;
         this.windowHiddenHandler = event -> this.clipboardService.clear();
 
@@ -109,9 +111,9 @@ public final class NeuronClipboardController {
     }
 
     /**
-     * Зберігає поточні координати курсора, щоб вставити скопійовані нейрони біля його положення.
+     * Зберігає поточні координати курсора для вставлення нейронів біля нього.
      *
-     * @param event подія інтерфейсу, яку потрібно обробити.
+     * @param event подія миші, з якої потрібно взяти координати.
      */
     private void updateMousePosition(MouseEvent event) {
         Point2D point = workspace.node().sceneToLocal(
@@ -149,9 +151,9 @@ public final class NeuronClipboardController {
     }
 
     /**
-     * Обробляє натискання клавіш і передає його до відповідної операції редактора.
+     * Обробляє Ctrl+C і Ctrl+V, не втручаючись у роботу текстових полів.
      *
-     * @param event подія інтерфейсу, яку потрібно обробити.
+     * @param event подія натискання клавіші.
      */
     private void handleKeyPressed(KeyEvent event) {
         if (isTextInputTarget(event.getTarget()) || !event.isControlDown()) {
@@ -171,7 +173,9 @@ public final class NeuronClipboardController {
     }
 
     /**
-     * Копіює поточний вибір нейронів у внутрішній буфер, зберігаючи їхні налаштування й взаємне розташування.
+     * Копіює поточний вибір нейронів у внутрішній буфер зі збереженням зв'язків і взаємного розташування.
+     *
+     * @return {@code true}, якщо вміст скопійовано.
      */
     private boolean copySelection() {
         Set<String> selectedIds = new LinkedHashSet<>(
@@ -209,7 +213,9 @@ public final class NeuronClipboardController {
     }
 
     /**
-     * Вставляє вміст буфера в позицію курсора та оновлює відображення карти.
+     * Вставляє весь вміст буфера в позицію курсора й виконує одну синхронізацію презентації після вставлення.
+     *
+     * @return {@code true}, якщо вставлено принаймні один нейрон.
      */
     private boolean pasteAtMouse() {
         if (!mouseInsideWorkspace || !clipboardService.hasContent()) {
@@ -230,9 +236,8 @@ public final class NeuronClipboardController {
                 worldPoint.getX() - NeuronView.WIDTH / 2.0,
                 worldPoint.getY() - NeuronView.HEIGHT / 2.0
         );
-
-        for (Neuron neuron : pasted) {
-            addView.accept(neuron);
+        if (pasted.isEmpty()) {
+            return false;
         }
 
         state.clearSelection();
@@ -246,14 +251,14 @@ public final class NeuronClipboardController {
                         ? localization.text("status.paste_neuron")
                         : localization.text("status.paste_neurons")
         );
-        return !pasted.isEmpty();
+        return true;
     }
 
     /**
      * Перевіряє, чи перебуває фокус у текстовому полі, де команди копіювання не мають перехоплюватися редактором.
      *
-     * @param target цільовий вузол або об’єкт інтерфейсу, який потрібно перевірити.
-     * @return {@code true}, якщо фокус перебуває в текстовому полі; інакше {@code false}.
+     * @param target цільовий вузол JavaFX, що отримав клавіатурну подію.
+     * @return {@code true}, якщо фокус перебуває в текстовому полі.
      */
     private boolean isTextInputTarget(Object target) {
         Node node = target instanceof Node targetNode ? targetNode : null;
