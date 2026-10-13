@@ -2,13 +2,13 @@ package com.example.neuronmap.coordinator;
 
 import com.example.neuronmap.controller.ConnectionController;
 import com.example.neuronmap.controller.NeuronInteractionController;
-import com.example.neuronmap.controller.NeuronLayerOrderController;
 import com.example.neuronmap.model.Connection;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.view.ConnectionView;
 import com.example.neuronmap.view.GroupView;
+import com.example.neuronmap.view.NeuronLayerOrderController;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.RotationHandleView;
 import com.example.neuronmap.view.WorkspaceView;

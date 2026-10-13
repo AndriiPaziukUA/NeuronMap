@@ -1,8 +1,6 @@
-package com.example.neuronmap.controller;
+package com.example.neuronmap.view;
 
 import com.example.neuronmap.model.Connection;
-import com.example.neuronmap.view.ConnectionView;
-import com.example.neuronmap.view.NeuronView;
 import javafx.scene.Node;
 import javafx.scene.layout.Pane;
 
@@ -11,7 +9,8 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
- * Керує порядком шарів нейронів і зв’язків, щоб потрібний нейрон або елемент взаємодії відображався поверх інших.
+ * Керує порядком відображення нейронів і пов’язаних із ними зв’язків у шарах JavaFX.
+ * Компонент змінює лише порядок дочірніх вузлів і не обробляє користувацькі події.
  */
 public final class NeuronLayerOrderController {
 
@@ -20,11 +19,11 @@ public final class NeuronLayerOrderController {
     private final Supplier<Iterable<Connection>> connections;
 
     /**
-     * Створює екземпляр NeuronLayerOrderController та зберігає передані залежності, потрібні для його роботи.
+     * Створює компонент керування порядком шарів і зберігає залежності для пошуку подань.
      *
-     * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
-     * @param connectionViews мапа візуальних подань зв’язків за ідентифікаторами.
-     * @param connections набір напрямлених зв’язків моделі.
+     * @param neuronViews мапа подань нейронів за їхніми ідентифікаторами.
+     * @param connectionViews мапа подань зв’язків за їхніми ідентифікаторами.
+     * @param connections постачальник зв’язків поточної моделі.
      */
     public NeuronLayerOrderController(
             Map<String, NeuronView> neuronViews,
@@ -39,12 +38,12 @@ public final class NeuronLayerOrderController {
         this.connections = Objects.requireNonNull(connections, "connections");
     }
 
-/**
- * Переміщує neuron to front на передній план у порядку шарів.
- *
- * @param neuronId ідентифікатор нейрона.
- */
-public void bringNeuronToFront(String neuronId) {
+    /**
+     * Переміщує нейрон і всі пов’язані з ним зв’язки в кінець списків дочірніх вузлів їхніх шарів.
+     *
+     * @param neuronId ідентифікатор нейрона, який потрібно показати поверх інших нейронів.
+     */
+    public void bringNeuronToFront(String neuronId) {
         if (neuronId == null) {
             return;
         }
@@ -58,16 +57,15 @@ public void bringNeuronToFront(String neuronId) {
                 continue;
             }
 
-            ConnectionView connectionView =
-                    connectionViews.get(connection.id());
+            ConnectionView connectionView = connectionViews.get(connection.id());
             moveToEnd(connectionView);
         }
     }
 
     /**
-     * Переміщує to end на задане зміщення.
+     * Переміщує вузол у кінець списку дочірніх вузлів батьківської панелі, якщо він у ній розміщений.
      *
-     * @param node вузол JavaFX, який потрібно перевірити або змінити.
+     * @param node вузол JavaFX, який потрібно перемістити.
      */
     private static void moveToEnd(Node node) {
         if (node == null || !(node.getParent() instanceof Pane layer)) {
@@ -75,8 +73,7 @@ public void bringNeuronToFront(String neuronId) {
         }
 
         var children = layer.getChildren();
-        if (children.size() <= 1
-                || children.get(children.size() - 1) == node) {
+        if (children.size() <= 1 || children.get(children.size() - 1) == node) {
             return;
         }
 

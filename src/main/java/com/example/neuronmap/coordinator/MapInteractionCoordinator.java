@@ -2,7 +2,6 @@ package com.example.neuronmap.coordinator;
 
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.controller.ConnectionController;
-import com.example.neuronmap.controller.JavaFxNodeLookup;
 import com.example.neuronmap.controller.NeuronInteractionController;
 import com.example.neuronmap.controller.NeuronToolDragController;
 import com.example.neuronmap.controller.SelectionController;
@@ -12,6 +11,7 @@ import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.util.WorldCoordinateMapper;
 import com.example.neuronmap.view.ConnectionView;
+import com.example.neuronmap.view.JavaFxNodeLookup;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.WorkspaceView;
 import javafx.geometry.Point2D;

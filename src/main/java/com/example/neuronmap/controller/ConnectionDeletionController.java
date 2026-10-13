@@ -6,6 +6,7 @@ import com.example.neuronmap.model.Connection;
 import com.example.neuronmap.service.ConnectionService;
 import com.example.neuronmap.view.ConnectionHitTester;
 import com.example.neuronmap.view.ConnectionView;
+import com.example.neuronmap.view.JavaFxNodeLookup;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.WorkspaceView;
 import javafx.scene.Cursor;

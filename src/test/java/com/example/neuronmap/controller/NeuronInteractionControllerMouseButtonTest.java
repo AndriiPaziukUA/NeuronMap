@@ -12,6 +12,7 @@ import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.simulation.SimulationService;
 import com.example.neuronmap.view.ConnectionView;
 import com.example.neuronmap.view.NeuronMenuView;
+import com.example.neuronmap.view.NeuronLayerOrderController;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.RotationHandleView;
 import com.example.neuronmap.view.SimulationStepPresenter;

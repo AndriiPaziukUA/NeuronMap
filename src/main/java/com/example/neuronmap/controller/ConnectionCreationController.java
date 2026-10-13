@@ -4,6 +4,7 @@ import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.service.ConnectionService;
 import com.example.neuronmap.view.ConnectionPreviewView;
+import com.example.neuronmap.view.JavaFxNodeLookup;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.WorkspaceView;
 import javafx.geometry.Point2D;
