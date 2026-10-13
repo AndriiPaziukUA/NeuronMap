@@ -100,10 +100,13 @@ public final class ProjectWorkflowCoordinator {
 
     /**
      * Перейменовує проєкт і відновлює підключення до бази даних, якщо перейменування активного проєкту не вдалося.
+     * Якщо відновити попереднє сховище також не вдається, ця помилка додається до первісної як suppressed,
+     * щоб не приховувати початкову причину невдалого перейменування.
      *
      * @param project опис проєкту, який потрібно перейменувати.
      * @param name нова назва проєкту.
      * @return оновлений опис проєкту або початковий опис, якщо аргументи непридатні.
+     * @throws RuntimeException якщо перейменування або підключення репозиторію не вдалося.
      */
     public ProjectDescriptor renameProject(
             ProjectDescriptor project,
@@ -139,7 +142,10 @@ public final class ProjectWorkflowCoordinator {
                 currentProjectConsumer.accept(projectCatalog.descriptorForDatabasePath(
                         project.databasePath()
                 ));
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException recoveryException) {
+                if (recoveryException != exception) {
+                    exception.addSuppressed(recoveryException);
+                }
             }
             throw exception;
         }
