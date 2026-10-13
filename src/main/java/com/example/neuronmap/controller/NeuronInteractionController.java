@@ -13,7 +13,6 @@ import javafx.scene.Node;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 
-import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -27,13 +26,8 @@ public final class NeuronInteractionController {
     private final EditorState state;
     private final WorkspaceView workspace;
     private final Map<String, NeuronView> neuronViews;
-    private final Map<String, RotationHandleView> rotationHandles;
     private final SelectionController selectionController;
-    private final ConnectionController connections;
     private final SimulationController simulation;
-    private final Runnable save;
-    private final Runnable refreshConnections;
-    private final NeuronMenuCustomizer menuCustomizer;
     private final NeuronClipboardController clipboardController;
     private final NeuronDeletionController deletionController;
     private final NeuronMenuController menuController;
@@ -134,13 +128,8 @@ public final class NeuronInteractionController {
         this.state = Objects.requireNonNull(state, "state");
         this.workspace = Objects.requireNonNull(workspace, "workspace");
         this.neuronViews = Objects.requireNonNull(neuronViews, "neuronViews");
-        this.rotationHandles = Objects.requireNonNull(rotationHandles, "rotationHandles");
         this.selectionController = Objects.requireNonNull(selectionController, "selectionController");
-        this.connections = Objects.requireNonNull(connections, "connections");
         this.simulation = Objects.requireNonNull(simulation, "simulation");
-        this.save = Objects.requireNonNull(save, "save");
-        this.refreshConnections = Objects.requireNonNull(refreshConnections, "refreshConnections");
-        this.menuCustomizer = Objects.requireNonNull(menuCustomizer, "menuCustomizer");
 
         LocalizationService sharedLocalization = Objects.requireNonNull(
                 localization,
@@ -241,15 +230,6 @@ public final class NeuronInteractionController {
         createView(neuron);
         refreshVisuals();
         refreshOverlayPositions();
-    }
-
-    /**
-     * Повертає поточні візуальні подання нейронів.
-     *
-     * @return поточні візуальні подання нейронів.
-     */
-    public Collection<NeuronView> views() {
-        return neuronViews.values();
     }
 
     /**
@@ -357,7 +337,7 @@ public final class NeuronInteractionController {
         );
         neuronView.addEventHandler(
                 MouseEvent.MOUSE_RELEASED,
-                event -> dragController.handleReleased(neuronView, event)
+                event -> dragController.handleReleased(neuronView)
         );
         neuronView.addEventHandler(
                 MouseEvent.MOUSE_CLICKED,

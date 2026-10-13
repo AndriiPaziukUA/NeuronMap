@@ -3,7 +3,6 @@ package com.example.neuronmap.controller;
 import com.example.neuronmap.model.Connection;
 import com.example.neuronmap.view.ConnectionView;
 import com.example.neuronmap.view.NeuronView;
-import com.example.neuronmap.view.WorkspaceView;
 import javafx.scene.Node;
 import javafx.scene.layout.Pane;
 
@@ -16,7 +15,6 @@ import java.util.function.Supplier;
  */
 public final class NeuronLayerOrderController {
 
-    private final WorkspaceView workspace;
     private final Map<String, NeuronView> neuronViews;
     private final Map<String, ConnectionView> connectionViews;
     private final Supplier<Iterable<Connection>> connections;
@@ -24,18 +22,15 @@ public final class NeuronLayerOrderController {
     /**
      * Створює екземпляр NeuronLayerOrderController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param workspace полотно редактора.
      * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
      * @param connectionViews мапа візуальних подань зв’язків за ідентифікаторами.
      * @param connections набір напрямлених зв’язків моделі.
      */
     public NeuronLayerOrderController(
-            WorkspaceView workspace,
             Map<String, NeuronView> neuronViews,
             Map<String, ConnectionView> connectionViews,
             Supplier<Iterable<Connection>> connections
     ) {
-        this.workspace = Objects.requireNonNull(workspace, "workspace");
         this.neuronViews = Objects.requireNonNull(neuronViews, "neuronViews");
         this.connectionViews = Objects.requireNonNull(
                 connectionViews,

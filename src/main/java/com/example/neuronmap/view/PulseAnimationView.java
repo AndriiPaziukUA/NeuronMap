@@ -34,28 +34,6 @@ public final class PulseAnimationView extends Pane {
     /**
      * Створює екземпляр PulseAnimationView та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param snapshot значення «snapshot», яке використовується в цьому методі.
-     */
-    public PulseAnimationView(ConnectionPulseSnapshot snapshot) {
-        this(snapshot, () -> snapshot, () -> { });
-    }
-
-    /**
-     * Створює екземпляр PulseAnimationView та зберігає передані залежності, потрібні для його роботи.
-     *
-     * @param snapshot значення «snapshot», яке використовується в цьому методі.
-     * @param onFinished callback, який викликається після завершення анімації.
-     */
-    public PulseAnimationView(
-            ConnectionPulseSnapshot snapshot,
-            Runnable onFinished
-    ) {
-        this(snapshot, () -> snapshot, onFinished);
-    }
-
-    /**
-     * Створює екземпляр PulseAnimationView та зберігає передані залежності, потрібні для його роботи.
-     *
      * @param initialSnapshot значення «initial snapshot», яке використовується в цьому методі.
      * @param snapshotSupplier функція, яка повертає актуальну геометрію зв’язку.
      */

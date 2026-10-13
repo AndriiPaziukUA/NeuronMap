@@ -71,15 +71,6 @@ public final class HistoryService {
     }
 
     /**
-     * Перевіряє, чи доступне повторне застосування скасованої зміни.
-     *
-     * @return {@code true}, якщо повторення доступне; інакше {@code false}.
-     */
-    public boolean canRedo() {
-        return history.canRedo();
-    }
-
-    /**
      * Фіксує поточний стан моделі, якщо її збережені дані змінилися.
      */
     public void commitSavedState() {
@@ -100,14 +91,5 @@ public final class HistoryService {
      */
     public int undoSize() {
         return history.undoSize();
-    }
-
-    /**
-     * Повертає кількість скасованих змін, доступних для повторення.
-     *
-     * @return кількість доступних кроків повторення.
-     */
-    public int redoSize() {
-        return history.redoSize();
     }
 }

@@ -8,7 +8,6 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 
 import java.net.URL;
-import java.util.Locale;
 import java.util.function.Consumer;
 
 /**
@@ -24,32 +23,6 @@ public final class MainView {
     private final StatusMessagePresenter statusMessagePresenter =
             new StatusMessagePresenter(statusBar::setText);
     private final MainMenuView mainMenu;
-
-    /**
-     * Створює подання редактора з англійською мовою інтерфейсу за замовчуванням.
-     *
-     * @param addNeuron дія додавання нейрона вибраного типу.
-     * @param group дія групування поточного вибору.
-     * @param ungroup дія розгрупування поточного вибору.
-     * @param exitDelete дія виходу з режиму видалення зв’язків.
-     * @param pauseResume дія перемикання паузи симуляції.
-     * @param stopSignals дія зупинки передачі сигналів.
-     * @param speedChanged обробник зміни швидкості симуляції.
-     * @param initialSpeedMillis початкова тривалість такту симуляції в мілісекундах.
-     */
-    public MainView(
-            Consumer<NeuronType> addNeuron,
-            Runnable group,
-            Runnable ungroup,
-            Runnable exitDelete,
-            Runnable pauseResume,
-            Runnable stopSignals,
-            Consumer<String> speedChanged,
-            double initialSpeedMillis
-    ) {
-        this(addNeuron, group, ungroup, exitDelete, pauseResume, stopSignals,
-                speedChanged, initialSpeedMillis, new LocalizationService(Locale.ENGLISH));
-    }
 
     /**
      * Створює подання редактора з переданою службою локалізації.

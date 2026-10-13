@@ -1,6 +1,5 @@
 package com.example.neuronmap.persistence;
 
-import com.example.neuronmap.model.Connection;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronPresentation;

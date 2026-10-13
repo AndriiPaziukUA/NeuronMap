@@ -25,7 +25,6 @@ public final class CameraController {
     private final EditorState state;
     private final WorkspaceView workspace;
     private final Runnable refreshOverlay;
-    private final Runnable save;
     private final BooleanSupplier interactionActive;
     private final Predicate<Object> interactiveTarget;
     private final Consumer<String> status;
@@ -39,44 +38,6 @@ public final class CameraController {
     private boolean panning;
     private double lastMouseX;
     private double lastMouseY;
-
-    /**
-     * Створює екземпляр CameraController та зберігає передані залежності, потрібні для його роботи.
-     *
-     * @param state стан об’єкта, який потрібно зберегти або відновити.
-     * @param workspace полотно редактора.
-     * @param refreshOverlay callback для оновлення положення накладок.
-     * @param save функція зворотного виклику для відповідної дії.
-     * @param interactionActive ознака, що зараз виконується активна взаємодія мишею.
-     * @param interactiveTarget перевірка, чи належить ціль до інтерактивного елемента інтерфейсу.
-     * @param status callback для показу повідомлення в рядку стану.
-     * @param cameraCenterWorldConsumer callback, який отримує координати центра камери у світовій системі.
-     * @param zoomFactor коефіцієнт, на який змінюється масштаб за один крок прокручування.
-     */
-    public CameraController(
-            EditorState state,
-            WorkspaceView workspace,
-            Runnable refreshOverlay,
-            Runnable save,
-            BooleanSupplier interactionActive,
-            Predicate<Object> interactiveTarget,
-            Consumer<String> status,
-            Consumer<Point2D> cameraCenterWorldConsumer,
-            double zoomFactor
-    ) {
-        this(
-                state,
-                workspace,
-                refreshOverlay,
-                save,
-                interactionActive,
-                interactiveTarget,
-                status,
-                cameraCenterWorldConsumer,
-                zoomFactor,
-                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
-        );
-    }
 
     /**
      * Створює екземпляр CameraController та зберігає передані залежності, потрібні для його роботи.
@@ -107,7 +68,6 @@ public final class CameraController {
         this.state = state;
         this.workspace = workspace;
         this.refreshOverlay = refreshOverlay;
-        this.save = save;
         this.interactionActive = interactionActive;
         this.interactiveTarget = interactiveTarget;
         this.status = status;
@@ -168,8 +128,6 @@ public final class CameraController {
 
 /**
  * Скасовує відкладене збереження змін камери, якщо воно ще не виконалося.
- *
- * @return {@code true}, якщо умову виконано; інакше {@code false}.
  */
 public void cancelPendingSave() {
         saveDebounce.stop();

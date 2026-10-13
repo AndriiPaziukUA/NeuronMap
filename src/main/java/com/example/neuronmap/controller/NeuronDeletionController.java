@@ -52,50 +52,6 @@ public final class NeuronDeletionController {
      * @param refreshDeleteHighlights callback, який оновлює підсвічування зв’язків, доступних для видалення.
      * @param save функція зворотного виклику для відповідної дії.
      * @param status callback для показу повідомлення в рядку стану.
-     */
-    public NeuronDeletionController(
-            NeuronService neuronService,
-            EditorState state,
-            WorkspaceView workspace,
-            Map<String, NeuronView> neuronViews,
-            Map<String, RotationHandleView> rotationHandles,
-            Runnable hideMenu,
-            Runnable refreshVisuals,
-            Runnable refreshPresentation,
-            Runnable refreshDeleteHighlights,
-            Runnable save,
-            Consumer<String> status
-    ) {
-        this(
-                neuronService,
-                state,
-                workspace,
-                neuronViews,
-                rotationHandles,
-                hideMenu,
-                refreshVisuals,
-                refreshPresentation,
-                refreshDeleteHighlights,
-                save,
-                status,
-                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
-        );
-    }
-
-    /**
-     * Створює екземпляр NeuronDeletionController та зберігає передані залежності, потрібні для його роботи.
-     *
-     * @param neuronService служба операцій над нейронами.
-     * @param state стан об’єкта, який потрібно зберегти або відновити.
-     * @param workspace полотно редактора.
-     * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
-     * @param rotationHandles мапа ручок обертання нейронів за ідентифікаторами.
-     * @param hideMenu callback для приховування контекстного меню.
-     * @param refreshVisuals callback, який оновлює вигляд нейронів.
-     * @param refreshPresentation callback, який синхронізує візуальні подання з моделлю.
-     * @param refreshDeleteHighlights callback, який оновлює підсвічування зв’язків, доступних для видалення.
-     * @param save функція зворотного виклику для відповідної дії.
-     * @param status callback для показу повідомлення в рядку стану.
      * @param localization служба локалізації інтерфейсу.
      */
     public NeuronDeletionController(

@@ -150,22 +150,4 @@ public final class NeuronService {
         presentation.setRotationDegrees(degrees);
         return true;
     }
-
-    /**
-     * Очищає activations від тимчасових або застарілих значень.
-     */
-    public void clearActivations() { model.clearActivations(); }
-
-    /**
-     * Оновлює поточне значення активації нейрона.
-     *
-     * @param neuronId ідентифікатор нейрона.
-     * @param activation значення «activation», яке використовується в цьому методі.
-     */
-    public boolean setActivation(String neuronId, int activation) {
-        Neuron neuron = find(neuronId);
-        if (neuron == null) return false;
-        neuron.setActivation(activation);
-        return true;
-    }
 }

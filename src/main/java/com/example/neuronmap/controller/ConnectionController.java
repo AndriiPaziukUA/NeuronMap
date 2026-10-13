@@ -88,7 +88,6 @@ public final class ConnectionController {
                 connectionService,
                 state,
                 workspace,
-                neuronViews,
                 refresh,
                 save,
                 status,
@@ -132,8 +131,6 @@ public final class ConnectionController {
 
     /**
      * Скасовує незавершене створення зв’язку та прибирає його попередній перегляд.
-     *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     public void cancelCreate() {
         creationController.cancelCreate();

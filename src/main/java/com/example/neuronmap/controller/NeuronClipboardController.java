@@ -54,41 +54,6 @@ public final class NeuronClipboardController {
      * @param refreshPresentation callback, який синхронізує візуальні подання з моделлю.
      * @param save функція зворотного виклику для відповідної дії.
      * @param status callback для показу повідомлення в рядку стану.
-     */
-    public NeuronClipboardController(
-            NeuronClipboardService clipboardService,
-            EditorState state,
-            WorkspaceView workspace,
-            Runnable hideMenu,
-            Consumer<Neuron> addView,
-            Runnable refreshPresentation,
-            Runnable save,
-            Consumer<String> status
-    ) {
-        this(
-                clipboardService,
-                state,
-                workspace,
-                hideMenu,
-                addView,
-                refreshPresentation,
-                save,
-                status,
-                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
-        );
-    }
-
-    /**
-     * Створює екземпляр NeuronClipboardController та зберігає передані залежності, потрібні для його роботи.
-     *
-     * @param clipboardService служба копіювання та вставлення нейронів.
-     * @param state стан об’єкта, який потрібно зберегти або відновити.
-     * @param workspace полотно редактора.
-     * @param hideMenu callback для приховування контекстного меню.
-     * @param addView callback, що додає візуальне подання нового нейрона.
-     * @param refreshPresentation callback, який синхронізує візуальні подання з моделлю.
-     * @param save функція зворотного виклику для відповідної дії.
-     * @param status callback для показу повідомлення в рядку стану.
      * @param localization служба локалізації інтерфейсу.
      */
     public NeuronClipboardController(

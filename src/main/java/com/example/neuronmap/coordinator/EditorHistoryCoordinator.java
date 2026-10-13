@@ -42,47 +42,6 @@ public final class EditorHistoryCoordinator {
      * @param presentation візуальне подання нейрона.
      * @param save функція зворотного виклику для відповідної дії.
      * @param status callback для показу повідомлення в рядку стану.
-     */
-    public EditorHistoryCoordinator(
-            HistoryService historyService,
-            SimulationController simulationController,
-            ConnectionController connectionController,
-            NeuronInteractionController neuronController,
-            EditorState state,
-            WorkspaceView workspace,
-            Runnable removeDragPreview,
-            MapPresentationCoordinator presentation,
-            Runnable save,
-            Consumer<String> status
-    ) {
-        this(
-                historyService,
-                simulationController,
-                connectionController,
-                neuronController,
-                state,
-                workspace,
-                removeDragPreview,
-                presentation,
-                save,
-                status,
-                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
-        );
-    }
-
-    /**
-     * Створює екземпляр EditorHistoryCoordinator та зберігає передані залежності, потрібні для його роботи.
-     *
-     * @param historyService служба скасування й повторення змін.
-     * @param simulationController значення «simulation controller», яке використовується в цьому методі.
-     * @param connectionController значення «connection controller», яке використовується в цьому методі.
-     * @param neuronController значення «neuron controller», яке використовується в цьому методі.
-     * @param state стан об’єкта, який потрібно зберегти або відновити.
-     * @param workspace полотно редактора.
-     * @param removeDragPreview callback, який прибирає попередній перегляд перетягування.
-     * @param presentation візуальне подання нейрона.
-     * @param save функція зворотного виклику для відповідної дії.
-     * @param status callback для показу повідомлення в рядку стану.
      * @param localization служба локалізації інтерфейсу.
      */
     public EditorHistoryCoordinator(

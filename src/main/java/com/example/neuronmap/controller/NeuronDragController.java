@@ -140,9 +140,8 @@ public final class NeuronDragController {
      * Обробляє подію «released» і передає її до відповідної операції редактора.
      *
      * @param neuronView візуальне подання нейрона.
-     * @param event подія інтерфейсу, яку потрібно обробити.
      */
-    public void handleReleased(NeuronView neuronView, MouseEvent event) {
+    public void handleReleased(NeuronView neuronView) {
         boolean dragged = neuronView.wasDragged();
         neuronView.endDrag();
 

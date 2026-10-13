@@ -1,8 +1,6 @@
 package com.example.neuronmap.util;
 
-import javafx.geometry.Bounds;
 import javafx.geometry.Point2D;
-import javafx.geometry.BoundingBox;
 
 /**
  * Містить геометричні допоміжні операції для меж, напрямків і масштабування камери.
@@ -24,29 +22,6 @@ public final class GeometryUtils {
         return Math.max(
                 MIN_ZOOM,
                 Math.min(MAX_ZOOM, zoom)
-        );
-    }
-
-    /**
-     * Обчислює найменші межі, що охоплюють обидві передані області.
-     *
-     * @param a значення «a», яке використовується в цьому методі.
-     * @param b значення «b», яке використовується в цьому методі.
-     */
-    public static Bounds union(
-            Bounds a,
-            Bounds b
-    ) {
-        double minX = Math.min(a.getMinX(), b.getMinX());
-        double minY = Math.min(a.getMinY(), b.getMinY());
-        double maxX = Math.max(a.getMaxX(), b.getMaxX());
-        double maxY = Math.max(a.getMaxY(), b.getMaxY());
-
-        return new BoundingBox(
-                minX,
-                minY,
-                maxX - minX,
-                maxY - minY
         );
     }
 

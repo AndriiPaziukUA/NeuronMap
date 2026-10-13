@@ -229,16 +229,6 @@ public final class ToolbarView {
     }
 
     /**
-     * Установлює delete mode visible для поточного об’єкта.
-     *
-     * @param visible значення «visible», яке використовується в цьому методі.
-     */
-    public void setDeleteModeVisible(boolean visible) {
-        exitDeleteButton.setVisible(visible);
-        exitDeleteButton.setManaged(visible);
-    }
-
-    /**
      * Установлює simulation controls visible для поточного об’єкта.
      *
      * @param visible значення «visible», яке використовується в цьому методі.

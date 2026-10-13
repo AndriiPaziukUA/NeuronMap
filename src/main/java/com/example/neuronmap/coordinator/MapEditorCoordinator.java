@@ -61,7 +61,6 @@ public final class MapEditorCoordinator {
     private final double minSimulationTickMillis;
     private final double maxSimulationTickMillis;
     private final double defaultSimulationTickMillis;
-    private final Runnable exitApplication;
     private double simulationTickMillis;
 
     private final Map<String, NeuronView> neuronViews = new HashMap<>();
@@ -110,7 +109,6 @@ public final class MapEditorCoordinator {
         this.localization = Objects.requireNonNull(localization, "localization");
         this.projectCatalog = Objects.requireNonNull(projectCatalog, "projectCatalog");
         Objects.requireNonNull(mapRepositoryFactory, "mapRepositoryFactory");
-        this.exitApplication = Objects.requireNonNull(exitApplication, "exitApplication");
         this.mapService = application.map();
         this.neuronService = application.neurons();
         this.connectionService = application.connections();
@@ -151,7 +149,6 @@ public final class MapEditorCoordinator {
         );
 
         layerOrderController = new NeuronLayerOrderController(
-                view.workspace(),
                 neuronViews,
                 connectionViews,
                 () -> neuronService.model().connections()

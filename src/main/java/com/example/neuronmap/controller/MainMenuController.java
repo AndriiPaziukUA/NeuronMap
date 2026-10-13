@@ -21,11 +21,9 @@ public final class MainMenuController {
 
     private final MainMenuView view;
     private final Supplier<List<ProjectDescriptor>> projectsSupplier;
-    private final Runnable newProjectAction;
     private final Consumer<ProjectDescriptor> openProjectAction;
     private final BiFunction<ProjectDescriptor, String, ProjectDescriptor> renameProjectAction;
     private final Consumer<ProjectDescriptor> deleteProjectAction;
-    private final Runnable exitAction;
     private final Runnable pauseForMenuAction;
     private final Runnable resumeAfterMenuAction;
 
@@ -62,11 +60,9 @@ public final class MainMenuController {
         Objects.requireNonNull(localization, "localization");
         view.setPersistLanguageAction(localization::persistCurrentLanguage);
         this.projectsSupplier = Objects.requireNonNull(projectsSupplier, "projectsSupplier");
-        this.newProjectAction = Objects.requireNonNull(newProjectAction, "newProjectAction");
         this.openProjectAction = Objects.requireNonNull(openProjectAction, "openProjectAction");
         this.renameProjectAction = Objects.requireNonNull(renameProjectAction, "renameProjectAction");
         this.deleteProjectAction = Objects.requireNonNull(deleteProjectAction, "deleteProjectAction");
-        this.exitAction = Objects.requireNonNull(exitAction, "exitAction");
         this.pauseForMenuAction = Objects.requireNonNull(pauseForMenuAction, "pauseForMenuAction");
         this.resumeAfterMenuAction = Objects.requireNonNull(resumeAfterMenuAction, "resumeAfterMenuAction");
 

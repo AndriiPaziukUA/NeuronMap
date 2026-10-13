@@ -178,15 +178,6 @@ public final class FieldStateSnapshot {
     }
 
     /**
-     * Повертає незмінний список станів візуальних подань нейронів.
-     *
-     * @return список станів візуальних подань.
-     */
-    public List<PresentationState> presentations() {
-        return presentations;
-    }
-
-    /**
      * Повертає незмінний список станів зв’язків зі знімка.
      *
      * @return список станів зв’язків.

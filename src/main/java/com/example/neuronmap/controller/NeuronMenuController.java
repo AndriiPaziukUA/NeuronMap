@@ -38,53 +38,6 @@ public final class NeuronMenuController {
     private String activeNeuronId;
 
     /**
-     * Створює контролер контекстного меню з локалізацією українською мовою за замовчуванням.
-     *
-     * @param neuronService служба операцій над нейронами.
-     * @param state поточний стан редактора.
-     * @param workspace полотно редактора.
-     * @param connections контролер операцій зі зв’язками.
-     * @param simulation контролер симуляції нейронів.
-     * @param deletionController контролер видалення нейронів.
-     * @param menuCustomizer компонент додаткового оформлення кнопок меню.
-     * @param refreshVisuals дія оновлення вигляду нейронів.
-     * @param refreshConnections дія оновлення вигляду зв’язків.
-     * @param refreshOverlays дія оновлення положення накладок.
-     * @param save дія збереження поточного стану.
-     * @param status дія показу повідомлення в рядку стану.
-     */
-    public NeuronMenuController(
-            NeuronService neuronService,
-            EditorState state,
-            WorkspaceView workspace,
-            ConnectionController connections,
-            SimulationController simulation,
-            NeuronDeletionController deletionController,
-            NeuronMenuCustomizer menuCustomizer,
-            Runnable refreshVisuals,
-            Runnable refreshConnections,
-            Runnable refreshOverlays,
-            Runnable save,
-            Consumer<String> status
-    ) {
-        this(
-                neuronService,
-                state,
-                workspace,
-                connections,
-                simulation,
-                deletionController,
-                menuCustomizer,
-                refreshVisuals,
-                refreshConnections,
-                refreshOverlays,
-                save,
-                status,
-                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
-        );
-    }
-
-    /**
      * Створює контролер меню та приймає залежності для обробки дій користувача.
      *
      * @param neuronService служба операцій над нейронами.

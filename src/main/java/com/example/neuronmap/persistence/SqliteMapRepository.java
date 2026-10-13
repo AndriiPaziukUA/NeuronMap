@@ -20,13 +20,6 @@ public final class SqliteMapRepository implements MapRepository {
 
     /**
      * Створює екземпляр SqliteMapRepository та зберігає передані залежності, потрібні для його роботи.
-     */
-    public SqliteMapRepository() {
-        this(DatabasePathResolver.resolve());
-    }
-
-    /**
-     * Створює екземпляр SqliteMapRepository та зберігає передані залежності, потрібні для його роботи.
      *
      * @param databasePath шлях до файлу бази даних проєкту.
      */

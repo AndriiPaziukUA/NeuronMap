@@ -13,7 +13,6 @@ import javafx.scene.Node;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 
-import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -25,7 +24,6 @@ final class ConnectionDeletionController {
     private final ConnectionService connectionService;
     private final EditorState state;
     private final WorkspaceView workspace;
-    private final Map<String, NeuronView> neuronViews;
     private final ConnectionHitTester connectionHitTester;
     private final Runnable refresh;
     private final Runnable save;
@@ -33,44 +31,11 @@ final class ConnectionDeletionController {
     private final LocalizationService localization;
 
     /**
-     * Створює контролер видалення зв’язків зі стандартною українською локалізацією.
-     *
-     * @param connectionService служба операцій над зв’язками.
-     * @param state стан редактора.
-     * @param workspace полотно редактора.
-     * @param neuronViews візуальні подання нейронів за їхніми ідентифікаторами.
-     * @param refresh дія оновлення інтерфейсу після зміни моделі.
-     * @param save дія збереження змін.
-     * @param status дія показу повідомлення в рядку стану.
-     */
-    ConnectionDeletionController(
-            ConnectionService connectionService,
-            EditorState state,
-            WorkspaceView workspace,
-            Map<String, NeuronView> neuronViews,
-            Runnable refresh,
-            Runnable save,
-            Consumer<String> status
-    ) {
-        this(
-                connectionService,
-                state,
-                workspace,
-                neuronViews,
-                refresh,
-                save,
-                status,
-                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
-        );
-    }
-
-    /**
      * Створює контролер видалення зв’язків.
      *
      * @param connectionService служба операцій над зв’язками.
      * @param state стан редактора.
      * @param workspace полотно редактора.
-     * @param neuronViews візуальні подання нейронів за їхніми ідентифікаторами.
      * @param refresh дія оновлення інтерфейсу після зміни моделі.
      * @param save дія збереження змін.
      * @param status дія показу повідомлення в рядку стану.
@@ -80,7 +45,6 @@ final class ConnectionDeletionController {
             ConnectionService connectionService,
             EditorState state,
             WorkspaceView workspace,
-            Map<String, NeuronView> neuronViews,
             Runnable refresh,
             Runnable save,
             Consumer<String> status,
@@ -89,7 +53,6 @@ final class ConnectionDeletionController {
         this.connectionService = Objects.requireNonNull(connectionService, "connectionService");
         this.state = Objects.requireNonNull(state, "state");
         this.workspace = Objects.requireNonNull(workspace, "workspace");
-        this.neuronViews = Objects.requireNonNull(neuronViews, "neuronViews");
         this.connectionHitTester = new ConnectionHitTester(workspace);
         this.refresh = Objects.requireNonNull(refresh, "refresh");
         this.save = Objects.requireNonNull(save, "save");

@@ -47,41 +47,6 @@ final class ConnectionCreationController {
      * @param save функція зворотного виклику для відповідної дії.
      * @param status callback для показу повідомлення в рядку стану.
      * @param exitDelete callback, який завершує режим видалення зв’язку.
-     */
-    ConnectionCreationController(
-            ConnectionService connectionService,
-            EditorState state,
-            WorkspaceView workspace,
-            Map<String, NeuronView> neuronViews,
-            Runnable refresh,
-            Runnable save,
-            Consumer<String> status,
-            Runnable exitDelete
-    ) {
-        this(
-                connectionService,
-                state,
-                workspace,
-                neuronViews,
-                refresh,
-                save,
-                status,
-                exitDelete,
-                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
-        );
-    }
-
-    /**
-     * Створює екземпляр ConnectionCreationController та зберігає передані залежності, потрібні для його роботи.
-     *
-     * @param connectionService служба операцій над зв’язками.
-     * @param state стан об’єкта, який потрібно зберегти або відновити.
-     * @param workspace полотно редактора.
-     * @param neuronViews мапа візуальних подань нейронів за їхніми ідентифікаторами.
-     * @param refresh callback для оновлення інтерфейсу після зміни моделі.
-     * @param save функція зворотного виклику для відповідної дії.
-     * @param status callback для показу повідомлення в рядку стану.
-     * @param exitDelete callback, який завершує режим видалення зв’язку.
      * @param localization служба локалізації інтерфейсу.
      */
     ConnectionCreationController(
@@ -129,8 +94,6 @@ final class ConnectionCreationController {
 
     /**
      * Перевіряє, чи дозволяє поточний стан виконати cel create.
-     *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
      */
     void cancelCreate() {
         if (previewLine != null) {

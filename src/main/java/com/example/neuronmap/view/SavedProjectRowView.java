@@ -31,9 +31,7 @@ public final class SavedProjectRowView extends HBox {
 
     private final LocalizationService localization;
     private ProjectDescriptor project;
-    private final Consumer<ProjectDescriptor> openAction;
     private final BiFunction<ProjectDescriptor, String, ProjectDescriptor> renameAction;
-    private final Consumer<ProjectDescriptor> deleteAction;
     private final Runnable renameCommitted;
 
     private final Label modifiedLabel = new Label();
@@ -64,9 +62,7 @@ public final class SavedProjectRowView extends HBox {
     ) {
         this.project = Objects.requireNonNull(project, "project");
         this.localization = Objects.requireNonNull(localization, "localization");
-        this.openAction = Objects.requireNonNull(openAction, "openAction");
         this.renameAction = Objects.requireNonNull(renameAction, "renameAction");
-        this.deleteAction = Objects.requireNonNull(deleteAction, "deleteAction");
         this.renameCommitted = Objects.requireNonNull(renameCommitted, "renameCommitted");
 
         getStyleClass().add("saved-project-row");

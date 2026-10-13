@@ -190,7 +190,7 @@ public final class LegacyProjectStorageMigrator {
     private static String uniqueMigrationName(
             Path storageDirectory,
             String requestedName
-    ) throws IOException {
+    ) {
         String baseName = normalizeName(requestedName);
         String candidate = baseName;
         int suffix = 1;

@@ -30,7 +30,6 @@ public final class EditorState {
     private NeuronType pendingNeuronType;
     private String connectionSourceId;
     private String deleteConnectionNeuronId;
-    private String rotatingNeuronId;
     private String selectedNeuronForMenu;
 
     private final Set<String> selectedNeuronIds =
@@ -197,21 +196,10 @@ public final class EditorState {
     /**
      * Вмикає режим обертання вказаного нейрона.
      *
-     * @param neuronId ідентифікатор нейрона.
      */
-    public void enterRotateMode(String neuronId) {
+    public void enterRotateMode() {
         clearTransientModes();
         mode = Mode.ROTATE_NEURON;
-        rotatingNeuronId = neuronId;
-    }
-
-    /**
-     * Повертає ідентифікатор нейрона, який обертають.
-     *
-     * @return ідентифікатор нейрона, який обертають.
-     */
-    public String rotatingNeuronId() {
-        return rotatingNeuronId;
     }
 
     /**
@@ -278,7 +266,6 @@ public final class EditorState {
         pendingNeuronType = null;
         connectionSourceId = null;
         deleteConnectionNeuronId = null;
-        rotatingNeuronId = null;
         mode = Mode.IDLE;
     }
 

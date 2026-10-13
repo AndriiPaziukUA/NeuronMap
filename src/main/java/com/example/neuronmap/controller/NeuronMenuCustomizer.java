@@ -19,20 +19,6 @@ public final class NeuronMenuCustomizer {
     private final NeuronMenuView menuView;
 
     /**
-     * Створює адаптер для подання меню з українською локалізацією.
-     *
-     * @param toolbarRoot кореневий вузол панелі інструментів.
-     */
-    public NeuronMenuCustomizer(Node toolbarRoot) {
-        this(
-                toolbarRoot,
-                () -> null,
-                null,
-                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
-        );
-    }
-
-    /**
      * Створює адаптер із callback-ом зміни напрямку нейрона.
      *
      * @param toolbarRoot кореневий вузол панелі інструментів.

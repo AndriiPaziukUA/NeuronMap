@@ -33,26 +33,6 @@ public final class NeuronMenuView {
     }
 
     /**
-     * Створює подання меню з callback-ом зміни напрямку та постачальником вибраного нейрона.
-     *
-     * @param toolbarRoot кореневий вузол панелі інструментів.
-     * @param selectedNeuronIdSupplier функція, що повертає ідентифікатор нейрона для контекстного меню.
-     * @param directionAction callback, який передає ідентифікатор нейрона контролеру для зміни напрямку.
-     */
-    public NeuronMenuView(
-            Node toolbarRoot,
-            Supplier<String> selectedNeuronIdSupplier,
-            Consumer<String> directionAction
-    ) {
-        this(
-                toolbarRoot,
-                selectedNeuronIdSupplier,
-                directionAction,
-                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
-        );
-    }
-
-    /**
      * Створює подання меню з переданими залежностями та службою локалізації.
      *
      * @param toolbarRoot кореневий вузол панелі інструментів.

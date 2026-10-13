@@ -89,7 +89,7 @@ public final class NeuronRotationController {
         rotationHandles.put(neuronId, handle);
         workspace.overlayLayer().getChildren().add(handle);
 
-        handle.addEventHandler(MouseEvent.MOUSE_PRESSED, event -> beginRotation(neuronId, event, handle));
+        handle.addEventHandler(MouseEvent.MOUSE_PRESSED, event -> beginRotation(neuronId, event));
         handle.addEventHandler(MouseEvent.MOUSE_DRAGGED, event -> dragRotation(neuronId, event));
         handle.addEventHandler(MouseEvent.MOUSE_RELEASED, event -> endRotation(neuronId, event, handle));
     }
@@ -146,9 +146,8 @@ public final class NeuronRotationController {
      *
      * @param neuronId ідентифікатор нейрона.
      * @param event подія миші.
-     * @param handle ручка обертання нейрона.
      */
-    private void beginRotation(String neuronId, MouseEvent event, RotationHandleView handle) {
+    private void beginRotation(String neuronId, MouseEvent event) {
         if (event.getButton() != MouseButton.PRIMARY) {
             return;
         }
@@ -164,7 +163,7 @@ public final class NeuronRotationController {
         rotationStartDegrees = view.presentation().rotationDegrees();
         rotatingNeuronId = neuronId;
         activeNeuronId = neuronId;
-        state.enterRotateMode(neuronId);
+        state.enterRotateMode();
         workspace.node().setCursor(Cursor.CROSSHAIR);
         event.consume();
     }

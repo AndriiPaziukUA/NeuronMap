@@ -18,25 +18,6 @@ public final class NeuronMapController {
     private final MapEditorCoordinator coordinator;
 
     /**
-     * Створює контролер карти з готовими службами локалізації та каталогу проєктів.
-     *
-     * @param application прикладна служба, яка надає доступ до служб карти й збереження.
-     * @param config завантажена конфігурація застосунку.
-     * @param localization готова служба локалізації інтерфейсу.
-     * @param projectCatalog готова служба каталогу проєктів.
-     * @param mapRepositoryFactory фабрика репозиторіїв проєктів.
-     */
-    public NeuronMapController(
-            NeuronMapApplicationService application,
-            AppConfig config,
-            LocalizationService localization,
-            ProjectCatalogService projectCatalog,
-            MapRepositoryFactory mapRepositoryFactory
-    ) {
-        this(application, config, localization, projectCatalog, mapRepositoryFactory, () -> { });
-    }
-
-    /**
      * Створює контролер карти з готовими службами та callback завершення роботи.
      *
      * @param application прикладна служба, яка надає доступ до служб карти й збереження.

@@ -43,47 +43,6 @@ public final class MapInteractionCoordinator {
     private final NeuronToolDragController toolDragController;
 
     /**
-     * Створює координатор взаємодії редактора з локалізацією українською мовою.
-     *
-     * @param neuronService служба операцій над нейронами.
-     * @param state стан взаємодії редактора.
-     * @param workspace полотно редактора.
-     * @param selectionController контролер вибору нейронів.
-     * @param connectionController контролер створення й видалення зв’язків.
-     * @param neuronController контролер взаємодії з нейронами.
-     * @param simulationController контролер симуляції.
-     * @param presentation координатор оновлення візуальних подань.
-     * @param save функція збереження поточного стану.
-     * @param status callback для повідомлень стану.
-     */
-    public MapInteractionCoordinator(
-            NeuronService neuronService,
-            EditorState state,
-            WorkspaceView workspace,
-            SelectionController selectionController,
-            ConnectionController connectionController,
-            NeuronInteractionController neuronController,
-            SimulationController simulationController,
-            MapPresentationCoordinator presentation,
-            Runnable save,
-            Consumer<String> status
-    ) {
-        this(
-                neuronService,
-                state,
-                workspace,
-                selectionController,
-                connectionController,
-                neuronController,
-                simulationController,
-                presentation,
-                save,
-                status,
-                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
-        );
-    }
-
-    /**
      * Створює координатор взаємодії редактора з переданою службою локалізації.
      *
      * @param neuronService служба операцій над нейронами.
