@@ -5,6 +5,7 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.service.GroupService;
 import com.example.neuronmap.service.NeuronClipboardService;
 import com.example.neuronmap.service.NeuronService;
+import com.example.neuronmap.view.NeuronMenuView;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.RotationHandleView;
 import com.example.neuronmap.view.WorkspaceView;
@@ -51,7 +52,7 @@ public final class NeuronInteractionController {
      * @param save дія збереження поточного стану.
      * @param refreshConnections дія оновлення всієї презентації карти.
      * @param status дія показу повідомлення стану.
-     * @param menuCustomizer компонент оформлення контекстного меню.
+     * @param neuronMenuView подання оформлення кнопок контекстного меню.
      */
     public NeuronInteractionController(
             NeuronService neuronService,
@@ -67,7 +68,7 @@ public final class NeuronInteractionController {
             Runnable save,
             Runnable refreshConnections,
             Consumer<String> status,
-            NeuronMenuCustomizer menuCustomizer
+            NeuronMenuView neuronMenuView
     ) {
         this(
                 neuronService,
@@ -83,7 +84,7 @@ public final class NeuronInteractionController {
                 save,
                 refreshConnections,
                 status,
-                menuCustomizer,
+                neuronMenuView,
                 new LocalizationService(java.util.Locale.forLanguageTag("uk"))
         );
     }
@@ -104,7 +105,7 @@ public final class NeuronInteractionController {
      * @param save дія збереження поточного стану.
      * @param refreshConnections дія оновлення всієї презентації карти.
      * @param status дія показу повідомлення стану.
-     * @param menuCustomizer компонент оформлення контекстного меню.
+     * @param neuronMenuView подання оформлення кнопок контекстного меню.
      * @param localization спільна служба локалізації.
      */
     public NeuronInteractionController(
@@ -121,7 +122,7 @@ public final class NeuronInteractionController {
             Runnable save,
             Runnable refreshConnections,
             Consumer<String> status,
-            NeuronMenuCustomizer menuCustomizer,
+            NeuronMenuView neuronMenuView,
             LocalizationService localization
     ) {
         this.neuronService = Objects.requireNonNull(neuronService, "neuronService");
@@ -166,7 +167,7 @@ public final class NeuronInteractionController {
                 connections,
                 simulation,
                 deletionController,
-                menuCustomizer,
+                neuronMenuView,
                 this::refreshVisuals,
                 refreshConnections,
                 this::refreshOverlayPositions,

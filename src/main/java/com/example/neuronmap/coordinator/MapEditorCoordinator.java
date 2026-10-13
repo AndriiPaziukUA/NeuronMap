@@ -10,7 +10,6 @@ import com.example.neuronmap.controller.ConnectionController;
 import com.example.neuronmap.controller.MainMenuController;
 import com.example.neuronmap.controller.NeuronInteractionController;
 import com.example.neuronmap.controller.NeuronLayerOrderController;
-import com.example.neuronmap.controller.NeuronMenuCustomizer;
 import com.example.neuronmap.controller.SelectionController;
 import com.example.neuronmap.controller.SimulationController;
 import com.example.neuronmap.controller.PulseAnimationController;
@@ -31,6 +30,7 @@ import com.example.neuronmap.simulation.SimulationService;
 import com.example.neuronmap.simulation.SimulationSpeed;
 import com.example.neuronmap.view.ImmediateTooltipManager;
 import com.example.neuronmap.view.MainView;
+import com.example.neuronmap.view.NeuronMenuView;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.RotationHandleView;
 import com.example.neuronmap.view.SimulationStepPresenter;
@@ -73,7 +73,7 @@ public final class MapEditorCoordinator {
     private final NeuronInteractionController neuronController;
     private final CameraController cameraController;
     private final NeuronLayerOrderController layerOrderController;
-    private final NeuronMenuCustomizer menuCustomizer;
+    private final NeuronMenuView neuronMenuView;
     private final MapPresentationCoordinator presentation;
     private final MapInteractionCoordinator interaction;
     private final EditorHistoryCoordinator historyCoordinator;
@@ -154,13 +154,13 @@ public final class MapEditorCoordinator {
                 () -> neuronService.model().connections()
         );
 
-        menuCustomizer = new NeuronMenuCustomizer(
+        neuronMenuView = new NeuronMenuView(
                 view.toolbar().node(),
                 state::selectedNeuronForMenu,
                 this::toggleNeuronDirection,
                 localization
         );
-        menuCustomizer.removeDeleteConnectionModeExitButton();
+        neuronMenuView.removeDeleteConnectionModeExitButton();
 
         mapService.load();
         if (neuronService.model().isEmpty()
@@ -230,7 +230,7 @@ public final class MapEditorCoordinator {
                 this::saveNow,
                 this::refreshMapPresentation,
                 this::updateStatus,
-                menuCustomizer,
+                neuronMenuView,
                 localization
         );
 

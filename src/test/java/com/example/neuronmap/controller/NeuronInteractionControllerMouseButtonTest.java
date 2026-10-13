@@ -2,6 +2,7 @@ package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.coordinator.MapPresentationCoordinator;
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.service.ConnectionService;
@@ -10,6 +11,7 @@ import com.example.neuronmap.service.NeuronClipboardService;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.simulation.SimulationService;
 import com.example.neuronmap.view.ConnectionView;
+import com.example.neuronmap.view.NeuronMenuView;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.RotationHandleView;
 import com.example.neuronmap.view.SimulationStepPresenter;
@@ -24,6 +26,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -37,6 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 final class NeuronInteractionControllerMouseButtonTest {
 
+    /** Запускає JavaFX перед тестами, що створюють графічні вузли. */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -50,6 +54,7 @@ final class NeuronInteractionControllerMouseButtonTest {
         }
     }
 
+    /** Перевіряє, що ліве клацання показує ручку обертання без контекстного меню. */
     @Test
     void leftClickShowsRotationHandleWithoutMenu() throws Exception {
         runOnFxThread(() -> {
@@ -60,6 +65,7 @@ final class NeuronInteractionControllerMouseButtonTest {
         });
     }
 
+    /** Перевіряє, що праве клацання показує контекстне меню й приховує ручку обертання. */
     @Test
     void rightClickShowsMenuAndHidesRotationHandle() throws Exception {
         runOnFxThread(() -> {
@@ -133,10 +139,11 @@ final class NeuronInteractionControllerMouseButtonTest {
         );
 
         HBox toolbar = new HBox();
-        NeuronMenuCustomizer menuCustomizer = new NeuronMenuCustomizer(
+        NeuronMenuView neuronMenuView = new NeuronMenuView(
                 toolbar,
                 state::selectedNeuronForMenu,
-                ignored -> { }
+                ignored -> { },
+                new LocalizationService(Locale.ENGLISH)
         );
 
         NeuronInteractionController controller = new NeuronInteractionController(
@@ -153,7 +160,7 @@ final class NeuronInteractionControllerMouseButtonTest {
                 () -> { },
                 () -> { },
                 ignored -> { },
-                menuCustomizer
+                neuronMenuView
         );
 
         new MapPresentationCoordinator(

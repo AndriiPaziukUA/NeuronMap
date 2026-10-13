@@ -4,6 +4,7 @@ import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.view.NeuronContextMenuView;
+import com.example.neuronmap.view.NeuronMenuView;
 import com.example.neuronmap.view.NeuronOverlayPositioner;
 import com.example.neuronmap.view.NeuronSettingsDialog;
 import com.example.neuronmap.view.NeuronView;
@@ -24,7 +25,7 @@ public final class NeuronMenuController {
     private final ConnectionController connections;
     private final SimulationController simulation;
     private final NeuronDeletionController deletionController;
-    private final NeuronMenuCustomizer menuCustomizer;
+    private final NeuronMenuView neuronMenuView;
     private final NeuronContextMenuView menuView;
     private final NeuronOverlayPositioner overlayPositioner;
     private final Runnable refreshVisuals;
@@ -46,7 +47,7 @@ public final class NeuronMenuController {
      * @param connections контролер операцій зі зв’язками.
      * @param simulation контролер симуляції нейронів.
      * @param deletionController контролер видалення нейронів.
-     * @param menuCustomizer компонент додаткового оформлення кнопок меню.
+     * @param neuronMenuView подання оформлення кнопок контекстного меню.
      * @param refreshVisuals дія оновлення вигляду нейронів.
      * @param refreshConnections дія оновлення вигляду зв’язків.
      * @param refreshOverlays дія оновлення положення накладок.
@@ -61,7 +62,7 @@ public final class NeuronMenuController {
             ConnectionController connections,
             SimulationController simulation,
             NeuronDeletionController deletionController,
-            NeuronMenuCustomizer menuCustomizer,
+            NeuronMenuView neuronMenuView,
             Runnable refreshVisuals,
             Runnable refreshConnections,
             Runnable refreshOverlays,
@@ -75,12 +76,12 @@ public final class NeuronMenuController {
         this.connections = Objects.requireNonNull(connections, "connections");
         this.simulation = Objects.requireNonNull(simulation, "simulation");
         this.deletionController = Objects.requireNonNull(deletionController, "deletionController");
-        this.menuCustomizer = Objects.requireNonNull(menuCustomizer, "menuCustomizer");
+        this.neuronMenuView = Objects.requireNonNull(neuronMenuView, "neuronMenuView");
         this.localization = Objects.requireNonNull(localization, "localization");
         this.menuView = new NeuronContextMenuView(
                 this.localization,
-                this.menuCustomizer::customizeMenuButton,
-                this.menuCustomizer::createDirectionButton
+                this.neuronMenuView::customizeMenuButton,
+                this.neuronMenuView::createDirectionButton
         );
         this.overlayPositioner = new NeuronOverlayPositioner(workspace);
         this.refreshVisuals = Objects.requireNonNull(refreshVisuals, "refreshVisuals");

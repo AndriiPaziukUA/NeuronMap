@@ -4,7 +4,6 @@ import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.controller.ConnectionController;
 import com.example.neuronmap.controller.NeuronInteractionController;
 import com.example.neuronmap.controller.NeuronLayerOrderController;
-import com.example.neuronmap.controller.NeuronMenuCustomizer;
 import com.example.neuronmap.controller.PulseAnimationController;
 import com.example.neuronmap.controller.SelectionController;
 import com.example.neuronmap.controller.SimulationController;
@@ -17,6 +16,7 @@ import com.example.neuronmap.service.GroupService;
 import com.example.neuronmap.service.NeuronClipboardService;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.simulation.SimulationService;
+import com.example.neuronmap.view.NeuronMenuView;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.RotationHandleView;
 import com.example.neuronmap.view.SimulationStepPresenter;
@@ -292,7 +292,7 @@ final class MapPresentationCoordinatorLifecycleTest {
                         () -> { },
                         this::refreshPresentation,
                         ignored -> { },
-                        new NeuronMenuCustomizer(
+                        new NeuronMenuView(
                                 new Pane(),
                                 state::selectedNeuronForMenu,
                                 ignored -> { },
