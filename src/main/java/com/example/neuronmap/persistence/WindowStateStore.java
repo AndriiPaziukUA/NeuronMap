@@ -7,11 +7,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
- * Завантажує та зберігає геометрію головного вікна в окремому файлі.
+ * Завантажує та зберігає геометрію головного вікна в окремому файлі, не перериваючи завершення застосунку,
+ * якщо необов’язковий запис стану не вдався.
  */
 public final class WindowStateStore {
+
+    private static final Logger LOGGER = Logger.getLogger(WindowStateStore.class.getName());
 
     private static final String WIDTH = "width";
     private static final String HEIGHT = "height";
@@ -21,13 +26,13 @@ public final class WindowStateStore {
     private final Path file;
 
     /**
-     * Створює екземпляр WindowStateStore та зберігає передані залежності, потрібні для його роботи.
+     * Створює сховище геометрії вікна для заданого файла налаштувань.
      *
-     * @param file значення «file», яке використовується в цьому методі.
+     * @param file шлях до файла, у якому зберігатиметься геометрія вікна.
+     * @throws IllegalArgumentException якщо шлях не задано.
      */
     public WindowStateStore(Path file) {
         if (file == null) {
-
             throw new IllegalArgumentException("file must not be null");
         }
         this.file = file;
@@ -35,6 +40,8 @@ public final class WindowStateStore {
 
     /**
      * Завантажує збережену геометрію вікна, якщо файл містить коректний стан.
+     *
+     * @return збережений стан вікна або порожній результат, якщо файл відсутній чи містить некоректні дані.
      */
     public Optional<WindowState> load() {
         if (!Files.isRegularFile(file)) {
@@ -45,7 +52,14 @@ public final class WindowStateStore {
 
         try (InputStream input = Files.newInputStream(file)) {
             properties.load(input);
-        } catch (IOException | IllegalArgumentException ignored) {
+        } catch (IOException exception) {
+            LOGGER.log(
+                    Level.WARNING,
+                    "Не вдалося прочитати геометрію вікна з файлу " + file,
+                    exception
+            );
+            return Optional.empty();
+        } catch (IllegalArgumentException ignored) {
             return Optional.empty();
         }
 
@@ -66,13 +80,14 @@ public final class WindowStateStore {
     }
 
     /**
-     * Записує геометрію вікна у файл стану.
+     * Записує коректну геометрію вікна у файл стану. Помилку запису реєструє в журналі, оскільки вона не повинна
+     * перешкоджати закриттю вікна та звільненню інших ресурсів застосунку.
      *
-     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param state стан геометрії вікна, який потрібно зберегти.
+     * @throws IllegalArgumentException якщо стан не задано.
      */
     public void save(WindowState state) {
         if (state == null) {
-
             throw new IllegalArgumentException("state must not be null");
         }
         if (!state.isValid()) {
@@ -94,8 +109,12 @@ public final class WindowStateStore {
             try (OutputStream output = Files.newOutputStream(file)) {
                 properties.store(output, "NeuronMap window geometry");
             }
-        } catch (IOException ignored) {
-
+        } catch (IOException exception) {
+            LOGGER.log(
+                    Level.WARNING,
+                    "Не вдалося зберегти геометрію вікна у файлі " + file,
+                    exception
+            );
         }
     }
 }
