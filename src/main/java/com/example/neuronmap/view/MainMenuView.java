@@ -123,7 +123,9 @@ public final class MainMenuView extends StackPane {
     private SupportedLanguage settingsOriginalLanguage;
     private boolean savingPendingChanges;
     private Consumer<Boolean> visibilityChanged = ignored -> { };
-    private Runnable persistLanguageAction = () -> { };
+    private Consumer<SupportedLanguage> previewLanguageAction = ignored -> { };
+    private Runnable confirmLanguageAction = () -> { };
+    private Runnable discardLanguageAction = () -> { };
 
     /**
      * Створює подання меню та підключає локалізацію й сповіщення про зміну видимості.
@@ -204,7 +206,7 @@ public final class MainMenuView extends StackPane {
             SupportedLanguage selected = languageSelector.getValue();
             if (selected != null && selected != localization.language()) {
                 languageSelector.hide();
-                localization.previewLanguage(selected);
+                previewLanguageAction.accept(selected);
                 updateSaveButtonVisibility();
             }
             event.consume();
@@ -247,12 +249,21 @@ public final class MainMenuView extends StackPane {
     }
 
     /**
-     * Встановлює дію збереження мови, яку виконує контролер застосунку.
+     * Передає контролеру події попереднього перегляду, підтвердження та скасування вибору мови.
+     * Подання лише повідомляє про дію користувача й не змінює активну локаль самостійно.
      *
-     * @param action дія збереження поточної мови.
+     * @param previewLanguageAction дія попереднього перегляду вибраної мови.
+     * @param confirmLanguageAction дія підтвердження та збереження поточної мови.
+     * @param discardLanguageAction дія відновлення мови, що була активною до редагування.
      */
-    public void setPersistLanguageAction(Runnable action) {
-        this.persistLanguageAction = Objects.requireNonNull(action, "action");
+    public void setLanguageActions(
+            Consumer<SupportedLanguage> previewLanguageAction,
+            Runnable confirmLanguageAction,
+            Runnable discardLanguageAction
+    ) {
+        this.previewLanguageAction = Objects.requireNonNull(previewLanguageAction, "previewLanguageAction");
+        this.confirmLanguageAction = Objects.requireNonNull(confirmLanguageAction, "confirmLanguageAction");
+        this.discardLanguageAction = Objects.requireNonNull(discardLanguageAction, "discardLanguageAction");
     }
 
     /**
@@ -345,7 +356,7 @@ public final class MainMenuView extends StackPane {
         unsavedChangesView.discardAndContinue();
     }
 
-    /** Зберігає незавершені зміни назв проєктів і попередньо вибрану мову. */
+    /** Зберігає незавершені зміни назв проєктів і підтверджує зміну мови через контролер. */
     public void saveUnsavedChanges() {
         savingPendingChanges = true;
         try {
@@ -360,13 +371,13 @@ public final class MainMenuView extends StackPane {
         }
     }
 
-    /** Відхиляє незавершені зміни назв проєктів і повертає мову до збереженого стану. */
+    /** Відхиляє незавершені зміни назв проєктів і передає скасування вибору мови контролеру. */
     public void discardUnsavedChanges() {
         for (SavedProjectRowView row : projectRows) {
             row.discardPendingChange();
         }
         if (settingsHaveUnsavedChanges() && settingsOriginalLanguage != null) {
-            localization.previewLanguage(settingsOriginalLanguage);
+            discardLanguageAction.run();
         }
         settingsOriginalLanguage = localization.language();
         unsavedChangesView.hide();
@@ -429,7 +440,7 @@ public final class MainMenuView extends StackPane {
         installPanel();
     }
 
-    /** Показує сторінку налаштувань і запам'ятовує мову для можливого скасування змін. */
+    /** Показує сторінку налаштувань і запам'ятовує початкове значення мови лише для відображення стану змін. */
     public void showSettingsPage() {
         page = Page.SETTINGS;
         clearProjectRows();
@@ -584,13 +595,13 @@ public final class MainMenuView extends StackPane {
     }
 
     /**
-     * Зберігає вибрану мову через callback контролера та оновлює базовий стан налаштувань.
+     * Підтверджує вибрану мову через callback контролера та оновлює базовий стан для індикації незбережених змін.
      */
     public void saveSettings() {
         if (!isSettingsPage()) {
             return;
         }
-        persistLanguageAction.run();
+        confirmLanguageAction.run();
         settingsOriginalLanguage = localization.language();
         updateSaveButtonVisibility();
     }

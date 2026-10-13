@@ -1,6 +1,9 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.i18n.LocalizationService;
+import com.example.neuronmap.i18n.SupportedLanguage;
+import com.example.neuronmap.persistence.GlobalSettingsLanguagePreferenceStore;
+import com.example.neuronmap.persistence.GlobalSettingsStore;
 import com.example.neuronmap.view.MainMenuView;
 import javafx.application.Platform;
 import javafx.event.Event;
@@ -9,7 +12,9 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
@@ -19,10 +24,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Regression tests for Escape behavior on the main menu, its subpages, and unsaved-change confirmation. */
+/** Перевіряє обробку Escape, переходи між сторінками меню та керування станом локалізації контролером. */
 final class MainMenuControllerTest {
 
-    /** Starts the JavaFX toolkit for keyboard-event tests. */
+    @TempDir
+    Path tempDirectory;
+
+    /** Запускає JavaFX toolkit для тестів клавіатурних подій. */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -34,7 +42,7 @@ final class MainMenuControllerTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
     }
 
-    /** Verifies that Escape backs out of saved-projects and settings, then closes the main menu. */
+    /** Перевіряє, що Escape повертає зі сторінок проєктів і налаштувань, а потім закриває меню. */
     @Test
     void escapeNavigatesBackFromSubpagesAndClosesMainPage() throws Exception {
         runOnFxThread(() -> {
@@ -62,7 +70,7 @@ final class MainMenuControllerTest {
         });
     }
 
-    /** Verifies that Escape first opens the discard prompt and then completes the requested Back action. */
+    /** Перевіряє, що скасування незбереженої мови відновлює початкову локаль перед переходом назад. */
     @Test
     void escapeDiscardsDirtySettingsAndContinuesBackNavigation() throws Exception {
         runOnFxThread(() -> {
@@ -73,9 +81,7 @@ final class MainMenuControllerTest {
             controller.install(scene);
             controller.open();
             view.showSettingsPage();
-            view.languageSelectorForTest().setValue(com.example.neuronmap.i18n.SupportedLanguage.UKRAINIAN);
-            view.languageSelectorForTest().getOnAction().handle(
-                    new javafx.event.ActionEvent(view.languageSelectorForTest(), null));
+            chooseLanguage(view, SupportedLanguage.UKRAINIAN);
 
             assertTrue(view.hasUnsavedChanges());
             fireEscape(scene);
@@ -85,7 +91,7 @@ final class MainMenuControllerTest {
             assertFalse(view.isConfirmingUnsavedChanges());
             assertTrue(controller.isOpen());
             assertFalse(view.isSettingsPage());
-            assertEquals(com.example.neuronmap.i18n.SupportedLanguage.ENGLISH, localization.language());
+            assertEquals(SupportedLanguage.ENGLISH, localization.language());
             assertFalse(view.hasUnsavedChanges());
 
             fireEscape(scene);
@@ -94,7 +100,33 @@ final class MainMenuControllerTest {
         });
     }
 
-    /** Creates a controller with inert project/application callbacks for isolated keyboard tests. */
+    /** Перевіряє, що підтвердження мови контролером зберігає вибір у сховищі налаштувань. */
+    @Test
+    void confirmingLanguagePersistsSelectionThroughLocalizationService() throws Exception {
+        GlobalSettingsStore store = new GlobalSettingsStore(tempDirectory.resolve("settings.properties"));
+        LocalizationService localization = new LocalizationService(
+                new GlobalSettingsLanguagePreferenceStore(store)
+        );
+        runOnFxThread(() -> {
+            MainMenuView view = new MainMenuView(localization, ignored -> { });
+            MainMenuController controller = controllerFor(view, localization);
+            controller.open();
+            view.showSettingsPage();
+
+            chooseLanguage(view, SupportedLanguage.UKRAINIAN);
+            assertTrue(view.hasUnsavedChanges());
+            assertEquals(SupportedLanguage.UKRAINIAN, localization.language());
+
+            view.saveSettingsButtonForTest().fire();
+
+            assertEquals("uk", store.load("language"));
+            assertFalse(view.hasUnsavedChanges());
+            assertFalse(view.saveSettingsButtonForTest().isVisible());
+            controller.dispose(null);
+        });
+    }
+
+    /** Створює контролер з порожніми діями застосунку для ізольованих тестів меню. */
     private static MainMenuController controllerFor(
             MainMenuView view,
             LocalizationService localization
@@ -113,7 +145,14 @@ final class MainMenuControllerTest {
         );
     }
 
-    /** Dispatches an Escape key-pressed event through the scene's event filters. */
+    /** Вибирає мову так, як це відбулося б під час дії користувача у ComboBox. */
+    private static void chooseLanguage(MainMenuView view, SupportedLanguage language) {
+        view.languageSelectorForTest().setValue(language);
+        view.languageSelectorForTest().getOnAction().handle(
+                new javafx.event.ActionEvent(view.languageSelectorForTest(), null));
+    }
+
+    /** Передає подію Escape через фільтри подій сцени. */
     private static void fireEscape(Scene scene) {
         Event.fireEvent(scene, new KeyEvent(
                 KeyEvent.KEY_PRESSED,
@@ -127,7 +166,7 @@ final class MainMenuControllerTest {
         ));
     }
 
-    /** Runs an assertion block on the JavaFX thread and propagates failures to the test thread. */
+    /** Виконує перевірки в потоці JavaFX і передає помилки до потоку JUnit. */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];
@@ -142,7 +181,7 @@ final class MainMenuControllerTest {
         });
         assertTrue(latch.await(5, TimeUnit.SECONDS));
         if (failure[0] != null) {
-            throw new AssertionError("JavaFX test failed", failure[0]);
+            throw new AssertionError("Тест JavaFX завершився помилкою", failure[0]);
         }
     }
 }

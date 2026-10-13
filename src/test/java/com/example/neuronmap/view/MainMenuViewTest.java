@@ -32,9 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Перевіряє навігацію меню, адаптивне компонування, збереження та скасування налаштувань і локалізовані написи.
- */
+/** Перевіряє навігацію меню, адаптивне компонування, збереження та скасування налаштувань і локалізовані написи. */
 final class MainMenuViewTest {
 
     private static final String LANGUAGE_KEY = "language";
@@ -70,20 +68,20 @@ final class MainMenuViewTest {
             ), view.mainButtonTextsForTest());
             assertEquals("NeuronMap", view.pageTitleForTest());
             assertNull(view.backButtonForTest().getParent(),
-                    "Back must not be parented while the main page is active");
+                    "Кнопка повернення не має бути додана на головній сторінці");
             view.showLoadPage(List.of());
             assertEquals("Збережені проєкти", view.pageTitleForTest());
             view.showMainPage();
             assertEquals("NeuronMap", view.pageTitleForTest());
             assertNull(view.backButtonForTest().getParent(),
-                    "Back must be detached when returning from the saved-project page");
+                    "Кнопка повернення має бути вилучена після повернення зі списку проєктів");
             assertTrue(view.menuPanelForTest().isFocusTraversable());
             view.showSettingsPage();
             assertEquals("Налаштування", view.pageTitleForTest());
             view.showMainPage();
             assertEquals("NeuronMap", view.pageTitleForTest());
             assertNull(view.backButtonForTest().getParent(),
-                    "Back must be detached when returning from settings");
+                    "Кнопка повернення має бути вилучена після повернення з налаштувань");
             assertTrue(view.menuPanelForTest().isFocusTraversable());
             assertEquals(460.0, view.panelMaxWidthForTest());
             assertEquals(430.0, view.panelMaxHeightForTest());
@@ -107,9 +105,14 @@ final class MainMenuViewTest {
         LocalizationService localization = new LocalizationService(
                 new GlobalSettingsLanguagePreferenceStore(store)
         );
+        SupportedLanguage originalLanguage = localization.language();
         runOnFxThread(() -> {
             MainMenuView view = new MainMenuView(localization, ignored -> { });
-            view.setPersistLanguageAction(localization::persistCurrentLanguage);
+            view.setLanguageActions(
+                    localization::previewLanguage,
+                    localization::persistCurrentLanguage,
+                    () -> localization.previewLanguage(originalLanguage)
+            );
             view.showSettingsPage();
 
             assertFalse(view.saveSettingsButtonForTest().isVisible());
@@ -128,9 +131,9 @@ final class MainMenuViewTest {
         });
     }
 
-    /** Перевіряє, що подання налаштувань не зберігає мову без переданого callback-а. */
+    /** Перевіряє, що подання без callback-ів не змінює й не зберігає активну мову. */
     @Test
-    void settingsViewDoesNotPersistLanguageWithoutCallback() throws Exception {
+    void settingsViewDoesNotChangeOrPersistLanguageWithoutCallbacks() throws Exception {
         GlobalSettingsStore store = new GlobalSettingsStore(
                 tempDirectory.resolve("settings-without-callback.properties")
         );
@@ -142,6 +145,8 @@ final class MainMenuViewTest {
             view.showSettingsPage();
 
             chooseLanguage(view.languageSelectorForTest(), SupportedLanguage.UKRAINIAN);
+            assertEquals(SupportedLanguage.ENGLISH, localization.language());
+            assertFalse(view.hasUnsavedChanges());
             view.saveSettingsButtonForTest().fire();
 
             assertNull(store.load(LANGUAGE_KEY));
@@ -149,12 +154,17 @@ final class MainMenuViewTest {
         });
     }
 
-    /** Перевіряє, що скасування попереднього перегляду мови відновлює початкове значення. */
+    /** Перевіряє, що подання передає попередній перегляд і скасування мови через задані callback-и. */
     @Test
-    void settingsLanguagePreviewCanBeDiscarded() throws Exception {
+    void settingsLanguagePreviewAndDiscardUseCallbacks() throws Exception {
         runOnFxThread(() -> {
             LocalizationService localization = new LocalizationService(Locale.ENGLISH);
             MainMenuView view = new MainMenuView(localization, ignored -> { });
+            view.setLanguageActions(
+                    localization::previewLanguage,
+                    () -> { },
+                    () -> localization.previewLanguage(SupportedLanguage.ENGLISH)
+            );
             view.showSettingsPage();
 
             chooseLanguage(view.languageSelectorForTest(), SupportedLanguage.RUSSIAN);
@@ -262,24 +272,20 @@ final class MainMenuViewTest {
         }, 4);
     }
 
-    /**
-     * Перевіряє відкритий режим редагування через стабільний API TextField і доступну ширину компонента.
-     *
-     * @param row рядок проєкту в режимі перейменування.
-     */
+    /** Перевіряє доступність режиму редагування через стабільний API TextField і ширину компонента. */
     private static void assertRenameCaretPositionAtEnd(SavedProjectRowView row) {
         assertNotNull(row);
         Scene scene = row.getScene();
-        assertNotNull(scene, "The rename field must be attached to a scene");
+        assertNotNull(scene, "Поле перейменування має бути приєднане до сцени");
 
         javafx.scene.control.TextField field = row.renameFieldForTest();
-        assertNotNull(field, "Rename mode must create a text field");
-        assertTrue(field.isVisible(), "The rename field must be visible");
-        assertTrue(field.getWidth() > 0.0, "The rename field must have a calculated layout width");
-        assertEquals(row.project().name(), field.getText(), "The saved project name must be prefilled");
+        assertNotNull(field, "Режим перейменування має створити текстове поле");
+        assertTrue(field.isVisible(), "Текстове поле має бути видимим");
+        assertTrue(field.getWidth() > 0.0, "Текстове поле має отримати розраховану ширину");
+        assertEquals(row.project().name(), field.getText(), "Назва проєкту має бути попередньо заповнена");
         assertEquals(field.getLength(), field.getCaretPosition(),
-                "The insertion point must be at the end of the project name");
-        assertEquals("", field.getSelectedText(), "The project name must not remain selected");
+                "Курсор має стояти в кінці назви проєкту");
+        assertEquals("", field.getSelectedText(), "Назва проєкту не має залишатися виділеною");
     }
 
     /** Перевіряє адаптивну висоту сторінки проєктів і роботу вертикальної смуги прокручування. */
@@ -312,11 +318,11 @@ final class MainMenuViewTest {
             scrollPane.applyCss();
             scrollPane.layout();
             ScrollBar scrollBar = verticalScrollBarForTest(scrollPane);
-            assertNotNull(scrollBar, "JavaFX should create the vertical scrollbar for the scroll pane");
-            assertTrue(scrollBar.isVisible(), "The vertical scrollbar should be visible for a long project list");
+            assertNotNull(scrollBar, "JavaFX має створити вертикальну смугу прокручування для довгого списку");
+            assertTrue(scrollBar.isVisible(), "Вертикальна смуга має бути видимою для довгого списку проєктів");
             scrollBar.setValue(scrollBar.getMax());
             assertEquals(scrollBar.getMax(), scrollPane.getVvalue(), 0.05,
-                    "Dragging the scrollbar must update the scroll pane position");
+                    "Переміщення смуги має оновлювати позицію прокручування");
 
             ProjectDescriptor singleProject = new ProjectDescriptor(
                     "single", "Project", Path.of("single-project.db"), Instant.now());
@@ -329,7 +335,7 @@ final class MainMenuViewTest {
             ScrollBar shortListScrollBar = verticalScrollBarForTest(shortListPane);
             assertNotNull(shortListScrollBar);
             assertFalse(shortListScrollBar.isVisible(),
-                    "The scrollbar should remain hidden when all saved projects fit vertically");
+                    "Смуга прокручування має бути прихована, якщо всі проєкти вміщаються за висотою");
             view.dispose();
         });
     }
@@ -364,7 +370,7 @@ final class MainMenuViewTest {
         });
     }
 
-    /** Перевіряє, що вікно підтвердження має бажану висоту та центрований текст запитання. */
+    /** Перевіряє бажану висоту вікна підтвердження та центрування тексту запитання. */
     @Test
     void unsavedChangesDialogKeepsPreferredHeightAndCenteredQuestion() throws Exception {
         runOnFxThread(() -> {
@@ -382,12 +388,7 @@ final class MainMenuViewTest {
         });
     }
 
-    /**
-     * Знаходить вертикальну смугу прокручування, створену шкірою JavaFX для ScrollPane.
-     *
-     * @param scrollPane контейнер, у якому потрібно знайти смугу прокручування.
-     * @return вертикальна смуга прокручування або {@code null}, якщо шкіру ще не створено.
-     */
+    /** Знаходить вертикальну смугу прокручування, створену JavaFX для ScrollPane. */
     private static ScrollBar verticalScrollBarForTest(ScrollPane scrollPane) {
         scrollPane.applyCss();
         return scrollPane.lookupAll(".scroll-bar").stream()
@@ -423,18 +424,11 @@ final class MainMenuViewTest {
         Platform.runLater(() -> executeAfterFxTurns(action, turns, latch, failure));
         assertTrue(latch.await(5, TimeUnit.SECONDS));
         if (failure[0] != null) {
-            throw new AssertionError("JavaFX deferred test failed", failure[0]);
+            throw new AssertionError("Відкладена дія JavaFX завершилася помилкою", failure[0]);
         }
     }
 
-    /**
-     * Повторно додає дію до черги JavaFX, доки не мине задана кількість проходів.
-     *
-     * @param action дія, яку потрібно виконати після завершення відкладення.
-     * @param remainingTurns кількість проходів черги, що залишилися.
-     * @param latch сигналізує про завершення дії.
-     * @param failure зберігає виняток, який виник під час виконання дії.
-     */
+    /** Повторно додає дію до черги JavaFX, доки не мине задана кількість проходів. */
     private static void executeAfterFxTurns(
             Runnable action,
             int remainingTurns,
@@ -470,7 +464,7 @@ final class MainMenuViewTest {
         });
         assertTrue(latch.await(5, TimeUnit.SECONDS));
         if (failure[0] != null) {
-            throw new AssertionError("JavaFX test failed", failure[0]);
+            throw new AssertionError("Тест JavaFX завершився помилкою", failure[0]);
         }
     }
 }

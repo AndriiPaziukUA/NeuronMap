@@ -2,6 +2,7 @@ package com.example.neuronmap.controller;
 
 import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.i18n.LocalizationService;
+import com.example.neuronmap.i18n.SupportedLanguage;
 import com.example.neuronmap.view.MainMenuView;
 import javafx.application.Platform;
 import javafx.scene.Scene;
@@ -15,11 +16,12 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * Керує навігацією головного меню, операціями зі збереженими проєктами та клавіатурними скороченнями меню.
+ * Керує навігацією головного меню, операціями зі збереженими проєктами, клавіатурними скороченнями й зміною мови.
  */
 public final class MainMenuController {
 
     private final MainMenuView view;
+    private final LocalizationService localization;
     private final Supplier<List<ProjectDescriptor>> projectsSupplier;
     private final Consumer<ProjectDescriptor> openProjectAction;
     private final BiFunction<ProjectDescriptor, String, ProjectDescriptor> renameProjectAction;
@@ -28,6 +30,7 @@ public final class MainMenuController {
     private final Runnable resumeAfterMenuAction;
 
     private final javafx.event.EventHandler<KeyEvent> keyHandler = this::handleKeyPressed;
+    private SupportedLanguage settingsOriginalLanguage;
     private boolean installed;
 
     /**
@@ -57,8 +60,12 @@ public final class MainMenuController {
             Runnable resumeAfterMenuAction
     ) {
         this.view = Objects.requireNonNull(view, "view");
-        Objects.requireNonNull(localization, "localization");
-        view.setPersistLanguageAction(localization::persistCurrentLanguage);
+        this.localization = Objects.requireNonNull(localization, "localization");
+        view.setLanguageActions(
+                this::previewLanguage,
+                this::confirmLanguage,
+                this::discardLanguagePreview
+        );
         this.projectsSupplier = Objects.requireNonNull(projectsSupplier, "projectsSupplier");
         this.openProjectAction = Objects.requireNonNull(openProjectAction, "openProjectAction");
         this.renameProjectAction = Objects.requireNonNull(renameProjectAction, "renameProjectAction");
@@ -72,7 +79,7 @@ public final class MainMenuController {
                     closeMenuImmediately();
                 }),
                 () -> requestLeave(() -> view.showLoadPage(projectsSupplier.get())),
-                () -> requestLeave(view::showSettingsPage),
+                () -> requestLeave(this::openSettingsPage),
                 () -> requestClose(exitAction),
                 this::requestCloseMenu,
                 this::handleOpenProject,
@@ -135,7 +142,7 @@ public final class MainMenuController {
         return view.isMenuVisible();
     }
 
-    /** Вилучає обробник клавіатури, скидає незбережені зміни та звільняє ресурси подання. */
+    /** Вилучає обробник клавіатури, скасовує незбережені зміни та звільняє ресурси подання. */
     public void dispose(Scene scene) {
         if (scene != null && installed) {
             scene.removeEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
@@ -146,6 +153,36 @@ public final class MainMenuController {
             view.hide();
         }
         view.dispose();
+    }
+
+    /** Запам'ятовує активну мову перед показом налаштувань. */
+    private void openSettingsPage() {
+        settingsOriginalLanguage = localization.language();
+        view.showSettingsPage();
+    }
+
+    /** Тимчасово застосовує вибрану мову та зберігає початкову мову сеансу редагування. */
+    private void previewLanguage(SupportedLanguage language) {
+        if (language == null) {
+            return;
+        }
+        if (settingsOriginalLanguage == null) {
+            settingsOriginalLanguage = localization.language();
+        }
+        localization.previewLanguage(language);
+    }
+
+    /** Фіксує вибрану мову як підтверджену та зберігає її через службу локалізації. */
+    private void confirmLanguage() {
+        localization.persistCurrentLanguage();
+        settingsOriginalLanguage = localization.language();
+    }
+
+    /** Відновлює мову, що була активною до незбереженого попереднього перегляду. */
+    private void discardLanguagePreview() {
+        if (settingsOriginalLanguage != null) {
+            localization.previewLanguage(settingsOriginalLanguage);
+        }
     }
 
     /** Відкриває вибраний проєкт, а потім закриває меню. */
