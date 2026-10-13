@@ -25,16 +25,18 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 import java.nio.file.Path;
+import java.util.Objects;
 
 /**
- * Запускає JavaFX-застосунок, збирає його основні залежності та готує початкове вікно редактора карти нейронів.
+ * Є точкою входу JavaFX-застосунку: збирає залежності, готує початковий проєкт редактора та керує головним вікном.
  */
 public final class NeuronMapApp extends Application {
 
     /**
-     * Ініціалізує конфігурацію та сховище, створює головну сцену JavaFX і показує вікно застосунку.
+     * Завантажує конфігурацію, готує сховище й залежності редактора, визначає початковий проєкт і показує головне вікно.
+     * Під час закриття вікна зберігає його геометрію та завершує роботу контролера редактора.
      *
-     * @param stage головне вікно JavaFX, яке потрібно показати.
+     * @param stage головне вікно JavaFX, яке потрібно налаштувати та показати.
      */
     @Override
     public void start(Stage stage) {
@@ -60,13 +62,10 @@ public final class NeuronMapApp extends Application {
         ProjectCatalogService projectCatalog = new ProjectCatalogService(
                 new FileSystemProjectCatalogRepository(storageDirectory, globalSettings)
         );
-        ProjectDescriptor initialProject = projectCatalog.lastOpenedProject();
-        if (initialProject == null) {
-            initialProject = projectCatalog.listProjects()
-                    .stream()
-                    .findFirst()
-                    .orElseGet(() -> projectCatalog.createTransientProject("Project"));
-        }
+        ProjectDescriptor initialProject = resolveInitialProject(
+                projectCatalog,
+                localization.text("project.default_name")
+        );
 
         MapRepositoryFactory mapRepositoryFactory = new DefaultMapRepositoryFactory();
         MapRepository repository = initialProject.isPersisted()
@@ -127,7 +126,38 @@ public final class NeuronMapApp extends Application {
     }
 
     /**
-     * Є точкою входу застосунку та передає керування JavaFX через launch(args).
+     * Визначає проєкт, який редактор має відкрити під час запуску.
+     * Спочатку повертає останній відкритий доступний проєкт, потім — перший проєкт із каталогу,
+     * а якщо збережених проєктів немає, створює новий тимчасовий проєкт.
+     *
+     * @param projectCatalog служба, що надає доступ до каталогу проєктів.
+     * @param defaultProjectName локалізована типова назва нового проєкту.
+     * @return останній відкритий проєкт, перший доступний збережений проєкт або новий тимчасовий проєкт.
+     * @throws NullPointerException якщо службу каталогу не задано.
+     * @throws IllegalArgumentException якщо типова назва проєкту порожня або не задана.
+     */
+    static ProjectDescriptor resolveInitialProject(
+            ProjectCatalogService projectCatalog,
+            String defaultProjectName
+    ) {
+        Objects.requireNonNull(projectCatalog, "projectCatalog");
+        if (defaultProjectName == null || defaultProjectName.isBlank()) {
+            throw new IllegalArgumentException("defaultProjectName must not be blank");
+        }
+
+        ProjectDescriptor lastOpenedProject = projectCatalog.lastOpenedProject();
+        if (lastOpenedProject != null) {
+            return lastOpenedProject;
+        }
+
+        return projectCatalog.listProjects()
+                .stream()
+                .findFirst()
+                .orElseGet(() -> projectCatalog.createTransientProject(defaultProjectName));
+    }
+
+    /**
+     * Є точкою входу застосунку та передає керування JavaFX через {@code launch(args)}.
      *
      * @param args аргументи командного рядка, передані під час запуску.
      */
