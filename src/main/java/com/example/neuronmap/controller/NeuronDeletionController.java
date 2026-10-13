@@ -3,10 +3,10 @@ package com.example.neuronmap.controller;
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.service.NeuronService;
+import com.example.neuronmap.view.JavaFxNodeLookup;
 import com.example.neuronmap.view.WorkspaceView;
 import javafx.event.EventHandler;
 import javafx.scene.Cursor;
-import javafx.scene.Node;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -175,13 +175,6 @@ public final class NeuronDeletionController {
      * @return {@code true}, якщо фокус перебуває в текстовому полі.
      */
     private boolean isTextInputTarget(Object target) {
-        Node node = target instanceof Node targetNode ? targetNode : null;
-        while (node != null) {
-            if (node instanceof TextInputControl) {
-                return true;
-            }
-            node = node.getParent();
-        }
-        return false;
+        return JavaFxNodeLookup.findAncestor(target, TextInputControl.class) != null;
     }
 }

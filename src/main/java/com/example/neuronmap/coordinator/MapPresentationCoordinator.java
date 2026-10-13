@@ -8,6 +8,7 @@ import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.view.ConnectionView;
 import com.example.neuronmap.view.GroupView;
+import com.example.neuronmap.view.JavaFxNodeLookup;
 import com.example.neuronmap.view.NeuronLayerOrderController;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.RotationHandleView;
@@ -106,13 +107,12 @@ public final class MapPresentationCoordinator {
      * @param event подія інтерфейсу, яку потрібно обробити.
      */
     public void bringClickedNeuronToFront(MouseEvent event) {
-        Node node = event.getTarget() instanceof Node targetNode ? targetNode : null;
-        while (node != null) {
-            if (node instanceof NeuronView neuronView) {
-                layerOrderController.bringNeuronToFront(neuronView.model().id());
-                return;
-            }
-            node = node.getParent();
+        NeuronView neuronView = JavaFxNodeLookup.findAncestor(
+                event.getTarget(),
+                NeuronView.class
+        );
+        if (neuronView != null) {
+            layerOrderController.bringNeuronToFront(neuronView.model().id());
         }
     }
 

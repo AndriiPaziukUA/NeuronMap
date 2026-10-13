@@ -5,11 +5,12 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.service.GroupService;
 import com.example.neuronmap.service.NeuronClipboardService;
 import com.example.neuronmap.service.NeuronService;
+import com.example.neuronmap.view.JavaFxNodeLookup;
 import com.example.neuronmap.view.NeuronMenuView;
 import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.RotationHandleView;
 import com.example.neuronmap.view.WorkspaceView;
-import javafx.scene.Node;
+import javafx.scene.control.Control;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 
@@ -269,17 +270,13 @@ public final class NeuronInteractionController {
      * @return {@code true}, якщо подію має обробити вкладений інтерактивний елемент.
      */
     public boolean isInteractiveTarget(Object target) {
-        Node node = target instanceof Node targetNode ? targetNode : null;
-        while (node != null) {
-            if (node instanceof NeuronView
-                    || node instanceof RotationHandleView
-                    || node == menuController.node()
-                    || node instanceof javafx.scene.control.Control) {
-                return true;
-            }
-            node = node.getParent();
-        }
-        return false;
+        return JavaFxNodeLookup.findAncestorMatching(
+                target,
+                node -> node instanceof NeuronView
+                        || node instanceof RotationHandleView
+                        || node == menuController.node()
+                        || node instanceof Control
+        ) != null;
     }
 
     /**

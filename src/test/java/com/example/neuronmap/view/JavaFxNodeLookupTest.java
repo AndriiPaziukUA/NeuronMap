@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
- * Перевіряє пошук найближчого предка заданого типу в дереві вузлів JavaFX.
+ * Перевіряє пошук найближчого предка заданого типу або за умовою в дереві вузлів JavaFX.
  */
 final class JavaFxNodeLookupTest {
 
@@ -27,6 +27,23 @@ final class JavaFxNodeLookupTest {
     }
 
     /**
+     * Повертає найближчого предка, що відповідає переданій умові, навіть якщо збіг має конкретний тип.
+     */
+    @Test
+    void findsNearestAncestorMatchingCondition() {
+        Pane root = new Pane();
+        Pane nearestPane = new Pane();
+        Rectangle target = new Rectangle(10.0, 10.0);
+        root.getChildren().add(nearestPane);
+        nearestPane.getChildren().add(target);
+
+        assertSame(
+                nearestPane,
+                JavaFxNodeLookup.findAncestorMatching(target, node -> node instanceof Pane)
+        );
+    }
+
+    /**
      * Повертає {@code null}, якщо переданий об’єкт не є вузлом JavaFX.
      */
     @Test
@@ -42,5 +59,15 @@ final class JavaFxNodeLookupTest {
         Rectangle target = new Rectangle(10.0, 10.0);
 
         assertNull(JavaFxNodeLookup.findAncestor(target, Pane.class));
+    }
+
+    /**
+     * Повертає {@code null}, якщо жоден предок не відповідає переданій умові.
+     */
+    @Test
+    void returnsNullWhenNoAncestorMatchesCondition() {
+        Rectangle target = new Rectangle(10.0, 10.0);
+
+        assertNull(JavaFxNodeLookup.findAncestorMatching(target, node -> node instanceof Pane));
     }
 }
