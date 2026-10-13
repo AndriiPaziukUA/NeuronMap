@@ -10,9 +10,7 @@ import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.function.Consumer;
 
-/**
- * Керує активною мовою інтерфейсу, завантажує переклади та повідомляє слухачів про зміну мови.
- */
+/** Керує активною мовою, підтвердженим вибором, перекладами та сповіщеннями про зміну локалі. */
 public final class LocalizationService {
 
     private static final String BUNDLE_BASE_NAME = "i18n.messages";
@@ -22,9 +20,10 @@ public final class LocalizationService {
 
     private Locale locale;
     private ResourceBundle bundle;
+    private SupportedLanguage confirmedLanguage;
 
     /**
-     * Створює службу локалізації з абстракцією для читання та збереження вибраної мови.
+     * Створює службу локалізації зі сховищем збереженої мови.
      * Якщо значення відсутнє або некоректне, початковою мовою буде англійська.
      *
      * @param languagePreferenceStore сховище налаштування мови.
@@ -37,10 +36,11 @@ public final class LocalizationService {
         );
         this.locale = loadInitialLocale(languagePreferenceStore);
         this.bundle = loadBundle(locale);
+        this.confirmedLanguage = SupportedLanguage.fromLocale(locale);
     }
 
     /**
-     * Створює службу локалізації в пам’яті з указаною початковою мовою.
+     * Створює службу локалізації в пам'яті з указаною початковою мовою.
      * Вибрана мова не зберігатиметься між запусками.
      *
      * @param initialLocale початкова мова; непідтримуване або порожнє значення замінюється англійською.
@@ -49,24 +49,43 @@ public final class LocalizationService {
         this.languagePreferenceStore = null;
         this.locale = SupportedLanguage.fromLocale(initialLocale).locale();
         this.bundle = loadBundle(locale);
+        this.confirmedLanguage = SupportedLanguage.fromLocale(locale);
     }
 
     /**
-     * Повертає поточну мову інтерфейсу.
+     * Повертає поточну активну локаль, яка може містити непідтверджений попередній перегляд.
      *
-     * @return нормалізована поточна локаль.
+     * @return нормалізована активна локаль.
      */
     public Locale locale() {
         return locale;
     }
 
     /**
-     * Повертає підтримувану мову, що відповідає поточній локалі.
+     * Повертає підтримувану мову, що відповідає поточній активній локалі.
      *
      * @return активна підтримувана мова.
      */
     public SupportedLanguage language() {
         return SupportedLanguage.fromLocale(locale);
+    }
+
+    /**
+     * Повертає останню підтверджену мову, не враховуючи тимчасовий попередній перегляд.
+     *
+     * @return мова, до якої слід повернутися під час скасування редагування.
+     */
+    public SupportedLanguage confirmedLanguage() {
+        return confirmedLanguage;
+    }
+
+    /**
+     * Перевіряє, чи активна мова відрізняється від останньої підтвердженої.
+     *
+     * @return {@code true}, якщо користувач має непідтверджений попередній перегляд мови.
+     */
+    public boolean hasUnconfirmedLanguagePreview() {
+        return language() != confirmedLanguage;
     }
 
     /**
@@ -118,7 +137,7 @@ public final class LocalizationService {
     /**
      * Реєструє слухача, який отримуватиме сповіщення про зміну активної локалі.
      *
-     * @param listener слухач зміни локалі; значення {@code null} і повторна реєстрація ігноруються.
+     * @param listener слухач; значення {@code null} і повторна реєстрація ігноруються.
      */
     public void addListener(Consumer<Locale> listener) {
         if (listener != null && !listeners.contains(listener)) {
@@ -136,73 +155,75 @@ public final class LocalizationService {
     }
 
     /**
-     * Застосовує підтримувану мову та зберігає вибір через передане сховище, якщо воно доступне.
+     * Негайно застосовує та підтверджує мову, зберігаючи її через налаштоване сховище.
      *
-     * @param language мова, яку потрібно застосувати.
+     * @param language мова, яку потрібно застосувати; {@code null} ігнорується.
      */
     public void setLanguage(SupportedLanguage language) {
-        applyLanguage(language, true);
+        if (language == null) {
+            return;
+        }
+        setLocale(language.locale(), true);
     }
 
     /**
-     * Тимчасово застосовує мову без її збереження, щоб користувач міг скасувати зміну.
+     * Тимчасово застосовує мову для попереднього перегляду, не змінюючи підтверджений вибір і файл налаштувань.
      *
-     * @param language мова для попереднього перегляду.
+     * @param language мова для попереднього перегляду; {@code null} ігнорується.
      */
     public void previewLanguage(SupportedLanguage language) {
-        applyLanguage(language, false);
+        if (language != null) {
+            setLocale(language.locale(), false);
+        }
     }
 
     /**
-     * Зберігає поточну мову, не змінюючи активну локаль.
+     * Повертає активну мову до останнього підтвердженого значення без запису у сховище.
+     * Оновлення активної локалі сповіщає слухачів, тому інтерфейс синхронно перемальовує переклади.
+     */
+    public void discardLanguagePreview() {
+        setLocale(confirmedLanguage.locale(), false);
+    }
+
+    /**
+     * Підтверджує поточну активну мову та зберігає її, якщо служба має сховище.
+     * Підтверджене значення оновлюється лише після успішного виклику сховища.
      */
     public void persistCurrentLanguage() {
         if (languagePreferenceStore != null) {
             languagePreferenceStore.saveLanguageTag(locale.toLanguageTag());
         }
+        confirmedLanguage = language();
     }
 
     /**
-     * Застосовує мову, якщо її задано, та за потреби зберігає вибір.
+     * Нормалізує локаль, завантажує її ресурсний набір і сповіщає слухачів лише за фактичної зміни мови.
      *
-     * @param language мова, яку потрібно застосувати.
-     * @param persist ознака, чи потрібно зберегти вибрану мову.
-     */
-    private void applyLanguage(SupportedLanguage language, boolean persist) {
-        if (language != null) {
-            setLocale(language.locale(), persist);
-        }
-    }
-
-    /**
-     * Нормалізує та застосовує локаль, сповіщає слухачів і за потреби зберігає вибір.
-     *
-     * @param newLocale нова локаль.
-     * @param persist ознака, чи потрібно зберегти вибрану мову.
+     * @param newLocale локаль, яку потрібно застосувати.
      */
     private void setLocale(Locale newLocale, boolean persist) {
         SupportedLanguage supported = SupportedLanguage.fromLocale(newLocale);
         Locale normalized = supported.locale();
-
-        if (normalized.getLanguage().equalsIgnoreCase(locale.getLanguage())) {
-            if (persist) {
-                persistCurrentLanguage();
-            }
-            return;
+        boolean changed = !normalized.getLanguage().equalsIgnoreCase(locale.getLanguage());
+        if (changed) {
+            locale = normalized;
+            bundle = loadBundle(locale);
         }
-
-        locale = normalized;
-        bundle = loadBundle(locale);
         if (persist) {
-            persistCurrentLanguage();
+            if (languagePreferenceStore != null) {
+                languagePreferenceStore.saveLanguageTag(locale.toLanguageTag());
+            }
+            confirmedLanguage = SupportedLanguage.fromLocale(locale);
         }
-        for (Consumer<Locale> listener : List.copyOf(listeners)) {
-            listener.accept(locale);
+        if (changed) {
+            for (Consumer<Locale> listener : List.copyOf(listeners)) {
+                listener.accept(locale);
+            }
         }
     }
 
     /**
-     * Завантажує збережений мовний тег або повертає англійську мову, якщо значення відсутнє чи некоректне.
+     * Завантажує збережений мовний тег або використовує англійську, якщо значення відсутнє чи некоректне.
      *
      * @param languagePreferenceStore сховище налаштування мови.
      * @return початкова підтримувана локаль.

@@ -15,9 +15,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/**
- * Керує навігацією головного меню, операціями зі збереженими проєктами, клавіатурними скороченнями й зміною мови.
- */
+/** Керує навігацією меню, незбереженими змінами, операціями проєктів і вибором мови. */
 public final class MainMenuController {
 
     private final MainMenuView view;
@@ -28,9 +26,9 @@ public final class MainMenuController {
     private final Consumer<ProjectDescriptor> deleteProjectAction;
     private final Runnable pauseForMenuAction;
     private final Runnable resumeAfterMenuAction;
+    private final SettingsEditSession settingsEditSession = new SettingsEditSession();
 
     private final javafx.event.EventHandler<KeyEvent> keyHandler = this::handleKeyPressed;
-    private SupportedLanguage settingsOriginalLanguage;
     private boolean installed;
 
     /**
@@ -61,10 +59,36 @@ public final class MainMenuController {
     ) {
         this.view = Objects.requireNonNull(view, "view");
         this.localization = Objects.requireNonNull(localization, "localization");
+        settingsEditSession.register(new SettingsEditSession.Participant() {
+            /** Відновлює підтверджену мову перед початком нового редагування. */
+            @Override
+            public void begin() {
+                MainMenuController.this.localization.discardLanguagePreview();
+            }
+
+            /** Перевіряє наявність непідтвердженого попереднього перегляду мови. */
+            @Override
+            public boolean hasUnsavedChanges() {
+                return MainMenuController.this.localization.hasUnconfirmedLanguagePreview();
+            }
+
+            /** Підтверджує активну мову через службу локалізації. */
+            @Override
+            public void save() {
+                MainMenuController.this.localization.persistCurrentLanguage();
+            }
+
+            /** Повертає активну мову до підтвердженого значення без запису у файл. */
+            @Override
+            public void discard() {
+                MainMenuController.this.localization.discardLanguagePreview();
+            }
+        });
         view.setLanguageActions(
                 this::previewLanguage,
                 this::confirmLanguage,
-                this::discardLanguagePreview
+                this::discardLanguagePreview,
+                settingsEditSession::hasUnsavedChanges
         );
         this.projectsSupplier = Objects.requireNonNull(projectsSupplier, "projectsSupplier");
         this.openProjectAction = Objects.requireNonNull(openProjectAction, "openProjectAction");
@@ -99,7 +123,7 @@ public final class MainMenuController {
         installed = true;
     }
 
-    /** Відкриває головне меню та призупиняє роботу редактора, поки меню залишається відкритим. */
+    /** Відкриває головне меню та призупиняє редактор, поки меню залишається відкритим. */
     public void open() {
         if (view.isMenuVisible()) {
             return;
@@ -112,6 +136,18 @@ public final class MainMenuController {
     /** Закриває меню після розв'язання всіх незбережених змін. */
     public void close() {
         requestCloseMenu();
+    }
+
+    /**
+     * Додає налаштування до спільного життєвого циклу редагування, збереження та відкату.
+     * Реєструвати новий учасник потрібно до першого відкриття сторінки налаштувань.
+     *
+     * @param participant учасник, який керує станом одного налаштування.
+     * @throws NullPointerException якщо учасника не задано.
+     * @throws IllegalStateException якщо сесія вже активна.
+     */
+    public void registerSettingsParticipant(SettingsEditSession.Participant participant) {
+        settingsEditSession.register(participant);
     }
 
     /**
@@ -133,59 +169,51 @@ public final class MainMenuController {
         }
     }
 
-    /**
-     * Перевіряє, чи відкрито меню.
-     *
-     * @return {@code true}, якщо меню видиме.
-     */
+    /** Перевіряє, чи відкрито меню. */
     public boolean isOpen() {
         return view.isMenuVisible();
     }
 
-    /** Вилучає обробник клавіатури, скасовує незбережені зміни та звільняє ресурси подання. */
+    /** Вилучає обробник клавіатури, скасовує незбережені зміни й звільняє ресурси подання. */
     public void dispose(Scene scene) {
         if (scene != null && installed) {
             scene.removeEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
         }
         installed = false;
         view.discardUnsavedChanges();
+        settingsEditSession.discard();
         if (view.isMenuVisible()) {
             view.hide();
         }
         view.dispose();
     }
 
-    /** Запам'ятовує активну мову перед показом налаштувань. */
+    /** Починає спільну сесію редагування та відкриває сторінку налаштувань. */
     private void openSettingsPage() {
-        settingsOriginalLanguage = localization.language();
+        settingsEditSession.begin();
         view.showSettingsPage();
     }
 
-    /** Тимчасово застосовує вибрану мову та зберігає початкову мову сеансу редагування. */
+    /** Застосовує тимчасову локаль; підтверджене значення зберігається окремо службою локалізації. */
     private void previewLanguage(SupportedLanguage language) {
         if (language == null) {
             return;
         }
-        if (settingsOriginalLanguage == null) {
-            settingsOriginalLanguage = localization.language();
-        }
+        settingsEditSession.begin();
         localization.previewLanguage(language);
     }
 
-    /** Фіксує вибрану мову як підтверджену та зберігає її через службу локалізації. */
+    /** Підтверджує зміни всіх налаштувань, що входять до активної сесії. */
     private void confirmLanguage() {
-        localization.persistCurrentLanguage();
-        settingsOriginalLanguage = localization.language();
+        settingsEditSession.save();
     }
 
-    /** Відновлює мову, що була активною до незбереженого попереднього перегляду. */
+    /** Відкочує зміни всіх налаштувань, що входять до активної сесії. */
     private void discardLanguagePreview() {
-        if (settingsOriginalLanguage != null) {
-            localization.previewLanguage(settingsOriginalLanguage);
-        }
+        settingsEditSession.discard();
     }
 
-    /** Відкриває вибраний проєкт, а потім закриває меню. */
+    /** Відкриває вибраний проєкт і після цього закриває меню. */
     private void handleOpenProject(ProjectDescriptor project) {
         requestLeave(() -> {
             openProjectAction.accept(project);
@@ -198,7 +226,7 @@ public final class MainMenuController {
         return renameProjectAction.apply(project, name);
     }
 
-    /** Видаляє проєкт і оновлює список збережених проєктів, якщо меню лишається відкритим. */
+    /** Видаляє проєкт і оновлює список, якщо меню лишається відкритим. */
     private void handleDeleteProject(ProjectDescriptor project) {
         requestLeave(() -> {
             deleteProjectAction.accept(project);
@@ -208,16 +236,19 @@ public final class MainMenuController {
         });
     }
 
-    /** Повертається з підсторінки до головної або закриває меню, якщо вже відкрита головна сторінка. */
+    /** Повертається з підсторінки або закриває меню, коли відкрита головна сторінка. */
     private void handleBack() {
         if (view.isLoadPage() || view.isSettingsPage()) {
-            requestLeave(view::showMainPage);
+            requestLeave(() -> {
+                settingsEditSession.discard();
+                view.showMainPage();
+            });
         } else {
             requestCloseMenu();
         }
     }
 
-    /** Виконує навігацію відразу або запитує, як розв'язати незбережені зміни. */
+    /** Виконує дію відразу або відкриває підтвердження незбережених змін. */
     private void requestLeave(Runnable action) {
         if (!view.hasUnsavedChanges()) {
             action.run();
@@ -238,13 +269,14 @@ public final class MainMenuController {
     /** Закриває меню після розв'язання незбережених змін і викликає задану дію. */
     private void requestClose(Runnable action) {
         requestLeave(() -> {
+            settingsEditSession.discard();
             view.hide();
             resumeAfterMenuAction.run();
             action.run();
         });
     }
 
-    /** Запитує закриття меню зі збереженням сценарію обробки незбережених змін. */
+    /** Запитує закриття меню, зберігаючи спільний сценарій обробки незбережених змін. */
     private void requestCloseMenu() {
         if (!view.isMenuVisible()) {
             return;
@@ -262,8 +294,7 @@ public final class MainMenuController {
     }
 
     /**
-     * Обробляє Escape відповідно до поточної сторінки меню.
-     * Клавіша повертає з підсторінки, закриває головне меню або відкриває його з редактора.
+     * Обробляє Escape відповідно до поточної сторінки меню та блокує редакторські скорочення в меню.
      *
      * @param event подія натискання клавіші JavaFX.
      */
