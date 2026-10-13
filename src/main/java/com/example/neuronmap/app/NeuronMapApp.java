@@ -8,12 +8,10 @@ import com.example.neuronmap.controller.NeuronMapController;
 import com.example.neuronmap.i18n.LanguagePreferenceStore;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.NeuronMapModel;
-import com.example.neuronmap.persistence.DatabasePathResolver;
 import com.example.neuronmap.persistence.FileSystemProjectCatalogRepository;
 import com.example.neuronmap.persistence.GlobalSettingsLanguagePreferenceStore;
 import com.example.neuronmap.persistence.GlobalSettingsStore;
 import com.example.neuronmap.persistence.DefaultMapRepositoryFactory;
-import com.example.neuronmap.persistence.LegacyProjectStorageMigrator;
 import com.example.neuronmap.persistence.MapRepository;
 import com.example.neuronmap.persistence.MapRepositoryFactory;
 import com.example.neuronmap.persistence.ProjectStorageDirectoryResolver;
@@ -45,15 +43,6 @@ public final class NeuronMapApp extends Application {
         Path storageDirectory = ProjectStorageDirectoryResolver.resolve();
         GlobalSettingsStore globalSettings = new GlobalSettingsStore(
                 storageDirectory.resolve("neuronmap-global.properties")
-        );
-        Path legacyDatabasePath = DatabasePathResolver.resolve();
-        LegacyProjectStorageMigrator.migrateIfNeeded(
-                storageDirectory,
-                legacyDatabasePath,
-                legacyDatabasePath.resolveSibling("neuronmap-projects"),
-                legacyDatabasePath.resolveSibling("neuronmap-projects.properties"),
-                "NeuronMap",
-                globalSettings
         );
 
         LanguagePreferenceStore languagePreferenceStore =
