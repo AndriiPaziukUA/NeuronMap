@@ -71,7 +71,7 @@ public final class ProjectWorkflowCoordinator {
                 localization.text("project.default_name")
         );
         MapRepository repository = mapRepositoryFactory.createTransientProjectRepository(project);
-        projectActivator.activate(project, repository, false);
+        activateProjectWithCleanup(project, repository, false);
     }
 
     /**
@@ -90,12 +90,7 @@ public final class ProjectWorkflowCoordinator {
 
         prepareForProjectSwitch.run();
         MapRepository repository = mapRepositoryFactory.createSavedProjectRepository(project);
-        try {
-            projectActivator.activate(project, repository, true);
-        } catch (RuntimeException exception) {
-            repository.close();
-            throw exception;
-        }
+        activateProjectWithCleanup(project, repository, true);
     }
 
     /**
@@ -175,12 +170,44 @@ public final class ProjectWorkflowCoordinator {
                 localization.text("project.default_name")
         );
         MapRepository repository = mapRepositoryFactory.createTransientProjectRepository(replacement);
-        projectActivator.activate(replacement, repository, false);
+        activateProjectWithCleanup(replacement, repository, false);
         projectCatalog.delete(project);
 
         List<ProjectDescriptor> remaining = projectCatalog.listProjects();
         if (!remaining.isEmpty()) {
             openProject(remaining.getFirst());
+        }
+    }
+
+    /**
+     * Виконує активацію проєкту та звільняє репозиторій, якщо активація не передала його службі карти.
+     * Помилка очищення додається до винятку активації, щоб не приховувати першопричину.
+     *
+     * @param project опис проєкту, який потрібно активувати.
+     * @param repository репозиторій, що передається активатору.
+     * @param loadExisting ознака потреби завантажити вміст наявного проєкту.
+     */
+    private void activateProjectWithCleanup(
+            ProjectDescriptor project,
+            MapRepository repository,
+            boolean loadExisting
+    ) {
+        try {
+            projectActivator.activate(project, repository, loadExisting);
+        } catch (RuntimeException | Error activationFailure) {
+            // Після передачі репозиторію службі карти відповідальність за нього вже перейшла до MapService.
+            if (mapService.isActiveRepository(repository)) {
+                throw activationFailure;
+            }
+
+            try {
+                repository.close();
+            } catch (RuntimeException | Error closeFailure) {
+                if (closeFailure != activationFailure) {
+                    activationFailure.addSuppressed(closeFailure);
+                }
+            }
+            throw activationFailure;
         }
     }
 

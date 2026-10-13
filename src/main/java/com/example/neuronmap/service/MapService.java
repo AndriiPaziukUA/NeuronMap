@@ -35,7 +35,9 @@ public final class MapService {
         return model;
     }
 
-    /** Завантажує дані активного репозиторію до моделі карти. */
+    /**
+     * Завантажує дані активного репозиторію до моделі карти.
+     */
     public void load() {
         repository.loadInto(model);
     }
@@ -56,6 +58,16 @@ public final class MapService {
      */
     public boolean isPersistent() {
         return repository.isPersistent();
+    }
+
+    /**
+     * Перевіряє, чи є переданий репозиторій саме тим екземпляром, який наразі підключено до служби карти.
+     *
+     * @param candidate репозиторій, володіння яким потрібно перевірити.
+     * @return {@code true}, якщо активним є той самий екземпляр; інакше {@code false}.
+     */
+    public boolean isActiveRepository(MapRepository candidate) {
+        return repository == candidate;
     }
 
     /**
@@ -118,7 +130,9 @@ public final class MapService {
         oldRepository.close();
     }
 
-    /** Закриває активний репозиторій і звільняє його ресурси. */
+    /**
+     * Закриває активний репозиторій і звільняє його ресурси.
+     */
     public void close() {
         repository.close();
     }
