@@ -36,13 +36,6 @@ final class NeuronMapControllerTest {
                 AppConfig.class,
                 LocalizationService.class,
                 ProjectCatalogService.class,
-                MapRepositoryFactory.class
-        })));
-        assertTrue(signatures.stream().anyMatch(signature -> Arrays.equals(signature, new Class<?>[]{
-                NeuronMapApplicationService.class,
-                AppConfig.class,
-                LocalizationService.class,
-                ProjectCatalogService.class,
                 MapRepositoryFactory.class,
                 Runnable.class
         })));
