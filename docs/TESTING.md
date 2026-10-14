@@ -38,7 +38,7 @@
 ./mvnw -Dtest=NeuronServiceTest,SimulationSessionTest test
 ```
 
-У Windows використовуйте `.mmvnw.cmd` замість `./mvnw`. Maven Compiler налаштований на Java 21. JavaFX-тести запускають toolkit і виконують перевірки графічних вузлів у JavaFX Application Thread; для них має бути доступне середовище з потрібними JavaFX native-залежностями.
+У Windows використовуйте `.\mvnw.cmd` замість `./mvnw`. Maven Compiler налаштований на Java 21. JavaFX-тести запускають toolkit і виконують перевірки графічних вузлів у JavaFX Application Thread; для них має бути доступне середовище з потрібними JavaFX native-залежностями.
 
 JaCoCo налаштований формувати звіт у `target/site/jacoco/` на фазі `test`, якщо збірка дійшла до цього етапу.
 
@@ -182,4 +182,4 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 - `MainMenuViewTest` — використовується єдиний контракт callback-ів налаштування мови;
 - `MapPresentationWorkflowLifecycleTest` — перемикання проєкту працює з актуальною сигнатурою `EditorProjectSessionCoordinator`, без постачальника швидкості попереднього проєкту.
 
-Запускай `./mvnw clean test` (у Windows — `.mmvnw.cmd clean test`) перед передаванням змін. Не вважай тести успішними, якщо команда фактично не виконувалася.
+Запускай `./mvnw clean test` (у Windows — `.\mvnw.cmd clean test`) перед передаванням змін. Не вважай тести успішними, якщо команда фактично не виконувалася.
