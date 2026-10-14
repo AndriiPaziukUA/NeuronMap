@@ -1,0 +1,11 @@
+diff --git a/src/test/java/com/example/neuronmap/coordinator/MapPresentationWorkflowLifecycleTest.java b/src/test/java/com/example/neuronmap/coordinator/MapPresentationWorkflowLifecycleTest.java
+--- a/src/test/java/com/example/neuronmap/coordinator/MapPresentationWorkflowLifecycleTest.java
++++ b/src/test/java/com/example/neuronmap/coordinator/MapPresentationWorkflowLifecycleTest.java
+@@ -232,7 +232,6 @@
+                                 history,
+                                 fixture.state,
+                                 activeProject::set,
+-                                () -> 650.0,
+                                 ignored -> { },
+                                 ignored -> { },
+                                 50.0,

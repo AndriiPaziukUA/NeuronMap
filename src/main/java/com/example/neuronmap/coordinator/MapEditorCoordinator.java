@@ -25,7 +25,6 @@ import com.example.neuronmap.service.NeuronClipboardService;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.service.ProjectCatalogService;
 import com.example.neuronmap.simulation.SimulationService;
-import com.example.neuronmap.simulation.SimulationSpeed;
 import com.example.neuronmap.view.ImmediateTooltipManager;
 import com.example.neuronmap.view.MainView;
 import com.example.neuronmap.view.NeuronLayerOrderController;
@@ -68,6 +67,7 @@ public final class MapEditorCoordinator {
     private final Map<String, RotationHandleView> rotationHandles = new HashMap<>();
 
     private final SimulationController simulationController;
+    private final SimulationSpeedCoordinator simulationSpeedCoordinator;
     private final ConnectionController connectionController;
     private final SelectionController selectionController;
     private final NeuronInteractionController neuronController;
@@ -190,6 +190,15 @@ public final class MapEditorCoordinator {
                 config.simulation().maxTickMillis(),
                 localization
         );
+        simulationSpeedCoordinator = new SimulationSpeedCoordinator(
+                mapService,
+                this::applySimulationSpeed,
+                this::refreshCurrentProjectAfterSpeedChange,
+                this::updateStatus,
+                localization,
+                minSimulationTickMillis,
+                maxSimulationTickMillis
+        );
 
         connectionController = new ConnectionController(
                 connectionService,
@@ -294,7 +303,6 @@ public final class MapEditorCoordinator {
                 historyService,
                 state,
                 project -> currentProject = project,
-                () -> simulationTickMillis,
                 speed -> simulationTickMillis = speed,
                 projectCatalog::markLastOpened,
                 minSimulationTickMillis,
@@ -526,30 +534,29 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Розбирає значення зі списку швидкостей і передає його контролеру симуляції.
+     * Передає зміну швидкості координатору, який перевіряє значення та зберігає його в активному проєкті.
      *
-     * @param text значення швидкості, вибране користувачем.
+     * @param text значення тривалості такту, вибране користувачем.
      */
     private void changeSimulationSpeed(String text) {
-        try {
-            double millis = SimulationSpeed.parseMillis(
-                    text,
-                    minSimulationTickMillis,
-                    maxSimulationTickMillis
-            );
-            simulationController.setTickDurationMillis(millis);
-            simulationTickMillis = millis;
-            mapService.saveSimulationTickMillis(millis);
-            if (mapService.isPersistent()) {
-                currentProject = projectCatalog.descriptorForDatabasePath(
-                        mapService.databasePath()
-                );
-                projectCatalog.markLastOpened(currentProject);
-            }
-            view.toolbar().setSimulationSpeedMillis(millis);
-        } catch (RuntimeException exception) {
-            updateStatus(localization.text("status.speed_invalid"));
-        }
+        simulationSpeedCoordinator.changeSpeed(text);
+    }
+
+    /**
+     * Застосовує збережену швидкість до активної симуляції, стану редактора та панелі інструментів.
+     *
+     * @param millis тривалість такту симуляції в мілісекундах.
+     */
+    private void applySimulationSpeed(double millis) {
+        simulationController.setTickDurationMillis(millis);
+        simulationTickMillis = millis;
+        view.toolbar().setSimulationSpeedMillis(millis);
+    }
+
+    /** Оновлює опис активного проєкту після збереження його параметрів швидкості. */
+    private void refreshCurrentProjectAfterSpeedChange() {
+        currentProject = projectCatalog.descriptorForDatabasePath(mapService.databasePath());
+        projectCatalog.markLastOpened(currentProject);
     }
 
     /**

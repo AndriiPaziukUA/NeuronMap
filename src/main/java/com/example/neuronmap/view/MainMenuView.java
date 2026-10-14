@@ -227,27 +227,8 @@ public final class MainMenuView extends StackPane {
     }
 
     /**
-     * Передає обробку попереднього перегляду, підтвердження та скасування мови зовнішнім callback-ам.
-     * Стан підтвердженої мови визначає служба локалізації, а не саме подання.
-     *
-     * @param previewLanguageAction дія попереднього перегляду вибраної мови.
-     * @param confirmLanguageAction дія підтвердження й збереження мови.
-     * @param discardLanguageAction дія відновлення мови перед редагуванням.
-     */
-    public void setLanguageActions(
-            Consumer<SupportedLanguage> previewLanguageAction,
-            Runnable confirmLanguageAction,
-            Runnable discardLanguageAction
-    ) {
-        this.previewLanguageAction = Objects.requireNonNull(previewLanguageAction, "previewLanguageAction");
-        this.commitSettingsAction = Objects.requireNonNull(confirmLanguageAction, "confirmLanguageAction");
-        this.rollbackSettingsAction = Objects.requireNonNull(discardLanguageAction, "discardLanguageAction");
-        hasUnsavedSettings = localization::hasUnconfirmedLanguagePreview;
-        languageSettingsView.setLanguageSelectedAction(this::handleLanguageSelected);
-    }
-
-    /**
-     * Передає обробку мови й перевірку незбереженого стану спільній сесії редагування всіх налаштувань.
+     * Передає обробку мови й перевірку незбереженого стану спільній сесії редагування налаштувань.
+     * Подання лише передає події через callback-и, а джерелом істини для стану змін є контролер.
      *
      * @param previewLanguageAction дія попереднього перегляду вибраної мови.
      * @param confirmLanguageAction дія підтвердження й збереження всіх змінених налаштувань.

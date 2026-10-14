@@ -132,10 +132,10 @@ class EditorProjectSessionCoordinatorTest {
     }
 
     /**
-     * Перевіряє використання поточної швидкості, коли збережене значення нового проєкту некоректне.
+     * Перевіряє, що некоректна збережена швидкість не успадковується від попереднього проєкту.
      */
     @Test
-    void activateProjectFallsBackWhenPersistedSpeedIsOutOfRange() {
+    void activateProjectFallsBackToConfiguredDefaultWhenPersistedSpeedIsOutOfRange() {
         NeuronMapModel model = new NeuronMapModel();
         MapService mapService = new MapService(
                 model,
@@ -165,7 +165,42 @@ class EditorProjectSessionCoordinatorTest {
 
         coordinator.activateProject(project, nextRepository, true);
 
-        assertEquals(35.0, speed[0], 0.0001);
+        assertEquals(50.0, speed[0], 0.0001);
+    }
+
+    /** Перевіряє, що проєкт без збереженої швидкості отримує типове значення, а не налаштування іншого проєкту. */
+    @Test
+    void activateProjectWithoutSavedSpeedUsesConfiguredDefault() {
+        NeuronMapModel model = new NeuronMapModel();
+        MapService mapService = new MapService(
+                model,
+                new TestMapRepository(CameraState.defaultState(), 35.0)
+        );
+        EditorState state = new EditorState(1.0, 0.0, 0.0);
+        TestSessionActions actions = new TestSessionActions();
+        double[] speed = {35.0};
+        EditorProjectSessionCoordinator coordinator = createCoordinator(
+                mapService,
+                state,
+                actions,
+                new AtomicReference<>(),
+                speed,
+                new AtomicReference<>()
+        );
+        TestMapRepository nextRepository = new TestMapRepository(
+                CameraState.defaultState(),
+                Double.NaN
+        );
+        ProjectDescriptor project = new ProjectDescriptor(
+                "missing-speed-project",
+                "Проєкт без швидкості",
+                Path.of("missing-speed.db"),
+                Instant.EPOCH
+        );
+
+        coordinator.activateProject(project, nextRepository, true);
+
+        assertEquals(50.0, speed[0], 0.0001);
     }
 
     /**
@@ -280,7 +315,7 @@ class EditorProjectSessionCoordinatorTest {
      * @param state стан редактора.
      * @param actions реєстратор зовнішніх дій.
      * @param activeProject отримувач активного проєкту.
-     * @param speed поточна тривалість такту симуляції.
+     * @param speed змінне значення для перевірки тривалості такту після активації проєкту.
      * @param lastOpenedProject отримувач останнього відкритого збереженого проєкту.
      * @return готовий координатор редакторської сесії.
      */
@@ -297,7 +332,6 @@ class EditorProjectSessionCoordinatorTest {
                 new HistoryService(mapService.model()),
                 state,
                 activeProject::set,
-                () -> speed[0],
                 value -> speed[0] = value,
                 lastOpenedProject::set,
                 5.0,
@@ -321,7 +355,7 @@ class EditorProjectSessionCoordinatorTest {
          * Створює тестовий репозиторій із фіксованим станом камери та швидкістю.
          *
          * @param cameraState стан камери, який повертає репозиторій.
-         * @param simulationTickMillis тривалість такту, яку повертає репозиторій.
+         * @param simulationTickMillis тривалість такту, яку повертає репозиторій, або {@link Double#NaN}, якщо її немає.
          */
         private TestMapRepository(CameraState cameraState, double simulationTickMillis) {
             this.cameraState = cameraState;
@@ -340,10 +374,10 @@ class EditorProjectSessionCoordinatorTest {
             return cameraState;
         }
 
-        /** Повертає задану у тесті швидкість симуляції. */
+        /** Повертає задану швидкість або резервне значення, якщо швидкість не збережена. */
         @Override
         public double loadSimulationTickMillis(double fallbackMillis) {
-            return simulationTickMillis;
+            return Double.isFinite(simulationTickMillis) ? simulationTickMillis : fallbackMillis;
         }
 
         /** Очищає модель, імітуючи завантаження вмісту проєкту. */

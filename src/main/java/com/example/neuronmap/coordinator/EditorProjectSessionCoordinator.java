@@ -3,15 +3,14 @@ package com.example.neuronmap.coordinator;
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.model.CameraState;
 import com.example.neuronmap.persistence.MapRepository;
+import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.service.HistoryService;
 import com.example.neuronmap.service.MapService;
-import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.simulation.SimulationSpeed;
 
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
-import java.util.function.DoubleSupplier;
 
 /**
  * Керує життєвим циклом редакторської сесії під час переходу між проєктами та показу меню.
@@ -23,7 +22,6 @@ public final class EditorProjectSessionCoordinator {
     private final HistoryService historyService;
     private final EditorState state;
     private final Consumer<ProjectDescriptor> currentProjectConsumer;
-    private final DoubleSupplier simulationTickMillisSupplier;
     private final DoubleConsumer simulationTickMillisConsumer;
     private final Consumer<ProjectDescriptor> markLastOpened;
     private final double minSimulationTickMillis;
@@ -39,12 +37,11 @@ public final class EditorProjectSessionCoordinator {
      * @param historyService служба історії змін редактора.
      * @param state змінний стан камери, вибору та режимів редактора.
      * @param currentProjectConsumer отримувач опису активного проєкту після переходу.
-     * @param simulationTickMillisSupplier постачальник поточної тривалості такту симуляції.
      * @param simulationTickMillisConsumer отримувач нової тривалості такту симуляції.
      * @param markLastOpened дія оновлення останнього відкритого проєкту; приймає {@code null} для тимчасового проєкту.
      * @param minSimulationTickMillis мінімальна допустима тривалість такту.
      * @param maxSimulationTickMillis максимальна допустима тривалість такту.
-     * @param defaultSimulationTickMillis типова тривалість такту для нового проєкту.
+     * @param defaultSimulationTickMillis типова тривалість такту для проєкту без коректного збереженого значення.
      * @param actions операції контролерів і подань, що супроводжують перехід між станами.
      */
     public EditorProjectSessionCoordinator(
@@ -52,7 +49,6 @@ public final class EditorProjectSessionCoordinator {
             HistoryService historyService,
             EditorState state,
             Consumer<ProjectDescriptor> currentProjectConsumer,
-            DoubleSupplier simulationTickMillisSupplier,
             DoubleConsumer simulationTickMillisConsumer,
             Consumer<ProjectDescriptor> markLastOpened,
             double minSimulationTickMillis,
@@ -64,10 +60,6 @@ public final class EditorProjectSessionCoordinator {
         this.historyService = Objects.requireNonNull(historyService, "historyService");
         this.state = Objects.requireNonNull(state, "state");
         this.currentProjectConsumer = Objects.requireNonNull(currentProjectConsumer, "currentProjectConsumer");
-        this.simulationTickMillisSupplier = Objects.requireNonNull(
-                simulationTickMillisSupplier,
-                "simulationTickMillisSupplier"
-        );
         this.simulationTickMillisConsumer = Objects.requireNonNull(
                 simulationTickMillisConsumer,
                 "simulationTickMillisConsumer"
@@ -116,6 +108,8 @@ public final class EditorProjectSessionCoordinator {
 
     /**
      * Підключає репозиторій проєкту й відновлює модель, камеру, швидкість, історію та подання редактора.
+     * Якщо у вибраного проєкту немає коректної збереженої швидкості, використовує типове значення конфігурації,
+     * а не швидкість попереднього проєкту.
      *
      * @param project опис проєкту, який потрібно активувати.
      * @param repository репозиторій даних вибраного проєкту.
@@ -134,9 +128,7 @@ public final class EditorProjectSessionCoordinator {
         CameraState camera = loadExisting
                 ? repository.loadCameraState()
                 : CameraState.defaultState();
-        double fallbackSpeed = loadExisting
-                ? simulationTickMillisSupplier.getAsDouble()
-                : defaultSimulationTickMillis;
+        double fallbackSpeed = defaultSimulationTickMillis;
         double speed = resolveInitialSimulationTickMillis(
                 loadExisting ? repository.loadSimulationTickMillis(fallbackSpeed) : fallbackSpeed,
                 fallbackSpeed,
@@ -229,7 +221,8 @@ public final class EditorProjectSessionCoordinator {
         /** Відновлює анімації зв’язків після закриття меню. */
         void resumeConnectionAnimations();
 
-        /** Застосовує швидкість симуляції до контролера та панелі інструментів.
+        /**
+         * Застосовує швидкість симуляції до контролера та панелі інструментів.
          *
          * @param millis нова тривалість такту симуляції в мілісекундах.
          */

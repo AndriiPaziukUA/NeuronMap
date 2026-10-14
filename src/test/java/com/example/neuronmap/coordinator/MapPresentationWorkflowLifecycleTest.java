@@ -237,7 +237,6 @@ final class MapPresentationWorkflowLifecycleTest {
                                 history,
                                 fixture.state,
                                 activeProject::set,
-                                () -> 650.0,
                                 ignored -> { },
                                 ignored -> { },
                                 50.0,

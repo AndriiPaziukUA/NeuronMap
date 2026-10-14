@@ -111,7 +111,8 @@ final class MainMenuViewTest {
             view.setLanguageActions(
                     localization::previewLanguage,
                     localization::persistCurrentLanguage,
-                    () -> localization.previewLanguage(originalLanguage)
+                    () -> localization.previewLanguage(originalLanguage),
+                    localization::hasUnconfirmedLanguagePreview
             );
             view.showSettingsPage();
 
@@ -163,7 +164,8 @@ final class MainMenuViewTest {
             view.setLanguageActions(
                     localization::previewLanguage,
                     () -> { },
-                    () -> localization.previewLanguage(SupportedLanguage.ENGLISH)
+                    () -> localization.previewLanguage(SupportedLanguage.ENGLISH),
+                    localization::hasUnconfirmedLanguagePreview
             );
             view.showSettingsPage();
 
