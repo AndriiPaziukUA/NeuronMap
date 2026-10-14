@@ -78,6 +78,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 - `MapPresentationWorkflowLifecycleTest` — синхронізація реального дерева JavaFX після вставлення, undo/redo та перемикання проєктів.
 - `ProjectWorkflowCoordinatorActivationTest` — послідовність активації проєкту.
 - `ProjectWorkflowCoordinatorRecoveryTest` — відновлення після помилок під час операцій над проєктами.
+- `ProjectWorkflowCoordinatorRenameLifecycleTest` — перевірка кількості викликів `close()` під час успішного перейменування активного проєкту та відновлення після помилки.
 - `ProjectWorkflowCoordinatorTest` — основні сценарії створення, відкриття, перейменування та видалення проєктів.
 - `SimulationSpeedCoordinatorTest` — валідація введеної швидкості, запис до активного репозиторію, застосування значення та пропуск оновлення метаданих для тимчасового проєкту.
 
