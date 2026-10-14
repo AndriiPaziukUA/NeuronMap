@@ -1,6 +1,6 @@
 package com.example.neuronmap.view.status;
 
-import com.example.neuronmap.util.UiTiming;
+import com.example.neuronmap.view.support.UiTiming;
 import javafx.animation.FadeTransition;
 import javafx.animation.PauseTransition;
 import javafx.scene.Node;

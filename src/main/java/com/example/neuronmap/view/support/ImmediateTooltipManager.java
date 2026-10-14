@@ -1,6 +1,5 @@
 package com.example.neuronmap.view.support;
 
-import com.example.neuronmap.util.UiTiming;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Control;

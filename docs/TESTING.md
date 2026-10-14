@@ -1,6 +1,6 @@
 # Тестування NeuronMap
 
-Автоматизовані тести містяться в `src/test/java/com/example/neuronmap/`. Вони згруповані відповідно до відповідальності production-коду. Під час зміни компонента спочатку запускай найближчі тести, а перед передаванням змін — повний набір.
+Автоматизовані тести містяться в `src/test/java/com/example/neuronmap/`. Підпакети тестів відповідають підпакетам production-коду там, де код тематично розділений. Під час зміни компонента спочатку запускай найближчі тести, а перед передаванням змін — повний набір.
 
 ## Команди
 
@@ -65,10 +65,12 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 ### `controller`
 
 - `ConnectionCreationControllerTest` — сценарії створення зв'язків і керування їхнім прев'ю.
+- `EditorKeyboardControllerTest` — маршрутизація гарячих клавіш і завершення реєстрації обробників.
 - `MainMenuControllerTest` — навігація меню та життєвий цикл попереднього перегляду, підтвердження й відкату налаштувань.
+- `NeuronDeletionControllerTest` — видалення нейронів через контролер взаємодії.
 - `NeuronInteractionControllerMouseButtonTest` — поведінка взаємодії залежно від кнопки миші.
+- `NeuronMenuControllerDirectionTest` — вибір напрямку нейрона через його меню.
 - `NeuronOverlayCoordinateTest` — обчислення координат меню та накладок відносно нейрона.
-- `NeuronRotationMathTest` — обчислення кутів обертання.
 - `PulseAnimationControllerTest` — керування анімаціями імпульсів.
 - `SimulationControllerSpeedFormattingTest` — формат швидкості в локалізованому повідомленні після зміни швидкості активної симуляції.
 
@@ -97,26 +99,39 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 - `NeuronPresentationTest` — положення, обертання й напрямок представлення.
 - `NeuronTest` — параметри нейрона та перевірка некоректних значень.
 
-### `persistence`
+### `persistence/map`
 
-- `DefaultMapRepositoryFactoryTest` — вибір репозиторію для типу проєкту.
-- `FileSystemProjectCatalogRepositoryTest` — каталог проєктів у файловій системі.
+- `TransientProjectRepositoryTest` — відкладене створення каталогу проєкту та захист від сторонніх файлів і наявних даних.
+
+### `persistence/project`
+
+- `FileSystemProjectCatalogRepositoryTest` — каталог проєктів у файловій системі, перейменування та помилки файлових операцій.
+- `ProjectDirectoryWatcherTest` — виявлення змін каталогу та безпечне завершення спостереження.
+
+### `persistence/settings`
+
 - `GlobalSettingsLanguagePreferenceStoreTest` — адаптер збереження вибраної мови.
 - `GlobalSettingsStoreTest` — запис і повторне читання глобальних налаштувань.
+
+### `persistence/sqlite`
+
+- `DefaultMapRepositoryFactoryTest` — вибір репозиторію для типу проєкту.
 - `NeuronDirectionPersistenceTest` — збереження напрямку нейрона.
-- `ProjectDirectoryWatcherTest` — виявлення змін каталогу та безпечне завершення спостереження.
 - `SqliteMapRepositoryFailureTest` — помилки репозиторію SQLite.
 - `SqliteMapRepositoryTest` — збереження та читання карти.
 - `SqliteNeuronSchemaContractTest` — контракт схеми даних нейрона.
 - `SqliteSchemaMigrationTest` — міграція старої схеми SQLite.
 - `SqliteSimulationSettingsTest` — збереження параметрів симуляції та значень за замовчуванням.
-- `TransientProjectRepositoryTest` — відкладене створення каталогу проєкту та захист від сторонніх файлів/наявних даних.
+
+### `persistence/window`
+
 - `WindowStateStoreTest` — збереження геометрії вікна й обробка некоректних значень.
 
 ### `service`
 
 - `ConnectionServiceTest` — правила створення та видалення зв'язків.
 - `GroupServiceTest` — операції з групами й переміщення їхніх учасників.
+- `MapServiceProjectActivationTest` — активація проєктного репозиторію та пов'язаний стан карти.
 - `NeuronClipboardServiceTest` — копіювання й вставлення нейронів і груп.
 - `NeuronServiceTest` — створення, пошук, зміна параметрів і видалення нейрона.
 - `ProjectCatalogServiceTest` — каталог проєктів, доступні назви, перейменування, сортування й оновлення з файлової системи.
@@ -143,17 +158,27 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 
 - `CameraWorldCenterTest` — перетворення центра видимої області в координати карти.
 - `GeometryUtilsTest` — обмеження масштабу.
+- `NeuronRotationMathTest` — обчислення кутів обертання.
 - `NumberDisplayFormatterTest` — компактний формат числа, допуск для цілих значень і незалежність від системної локалі.
 - `WorldCoordinateMapperTest` — перетворення координат між простором світу та екраном.
 
-### `view`
+### `view/connection`
 
 - `ConnectionHitTesterTest` — визначення зв'язку під курсором.
 - `ConnectionPreviewViewTest` — геометрія, показ і приховування прев'ю зв'язку.
-- `JavaFxNodeLookupTest` — пошук вузлів і предків у дереві JavaFX.
+
+### `view/editor`
+
+- `ToolbarViewTest` — склад панелі інструментів, введення та відображення швидкості симуляції.
+
+### `view/menu`
+
 - `MainMenuPageViewsTest` — поведінка окремих подань сторінок головного меню.
 - `MainMenuPagesCompositionTest` — компонування сторінок у контейнері меню.
 - `MainMenuViewTest` — навігація, адаптивне компонування, незбережені зміни та поведінка сторінок меню.
+
+### `view/neuron`
+
 - `NeuronContextMenuViewTest` — склад і поведінка контекстного меню нейрона.
 - `NeuronInputSignalDisplayTest` — відображення вхідних сигналів та їх скидання.
 - `NeuronMenuViewTest` — подання меню нейрона.
@@ -161,10 +186,19 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 - `NeuronOverlayPositionerTest` — розрахунок положення накладок.
 - `NeuronViewDirectionRefreshTest` — оновлення вигляду після зміни напрямку нейрона.
 - `NeuronVisualGeometryTest` — геометрія візуального представлення нейрона.
-- `PulseAnimationViewTest` — рух імпульсу з урахуванням геометрії зв'язку.
 - `RotationHandleViewTest` — положення та поведінка ручки обертання.
+
+### `view/simulation`
+
+- `PulseAnimationViewTest` — рух імпульсу з урахуванням геометрії зв'язку.
+
+### `view/status`
+
 - `StatusMessagePresenterTest` — прив'язка повідомлень до конкретного рядка стану та звільнення його ресурсів.
-- `ToolbarViewTest` — склад панелі інструментів, введення та відображення швидкості симуляції.
+
+### `view/support`
+
+- `JavaFxNodeLookupTest` — пошук вузлів і предків у дереві JavaFX.
 
 ## Принципи написання тестів
 

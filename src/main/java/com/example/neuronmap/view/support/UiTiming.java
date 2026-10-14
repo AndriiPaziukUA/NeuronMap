@@ -1,4 +1,4 @@
-package com.example.neuronmap.util;
+package com.example.neuronmap.view.support;
 
 import javafx.util.Duration;
 
