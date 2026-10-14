@@ -1,15 +1,18 @@
 package com.example.neuronmap.persistence.project;
 
+import com.example.neuronmap.persistence.PersistenceException;
 import com.example.neuronmap.persistence.settings.GlobalSettingsStore;
 import com.example.neuronmap.project.ProjectDescriptor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -56,6 +59,38 @@ final class FileSystemProjectCatalogRepositoryTest {
         assertEquals("Renamed", renamed.name());
         assertTrue(Files.isRegularFile(root.resolve("Renamed/project.db")));
         assertFalse(Files.exists(root.resolve("Original")));
+    }
+
+    /**
+     * Перевіряє, що файловий збій перейменування має спільний тип винятку сховища та зберігає причину.
+     *
+     * @param tempDir тимчасовий каталог тесту.
+     * @throws Exception якщо підготовка тестових файлів завершується помилкою.
+     */
+    @Test
+    void wrapsRenameFailureInPersistenceException(@TempDir Path tempDir) throws Exception {
+        Path root = tempDir.resolve("projects");
+        FileSystemProjectCatalogRepository repository = repository(root);
+
+        Path sourceDatabase = root.resolve("Original/project.db");
+        Files.createDirectories(sourceDatabase.getParent());
+        Files.writeString(sourceDatabase, "source");
+
+        Path targetDatabase = root.resolve("Existing/project.db");
+        Files.createDirectories(targetDatabase.getParent());
+        Files.writeString(targetDatabase, "target");
+
+        ProjectDescriptor source = repository.descriptorForDatabasePath(sourceDatabase);
+
+        PersistenceException exception = assertThrows(
+                PersistenceException.class,
+                () -> repository.renameProject(source, "Existing")
+        );
+
+        assertTrue(exception.getCause() instanceof IOException);
+        assertNotNull(exception.getMessage());
+        assertTrue(Files.isRegularFile(sourceDatabase));
+        assertTrue(Files.isRegularFile(targetDatabase));
     }
 
     /**

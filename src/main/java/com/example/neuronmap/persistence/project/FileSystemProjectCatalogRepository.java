@@ -1,5 +1,6 @@
 package com.example.neuronmap.persistence.project;
 
+import com.example.neuronmap.persistence.PersistenceException;
 import com.example.neuronmap.persistence.settings.GlobalSettingsStore;
 import com.example.neuronmap.project.ProjectDescriptor;
 
@@ -52,7 +53,7 @@ public final class FileSystemProjectCatalogRepository implements ProjectCatalogR
      * Повертає описи каталогів, що містять файл бази даних проєкту.
      *
      * @return незмінний список описів збережених проєктів.
-     * @throws IllegalStateException якщо каталог проєктів не вдалося прочитати.
+     * @throws PersistenceException якщо каталог проєктів не вдалося прочитати.
      */
     @Override
     public List<ProjectDescriptor> listSavedProjects() {
@@ -67,7 +68,7 @@ public final class FileSystemProjectCatalogRepository implements ProjectCatalogR
                     .filter(Objects::nonNull)
                     .forEach(projects::add);
         } catch (IOException exception) {
-            throw new IllegalStateException("Не вдалося прочитати каталог проєктів.", exception);
+            throw new PersistenceException("Не вдалося прочитати каталог проєктів.", exception);
         }
         return List.copyOf(projects);
     }
@@ -132,7 +133,7 @@ public final class FileSystemProjectCatalogRepository implements ProjectCatalogR
      * @param newName нова назва каталогу проєкту.
      * @return опис проєкту після перейменування.
      * @throws IllegalArgumentException якщо проєкт або цільовий каталог розташовано поза коренем сховища.
-     * @throws IllegalStateException якщо каталог проєкту не вдалося перейменувати.
+     * @throws PersistenceException якщо файлову операцію перейменування не вдалося виконати.
      */
     @Override
     public ProjectDescriptor renameProject(ProjectDescriptor project, String newName) {
@@ -158,7 +159,7 @@ public final class FileSystemProjectCatalogRepository implements ProjectCatalogR
                     FileTime.from(Instant.now())
             );
         } catch (IOException exception) {
-            throw new IllegalStateException("Не вдалося перейменувати проєкт.", exception);
+            throw new PersistenceException("Не вдалося перейменувати проєкт.", exception);
         }
         return descriptorForDatabasePath(targetDirectory.resolve(PROJECT_FILE_NAME));
     }
@@ -168,7 +169,7 @@ public final class FileSystemProjectCatalogRepository implements ProjectCatalogR
      *
      * @param project опис проєкту, файли якого потрібно видалити.
      * @throws IllegalArgumentException якщо каталог проєкту розташовано поза коренем сховища.
-     * @throws IllegalStateException якщо файли проєкту не вдалося видалити.
+     * @throws PersistenceException якщо файли проєкту не вдалося видалити.
      */
     @Override
     public void deleteProjectFiles(ProjectDescriptor project) {
@@ -187,7 +188,7 @@ public final class FileSystemProjectCatalogRepository implements ProjectCatalogR
         try {
             deleteRecursively(directory);
         } catch (IOException exception) {
-            throw new IllegalStateException("Не вдалося видалити проєкт.", exception);
+            throw new PersistenceException("Не вдалося видалити проєкт.", exception);
         }
     }
 
