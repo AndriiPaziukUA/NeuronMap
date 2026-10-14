@@ -1,4 +1,4 @@
-package com.example.neuronmap.controller;
+package com.example.neuronmap.app;
 
 import com.example.neuronmap.application.NeuronMapApplicationService;
 import com.example.neuronmap.config.AppConfig;
@@ -11,23 +11,26 @@ import javafx.scene.Scene;
 import java.util.Objects;
 
 /**
- * Готує сцену карти нейронів, встановлює початкове положення камери та завершує роботу контролерів під час закриття редактора.
+ * Фасад редактора на рівні застосунку, який приховує складання внутрішніх компонентів і надає контракт життєвого циклу.
+ * Не обробляє UI-події та не містить сценаріїв взаємодії: побудову редактора й координацію підсистем делегує
+ * {@link MapEditorCoordinator}, залишаючи точці входу стабільний зовнішній інтерфейс.
  */
-public final class NeuronMapController {
+public final class NeuronMapEditor {
 
     private final MapEditorCoordinator coordinator;
 
     /**
-     * Створює контролер карти з готовими службами та callback завершення роботи.
+     * Створює фасад редактора та передає всі залежності координатору, який складає підсистеми карти.
      *
      * @param application прикладна служба, яка надає доступ до служб карти й збереження.
      * @param config завантажена конфігурація застосунку.
      * @param localization готова служба локалізації інтерфейсу.
      * @param projectCatalog готова служба каталогу проєктів.
      * @param mapRepositoryFactory фабрика репозиторіїв проєктів.
-     * @param exitApplication callback завершення роботи застосунку.
+     * @param exitApplication дія завершення роботи застосунку.
+     * @throws NullPointerException якщо будь-яка із залежностей не задана.
      */
-    public NeuronMapController(
+    public NeuronMapEditor(
             NeuronMapApplicationService application,
             AppConfig config,
             LocalizationService localization,
@@ -35,24 +38,18 @@ public final class NeuronMapController {
             MapRepositoryFactory mapRepositoryFactory,
             Runnable exitApplication
     ) {
-        Objects.requireNonNull(application, "application");
-        Objects.requireNonNull(config, "config");
-        Objects.requireNonNull(localization, "localization");
-        Objects.requireNonNull(projectCatalog, "projectCatalog");
-        Objects.requireNonNull(mapRepositoryFactory, "mapRepositoryFactory");
-
         this.coordinator = new MapEditorCoordinator(
-                application,
-                config,
-                localization,
-                projectCatalog,
-                mapRepositoryFactory,
+                Objects.requireNonNull(application, "application"),
+                Objects.requireNonNull(config, "config"),
+                Objects.requireNonNull(localization, "localization"),
+                Objects.requireNonNull(projectCatalog, "projectCatalog"),
+                Objects.requireNonNull(mapRepositoryFactory, "mapRepositoryFactory"),
                 Objects.requireNonNull(exitApplication, "exitApplication")
         );
     }
 
     /**
-     * Створює сцену редактора заданого розміру та розміщує на ній компоненти карти.
+     * Створює сцену редактора заданого розміру та повертає її точці входу для показу у вікні.
      *
      * @param width ширина видимої області.
      * @param height висота видимої області.
@@ -63,14 +60,14 @@ public final class NeuronMapController {
     }
 
     /**
-     * Розміщує камеру так, щоб початковий вигляд карти був центрований у вікні.
+     * Центрує початковий вигляд карти після розміщення сцени у вікні.
      */
     public void centerInitialView() {
         coordinator.centerInitialView();
     }
 
     /**
-     * Завершує роботу контролерів і закриває ресурси редактора.
+     * Завершує життєвий цикл редактора, делегуючи очищення ресурсів координатору.
      */
     public void shutdown() {
         coordinator.shutdown();

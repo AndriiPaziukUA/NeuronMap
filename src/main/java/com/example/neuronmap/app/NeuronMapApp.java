@@ -4,7 +4,6 @@ import com.example.neuronmap.application.NeuronMapApplicationService;
 import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.config.AppConfig;
 import com.example.neuronmap.config.AppConfigLoader;
-import com.example.neuronmap.controller.NeuronMapController;
 import com.example.neuronmap.i18n.LanguagePreferenceStore;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.NeuronMapModel;
@@ -32,7 +31,7 @@ public final class NeuronMapApp extends Application {
 
     /**
      * Завантажує конфігурацію, готує сховище й залежності редактора, визначає початковий проєкт і показує головне вікно.
-     * Під час закриття вікна зберігає його геометрію та завершує роботу контролера редактора.
+     * Під час закриття вікна зберігає його геометрію та завершує роботу фасаду редактора.
      *
      * @param stage головне вікно JavaFX, яке потрібно налаштувати та показати.
      */
@@ -64,7 +63,7 @@ public final class NeuronMapApp extends Application {
         NeuronMapModel model = new NeuronMapModel();
         NeuronMapApplicationService application =
                 new NeuronMapApplicationService(model, repository);
-        NeuronMapController controller = new NeuronMapController(
+        NeuronMapEditor editor = new NeuronMapEditor(
                 application,
                 config,
                 localization,
@@ -73,7 +72,7 @@ public final class NeuronMapApp extends Application {
                 stage::close
         );
 
-        Scene scene = controller.createScene(
+        Scene scene = editor.createScene(
                 config.window().defaultWidth(),
                 config.window().defaultHeight()
         );
@@ -102,7 +101,7 @@ public final class NeuronMapApp extends Application {
                             stage.getY()
                     )
             );
-            controller.shutdown();
+            editor.shutdown();
         });
 
         stage.show();
@@ -111,7 +110,7 @@ public final class NeuronMapApp extends Application {
             stage.centerOnScreen();
         }
 
-        controller.centerInitialView();
+        editor.centerInitialView();
     }
 
     /**

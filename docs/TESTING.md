@@ -49,6 +49,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 ### `app`
 
 - `NeuronMapAppTest` — вибір початкового проєкту та запускова логіка застосунку.
+- `NeuronMapEditorTest` — контракт прикладного фасаду життєвого циклу редактора й перевірка, що він не утримує файлову інфраструктуру.
 
 ### `application`
 
@@ -66,7 +67,6 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 - `ConnectionCreationControllerTest` — сценарії створення зв'язків і керування їхнім прев'ю.
 - `MainMenuControllerTest` — навігація меню та життєвий цикл попереднього перегляду, підтвердження й відкату налаштувань.
 - `NeuronInteractionControllerMouseButtonTest` — поведінка взаємодії залежно від кнопки миші.
-- `NeuronMapControllerTest` — складання й керування редактором карти.
 - `NeuronOverlayCoordinateTest` — обчислення координат меню та накладок відносно нейрона.
 - `NeuronRotationMathTest` — обчислення кутів обертання.
 - `PulseAnimationControllerTest` — керування анімаціями імпульсів.
