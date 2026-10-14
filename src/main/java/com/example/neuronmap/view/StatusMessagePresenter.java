@@ -1,113 +1,66 @@
 package com.example.neuronmap.view;
 
-import javafx.application.Platform;
-import javafx.scene.Scene;
-import javafx.scene.control.Label;
-
-import java.util.function.Consumer;
-
 /**
- * Керує відображенням коротких повідомлень у сцені JavaFX та життєвим циклом їхнього подання.
+ * Керує показом короткочасних повідомлень безпосередньо в рядку стану редактора.
+ *
+ * <p>Презентер отримує конкретне подання рядка стану й не шукає графічні вузли
+ * у сцені, тому сторонні мітки не можуть випадково отримати його обробники подій.</p>
  */
 public final class StatusMessagePresenter {
 
-    private final Consumer<String> fallback;
-    private Scene scene;
-    private StatusMessageLifecycle lifecycle;
-    private Label lifecycleLabel;
-    private long messageVersion;
+    private final StatusBarView statusBar;
+    private final StatusMessageLifecycle lifecycle;
+    private boolean disposed;
 
     /**
-     * Створює подання повідомлень із резервним обробником для звичайного рядка стану.
+     * Створює презентер, прив’язаний до конкретного рядка стану та його області наведення.
      *
-     * @param fallback обробник, який оновлює звичайний рядок стану.
+     * @param statusBar подання рядка стану, в якому потрібно показувати повідомлення.
+     * @throws IllegalArgumentException якщо подання рядка стану не передано.
      */
-    public StatusMessagePresenter(Consumer<String> fallback) {
-        if (fallback == null) {
-            throw new IllegalArgumentException("fallback must not be null");
+    public StatusMessagePresenter(StatusBarView statusBar) {
+        if (statusBar == null) {
+            throw new IllegalArgumentException("statusBar must not be null");
         }
-        this.fallback = fallback;
+
+        this.statusBar = statusBar;
+        this.lifecycle = new StatusMessageLifecycle(
+                statusBar.node(),
+                statusBar.messageLabel()
+        );
     }
 
     /**
-     * Під’єднує подання повідомлень до сцени JavaFX.
+     * Показує повідомлення в рядку стану та запускає його життєвий цикл.
      *
-     * @param scene сцена, у якій потрібно знаходити мітку повідомлення.
-     */
-    public void attach(Scene scene) {
-        messageVersion++;
-        disposeLifecycle();
-        this.scene = scene;
-    }
-
-    /**
-     * Показує повідомлення у відповідній мітці та оновлює резервний рядок стану.
-     *
-     * @param message текст повідомлення, яке потрібно показати.
+     * @param message текст повідомлення; {@code null} трактується як порожній текст.
      */
     public void show(String message) {
+        if (disposed) {
+            return;
+        }
+
         String normalized = message == null ? "" : message;
-        fallback.accept(normalized);
+        statusBar.setText(normalized);
 
-        long currentVersion = ++messageVersion;
-        if (lifecycle != null && lifecycleLabel != null) {
-            lifecycle.show(normalized);
+        if (normalized.isBlank()) {
+            lifecycle.clear();
             return;
         }
 
-        if (scene == null) {
-            return;
-        }
-
-        attachToActualStatusLabel(normalized, currentVersion);
+        lifecycle.show(normalized);
     }
 
     /**
-     * Зупиняє анімації, від’єднує обробники подій і звільняє ресурси подання.
+     * Зупиняє анімації й таймери та від’єднує обробники наведення.
+     * Повторні виклики безпечні.
      */
     public void dispose() {
-        messageVersion++;
-        disposeLifecycle();
-        scene = null;
-    }
-
-    /**
-     * Знаходить мітку рядка стану та під’єднує механізм показу повідомлень.
-     *
-     * @param message текст повідомлення, яке потрібно показати.
-     * @param currentVersion версія повідомлення, що захищає від застарілих відкладених завдань.
-     */
-    private void attachToActualStatusLabel(String message, long currentVersion) {
-        Runnable attach = () -> {
-            if (currentVersion != messageVersion || lifecycle != null || scene == null) {
-                return;
-            }
-
-            StatusMessageTargetLocator.findByText(scene, message)
-                    .ifPresent(target -> {
-                        lifecycleLabel = target.label();
-                        lifecycle = new StatusMessageLifecycle(
-                                target.hoverRegion(),
-                                target.label()
-                        );
-                        lifecycle.show(message);
-                    });
-        };
-
-        attach.run();
-        if (lifecycle == null) {
-            Platform.runLater(attach);
+        if (disposed) {
+            return;
         }
-    }
 
-    /**
-     * Від’єднує механізм життєвого циклу, якщо він уже був створений.
-     */
-    private void disposeLifecycle() {
-        if (lifecycle != null) {
-            lifecycle.dispose();
-            lifecycle = null;
-        }
-        lifecycleLabel = null;
+        disposed = true;
+        lifecycle.dispose();
     }
 }

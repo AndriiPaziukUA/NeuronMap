@@ -21,7 +21,7 @@ public final class MainView {
     private final WorkspaceView workspace = new WorkspaceView();
     private final StatusBarView statusBar = new StatusBarView();
     private final StatusMessagePresenter statusMessagePresenter =
-            new StatusMessagePresenter(statusBar::setText);
+            new StatusMessagePresenter(statusBar);
     private final MainMenuView mainMenu;
 
     /**
@@ -64,7 +64,7 @@ public final class MainView {
     }
 
     /**
-     * Створює сцену JavaFX, додає основну таблицю стилів і під’єднує подання повідомлень до сцени.
+     * Створює сцену JavaFX і додає основну таблицю стилів.
      *
      * @param width початкова ширина сцени.
      * @param height початкова висота сцени.
@@ -78,7 +78,6 @@ public final class MainView {
         }
         scene.getStylesheets().add(css.toExternalForm());
         root.layout();
-        statusMessagePresenter.attach(scene);
         return scene;
     }
 
@@ -126,7 +125,7 @@ public final class MainView {
     }
 
     /**
-     * Передає повідомлення рядку стану та механізму його відображення.
+     * Передає текст до рядка стану та запускає життєвий цикл його повідомлення.
      *
      * @param text текст повідомлення, яке потрібно показати.
      */

@@ -1,10 +1,10 @@
 package com.example.neuronmap.view;
 
 import com.example.neuronmap.i18n.LocalizationService;
-import com.example.neuronmap.model.NeuronType;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -12,20 +12,24 @@ import org.junit.jupiter.api.Test;
 import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє, що життєвим циклом повідомлень керує view-шар і що резервний рядок стану оновлюється коректно.
+ * Перевіряє прив’язку життєвого циклу повідомлень до власного рядка стану та звільнення його ресурсів.
  */
 final class StatusMessagePresenterTest {
 
+    /**
+     * Запускає JavaFX один раз перед тестами, які створюють графічні вузли.
+     *
+     * @throws Exception якщо середовище JavaFX не запустилося вчасно.
+     */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -39,44 +43,59 @@ final class StatusMessagePresenterTest {
         }
     }
 
+    /**
+     * Переконується, що для створення презентера обов’язково потрібне конкретне подання рядка стану.
+     */
     @Test
-    void rejectsNullFallbackHandler() {
+    void rejectsNullStatusBar() {
         assertThrows(IllegalArgumentException.class, () -> new StatusMessagePresenter(null));
     }
 
+    /**
+     * Перевіряє, що мітка з таким самим текстом у сцені не перехоплює життєвий цикл повідомлення.
+     *
+     * @throws Exception якщо виконання на потоці JavaFX завершується помилкою.
+     */
     @Test
-    void presenterFindsStatusLabelAndReleasesLifecycle() throws Exception {
+    void presenterUsesItsStatusBarInsteadOfSearchingTheScene() throws Exception {
         runOnFxThread(() -> {
-            Label label = new Label();
-            label.getStyleClass().add("status-label");
-            VBox root = new VBox(label);
-            root.getStyleClass().add("status-bar");
+            StatusBarView statusBar = new StatusBarView();
+            Pane statusBarNode = statusBar.node();
+            Label actualStatusLabel = statusBar.messageLabel();
+            Label unrelatedLabel = new Label("Зміни збережено");
+            VBox root = new VBox(statusBarNode, unrelatedLabel);
             Scene scene = new Scene(root, 300.0, 100.0);
-            AtomicReference<String> fallbackText = new AtomicReference<>();
-            StatusMessagePresenter presenter = new StatusMessagePresenter(message -> {
-                fallbackText.set(message);
-                label.setText(message);
-            });
-
-            presenter.attach(scene);
+            StatusMessagePresenter presenter = new StatusMessagePresenter(statusBar);
             presenter.show("Зміни збережено");
 
-            assertEquals("Зміни збережено", fallbackText.get());
-            assertEquals("Зміни збережено", label.getText());
-            assertEquals(1.0, label.getOpacity(), 0.0001);
-            assertFalse(root.isMouseTransparent());
+            assertEquals("Зміни збережено", actualStatusLabel.getText());
+            assertEquals("Зміни збережено", unrelatedLabel.getText());
+            assertEquals(1.0, actualStatusLabel.getOpacity(), 0.0001);
+            assertEquals(1.0, unrelatedLabel.getOpacity(), 0.0001);
+            assertFalse(statusBar.node().isMouseTransparent());
+            assertTrue(statusBar.node().isPickOnBounds());
+            assertNotNull(statusBarNode.getOnMouseEntered());
+            assertNotNull(statusBarNode.getOnMouseExited());
+            assertNull(unrelatedLabel.getOnMouseEntered());
+            assertNull(unrelatedLabel.getOnMouseExited());
 
             presenter.dispose();
 
-            assertEquals(0.0, label.getOpacity(), 0.0001);
-            assertTrue(root.isMouseTransparent());
-            assertNull(root.getOnMouseEntered());
-            assertNull(root.getOnMouseExited());
+            assertEquals(0.0, actualStatusLabel.getOpacity(), 0.0001);
+            assertTrue(statusBar.node().isMouseTransparent());
+            assertNull(statusBarNode.getOnMouseEntered());
+            assertNull(statusBarNode.getOnMouseExited());
+            presenter.dispose();
         });
     }
 
+    /**
+     * Перевіряє передавання повідомлень з MainView до вбудованого StatusBarView і завершення його життєвого циклу.
+     *
+     * @throws Exception якщо виконання на потоці JavaFX завершується помилкою.
+     */
     @Test
-    void mainViewOwnsStatusMessageAttachmentAndCleanup() throws Exception {
+    void mainViewUsesItsComposedStatusBarAndDisposesIt() throws Exception {
         runOnFxThread(() -> {
             MainView view = new MainView(
                     ignored -> { },
@@ -89,22 +108,55 @@ final class StatusMessagePresenterTest {
                     100.0,
                     new LocalizationService(Locale.forLanguageTag("uk"))
             );
-            Scene scene = view.createScene(800.0, 600.0);
+            view.createScene(800.0, 600.0);
+
+            Pane content = (Pane) view.node().getChildren().get(0);
+            Pane statusBarNode = (Pane) content.getChildren().get(2);
+            Label statusLabel = (Label) statusBarNode.getChildren().get(0);
 
             view.setStatus("Редактор готовий");
 
-            StatusMessageTargetLocator.Target target = StatusMessageTargetLocator
-                    .findByText(scene, "Редактор готовий")
-                    .orElseThrow();
-            assertNotNull(target.label());
-            assertEquals(1.0, target.label().getOpacity(), 0.0001);
+            assertEquals("Редактор готовий", statusLabel.getText());
+            assertEquals(1.0, statusLabel.getOpacity(), 0.0001);
+            assertNotNull(statusBarNode.getOnMouseEntered());
 
             view.dispose();
 
-            assertEquals(0.0, target.label().getOpacity(), 0.0001);
+            assertEquals(0.0, statusLabel.getOpacity(), 0.0001);
+            assertNull(statusBarNode.getOnMouseEntered());
+            assertNull(statusBarNode.getOnMouseExited());
         });
     }
 
+    /**
+     * Перевіряє, що порожнє повідомлення одразу прибирає мітку й не залишає активну область наведення.
+     *
+     * @throws Exception якщо виконання на потоці JavaFX завершується помилкою.
+     */
+    @Test
+    void blankMessageClearsStatusBarWithoutStartingItsVisibleTimer() throws Exception {
+        runOnFxThread(() -> {
+            StatusBarView statusBar = new StatusBarView();
+            StatusMessagePresenter presenter = new StatusMessagePresenter(statusBar);
+
+            presenter.show("Повідомлення");
+            presenter.show("  ");
+
+            assertFalse(statusBar.messageLabel().isVisible());
+            assertEquals("", statusBar.messageLabel().getText());
+            assertEquals(0.0, statusBar.messageLabel().getOpacity(), 0.0001);
+            assertTrue(statusBar.node().isMouseTransparent());
+
+            presenter.dispose();
+        });
+    }
+
+    /**
+     * Виконує перевірку на потоці JavaFX і передає помилку назад у тестовий потік.
+     *
+     * @param action перевірка, яка має виконатися на потоці JavaFX.
+     * @throws Exception якщо перевірка не завершується вчасно або завершується помилкою.
+     */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];
