@@ -1,43 +1,42 @@
+# Maven build output
 target/
-!.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
 
-### IntelliJ IDEA ###
-.idea/modules.xml
-.idea/jarRepositories.xml
-.idea/compiler.xml
-.idea/libraries/
-# Local database connection configuration
-.idea/dataSources.xml
-*.iws
+# Local IDE configuration and generated workspace files
+.idea/
+.vscode/
 *.iml
 *.ipr
-
-### Eclipse ###
-.apt_generated
+*.iws
 .classpath
-.factorypath
 .project
-.settings
-.springBeans
-.sts4-cache
+.settings/
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
+# Local build output directories
+out/
 build/
-!**/src/main/**/build/
-!**/src/test/**/build/
+dist/
 
-### VS Code ###
-.vscode/
-
-### Mac OS ###
-.DS_Store
-
-### Local development data ###
+# Local databases and runtime data
 /identifier.sqlite
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+
+# Logs and temporary editor files
+*.log
+logs/
+*.swp
+*.swo
+*~
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local environment files and secrets
+.env
+.env.*
+!.env.example
