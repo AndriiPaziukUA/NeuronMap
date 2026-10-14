@@ -12,7 +12,7 @@ import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.util.WorldCoordinateMapper;
 import com.example.neuronmap.view.ConnectionView;
 import com.example.neuronmap.view.JavaFxNodeLookup;
-import com.example.neuronmap.view.NeuronView;
+import com.example.neuronmap.view.NeuronVisualGeometry;
 import com.example.neuronmap.view.WorkspaceView;
 import javafx.geometry.Point2D;
 import javafx.scene.Cursor;
@@ -199,10 +199,11 @@ public final class MapInteractionCoordinator {
                     state.panX(),
                     state.panY()
             );
+            Point2D neuronTopLeft = NeuronVisualGeometry.topLeftFromCenter(worldPoint);
             addNeuronAt(
                     state.pendingNeuronType(),
-                    worldPoint.getX() - NeuronView.WIDTH / 2.0,
-                    worldPoint.getY() - NeuronView.HEIGHT / 2.0
+                    neuronTopLeft.getX(),
+                    neuronTopLeft.getY()
             );
             state.resetToIdle();
             workspace.node().setCursor(Cursor.DEFAULT);
@@ -221,14 +222,11 @@ public final class MapInteractionCoordinator {
      * Створює нейрон у точці, куди користувач відпустив інструмент перетягування.
      *
      * @param type тип нейрона.
-     * @param worldPoint точка у світових координатах карти.
+     * @param worldPoint точка центра у світових координатах карти.
      */
     private void handleToolDrop(NeuronType type, Point2D worldPoint) {
-        addNeuronAt(
-                type,
-                worldPoint.getX() - NeuronView.WIDTH / 2.0,
-                worldPoint.getY() - NeuronView.HEIGHT / 2.0
-        );
+        Point2D neuronTopLeft = NeuronVisualGeometry.topLeftFromCenter(worldPoint);
+        addNeuronAt(type, neuronTopLeft.getX(), neuronTopLeft.getY());
     }
 
     /**

@@ -1,18 +1,57 @@
 package com.example.neuronmap.view;
 
+import javafx.geometry.Point2D;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Polygon;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє геометрію вихідного трикутника, вхідного порту й точок приєднання зв’язків.
+ * Перевіряє геометрію портів нейрона, вихідного трикутника та перетворення координат центра.
  */
 final class NeuronVisualGeometryTest {
 
     private static final double EPSILON = 0.0001;
+
+    /**
+     * Перевіряє перетворення довільної точки центра на верхній лівий кут у тій самій системі координат.
+     */
+    @Test
+    void convertsCenterToTopLeftWithoutChangingCoordinateSpace() {
+        Point2D topLeft = NeuronVisualGeometry.topLeftFromCenter(
+                new Point2D(100.0, 200.0)
+        );
+
+        assertEquals(30.0, topLeft.getX(), EPSILON);
+        assertEquals(163.0, topLeft.getY(), EPSILON);
+    }
+
+    /**
+     * Перевіряє, що перетворення центра коректно працює для координат, які виходять за початок площини.
+     */
+    @Test
+    void convertsNegativeCenterCoordinates() {
+        Point2D topLeft = NeuronVisualGeometry.topLeftFromCenter(
+                new Point2D(-20.0, -10.0)
+        );
+
+        assertEquals(-90.0, topLeft.getX(), EPSILON);
+        assertEquals(-47.0, topLeft.getY(), EPSILON);
+    }
+
+    /**
+     * Перевіряє, що перетворювач відхиляє відсутню точку центра замість приховування помилки.
+     */
+    @Test
+    void rejectsNullCenterPoint() {
+        assertThrows(
+                NullPointerException.class,
+                () -> NeuronVisualGeometry.topLeftFromCenter(null)
+        );
+    }
 
     /**
      * Перевіряє, що вихідний трикутник центрований на правому краї нейрона й частково виходить за його межі.
@@ -83,11 +122,7 @@ final class NeuronVisualGeometryTest {
                 NeuronVisualGeometry.outputTipX(true),
                 EPSILON
         );
-        assertEquals(
-                0.0,
-                NeuronVisualGeometry.inputPortX(false),
-                EPSILON
-        );
+        assertEquals(0.0, NeuronVisualGeometry.inputPortX(false), EPSILON);
         assertEquals(
                 NeuronVisualGeometry.WIDTH,
                 NeuronVisualGeometry.inputPortX(true),
@@ -100,38 +135,24 @@ final class NeuronVisualGeometryTest {
      */
     @Test
     void inputPortStaysCenteredOnTheCorrectNeuronEdge() {
-        Circle normal = new Circle(
-                NeuronVisualGeometry.INPUT_PORT_RADIUS
-        );
-        Circle reversed = new Circle(
-                NeuronVisualGeometry.INPUT_PORT_RADIUS
-        );
+        Circle normal = new Circle(NeuronVisualGeometry.INPUT_PORT_RADIUS);
+        Circle reversed = new Circle(NeuronVisualGeometry.INPUT_PORT_RADIUS);
 
         NeuronVisualGeometry.positionInputPort(normal, false);
         NeuronVisualGeometry.positionInputPort(reversed, true);
 
         assertEquals(0.0, normal.getCenterX(), EPSILON);
-        assertEquals(
-                NeuronVisualGeometry.WIDTH,
-                reversed.getCenterX(),
-                EPSILON
-        );
-        assertEquals(
-                NeuronVisualGeometry.HEIGHT / 2.0,
-                normal.getCenterY(),
-                EPSILON
-        );
-        assertEquals(
-                NeuronVisualGeometry.HEIGHT / 2.0,
-                reversed.getCenterY(),
-                EPSILON
-        );
-
+        assertEquals(NeuronVisualGeometry.WIDTH, reversed.getCenterX(), EPSILON);
+        assertEquals(NeuronVisualGeometry.HEIGHT / 2.0, normal.getCenterY(), EPSILON);
+        assertEquals(NeuronVisualGeometry.HEIGHT / 2.0, reversed.getCenterY(), EPSILON);
         assertTrue(normal.getCenterX() != reversed.getCenterX());
     }
 
     /**
-     * Перевіряє сценарій «min x» і відповідність результату очікуваній поведінці.
+     * Повертає найменшу горизонтальну координату серед вершин трикутника.
+     *
+     * @param polygon трикутник, координати якого аналізуються.
+     * @return найменша горизонтальна координата.
      */
     private static double minX(Polygon polygon) {
         double min = Double.POSITIVE_INFINITY;
@@ -142,7 +163,10 @@ final class NeuronVisualGeometryTest {
     }
 
     /**
-     * Перевіряє сценарій «max x» і відповідність результату очікуваній поведінці.
+     * Повертає найбільшу горизонтальну координату серед вершин трикутника.
+     *
+     * @param polygon трикутник, координати якого аналізуються.
+     * @return найбільша горизонтальна координата.
      */
     private static double maxX(Polygon polygon) {
         double max = Double.NEGATIVE_INFINITY;

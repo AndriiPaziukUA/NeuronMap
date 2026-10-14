@@ -6,7 +6,7 @@ import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.service.NeuronClipboardService;
 import com.example.neuronmap.util.WorldCoordinateMapper;
 import com.example.neuronmap.view.JavaFxNodeLookup;
-import com.example.neuronmap.view.NeuronView;
+import com.example.neuronmap.view.NeuronVisualGeometry;
 import com.example.neuronmap.view.WorkspaceView;
 import javafx.event.EventHandler;
 import javafx.geometry.Point2D;
@@ -232,9 +232,10 @@ public final class NeuronClipboardController {
         hideMenu.run();
         state.clearSelection();
 
+        Point2D neuronTopLeft = NeuronVisualGeometry.topLeftFromCenter(worldPoint);
         List<Neuron> pasted = clipboardService.paste(
-                worldPoint.getX() - NeuronView.WIDTH / 2.0,
-                worldPoint.getY() - NeuronView.HEIGHT / 2.0
+                neuronTopLeft.getX(),
+                neuronTopLeft.getY()
         );
         if (pasted.isEmpty()) {
             return false;

@@ -4,7 +4,7 @@ import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.util.WorldCoordinateMapper;
 import com.example.neuronmap.view.NeuronDragPreviewFactory;
-import com.example.neuronmap.view.NeuronView;
+import com.example.neuronmap.view.NeuronVisualGeometry;
 import com.example.neuronmap.view.WorkspaceView;
 import javafx.geometry.Point2D;
 import javafx.scene.Cursor;
@@ -35,9 +35,9 @@ public final class NeuronToolDragController {
     /**
      * Створює екземпляр NeuronToolDragController та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param state стан редактора, що містить параметри камери.
      * @param workspace полотно редактора.
-     * @param dropConsumer callback, який отримує тип нейрона та координату відпускання.
+     * @param dropConsumer callback, який отримує тип нейрона та координату центра у світових координатах.
      */
     public NeuronToolDragController(
             EditorState state,
@@ -85,7 +85,7 @@ public final class NeuronToolDragController {
      * Налаштовує кнопку так, щоб вона передавала тип нейрона під час перетягування.
      *
      * @param button кнопка інтерфейсу, яку потрібно налаштувати.
-     * @param type тип нейрона або елемента.
+     * @param type тип нейрона, який створюватиметься.
      */
     private void configureDragSource(Button button, NeuronType type) {
         if (button == null || type == null) {
@@ -161,7 +161,7 @@ public final class NeuronToolDragController {
     /**
      * Розташовує попередній перегляд нейрона під курсором під час перетягування інструмента.
      *
-     * @param type тип нейрона або елемента.
+     * @param type тип нейрона, який показується у прев'ю.
      * @param sceneX горизонтальна координата точки у системі координат сцени JavaFX.
      * @param sceneY вертикальна координата точки у системі координат сцени JavaFX.
      */
@@ -173,8 +173,8 @@ public final class NeuronToolDragController {
             dragPreviewScale = new Scale(
                     state.zoom(),
                     state.zoom(),
-                    NeuronView.WIDTH / 2.0,
-                    NeuronView.HEIGHT / 2.0
+                    NeuronVisualGeometry.WIDTH / 2.0,
+                    NeuronVisualGeometry.HEIGHT / 2.0
             );
             dragPreview.getTransforms().add(dragPreviewScale);
             workspace.overlayLayer().getChildren().add(dragPreview);
@@ -183,10 +183,8 @@ public final class NeuronToolDragController {
         Point2D cursor = workspace.overlayLayer().sceneToLocal(sceneX, sceneY);
         dragPreviewScale.setX(state.zoom());
         dragPreviewScale.setY(state.zoom());
-        dragPreview.relocate(
-                cursor.getX() - NeuronView.WIDTH / 2.0,
-                cursor.getY() - NeuronView.HEIGHT / 2.0
-        );
+        Point2D previewTopLeft = NeuronVisualGeometry.topLeftFromCenter(cursor);
+        dragPreview.relocate(previewTopLeft.getX(), previewTopLeft.getY());
         dragPreview.toFront();
     }
 
@@ -194,6 +192,7 @@ public final class NeuronToolDragController {
      * Зчитує тип нейрона з буфера перетягування та повертає відповідне значення переліку.
      *
      * @param dragboard буфер перетягування, що містить дані про тип створюваного нейрона.
+     * @return розпізнаний тип або {@code null}, якщо дані відсутні чи некоректні.
      */
     private static NeuronType dragNeuronType(Dragboard dragboard) {
         if (dragboard == null || !dragboard.hasString()) {
