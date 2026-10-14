@@ -6,6 +6,7 @@ import com.example.neuronmap.application.NeuronMapApplicationService;
 import com.example.neuronmap.config.AppConfig;
 import com.example.neuronmap.controller.CameraController;
 import com.example.neuronmap.controller.ConnectionController;
+import com.example.neuronmap.controller.EditorKeyboardController;
 import com.example.neuronmap.controller.MainMenuController;
 import com.example.neuronmap.controller.NeuronInteractionController;
 import com.example.neuronmap.controller.PulseAnimationController;
@@ -33,7 +34,6 @@ import com.example.neuronmap.view.NeuronView;
 import com.example.neuronmap.view.RotationHandleView;
 import com.example.neuronmap.view.SimulationStepPresenter;
 import javafx.scene.Scene;
-import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
 
 import java.util.HashMap;
@@ -77,6 +77,7 @@ public final class MapEditorCoordinator {
     private final MapPresentationCoordinator presentation;
     private final MapInteractionCoordinator interaction;
     private final EditorHistoryCoordinator historyCoordinator;
+    private final EditorKeyboardController keyboardController;
     private final MainMenuController mainMenuController;
     private final ProjectDirectoryWatcher projectDirectoryWatcher;
     private ImmediateTooltipManager tooltipManager;
@@ -284,6 +285,12 @@ public final class MapEditorCoordinator {
                 this::updateStatus,
                 localization
         );
+        keyboardController = new EditorKeyboardController(
+                historyCoordinator::undo,
+                historyCoordinator::redo,
+                neuronController::deleteSelectedNeurons,
+                interaction::cancelInteractions
+        );
 
         cameraController = new CameraController(
                 state,
@@ -455,31 +462,7 @@ public final class MapEditorCoordinator {
      */
     public Scene createScene(double width, double height) {
         scene = view.createScene(width, height);
-
-        scene.setOnKeyPressed(event -> {
-            if (event.isControlDown() && event.getCode() == KeyCode.Z) {
-                if (historyCoordinator.undo()) {
-                    event.consume();
-                }
-                return;
-            }
-            if (event.isControlDown() && event.getCode() == KeyCode.Y) {
-                if (historyCoordinator.redo()) {
-                    event.consume();
-                }
-                return;
-            }
-            if (event.getCode() == KeyCode.DELETE) {
-                if (neuronController.deleteSelectedNeurons()) {
-                    event.consume();
-                }
-                return;
-            }
-            if (event.getCode() == KeyCode.ESCAPE) {
-                interaction.cancelInteractions();
-                event.consume();
-            }
-        });
+        keyboardController.install(scene);
 
         scene.addEventFilter(
                 MouseEvent.MOUSE_PRESSED,
@@ -498,11 +481,13 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Зупиняє симуляцію, закриває сховище та звільняє ресурси редактора.
+     * Зупиняє симуляцію, знімає обробники подій, закриває сховище та звільняє ресурси редактора.
      */
     public void shutdown() {
+        keyboardController.dispose();
         projectDirectoryWatcher.close();
         mainMenuController.dispose(scene);
+        scene = null;
         simulationController.shutdown();
         connectionController.clearDeleteHighlights();
         interaction.dispose();

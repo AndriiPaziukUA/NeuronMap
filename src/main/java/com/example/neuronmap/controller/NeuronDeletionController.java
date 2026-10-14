@@ -3,22 +3,18 @@ package com.example.neuronmap.controller;
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.service.NeuronService;
-import com.example.neuronmap.view.JavaFxNodeLookup;
 import com.example.neuronmap.view.WorkspaceView;
-import javafx.event.EventHandler;
 import javafx.scene.Cursor;
-import javafx.scene.control.TextInputControl;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
 
 import java.util.Collection;
 import java.util.LinkedHashSet;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 
 /**
  * Обробляє запити на видалення нейронів і оновлює редакторський стан після успішної операції.
- * Синхронізацію графічних подань делегує координатору презентації через callback.
+ * Клавіатурні команди належать окремому маршрутизатору гарячих клавіш редактора.
  */
 public final class NeuronDeletionController {
 
@@ -30,10 +26,9 @@ public final class NeuronDeletionController {
     private final Runnable save;
     private final Consumer<String> status;
     private final LocalizationService localization;
-    private final EventHandler<KeyEvent> keyHandler = this::handleKeyPressed;
 
     /**
-     * Створює обробник видалення, який не керує мапами подань і вузлами JavaFX напряму.
+     * Створює обробник видалення, який не реєструє глобальних клавіатурних подій і не керує мапами подань.
      *
      * @param neuronService служба видалення нейронів із моделі.
      * @param state стан вибору та режимів редактора.
@@ -54,50 +49,17 @@ public final class NeuronDeletionController {
             Consumer<String> status,
             LocalizationService localization
     ) {
-        this.neuronService = java.util.Objects.requireNonNull(neuronService, "neuronService");
-        this.state = java.util.Objects.requireNonNull(state, "state");
-        this.workspace = java.util.Objects.requireNonNull(workspace, "workspace");
-        this.hideMenu = java.util.Objects.requireNonNull(hideMenu, "hideMenu");
-        this.refreshPresentation = java.util.Objects.requireNonNull(
+        this.neuronService = Objects.requireNonNull(neuronService, "neuronService");
+        this.state = Objects.requireNonNull(state, "state");
+        this.workspace = Objects.requireNonNull(workspace, "workspace");
+        this.hideMenu = Objects.requireNonNull(hideMenu, "hideMenu");
+        this.refreshPresentation = Objects.requireNonNull(
                 refreshPresentation,
                 "refreshPresentation"
         );
-        this.save = java.util.Objects.requireNonNull(save, "save");
-        this.status = java.util.Objects.requireNonNull(status, "status");
-        this.localization = java.util.Objects.requireNonNull(localization, "localization");
-        installSceneKeyHandler();
-    }
-
-    /**
-     * Реєструє обробник клавіші Delete для сцени, до якої приєднана робоча область.
-     */
-    private void installSceneKeyHandler() {
-        workspace.node().sceneProperty().addListener(
-                (observable, oldScene, newScene) -> {
-                    if (oldScene != null) {
-                        oldScene.removeEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
-                    }
-                    if (newScene != null) {
-                        newScene.addEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
-                    }
-                }
-        );
-    }
-
-    /**
-     * Передає команду Delete операції видалення, якщо фокус не перебуває в текстовому полі.
-     *
-     * @param event подія натискання клавіші.
-     */
-    private void handleKeyPressed(KeyEvent event) {
-        if (event.getCode() != KeyCode.DELETE
-                || isTextInputTarget(event.getTarget())) {
-            return;
-        }
-
-        if (deleteSelectedNeurons()) {
-            event.consume();
-        }
+        this.save = Objects.requireNonNull(save, "save");
+        this.status = Objects.requireNonNull(status, "status");
+        this.localization = Objects.requireNonNull(localization, "localization");
     }
 
     /**
@@ -166,15 +128,5 @@ public final class NeuronDeletionController {
                         ? localization.text("status.delete_neuron")
                         : localization.text("status.delete_neurons")
         );
-    }
-
-    /**
-     * Перевіряє, чи має фокус текстовий елемент, щоб не перехоплювати введення користувача.
-     *
-     * @param target цільовий вузол JavaFX.
-     * @return {@code true}, якщо фокус перебуває в текстовому полі.
-     */
-    private boolean isTextInputTarget(Object target) {
-        return JavaFxNodeLookup.findAncestor(target, TextInputControl.class) != null;
     }
 }
