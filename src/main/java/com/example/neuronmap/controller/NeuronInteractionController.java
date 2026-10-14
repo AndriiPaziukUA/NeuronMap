@@ -20,14 +20,11 @@ import java.util.function.Consumer;
 
 /**
  * Обробляє користувацьку взаємодію з нейронами та координує підлеглі контролери.
- * Створення, вилучення й синхронізацію самих графічних подань делегує координатору презентації.
+ * Створення, вилучення й оновлення графічних подань делегує координатору презентації.
  */
 public final class NeuronInteractionController {
 
-    private final NeuronService neuronService;
     private final EditorState state;
-    private final WorkspaceView workspace;
-    private final Map<String, NeuronView> neuronViews;
     private final SelectionController selectionController;
     private final SimulationController simulation;
     private final NeuronClipboardController clipboardController;
@@ -36,6 +33,9 @@ public final class NeuronInteractionController {
     private final NeuronRotationController rotationController;
     private final NeuronDragController dragController;
     private Runnable neuronViewSynchronizer;
+    private Runnable neuronVisualRefresher;
+    private Runnable overlayPositionRefresher;
+    private Runnable relatedViewRefresher;
 
     /**
      * Створює контролер взаємодії з типовою українською локалізацією.
@@ -51,7 +51,7 @@ public final class NeuronInteractionController {
      * @param connections контролер роботи зі зв'язками.
      * @param simulation контролер симуляції.
      * @param save дія збереження поточного стану.
-     * @param refreshConnections дія оновлення всієї презентації карти.
+     * @param refreshPresentation дія повної синхронізації після зміни складу моделі.
      * @param status дія показу повідомлення стану.
      * @param neuronMenuView подання оформлення кнопок контекстного меню.
      */
@@ -67,7 +67,7 @@ public final class NeuronInteractionController {
             ConnectionController connections,
             SimulationController simulation,
             Runnable save,
-            Runnable refreshConnections,
+            Runnable refreshPresentation,
             Consumer<String> status,
             NeuronMenuView neuronMenuView
     ) {
@@ -83,7 +83,7 @@ public final class NeuronInteractionController {
                 connections,
                 simulation,
                 save,
-                refreshConnections,
+                refreshPresentation,
                 status,
                 neuronMenuView,
                 new LocalizationService(java.util.Locale.forLanguageTag("uk"))
@@ -104,7 +104,7 @@ public final class NeuronInteractionController {
      * @param connections контролер роботи зі зв'язками.
      * @param simulation контролер симуляції.
      * @param save дія збереження поточного стану.
-     * @param refreshConnections дія оновлення всієї презентації карти.
+     * @param refreshPresentation дія повної синхронізації після зміни складу моделі.
      * @param status дія показу повідомлення стану.
      * @param neuronMenuView подання оформлення кнопок контекстного меню.
      * @param localization спільна служба локалізації.
@@ -121,16 +121,16 @@ public final class NeuronInteractionController {
             ConnectionController connections,
             SimulationController simulation,
             Runnable save,
-            Runnable refreshConnections,
+            Runnable refreshPresentation,
             Consumer<String> status,
             NeuronMenuView neuronMenuView,
             LocalizationService localization
     ) {
-        this.neuronService = Objects.requireNonNull(neuronService, "neuronService");
+        Objects.requireNonNull(neuronService, "neuronService");
         Objects.requireNonNull(groupService, "groupService");
         this.state = Objects.requireNonNull(state, "state");
-        this.workspace = Objects.requireNonNull(workspace, "workspace");
-        this.neuronViews = Objects.requireNonNull(neuronViews, "neuronViews");
+        Objects.requireNonNull(workspace, "workspace");
+        Objects.requireNonNull(neuronViews, "neuronViews");
         this.selectionController = Objects.requireNonNull(selectionController, "selectionController");
         this.simulation = Objects.requireNonNull(simulation, "simulation");
 
@@ -144,7 +144,7 @@ public final class NeuronInteractionController {
                 state,
                 workspace,
                 this::hideMenu,
-                refreshConnections,
+                refreshPresentation,
                 save,
                 status,
                 sharedLocalization
@@ -155,7 +155,7 @@ public final class NeuronInteractionController {
                 state,
                 workspace,
                 this::hideMenu,
-                refreshConnections,
+                refreshPresentation,
                 save,
                 status,
                 sharedLocalization
@@ -170,7 +170,7 @@ public final class NeuronInteractionController {
                 deletionController,
                 neuronMenuView,
                 this::refreshVisuals,
-                refreshConnections,
+                this::refreshRelatedViews,
                 this::refreshOverlayPositions,
                 save,
                 status,
@@ -185,7 +185,7 @@ public final class NeuronInteractionController {
                 rotationHandles,
                 this::hideMenu,
                 this::refreshVisuals,
-                refreshConnections,
+                this::refreshRelatedViews,
                 this::refreshOverlayPositions,
                 save
         );
@@ -199,33 +199,52 @@ public final class NeuronInteractionController {
                 this::hideMenu,
                 rotationController::show,
                 this::refreshVisuals,
-                refreshConnections,
+                this::refreshRelatedViews,
                 this::refreshOverlayPositions,
                 save
         );
     }
 
     /**
-     * Передає координатору презентації запит на синхронізацію нейронних подань.
-     * Використовується точкою складання застосунку після створення координатора.
+     * Передає координатору презентації синхронізацію подань і оновлення їхнього візуального стану.
      *
-     * @param synchronizer дія синхронізації подань із моделлю.
+     * @param synchronizer дія узгодження набору нейронних подань із моделлю.
+     * @param visualRefresher дія оновлення вигляду вже створених подань.
+     * @param overlayPositionRefresher дія узгодження позицій контекстного меню та ручок обертання.
+     * @param relatedViewRefresher дія оновлення зв'язків і залежної геометрії груп без повторної синхронізації нейронів.
+     * @throws IllegalStateException якщо дії презентації вже були зареєстровані.
      */
-    public void setNeuronViewSynchronizer(Runnable synchronizer) {
-        if (neuronViewSynchronizer != null) {
-            throw new IllegalStateException("Neuron view synchronizer is already configured");
+    public void setPresentationActions(
+            Runnable synchronizer,
+            Runnable visualRefresher,
+            Runnable overlayPositionRefresher,
+            Runnable relatedViewRefresher
+    ) {
+        if (neuronViewSynchronizer != null
+                || neuronVisualRefresher != null
+                || this.overlayPositionRefresher != null
+                || this.relatedViewRefresher != null) {
+            throw new IllegalStateException("Presentation actions are already configured");
         }
         neuronViewSynchronizer = Objects.requireNonNull(synchronizer, "synchronizer");
+        neuronVisualRefresher = Objects.requireNonNull(visualRefresher, "visualRefresher");
+        this.overlayPositionRefresher = Objects.requireNonNull(
+                overlayPositionRefresher,
+                "overlayPositionRefresher"
+        );
+        this.relatedViewRefresher = Objects.requireNonNull(
+                relatedViewRefresher,
+                "relatedViewRefresher"
+        );
     }
 
     /**
      * Забезпечує початкову синхронізацію подань через їхнього єдиного власника.
-     * Зберігає сумісність із наявною точкою складання редактора.
      */
     public void loadViews() {
         if (neuronViewSynchronizer == null) {
             throw new IllegalStateException(
-                    "Neuron view synchronizer must be configured before loading views"
+                    "Presentation actions must be configured before loading views"
             );
         }
         neuronViewSynchronizer.run();
@@ -280,27 +299,69 @@ public final class NeuronInteractionController {
     }
 
     /**
-     * Оновлює вигляд нейронів відповідно до вибору та поточного стану моделі.
+     * Передає підлеглим контролерам запит на оновлення лише подань зв'язків.
+     */
+    private void refreshRelatedViews() {
+        if (relatedViewRefresher == null) {
+            throw new IllegalStateException(
+                    "Presentation actions must be configured before refreshing related views"
+            );
+        }
+        relatedViewRefresher.run();
+    }
+
+    /**
+     * Визначає, чи вибрано нейрон, не передаючи координатору презентації весь змінний стан редактора.
+     *
+     * @param neuronId ідентифікатор нейрона.
+     * @return {@code true}, якщо нейрон входить до поточного вибору.
+     */
+    public boolean isNeuronSelected(String neuronId) {
+        return neuronId != null && state.selectedNeuronIds().contains(neuronId);
+    }
+
+    /**
+     * Передає запит на оновлення вигляду нейронів координатору презентації.
      */
     public void refreshVisuals() {
-        for (NeuronView neuronView : neuronViews.values()) {
-            neuronView.refreshVisuals(
-                    state.selectedNeuronIds().contains(neuronView.model().id())
+        if (neuronVisualRefresher == null) {
+            throw new IllegalStateException(
+                    "Presentation actions must be configured before refreshing neuron visuals"
             );
+        }
+        neuronVisualRefresher.run();
+    }
+
+    /**
+     * Передає координатору презентації запит на узгодження положень візуальних накладок.
+     */
+    public void refreshOverlayPositions() {
+        if (overlayPositionRefresher == null) {
+            throw new IllegalStateException(
+                    "Presentation actions must be configured before refreshing overlays"
+            );
+        }
+        overlayPositionRefresher.run();
+    }
+
+    /**
+     * Оновлює позицію контекстного меню, лише якщо воно відкрите для зазначеного нейрона.
+     *
+     * @param neuronView подання нейрона, відносно якого розташовується меню.
+     */
+    public void refreshContextMenuPosition(NeuronView neuronView) {
+        if (neuronView != null
+                && menuController.isVisible()
+                && state.selectedNeuronForMenu() != null
+                && state.selectedNeuronForMenu().equals(neuronView.model().id())) {
+            menuController.refreshPosition(neuronView);
         }
     }
 
     /**
-     * Перераховує положення контекстних меню й ручок обертання біля нейронів.
+     * Передає спеціалізованому контролеру ручок обертання запит на оновлення їхнього положення.
      */
-    public void refreshOverlayPositions() {
-        for (NeuronView neuronView : neuronViews.values()) {
-            if (menuController.isVisible()
-                    && state.selectedNeuronForMenu() != null
-                    && state.selectedNeuronForMenu().equals(neuronView.model().id())) {
-                menuController.refreshPosition(neuronView);
-            }
-        }
+    public void refreshRotationHandlePosition() {
         rotationController.refreshPosition();
     }
 

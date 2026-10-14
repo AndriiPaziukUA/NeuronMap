@@ -23,6 +23,7 @@ import com.example.neuronmap.view.SimulationStepPresenter;
 import com.example.neuronmap.view.WorkspaceView;
 import javafx.application.Platform;
 import javafx.scene.layout.Pane;
+import javafx.scene.shape.Rectangle;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -120,6 +121,43 @@ final class MapPresentationCoordinatorLifecycleTest {
         });
     }
 
+    /**
+     * Перевіряє, що оновлення вибору змінює вигляд нейрона через координатор, не дублюючи логіку в контролері.
+     *
+     * @throws Exception якщо JavaFX-потік не виконав перевірку вчасно.
+     */
+    @Test
+    void presentationCoordinatorOwnsNeuronVisualRefresh() throws Exception {
+        runOnFxThread(() -> {
+            Fixture fixture = new Fixture();
+            try {
+                Neuron neuron = fixture.neuronService.create(
+                        NeuronType.EXCITATORY,
+                        100.0,
+                        80.0
+                );
+                fixture.presentation.refreshAll();
+
+                NeuronView view = fixture.neuronViews.get(neuron.id());
+                Rectangle body = (Rectangle) view.getChildren().get(0);
+                assertEquals(2.0, body.getStrokeWidth(), 0.0001);
+
+                fixture.state.selectOnly(neuron.id());
+                fixture.neuronController.refreshVisuals();
+                assertEquals(
+                        NeuronView.SELECTED_STROKE_WIDTH,
+                        body.getStrokeWidth(),
+                        0.0001
+                );
+
+                fixture.state.clearSelection();
+                fixture.neuronController.refreshVisuals();
+                assertEquals(2.0, body.getStrokeWidth(), 0.0001);
+            } finally {
+                fixture.dispose();
+            }
+        });
+    }
 
     /**
      * Перевіряє, що додавання нейрона через координатор взаємодії створює подання та ручку обертання.
@@ -319,6 +357,8 @@ final class MapPresentationCoordinatorLifecycleTest {
 
         /**
          * Публікує створений координатор, щоб колбеки під час тесту поверталися до реальної презентації.
+         *
+         * @return створений координатор презентації.
          */
         private MapPresentationCoordinator initializePresentationReference() {
             presentationReference.set(presentationCoordinator);

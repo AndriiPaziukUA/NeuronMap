@@ -23,8 +23,8 @@ import java.util.Objects;
 
 /**
  * Єдиний власник синхронізації графічних подань карти з поточним станом моделі.
- * Створює та вилучає подання нейронів, зв'язків, груп і ручок обертання,
- * а контролерам взаємодії делегує лише встановлення обробників подій.
+ * Створює, вилучає та оновлює нейронні подання, зв'язки, групи й ручки обертання.
+ * Контролеру взаємодії делегує лише встановлення обробників і запит стану вибору.
  */
 public final class MapPresentationCoordinator {
 
@@ -47,7 +47,7 @@ public final class MapPresentationCoordinator {
      * @param neuronViews спільна мапа подань нейронів за ідентифікаторами.
      * @param connectionViews спільна мапа подань зв'язків за ідентифікаторами.
      * @param rotationHandles спільна мапа ручок обертання за ідентифікаторами.
-     * @param neuronController контролер, який встановлює обробники взаємодії на готові подання.
+     * @param neuronController контролер, який встановлює обробники та надає стан вибору.
      * @param connectionController контролер режимів роботи зі зв'язками.
      * @param layerOrderController компонент керування порядком шарів.
      */
@@ -69,7 +69,12 @@ public final class MapPresentationCoordinator {
         this.neuronController = Objects.requireNonNull(neuronController, "neuronController");
         this.connectionController = Objects.requireNonNull(connectionController, "connectionController");
         this.layerOrderController = Objects.requireNonNull(layerOrderController, "layerOrderController");
-        this.neuronController.setNeuronViewSynchronizer(this::synchronizeNeuronViews);
+        this.neuronController.setPresentationActions(
+                this::synchronizeNeuronViews,
+                this::refreshNeuronVisuals,
+                this::refreshOverlayPositions,
+                this::refreshRelatedGeometry
+        );
     }
 
     /**
@@ -77,10 +82,8 @@ public final class MapPresentationCoordinator {
      */
     public void refreshAll() {
         refreshNeurons();
-        refreshConnections();
-        refreshGroups();
-        connectionController.refreshDeleteHighlights();
-        neuronController.refreshOverlayPositions();
+        refreshRelatedGeometry();
+        refreshOverlayPositions();
         bringRotationHandlesToFront();
     }
 
@@ -88,17 +91,17 @@ public final class MapPresentationCoordinator {
      * Перераховує накладки, положення яких залежить від екранних координат.
      */
     public void refreshScreenSpaceOverlays() {
-        neuronController.refreshOverlayPositions();
+        refreshOverlayPositions();
         bringRotationHandlesToFront();
         connectionController.refreshPreviewAfterCameraChange();
     }
 
     /**
-     * Узгоджує набір подань нейронів із моделлю та оновлює їхній видимий стан.
+     * Узгоджує набір подань нейронів із моделлю та оновлює геометрію й видимий стан кожного подання.
      */
     public void refreshNeurons() {
         synchronizeNeuronViews();
-        neuronController.refreshVisuals();
+        refreshNeuronVisuals();
     }
 
     /**
@@ -125,6 +128,40 @@ public final class MapPresentationCoordinator {
                 handle.setViewOrder(ROTATION_HANDLE_VIEW_ORDER);
             }
         }
+    }
+
+    /**
+     * Координує оновлення позицій контекстного меню та ручок обертання для поточних подань.
+     */
+    private void refreshOverlayPositions() {
+        for (NeuronView neuronView : neuronViews.values()) {
+            neuronController.refreshContextMenuPosition(neuronView);
+        }
+        neuronController.refreshRotationHandlePosition();
+    }
+
+    /**
+     * Оновлює вигляд кожного нейрона відповідно до моделі та поточного вибору.
+     * Цей метод є єдиним місцем, де координатор застосовує стан моделі до NeuronView.
+     */
+    private void refreshNeuronVisuals() {
+        for (NeuronView neuronView : neuronViews.values()) {
+            neuronView.refreshVisuals(
+                    neuronController.isNeuronSelected(neuronView.model().id())
+            );
+        }
+    }
+
+    /**
+     * Оновлює геометрію залежних подань без повторної синхронізації нейронних вузлів.
+     *
+     * <p>Використовується під час перетягування й обертання: змінені координати впливають на зв'язки
+     * та межі груп, але не вимагають повторного створення чи узгодження подань нейронів.</p>
+     */
+    private void refreshRelatedGeometry() {
+        refreshConnections();
+        refreshGroups();
+        connectionController.refreshDeleteHighlights();
     }
 
     /**
