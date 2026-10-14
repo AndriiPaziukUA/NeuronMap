@@ -3,9 +3,9 @@ package com.example.neuronmap.app;
 import com.example.neuronmap.application.NeuronMapApplicationService;
 import com.example.neuronmap.config.AppConfig;
 import com.example.neuronmap.i18n.LocalizationService;
-import com.example.neuronmap.persistence.GlobalSettingsStore;
+import com.example.neuronmap.persistence.settings.GlobalSettingsStore;
 import com.example.neuronmap.persistence.MapRepositoryFactory;
-import com.example.neuronmap.persistence.ProjectStorageDirectoryResolver;
+import com.example.neuronmap.persistence.project.ProjectStorageDirectoryResolver;
 import com.example.neuronmap.service.ProjectCatalogService;
 import org.junit.jupiter.api.Test;
 

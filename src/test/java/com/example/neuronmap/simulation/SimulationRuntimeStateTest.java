@@ -1,6 +1,6 @@
 package com.example.neuronmap.simulation;
 
-import com.example.neuronmap.view.SimulationStepPresenter;
+import com.example.neuronmap.view.simulation.SimulationStepPresenter;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronType;

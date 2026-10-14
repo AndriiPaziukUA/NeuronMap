@@ -6,7 +6,7 @@ import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.service.NeuronService;
-import com.example.neuronmap.view.WorkspaceView;
+import com.example.neuronmap.view.editor.WorkspaceView;
 import javafx.application.Platform;
 import javafx.event.Event;
 import javafx.scene.Scene;

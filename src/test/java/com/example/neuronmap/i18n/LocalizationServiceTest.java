@@ -1,7 +1,7 @@
 package com.example.neuronmap.i18n;
 
-import com.example.neuronmap.persistence.GlobalSettingsLanguagePreferenceStore;
-import com.example.neuronmap.persistence.GlobalSettingsStore;
+import com.example.neuronmap.persistence.settings.GlobalSettingsLanguagePreferenceStore;
+import com.example.neuronmap.persistence.settings.GlobalSettingsStore;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 

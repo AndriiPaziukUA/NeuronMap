@@ -10,13 +10,13 @@ import com.example.neuronmap.service.GroupService;
 import com.example.neuronmap.service.NeuronClipboardService;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.simulation.SimulationService;
-import com.example.neuronmap.view.ConnectionView;
-import com.example.neuronmap.view.NeuronMenuView;
-import com.example.neuronmap.view.NeuronLayerOrderController;
-import com.example.neuronmap.view.NeuronView;
-import com.example.neuronmap.view.RotationHandleView;
-import com.example.neuronmap.view.SimulationStepPresenter;
-import com.example.neuronmap.view.WorkspaceView;
+import com.example.neuronmap.view.connection.ConnectionView;
+import com.example.neuronmap.view.neuron.NeuronMenuView;
+import com.example.neuronmap.view.editor.NeuronLayerOrderManager;
+import com.example.neuronmap.view.neuron.NeuronView;
+import com.example.neuronmap.view.neuron.RotationHandleView;
+import com.example.neuronmap.view.simulation.SimulationStepPresenter;
+import com.example.neuronmap.view.editor.WorkspaceView;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.input.MouseButton;
@@ -172,7 +172,7 @@ final class NeuronInteractionControllerMouseButtonTest {
                 rotationHandles,
                 controller,
                 connections,
-                new NeuronLayerOrderController(
+                new NeuronLayerOrderManager(
                         neuronViews,
                         connectionViews,
                         model::connections

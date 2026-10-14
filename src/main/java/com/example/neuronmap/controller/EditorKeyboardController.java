@@ -1,6 +1,6 @@
 package com.example.neuronmap.controller;
 
-import com.example.neuronmap.view.JavaFxNodeLookup;
+import com.example.neuronmap.view.support.JavaFxNodeLookup;
 import javafx.event.EventHandler;
 import javafx.scene.Scene;
 import javafx.scene.control.TextInputControl;

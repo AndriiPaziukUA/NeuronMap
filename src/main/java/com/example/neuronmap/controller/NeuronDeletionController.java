@@ -3,7 +3,7 @@ package com.example.neuronmap.controller;
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.service.NeuronService;
-import com.example.neuronmap.view.WorkspaceView;
+import com.example.neuronmap.view.editor.WorkspaceView;
 import javafx.scene.Cursor;
 
 import java.util.Collection;

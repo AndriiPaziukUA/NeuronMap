@@ -1,10 +1,10 @@
 package com.example.neuronmap.controller;
 
-import com.example.neuronmap.view.ConnectionPulseSnapshot;
-import com.example.neuronmap.view.ConnectionView;
-import com.example.neuronmap.view.PulseAnimationView;
-import com.example.neuronmap.view.PulseAnimator;
-import com.example.neuronmap.view.WorkspaceView;
+import com.example.neuronmap.view.connection.ConnectionPulseSnapshot;
+import com.example.neuronmap.view.connection.ConnectionView;
+import com.example.neuronmap.view.simulation.PulseAnimationView;
+import com.example.neuronmap.view.simulation.PulseAnimator;
+import com.example.neuronmap.view.editor.WorkspaceView;
 
 import java.util.ArrayList;
 import java.util.List;

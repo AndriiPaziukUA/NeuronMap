@@ -8,6 +8,7 @@ import com.example.neuronmap.simulation.SimulationSession;
 import com.example.neuronmap.simulation.SimulationSpeed;
 import com.example.neuronmap.simulation.SimulationStep;
 import com.example.neuronmap.util.NumberDisplayFormatter;
+import com.example.neuronmap.view.simulation.SimulationStepPresenter;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
@@ -26,7 +27,7 @@ public final class SimulationController {
     private final NeuronService neuronService;
     private final SimulationService simulationService;
     private final SimulationRuntimeState runtimeState;
-    private final com.example.neuronmap.view.SimulationStepPresenter stepPresenter;
+    private final SimulationStepPresenter stepPresenter;
     private final Runnable save;
     private final Consumer<String> status;
     private final Consumer<Boolean> pausedStateConsumer;
@@ -59,7 +60,7 @@ public final class SimulationController {
     public SimulationController(
             NeuronService neuronService,
             SimulationService simulationService,
-            com.example.neuronmap.view.SimulationStepPresenter stepPresenter,
+            SimulationStepPresenter stepPresenter,
             Runnable save,
             Consumer<String> status,
             Consumer<Boolean> pausedStateConsumer,
@@ -101,7 +102,7 @@ public final class SimulationController {
     public SimulationController(
             NeuronService neuronService,
             SimulationService simulationService,
-            com.example.neuronmap.view.SimulationStepPresenter stepPresenter,
+            SimulationStepPresenter stepPresenter,
             Runnable save,
             Consumer<String> status,
             Consumer<Boolean> pausedStateConsumer,

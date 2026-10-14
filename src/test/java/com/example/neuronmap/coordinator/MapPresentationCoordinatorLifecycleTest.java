@@ -15,12 +15,13 @@ import com.example.neuronmap.service.GroupService;
 import com.example.neuronmap.service.NeuronClipboardService;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.simulation.SimulationService;
-import com.example.neuronmap.view.NeuronMenuView;
-import com.example.neuronmap.view.NeuronLayerOrderController;
-import com.example.neuronmap.view.NeuronView;
-import com.example.neuronmap.view.RotationHandleView;
-import com.example.neuronmap.view.SimulationStepPresenter;
-import com.example.neuronmap.view.WorkspaceView;
+import com.example.neuronmap.view.connection.ConnectionView;
+import com.example.neuronmap.view.neuron.NeuronMenuView;
+import com.example.neuronmap.view.editor.NeuronLayerOrderManager;
+import com.example.neuronmap.view.neuron.NeuronView;
+import com.example.neuronmap.view.neuron.RotationHandleView;
+import com.example.neuronmap.view.simulation.SimulationStepPresenter;
+import com.example.neuronmap.view.editor.WorkspaceView;
 import javafx.application.Platform;
 import javafx.scene.layout.Pane;
 import javafx.scene.shape.Rectangle;
@@ -271,7 +272,7 @@ final class MapPresentationCoordinatorLifecycleTest {
         private final EditorState state = new EditorState(1.0, 0.0, 0.0);
         private final WorkspaceView workspace = new WorkspaceView();
         private final Map<String, NeuronView> neuronViews = new HashMap<>();
-        private final Map<String, com.example.neuronmap.view.ConnectionView> connectionViews =
+        private final Map<String, ConnectionView> connectionViews =
                 new HashMap<>();
         private final Map<String, RotationHandleView> rotationHandles = new HashMap<>();
         private final LocalizationService localization = new LocalizationService(Locale.ENGLISH);
@@ -347,7 +348,7 @@ final class MapPresentationCoordinatorLifecycleTest {
                         rotationHandles,
                         neuronController,
                         connectionController,
-                        new NeuronLayerOrderController(
+                        new NeuronLayerOrderManager(
                                 neuronViews,
                                 connectionViews,
                                 model::connections

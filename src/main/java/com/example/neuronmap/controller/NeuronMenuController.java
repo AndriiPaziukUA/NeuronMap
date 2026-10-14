@@ -3,12 +3,12 @@ package com.example.neuronmap.controller;
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.service.NeuronService;
-import com.example.neuronmap.view.NeuronContextMenuView;
-import com.example.neuronmap.view.NeuronMenuView;
-import com.example.neuronmap.view.NeuronOverlayPositioner;
-import com.example.neuronmap.view.NeuronSettingsDialog;
-import com.example.neuronmap.view.NeuronView;
-import com.example.neuronmap.view.WorkspaceView;
+import com.example.neuronmap.view.neuron.NeuronContextMenuView;
+import com.example.neuronmap.view.neuron.NeuronMenuView;
+import com.example.neuronmap.view.neuron.NeuronOverlayPositioner;
+import com.example.neuronmap.view.neuron.NeuronSettingsDialog;
+import com.example.neuronmap.view.neuron.NeuronView;
+import com.example.neuronmap.view.editor.WorkspaceView;
 import javafx.scene.layout.VBox;
 
 import java.util.Objects;

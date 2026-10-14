@@ -6,7 +6,7 @@ import com.example.neuronmap.controller.NeuronInteractionController;
 import com.example.neuronmap.controller.SimulationController;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.service.HistoryService;
-import com.example.neuronmap.view.WorkspaceView;
+import com.example.neuronmap.view.editor.WorkspaceView;
 import javafx.scene.Cursor;
 
 import java.util.Objects;

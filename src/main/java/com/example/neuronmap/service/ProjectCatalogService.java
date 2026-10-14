@@ -1,6 +1,6 @@
 package com.example.neuronmap.service;
 
-import com.example.neuronmap.persistence.ProjectCatalogRepository;
+import com.example.neuronmap.persistence.project.ProjectCatalogRepository;
 import com.example.neuronmap.project.ProjectDescriptor;
 
 import java.nio.file.Path;

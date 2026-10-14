@@ -2,10 +2,10 @@ package com.example.neuronmap.controller;
 
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.i18n.SupportedLanguage;
-import com.example.neuronmap.persistence.GlobalSettingsLanguagePreferenceStore;
-import com.example.neuronmap.persistence.GlobalSettingsStore;
+import com.example.neuronmap.persistence.settings.GlobalSettingsLanguagePreferenceStore;
+import com.example.neuronmap.persistence.settings.GlobalSettingsStore;
 import com.example.neuronmap.settings.SettingsEditSession;
-import com.example.neuronmap.view.MainMenuView;
+import com.example.neuronmap.view.menu.MainMenuView;
 import javafx.application.Platform;
 import javafx.event.Event;
 import javafx.scene.Scene;

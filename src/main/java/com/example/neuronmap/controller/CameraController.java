@@ -4,7 +4,7 @@ import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.util.CameraWorldCenter;
 import com.example.neuronmap.util.GeometryUtils;
-import com.example.neuronmap.view.WorkspaceView;
+import com.example.neuronmap.view.editor.WorkspaceView;
 import javafx.animation.PauseTransition;
 import javafx.geometry.Point2D;
 import javafx.scene.Cursor;

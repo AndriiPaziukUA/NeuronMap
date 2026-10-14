@@ -4,7 +4,7 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.i18n.SupportedLanguage;
 import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.settings.SettingsEditSession;
-import com.example.neuronmap.view.MainMenuView;
+import com.example.neuronmap.view.menu.MainMenuView;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;

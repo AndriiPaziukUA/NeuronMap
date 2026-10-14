@@ -16,7 +16,7 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.CameraState;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.persistence.MapRepositoryFactory;
-import com.example.neuronmap.persistence.ProjectDirectoryWatcher;
+import com.example.neuronmap.persistence.project.ProjectDirectoryWatcher;
 import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.service.ConnectionService;
 import com.example.neuronmap.service.GroupService;
@@ -26,13 +26,14 @@ import com.example.neuronmap.service.NeuronClipboardService;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.service.ProjectCatalogService;
 import com.example.neuronmap.simulation.SimulationService;
-import com.example.neuronmap.view.ImmediateTooltipManager;
-import com.example.neuronmap.view.MainView;
-import com.example.neuronmap.view.NeuronLayerOrderController;
-import com.example.neuronmap.view.NeuronMenuView;
-import com.example.neuronmap.view.NeuronView;
-import com.example.neuronmap.view.RotationHandleView;
-import com.example.neuronmap.view.SimulationStepPresenter;
+import com.example.neuronmap.view.connection.ConnectionView;
+import com.example.neuronmap.view.support.ImmediateTooltipManager;
+import com.example.neuronmap.view.editor.MainView;
+import com.example.neuronmap.view.editor.NeuronLayerOrderManager;
+import com.example.neuronmap.view.neuron.NeuronMenuView;
+import com.example.neuronmap.view.neuron.NeuronView;
+import com.example.neuronmap.view.neuron.RotationHandleView;
+import com.example.neuronmap.view.simulation.SimulationStepPresenter;
 import javafx.scene.Scene;
 import javafx.scene.input.MouseEvent;
 
@@ -63,7 +64,7 @@ public final class MapEditorCoordinator {
     private double simulationTickMillis;
 
     private final Map<String, NeuronView> neuronViews = new HashMap<>();
-    private final Map<String, com.example.neuronmap.view.ConnectionView> connectionViews = new HashMap<>();
+    private final Map<String, ConnectionView> connectionViews = new HashMap<>();
     private final Map<String, RotationHandleView> rotationHandles = new HashMap<>();
 
     private final SimulationController simulationController;
@@ -72,7 +73,7 @@ public final class MapEditorCoordinator {
     private final SelectionController selectionController;
     private final NeuronInteractionController neuronController;
     private final CameraController cameraController;
-    private final NeuronLayerOrderController layerOrderController;
+    private final NeuronLayerOrderManager layerOrderController;
     private final NeuronMenuView neuronMenuView;
     private final MapPresentationCoordinator presentation;
     private final MapInteractionCoordinator interaction;
@@ -148,7 +149,7 @@ public final class MapEditorCoordinator {
                 localization
         );
 
-        layerOrderController = new NeuronLayerOrderController(
+        layerOrderController = new NeuronLayerOrderManager(
                 neuronViews,
                 connectionViews,
                 () -> neuronService.model().connections()

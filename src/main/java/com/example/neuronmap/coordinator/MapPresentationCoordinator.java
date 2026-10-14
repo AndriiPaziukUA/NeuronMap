@@ -6,13 +6,13 @@ import com.example.neuronmap.model.Connection;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.service.NeuronService;
-import com.example.neuronmap.view.ConnectionView;
-import com.example.neuronmap.view.GroupView;
-import com.example.neuronmap.view.JavaFxNodeLookup;
-import com.example.neuronmap.view.NeuronLayerOrderController;
-import com.example.neuronmap.view.NeuronView;
-import com.example.neuronmap.view.RotationHandleView;
-import com.example.neuronmap.view.WorkspaceView;
+import com.example.neuronmap.view.connection.ConnectionView;
+import com.example.neuronmap.view.group.GroupView;
+import com.example.neuronmap.view.support.JavaFxNodeLookup;
+import com.example.neuronmap.view.editor.NeuronLayerOrderManager;
+import com.example.neuronmap.view.neuron.NeuronView;
+import com.example.neuronmap.view.neuron.RotationHandleView;
+import com.example.neuronmap.view.editor.WorkspaceView;
 import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
@@ -37,7 +37,7 @@ public final class MapPresentationCoordinator {
     private final Map<String, RotationHandleView> rotationHandles;
     private final NeuronInteractionController neuronController;
     private final ConnectionController connectionController;
-    private final NeuronLayerOrderController layerOrderController;
+    private final NeuronLayerOrderManager layerOrderController;
 
     /**
      * Створює координатор подань і реєструє його як власника синхронізації нейронних подань.
@@ -59,7 +59,7 @@ public final class MapPresentationCoordinator {
             Map<String, RotationHandleView> rotationHandles,
             NeuronInteractionController neuronController,
             ConnectionController connectionController,
-            NeuronLayerOrderController layerOrderController
+            NeuronLayerOrderManager layerOrderController
     ) {
         this.neuronService = Objects.requireNonNull(neuronService, "neuronService");
         this.workspace = Objects.requireNonNull(workspace, "workspace");
