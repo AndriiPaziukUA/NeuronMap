@@ -1,160 +1,166 @@
 # Тестування NeuronMap
 
-Тести розміщені в `src/test/java`. Вони згруповані за відповідальністю компонентів; перед зміною коду перевір насамперед тести того пакета, якого торкається зміна.
+Автоматизовані тести містяться в `src/test/java/com/example/neuronmap/`. Вони згруповані відповідно до відповідальності production-коду. Під час зміни компонента спочатку запускай найближчі тести, а перед передаванням змін — повний набір.
 
 ## Команди
 
-Усі тести, з очищенням попередніх результатів:
+Запуск усіх тестів із очищенням попередніх результатів:
+
+**Windows PowerShell**
 
 ```powershell
-# Windows PowerShell
 .\mvnw.cmd clean test
+```
 
-# Linux/macOS
+**Linux/macOS**
+
+```bash
 ./mvnw clean test
 ```
 
-Якщо Maven встановлено окремо, можна запустити `mvn clean test`.
+Якщо Maven установлено окремо, можна виконати `mvn clean test`.
 
 Окремий клас:
 
 ```bash
-mvn -Dtest=NeuronServiceTest test
+./mvnw -Dtest=NeuronServiceTest test
 ```
 
 Кілька класів:
 
 ```bash
-mvn -Dtest=NeuronServiceTest,SimulationSessionTest test
+./mvnw -Dtest=NeuronServiceTest,SimulationSessionTest test
 ```
 
-Під час `test` JaCoCo формує звіт покриття в `target/site/jacoco/`, якщо збірка дійшла до етапу звіту.
+У Windows використовуйте `.\mvnw.cmd` замість `./mvnw`. Maven Compiler налаштований на Java 21. JavaFX-тести запускають toolkit і виконують перевірки графічних вузлів у JavaFX Application Thread; для них має бути доступне середовище з потрібними JavaFX native-залежностями.
 
-## Що перевіряють тести
+JaCoCo налаштований формувати звіт у `target/site/jacoco/` на фазі `test`, якщо збірка дійшла до цього етапу.
+
+## Каталог тестів
+
+Наведений перелік зіставлено з тестовими файлами в гілці `develop`. Описи вказують на основні сценарії кожного класу, а не на вичерпний список окремих методів усередині нього.
 
 ### `app`
 
-- `NeuronMapAppTest` — початковий вибір проєкту й запускову логіку застосунку.
+- `NeuronMapAppTest` — вибір початкового проєкту та запускова логіка застосунку.
 
 ### `application`
 
 - `DemoMapFactoryTest` — створення демонстраційної карти.
 - `EditorStateTest` — режими редактора, вибір об'єктів і скидання стану.
-- `NeuronMapApplicationServiceTest` — створення служб і передавання операцій до потрібних компонентів.
+- `NeuronMapApplicationServiceTest` — надання служб і передавання операцій відповідним компонентам.
 
 ### `config`
 
-- `AppConfigLoaderTest` — читання XML-конфігурації та перевірка допустимих значень.
+- `AppConfigLoaderTest` — читання XML-конфігурації та перевірка допустимості параметрів.
 
 ### `controller`
 
-- `ConnectionCreationControllerTest` — сценарії створення зв'язків.
-- `MainMenuControllerTest` — навігація меню та дії контролера.
-- `NeuronInteractionControllerMouseButtonTest` — відмінності обробки кнопок миші.
+- `ConnectionCreationControllerTest` — сценарії створення зв'язків і керування їхнім прев'ю.
+- `MainMenuControllerTest` — навігація меню та життєвий цикл попереднього перегляду, підтвердження й відкату налаштувань.
+- `NeuronInteractionControllerMouseButtonTest` — поведінка взаємодії залежно від кнопки миші.
 - `NeuronMapControllerTest` — складання й керування редактором карти.
 - `NeuronOverlayCoordinateTest` — обчислення координат меню та накладок відносно нейрона.
-- `NeuronRotationMathTest` — математичні обчислення обертання.
-- `PulseAnimationControllerTest` — керування анімацією імпульсів.
-- `SettingsEditSessionLifecycleTest` — порядок початку, збереження й скасування учасників сесії налаштувань у головному меню.
+- `NeuronRotationMathTest` — обчислення кутів обертання.
+- `PulseAnimationControllerTest` — керування анімаціями імпульсів.
 
 ### `coordinator`
 
-- `EditorSaveCoordinatorTest` — послідовність збереження стану редактора.
-- `MapPresentationCoordinatorLifecycleTest` — життєвий цикл компонентів представлення карти.
-- `ProjectWorkflowCoordinatorActivationTest` — активація потрібного проєкту.
-- `ProjectWorkflowCoordinatorRecoveryTest` — відновлення сценаріїв роботи з проєктами після помилок.
-- `ProjectWorkflowCoordinatorTest` — основні сценарії взаємодії з проєктами.
+- `EditorProjectSessionCoordinatorTest` — зупинка й відновлення редакторської сесії, перемикання проєктів, камера та швидкість симуляції.
+- `EditorSaveCoordinatorTest` — узгоджене збереження стану редактора.
+- `MapPresentationCoordinatorLifecycleTest` — створення, оновлення та очищення графічних подань карти й ручок обертання.
+- `ProjectWorkflowCoordinatorActivationTest` — послідовність активації проєкту.
+- `ProjectWorkflowCoordinatorRecoveryTest` — відновлення після помилок під час операцій над проєктами.
+- `ProjectWorkflowCoordinatorTest` — основні сценарії створення, відкриття, перейменування та видалення проєктів.
 
 ### `i18n`
 
-- `LocalizationServiceTest` — перемикання мови, слухачі, порядок доступних мов і збереження вибору.
-- `LocalizationServicePreviewTransactionTest` — життєвий цикл попереднього перегляду мови.
-- `LocalizationServicePreviewRollbackTest` — відновлення підтвердженої мови після скасування.
+- `LocalizationServicePreviewRollbackTest` — повернення до підтвердженої мови після скасування попереднього перегляду.
+- `LocalizationServicePreviewTransactionTest` — транзакційний життєвий цикл попереднього перегляду мови.
+- `LocalizationServiceTest` — зміна локалі, слухачі, порядок мов і збереження вибору.
 
 ### `model`
 
-- `NeuronMapModelTest` — цілісність карти, спрямовані зв'язки, унікальність і видалення об'єктів.
-- `NeuronPresentationDirectionTest` — напрямок відображення нейрона.
+- `NeuronMapModelTest` — цілісність карти, напрямлені зв'язки, унікальність і видалення.
+- `NeuronPresentationDirectionTest` — напрямок візуального представлення нейрона.
 - `NeuronPresentationTest` — положення, обертання й напрямок представлення.
-- `NeuronTest` — семантичні дані нейрона та перевірка некоректних значень.
+- `NeuronTest` — параметри нейрона та перевірка некоректних значень.
 
 ### `persistence`
 
-- `DefaultMapRepositoryFactoryTest` — вибір репозиторію для різних типів проєктів.
-- `FileSystemProjectCatalogRepositoryTest` — доступ до каталогу проєктів у файловій системі.
-- `GlobalSettingsLanguagePreferenceStoreTest` — збереження налаштування мови в глобальних налаштуваннях.
-- `GlobalSettingsStoreTest` — збереження та повторне читання загальних налаштувань.
+- `DefaultMapRepositoryFactoryTest` — вибір репозиторію для типу проєкту.
+- `FileSystemProjectCatalogRepositoryTest` — каталог проєктів у файловій системі.
+- `GlobalSettingsLanguagePreferenceStoreTest` — адаптер збереження вибраної мови.
+- `GlobalSettingsStoreTest` — запис і повторне читання глобальних налаштувань.
 - `NeuronDirectionPersistenceTest` — збереження напрямку нейрона.
-- `ProjectDirectoryWatcherTest` — сповіщення про зміни папок і безпечне завершення спостереження.
-- `SqliteMapRepositoryFailureTest` — обробка помилок під час роботи з SQLite-репозиторієм карти.
-- `SqliteMapRepositoryTest` — запис і читання карти та вимоги до структури бази даних.
-- `SqliteNeuronSchemaContractTest` — перелік і призначення полів нейрона в базі даних.
-- `SqliteSchemaMigrationTest` — перенесення даних зі старої структури таблиць.
+- `ProjectDirectoryWatcherTest` — виявлення змін каталогу та безпечне завершення спостереження.
+- `SqliteMapRepositoryFailureTest` — помилки репозиторію SQLite.
+- `SqliteMapRepositoryTest` — збереження та читання карти.
+- `SqliteNeuronSchemaContractTest` — контракт схеми даних нейрона.
+- `SqliteSchemaMigrationTest` — міграція старої схеми SQLite.
 - `SqliteSimulationSettingsTest` — збереження параметрів симуляції та значень за замовчуванням.
-- `TransientProjectRepositoryTest` — відкладене створення папки проєкту, обробка сторонніх файлів і захист наявних даних.
-- `WindowStateStoreTest` — збереження геометрії вікна та обробка некоректних значень.
+- `TransientProjectRepositoryTest` — відкладене створення каталогу проєкту та захист від сторонніх файлів/наявних даних.
+- `WindowStateStoreTest` — збереження геометрії вікна й обробка некоректних значень.
 
 ### `service`
 
-- `ConnectionServiceTest` — правила створення й видалення зв'язків.
-- `GroupServiceTest` — операції з групами та переміщення їхніх елементів.
+- `ConnectionServiceTest` — правила створення та видалення зв'язків.
+- `GroupServiceTest` — операції з групами й переміщення їхніх учасників.
 - `NeuronClipboardServiceTest` — копіювання й вставлення нейронів і груп.
 - `NeuronServiceTest` — створення, пошук, зміна параметрів і видалення нейрона.
-- `ProjectCatalogServiceTest` — пошук проєктів за папками, назви, перейменування, порядок списку та зміни з боку файлової системи.
+- `ProjectCatalogServiceTest` — каталог проєктів, доступні назви, перейменування, сортування й оновлення з файлової системи.
 
 ### `service/history`
 
-- `FieldHistoryTest` — збереження станів, скасування й повторення змін, розгалуження історії та її обмеження.
-- `FieldStateSnapshotTest` — вміст знімка стану й відмінності між постійними даними та поточним станом активації.
+- `FieldHistoryTest` — скасування, повторення, розгалуження історії та обмеження її розміру.
+- `FieldStateSnapshotTest` — вміст знімків стану та відокремлення збережених даних від runtime-активації.
 
 ### `settings`
 
-- `SettingsEditSessionTest` — попередній перегляд типізованих налаштувань, підтвердження змін і відкат початкових значень без запису до сховища.
+- `SettingsEditSessionTest` — реєстрація типізованих параметрів, початкові знімки, попередній перегляд, підтвердження, відкат, відновлення після помилок і перевірка дескрипторів.
 
 ### `simulation`
 
-- `SimulationRuntimeStateTest` — застосування та очищення runtime-активацій нейронів.
+- `SimulationRuntimeStateTest` — застосування та очищення поточних активацій.
 - `SimulationServiceTest` — створення сеансу симуляції.
 - `SimulationSessionTest` — поширення сигналів, цикли, кілька джерел і спільний відлік тактів.
-- `SimulationSpeedTest` — допустимі значення швидкості.
-- `SimulationStepTest` — представлення номера такту, більшого за межу `long`.
+- `SimulationSpeedTest` — перевірка допустимих значень швидкості.
+- `SimulationStepTest` — подання номера такту, більшого за межу `long`.
 - `SimulationTickTest` — збільшення номера такту та перевірка від'ємних значень.
 
 ### `util`
 
-- `CameraWorldCenterTest` — переведення центра видимої області в координати карти.
+- `CameraWorldCenterTest` — перетворення центра видимої області в координати карти.
 - `GeometryUtilsTest` — обмеження масштабу.
-- `WorldCoordinateMapperTest` — перетворення координат між просторами світу та екрана.
+- `WorldCoordinateMapperTest` — перетворення координат між простором світу та екраном.
 
 ### `view`
 
 - `ConnectionHitTesterTest` — визначення зв'язку під курсором.
-- `ConnectionPreviewViewTest` — попередній перегляд створення зв'язку.
-- `JavaFxNodeLookupTest` — пошук вузлів JavaFX у дереві подання.
-- `MainMenuPageViewsTest` — окремі сторінки головного меню.
-- `MainMenuPagesCompositionTest` — склад сторінок меню та зв'язок між ними.
-- `MainMenuViewTest` — структура меню, скасування редагування та введення назви.
-- `NeuronContextMenuViewTest` — вміст і поведінка контекстного меню нейрона.
-- `NeuronInputSignalDisplayTest` — відображення суми вхідних сигналів і її скидання.
+- `ConnectionPreviewViewTest` — геометрія, показ і приховування прев'ю зв'язку.
+- `JavaFxNodeLookupTest` — пошук вузлів і предків у дереві JavaFX.
+- `MainMenuPageViewsTest` — поведінка окремих подань сторінок головного меню.
+- `MainMenuPagesCompositionTest` — компонування сторінок у контейнері меню.
+- `MainMenuViewTest` — навігація, адаптивне компонування, незбережені зміни та поведінка сторінок меню.
+- `NeuronContextMenuViewTest` — склад і поведінка контекстного меню нейрона.
+- `NeuronInputSignalDisplayTest` — відображення вхідних сигналів та їх скидання.
 - `NeuronMenuViewTest` — подання меню нейрона.
-- `NeuronOutputTriangleAlignmentTest` — вирівнювання трикутника виходу нейрона.
+- `NeuronOutputTriangleAlignmentTest` — вирівнювання графічного індикатора виходу.
 - `NeuronOverlayPositionerTest` — розрахунок положення накладок.
 - `NeuronViewDirectionRefreshTest` — оновлення вигляду після зміни напрямку нейрона.
-- `NeuronVisualGeometryTest` — геометрія графічного представлення нейрона.
-- `PulseAnimationViewTest` — рух імпульсу відповідно до змін геометрії зв'язку.
+- `NeuronVisualGeometryTest` — геометрія візуального представлення нейрона.
+- `PulseAnimationViewTest` — рух імпульсу з урахуванням геометрії зв'язку.
 - `RotationHandleViewTest` — положення та поведінка ручки обертання.
-- `StatusMessagePresenterTest` — показ статусних повідомлень.
-- `ToolbarViewTest` — порядок і склад елементів панелі інструментів.
+- `StatusMessagePresenterTest` — прив'язка повідомлень до конкретного рядка стану та звільнення його ресурсів.
+- `ToolbarViewTest` — склад і порядок елементів панелі інструментів.
 
-## Як додавати тести
+## Принципи написання тестів
 
-Під час зміни поведінки додай перевірку в тестовий клас того самого пакета або створи окремий тест для нової відповідальності. Тест має описувати очікувану поведінку, а не повторювати рядки реалізації.
+Нові тести мають перевіряти очікувану поведінку, а не повторювати алгоритм реалізації. За потреби включай:
 
-Корисний набір зазвичай містить:
+- типовий успішний сценарій;
+- граничні та некоректні вхідні значення;
+- поведінку під час помилки, особливо там, де потрібно звільнити ресурс або зберегти початковий стан;
+- регресійний сценарій, який доводить, що попередній дефект не повернувся.
 
-- звичайний коректний сценарій;
-- відсутній або невідомий об'єкт, якщо це можливо;
-- граничні значення та некоректні параметри;
-- регресійний сценарій для помилки, яку виправляємо.
-
-Для симуляції, моделі, служб і збереження перевагу слід віддавати тестам без запуску JavaFX-вікна. Для подань JavaFX перевіряй структуру й поведінку UI окремо від бізнес-правил.
+Для моделі, служб, історії та обчислень віддавай перевагу тестам без JavaFX-вікна. Для UI-компонентів перевіряй структуру й поведінку на JavaFX Application Thread. Не залеж від випадкового порядку тестів або зовнішніх даних. Не позначай перевірку успішною, якщо команда фактично не виконувалася.
