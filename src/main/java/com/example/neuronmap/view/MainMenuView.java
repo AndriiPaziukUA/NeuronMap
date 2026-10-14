@@ -113,9 +113,9 @@ public final class MainMenuView extends StackPane {
     private boolean savingPendingChanges;
     private Consumer<Boolean> visibilityChanged = ignored -> { };
     private Consumer<SupportedLanguage> previewLanguageAction = ignored -> { };
-    private Runnable confirmLanguageAction = () -> { };
-    private Runnable discardLanguageAction = () -> { };
-    private BooleanSupplier languageHasUnsavedChanges;
+    private Runnable commitSettingsAction = () -> { };
+    private Runnable rollbackSettingsAction = () -> { };
+    private BooleanSupplier hasUnsavedSettings;
 
     /**
      * Створює контейнер меню, його сторінки та спільний діалог незбережених змін.
@@ -125,7 +125,7 @@ public final class MainMenuView extends StackPane {
      */
     public MainMenuView(LocalizationService localization, Consumer<Boolean> visibilityChanged) {
         this.localization = Objects.requireNonNull(localization, "localization");
-        this.languageHasUnsavedChanges = this.localization::hasUnconfirmedLanguagePreview;
+        this.hasUnsavedSettings = this.localization::hasUnconfirmedLanguagePreview;
         this.homeView = new MainMenuHomeView(localization);
         this.projectListView = new ProjectListView(localization);
         this.languageSettingsView = new LanguageSettingsView(localization);
@@ -240,19 +240,19 @@ public final class MainMenuView extends StackPane {
             Runnable discardLanguageAction
     ) {
         this.previewLanguageAction = Objects.requireNonNull(previewLanguageAction, "previewLanguageAction");
-        this.confirmLanguageAction = Objects.requireNonNull(confirmLanguageAction, "confirmLanguageAction");
-        this.discardLanguageAction = Objects.requireNonNull(discardLanguageAction, "discardLanguageAction");
-        languageHasUnsavedChanges = localization::hasUnconfirmedLanguagePreview;
+        this.commitSettingsAction = Objects.requireNonNull(confirmLanguageAction, "confirmLanguageAction");
+        this.rollbackSettingsAction = Objects.requireNonNull(discardLanguageAction, "discardLanguageAction");
+        hasUnsavedSettings = localization::hasUnconfirmedLanguagePreview;
         languageSettingsView.setLanguageSelectedAction(this::handleLanguageSelected);
     }
 
     /**
-     * Передає обробку мови й перевірку незбереженого стану спільній сесії редагування налаштувань.
+     * Передає обробку мови й перевірку незбереженого стану спільній сесії редагування всіх налаштувань.
      *
      * @param previewLanguageAction дія попереднього перегляду вибраної мови.
-     * @param confirmLanguageAction дія підтвердження й збереження мови.
-     * @param discardLanguageAction дія відновлення попередньої мови.
-     * @param hasUnsavedLanguageChanges перевірка наявності непідтверджених змін у сесії налаштувань.
+     * @param confirmLanguageAction дія підтвердження й збереження всіх змінених налаштувань.
+     * @param discardLanguageAction дія відновлення початкових значень усіх налаштувань.
+     * @param hasUnsavedLanguageChanges перевірка наявності змін у спільній сесії налаштувань.
      */
     public void setLanguageActions(
             Consumer<SupportedLanguage> previewLanguageAction,
@@ -261,9 +261,9 @@ public final class MainMenuView extends StackPane {
             BooleanSupplier hasUnsavedLanguageChanges
     ) {
         this.previewLanguageAction = Objects.requireNonNull(previewLanguageAction, "previewLanguageAction");
-        this.confirmLanguageAction = Objects.requireNonNull(confirmLanguageAction, "confirmLanguageAction");
-        this.discardLanguageAction = Objects.requireNonNull(discardLanguageAction, "discardLanguageAction");
-        this.languageHasUnsavedChanges = Objects.requireNonNull(
+        this.commitSettingsAction = Objects.requireNonNull(confirmLanguageAction, "confirmLanguageAction");
+        this.rollbackSettingsAction = Objects.requireNonNull(discardLanguageAction, "discardLanguageAction");
+        this.hasUnsavedSettings = Objects.requireNonNull(
                 hasUnsavedLanguageChanges, "hasUnsavedLanguageChanges");
         languageSettingsView.setLanguageSelectedAction(this::handleLanguageSelected);
     }
@@ -292,7 +292,7 @@ public final class MainMenuView extends StackPane {
         visibilityChanged.accept(false);
     }
 
-    /** Перевіряє наявність незбережених змін мови або назви проєкту. */
+    /** Перевіряє наявність незбережених змін налаштувань або назви проєкту. */
     public boolean hasUnsavedChanges() {
         return settingsHaveUnsavedChanges()
                 || projectListView.rows().stream().anyMatch(SavedProjectRowView::hasUnsavedChanges);
@@ -313,7 +313,7 @@ public final class MainMenuView extends StackPane {
         unsavedChangesView.discardAndContinue();
     }
 
-    /** Зберігає незавершене перейменування проєктів і підтверджує зміну мови через контролер. */
+    /** Зберігає незавершене перейменування проєктів і підтверджує зміну налаштувань через контролер. */
     public void saveUnsavedChanges() {
         savingPendingChanges = true;
         try {
@@ -328,13 +328,13 @@ public final class MainMenuView extends StackPane {
         }
     }
 
-    /** Відхиляє незавершені зміни та передає скасування вибору мови контролеру. */
+    /** Відхиляє незавершені зміни та передає скасування налаштувань контролеру. */
     public void discardUnsavedChanges() {
         for (SavedProjectRowView row : projectListView.rows()) {
             row.discardPendingChange();
         }
         if (settingsHaveUnsavedChanges()) {
-            discardLanguageAction.run();
+            rollbackSettingsAction.run();
         }
         unsavedChangesView.hide();
         updateSaveButtonVisibility();
@@ -383,7 +383,7 @@ public final class MainMenuView extends StackPane {
         return page == Page.LOAD;
     }
 
-    /** Перевіряє, чи відкрита сторінка налаштувань мови. */
+    /** Перевіряє, чи відкрита сторінка налаштувань. */
     public boolean isSettingsPage() {
         return page == Page.SETTINGS;
     }
@@ -417,7 +417,7 @@ public final class MainMenuView extends StackPane {
     }
 
     /**
-     * Повертає сторінку налаштувань мови для перевірок композиції окремих подань.
+     * Повертає сторінку налаштувань для перевірок композиції окремих подань.
      *
      * @return компонент налаштувань мови.
      */
@@ -441,6 +441,16 @@ public final class MainMenuView extends StackPane {
      */
     public boolean isSettingsDirty() {
         return settingsHaveUnsavedChanges();
+    }
+
+    /**
+     * Оновлює стан елементів керування налаштуваннями після зміни будь-якого зареєстрованого параметра.
+     *
+     * <p>Контролер викликає цей метод після попереднього застосування значення, щоб кнопка збереження
+     * відображала загальний стан сесії, а не лише зміни мови.</p>
+     */
+    public void refreshSettingsState() {
+        updateSaveButtonVisibility();
     }
 
     /** Надає кнопку повернення для тестів інтерфейсу. */
@@ -502,12 +512,12 @@ public final class MainMenuView extends StackPane {
         localization.removeListener(localizationListener);
     }
 
-    /** Підтверджує вибрану мову через callback контролера та оновлює індикатор незбережених змін. */
+    /** Підтверджує зміни налаштувань через контролер та оновлює індикатор незбережених змін. */
     public void saveSettings() {
         if (!isSettingsPage()) {
             return;
         }
-        confirmLanguageAction.run();
+        commitSettingsAction.run();
         updateSaveButtonVisibility();
     }
 
@@ -517,9 +527,9 @@ public final class MainMenuView extends StackPane {
         updateSaveButtonVisibility();
     }
 
-    /** Перевіряє наявність незбереженої зміни мови на відкритій сторінці налаштувань. */
+    /** Перевіряє наявність незбережених налаштувань в активній сесії на сторінці налаштувань. */
     private boolean settingsHaveUnsavedChanges() {
-        return page == Page.SETTINGS && languageHasUnsavedChanges.getAsBoolean();
+        return page == Page.SETTINGS && hasUnsavedSettings.getAsBoolean();
     }
 
     /** Оновлює список після перейменування поза пакетним збереженням змін. */
@@ -583,7 +593,7 @@ public final class MainMenuView extends StackPane {
         titleLabel.setText(title);
     }
 
-    /** Показує або приховує кнопку збереження залежно від наявності незбереженої зміни мови. */
+    /** Показує або приховує кнопку збереження залежно від загального стану сесії налаштувань. */
     private void updateSaveButtonVisibility() {
         boolean showSave = settingsHaveUnsavedChanges();
         saveSettingsButton.setVisible(showSave);

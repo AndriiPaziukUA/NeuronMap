@@ -1,8 +1,9 @@
 package com.example.neuronmap.controller;
 
-import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.i18n.SupportedLanguage;
+import com.example.neuronmap.project.ProjectDescriptor;
+import com.example.neuronmap.settings.SettingsEditSession;
 import com.example.neuronmap.view.MainMenuView;
 import javafx.application.Platform;
 import javafx.scene.Scene;
@@ -15,7 +16,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/** Керує навігацією меню, незбереженими змінами, операціями проєктів і вибором мови. */
+/** Керує навігацією меню, незбереженими змінами, операціями проєктів і сеансом налаштувань. */
 public final class MainMenuController {
 
     private final MainMenuView view;
@@ -26,13 +27,14 @@ public final class MainMenuController {
     private final Consumer<ProjectDescriptor> deleteProjectAction;
     private final Runnable pauseForMenuAction;
     private final Runnable resumeAfterMenuAction;
-    private final SettingsEditSession settingsEditSession = new SettingsEditSession();
+    private final SettingsEditSession settingsEditSession;
+    private final SettingsEditSession.Setting<SupportedLanguage> languageSetting;
 
     private final javafx.event.EventHandler<KeyEvent> keyHandler = this::handleKeyPressed;
     private boolean installed;
 
     /**
-     * Створює контролер і пов'язує дії подання з операціями застосунку.
+     * Створює контролер і пов'язує дії подання з операціями застосунку та єдиною сесією налаштувань.
      *
      * @param view візуальний компонент меню, яким керує контролер.
      * @param localization служба локалізації, яку використовує подання меню.
@@ -59,36 +61,17 @@ public final class MainMenuController {
     ) {
         this.view = Objects.requireNonNull(view, "view");
         this.localization = Objects.requireNonNull(localization, "localization");
-        settingsEditSession.register(new SettingsEditSession.Participant() {
-            /** Відновлює підтверджену мову перед початком нового редагування. */
-            @Override
-            public void begin() {
-                MainMenuController.this.localization.discardLanguagePreview();
-            }
-
-            /** Перевіряє наявність непідтвердженого попереднього перегляду мови. */
-            @Override
-            public boolean hasUnsavedChanges() {
-                return MainMenuController.this.localization.hasUnconfirmedLanguagePreview();
-            }
-
-            /** Підтверджує активну мову через службу локалізації. */
-            @Override
-            public void save() {
-                MainMenuController.this.localization.persistCurrentLanguage();
-            }
-
-            /** Повертає активну мову до підтвердженого значення без запису у файл. */
-            @Override
-            public void discard() {
-                MainMenuController.this.localization.discardLanguagePreview();
-            }
-        });
+        this.settingsEditSession = new SettingsEditSession();
+        this.languageSetting = settingsEditSession.register(
+                localization::language,
+                localization::previewLanguage,
+                ignored -> localization.persistCurrentLanguage()
+        );
         view.setLanguageActions(
                 this::previewLanguage,
-                this::confirmLanguage,
-                this::discardLanguagePreview,
-                settingsEditSession::hasUnsavedChanges
+                this::confirmSettings,
+                this::discardSettingsPreview,
+                settingsEditSession::hasChanges
         );
         this.projectsSupplier = Objects.requireNonNull(projectsSupplier, "projectsSupplier");
         this.openProjectAction = Objects.requireNonNull(openProjectAction, "openProjectAction");
@@ -139,15 +122,39 @@ public final class MainMenuController {
     }
 
     /**
-     * Додає налаштування до спільного життєвого циклу редагування, збереження та відкату.
-     * Реєструвати новий учасник потрібно до першого відкриття сторінки налаштувань.
+     * Реєструє типізоване налаштування в спільній сесії попереднього перегляду та відкату.
+     * Реєструвати налаштування слід до початку його редагування; повторний запис у сховище виконується
+     * лише під час підтвердження сесії.
      *
-     * @param participant учасник, який керує станом одного налаштування.
-     * @throws NullPointerException якщо учасника не задано.
-     * @throws IllegalStateException якщо сесія вже активна.
+     * @param currentValue постачальник фактично застосованого значення.
+     * @param previewAction дія тимчасового застосування значення без постійного збереження.
+     * @param persistAction дія постійного збереження переданого значення.
+     * @param <T> тип значення налаштування.
+     * @return дескриптор зареєстрованого налаштування для викликів {@link #previewSetting}.
+     * @throws NullPointerException якщо будь-який callback не задано.
+     * @throws IllegalStateException якщо сесія активна.
      */
-    public void registerSettingsParticipant(SettingsEditSession.Participant participant) {
-        settingsEditSession.register(participant);
+    public <T> SettingsEditSession.Setting<T> registerSetting(
+            Supplier<T> currentValue,
+            Consumer<T> previewAction,
+            Consumer<T> persistAction
+    ) {
+        return settingsEditSession.register(currentValue, previewAction, persistAction);
+    }
+
+    /**
+     * Застосовує тимчасове значення зареєстрованого налаштування в поточній сесії меню.
+     * Якщо сесію ще не розпочато, перед знімком початкових значень відновлюється підтверджена мова.
+     *
+     * @param setting дескриптор налаштування, раніше зареєстрованого цим контролером.
+     * @param value значення для попереднього перегляду.
+     * @param <T> тип значення налаштування.
+     * @throws IllegalStateException якщо налаштування не належить сесії цього контролера.
+     */
+    public <T> void previewSetting(SettingsEditSession.Setting<T> setting, T value) {
+        beginSettingsEditSessionIfNeeded();
+        settingsEditSession.preview(setting, value);
+        view.refreshSettingsState();
     }
 
     /**
@@ -181,7 +188,7 @@ public final class MainMenuController {
         }
         installed = false;
         view.discardUnsavedChanges();
-        settingsEditSession.discard();
+        settingsEditSession.rollback();
         if (view.isMenuVisible()) {
             view.hide();
         }
@@ -190,27 +197,34 @@ public final class MainMenuController {
 
     /** Починає спільну сесію редагування та відкриває сторінку налаштувань. */
     private void openSettingsPage() {
-        settingsEditSession.begin();
+        beginSettingsEditSessionIfNeeded();
         view.showSettingsPage();
     }
 
-    /** Застосовує тимчасову локаль; підтверджене значення зберігається окремо службою локалізації. */
-    private void previewLanguage(SupportedLanguage language) {
-        if (language == null) {
+    /** Запускає сесію лише один раз і фіксує підтверджений стан перед першим попереднім переглядом. */
+    private void beginSettingsEditSessionIfNeeded() {
+        if (settingsEditSession.isActive()) {
             return;
         }
+        localization.discardLanguagePreview();
         settingsEditSession.begin();
-        localization.previewLanguage(language);
     }
 
-    /** Підтверджує зміни всіх налаштувань, що входять до активної сесії. */
-    private void confirmLanguage() {
-        settingsEditSession.save();
+    /** Передає вибір мови до спільної сесії попереднього перегляду. */
+    private void previewLanguage(SupportedLanguage language) {
+        if (language != null) {
+            previewSetting(languageSetting, language);
+        }
     }
 
-    /** Відкочує зміни всіх налаштувань, що входять до активної сесії. */
-    private void discardLanguagePreview() {
-        settingsEditSession.discard();
+    /** Підтверджує та постійно зберігає всі змінені налаштування активної сесії. */
+    private void confirmSettings() {
+        settingsEditSession.commit();
+    }
+
+    /** Відновлює початкові значення всіх налаштувань без постійного збереження. */
+    private void discardSettingsPreview() {
+        settingsEditSession.rollback();
     }
 
     /** Відкриває вибраний проєкт і після цього закриває меню. */
@@ -240,7 +254,7 @@ public final class MainMenuController {
     private void handleBack() {
         if (view.isLoadPage() || view.isSettingsPage()) {
             requestLeave(() -> {
-                settingsEditSession.discard();
+                settingsEditSession.rollback();
                 view.showMainPage();
             });
         } else {
@@ -269,7 +283,7 @@ public final class MainMenuController {
     /** Закриває меню після розв'язання незбережених змін і викликає задану дію. */
     private void requestClose(Runnable action) {
         requestLeave(() -> {
-            settingsEditSession.discard();
+            settingsEditSession.rollback();
             view.hide();
             resumeAfterMenuAction.run();
             action.run();
@@ -289,6 +303,7 @@ public final class MainMenuController {
         if (!view.isMenuVisible()) {
             return;
         }
+        settingsEditSession.rollback();
         view.hide();
         resumeAfterMenuAction.run();
     }

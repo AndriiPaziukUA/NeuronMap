@@ -4,6 +4,7 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.i18n.SupportedLanguage;
 import com.example.neuronmap.persistence.GlobalSettingsLanguagePreferenceStore;
 import com.example.neuronmap.persistence.GlobalSettingsStore;
+import com.example.neuronmap.settings.SettingsEditSession;
 import com.example.neuronmap.view.MainMenuView;
 import javafx.application.Platform;
 import javafx.event.Event;
@@ -19,12 +20,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє обробку Escape, переходи між сторінками меню та керування станом локалізації контролером. */
+/** Перевіряє навігацію меню, керування локалізацією та спільну сесію попереднього перегляду налаштувань. */
 final class MainMenuControllerTest {
 
     @TempDir
@@ -120,6 +123,97 @@ final class MainMenuControllerTest {
             view.saveSettingsButtonForTest().fire();
 
             assertEquals("uk", store.load("language"));
+            assertFalse(view.hasUnsavedChanges());
+            assertFalse(view.saveSettingsButtonForTest().isVisible());
+            controller.dispose(null);
+        });
+    }
+
+    /** Перевіряє, що відповідь «Ні» після повернення скасовує всі прев'ю та не записує їх у постійні сховища. */
+    @Test
+    void backThenNoRollsBackEveryPreviewWithoutPersisting() throws Exception {
+        GlobalSettingsStore store = new GlobalSettingsStore(
+                tempDirectory.resolve("settings-cancel.properties")
+        );
+        LocalizationService localization = new LocalizationService(
+                new GlobalSettingsLanguagePreferenceStore(store)
+        );
+        AtomicReference<String> activeTheme = new AtomicReference<>("light");
+        AtomicReference<String> persistedTheme = new AtomicReference<>("light");
+
+        runOnFxThread(() -> {
+            MainMenuView view = new MainMenuView(localization, ignored -> { });
+            MainMenuController controller = controllerFor(view, localization);
+            SettingsEditSession.Setting<String> themeSetting = controller.registerSetting(
+                    activeTheme::get,
+                    activeTheme::set,
+                    persistedTheme::set
+            );
+            controller.open();
+            view.showSettingsPage();
+
+            controller.previewSetting(themeSetting, "dark");
+            assertTrue(view.saveSettingsButtonForTest().isVisible());
+            controller.previewSetting(themeSetting, "light");
+            assertFalse(view.saveSettingsButtonForTest().isVisible());
+            controller.previewSetting(themeSetting, "dark");
+            assertTrue(view.saveSettingsButtonForTest().isVisible());
+            chooseLanguage(view, SupportedLanguage.UKRAINIAN);
+
+            assertEquals("dark", activeTheme.get());
+            assertEquals(SupportedLanguage.UKRAINIAN, localization.language());
+            assertNull(store.load("language"));
+            assertEquals("light", persistedTheme.get());
+            assertTrue(view.hasUnsavedChanges());
+
+            view.backButtonForTest().fire();
+            assertTrue(view.isConfirmingUnsavedChanges());
+            assertTrue(view.isSettingsPage());
+
+            view.discardAndContinueUnsavedChanges();
+
+            assertFalse(view.isConfirmingUnsavedChanges());
+            assertFalse(view.isSettingsPage());
+            assertEquals(SupportedLanguage.ENGLISH, localization.language());
+            assertEquals("light", activeTheme.get());
+            assertEquals("light", persistedTheme.get());
+            assertNull(store.load("language"));
+            assertFalse(view.hasUnsavedChanges());
+            controller.dispose(null);
+        });
+    }
+
+    /** Перевіряє, що підтвердження зберігає всі змінені налаштування через єдину сесію. */
+    @Test
+    void confirmingSettingsCommitsEveryChangedValue() throws Exception {
+        GlobalSettingsStore store = new GlobalSettingsStore(
+                tempDirectory.resolve("settings-commit.properties")
+        );
+        LocalizationService localization = new LocalizationService(
+                new GlobalSettingsLanguagePreferenceStore(store)
+        );
+        AtomicReference<String> activeTheme = new AtomicReference<>("light");
+        AtomicReference<String> persistedTheme = new AtomicReference<>("light");
+
+        runOnFxThread(() -> {
+            MainMenuView view = new MainMenuView(localization, ignored -> { });
+            MainMenuController controller = controllerFor(view, localization);
+            SettingsEditSession.Setting<String> themeSetting = controller.registerSetting(
+                    activeTheme::get,
+                    activeTheme::set,
+                    persistedTheme::set
+            );
+            controller.open();
+            view.showSettingsPage();
+
+            controller.previewSetting(themeSetting, "dark");
+            chooseLanguage(view, SupportedLanguage.UKRAINIAN);
+            view.saveSettingsButtonForTest().fire();
+
+            assertEquals(SupportedLanguage.UKRAINIAN, localization.language());
+            assertEquals("uk", store.load("language"));
+            assertEquals("dark", activeTheme.get());
+            assertEquals("dark", persistedTheme.get());
             assertFalse(view.hasUnsavedChanges());
             assertFalse(view.saveSettingsButtonForTest().isVisible());
             controller.dispose(null);
