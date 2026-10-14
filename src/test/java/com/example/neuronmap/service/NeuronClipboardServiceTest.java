@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 final class NeuronClipboardServiceTest {
 
     /**
-     * Перевіряє копіювання параметрів нейронів і вставлення відносно заданої опорної точки.
+     * Перевіряє відновлення знімка параметрів нейрона незалежно від подальших змін джерела та вставлення відносно опорної точки.
      */
     @Test
     void copiesAndPastesNeuronStateAtRequestedAnchor() {
@@ -33,6 +33,11 @@ final class NeuronClipboardServiceTest {
         neurons.presentation(source.id()).setDirectionReversed(true);
 
         assertTrue(clipboard.copy(Set.of(source.id())));
+
+        source.setSignalStrength(2);
+        source.setActivationThreshold(3);
+        neurons.presentation(source.id()).setRotationDegrees(120.0);
+        neurons.presentation(source.id()).setDirectionReversed(false);
 
         List<Neuron> pasted = clipboard.paste(500.0, 600.0);
 

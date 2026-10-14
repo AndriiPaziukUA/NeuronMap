@@ -141,9 +141,11 @@ public final class NeuronClipboardService {
 
     /**
      * Створює копії збережених нейронів і розміщує їх відносно заданої опорної точки.
+     * Параметри сигналу, обертання та напрямку змінюються через NeuronService.
      *
      * @param anchorX горизонтальна координата опорної точки вставлення.
      * @param anchorY вертикальна координата опорної точки вставлення.
+     * @return вставлені нейрони в порядку знімка.
      */
     public List<Neuron> paste(double anchorX, double anchorY) {
         if (!hasContent()) {
@@ -160,15 +162,16 @@ public final class NeuronClipboardService {
                     anchorY + item.offsetY()
             );
 
-            neuron.setSignalStrength(item.signalStrength());
-            neuron.setActivationThreshold(item.activationThreshold());
-
-            NeuronPresentation presentation =
-                    neuronService.presentation(neuron.id());
-            if (presentation != null) {
-                presentation.setRotationDegrees(item.rotationDegrees());
-                presentation.setDirectionReversed(item.directionReversed());
-            }
+            neuronService.updateSettings(
+                    neuron.id(),
+                    item.signalStrength(),
+                    item.activationThreshold()
+            );
+            neuronService.setRotation(neuron.id(), item.rotationDegrees());
+            neuronService.setDirectionReversed(
+                    neuron.id(),
+                    item.directionReversed()
+            );
 
             pastedIds.add(neuron.id());
             pastedNeurons.add(neuron);

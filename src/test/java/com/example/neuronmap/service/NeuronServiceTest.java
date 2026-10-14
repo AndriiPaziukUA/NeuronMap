@@ -6,11 +6,12 @@ import com.example.neuronmap.model.NeuronType;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє, що створення, перемикання типу, оновлення параметрів і видалення проходять через NeuronService.
+ * Перевіряє створення, зміну типу, налаштувань і напрямку нейрона, а також його видалення через NeuronService.
  */
 class NeuronServiceTest {
 
@@ -41,5 +42,27 @@ class NeuronServiceTest {
 
         assertNotNull(service.presentation(neuron.id()));
         assertTrue(service.remove(neuron.id()) == neuron);
+    }
+
+    /**
+     * Перевіряє, що можна встановити обидва стани напрямку й що відсутній нейрон не змінюється.
+     */
+    @Test
+    void setsDirectionToRequestedValueAndReportsMissingNeuron() {
+        NeuronMapModel model = new NeuronMapModel();
+        NeuronService service = new NeuronService(model);
+        Neuron neuron = service.create(NeuronType.EXCITATORY, 100, 200);
+
+        assertTrue(service.setDirectionReversed(neuron.id(), true));
+        assertTrue(service.presentation(neuron.id()).directionReversed());
+
+        assertTrue(service.setDirectionReversed(neuron.id(), false));
+        assertFalse(service.presentation(neuron.id()).directionReversed());
+
+        assertTrue(service.setDirectionReversed(neuron.id(), false));
+        assertFalse(service.presentation(neuron.id()).directionReversed());
+
+        assertFalse(service.setDirectionReversed("missing-neuron", true));
+        assertFalse(service.setDirectionReversed(null, true));
     }
 }

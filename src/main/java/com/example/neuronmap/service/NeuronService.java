@@ -9,7 +9,8 @@ import java.util.Collection;
 import java.util.Objects;
 
 /**
- * Надає операції над нейронами: створення, пошук, переміщення, обертання, зміну типу, напрямку й параметрів сигналу.
+ * Надає операції над нейронами: створення, пошук, видалення, переміщення, обертання,
+ * зміну типу, напрямку й параметрів сигналу.
  */
 public final class NeuronService {
 
@@ -106,6 +107,21 @@ public final class NeuronService {
         NeuronPresentation presentation = presentation(neuronId);
         if (presentation == null) return false;
         presentation.toggleDirection();
+        return true;
+    }
+
+    /**
+     * Установлює бажаний напрямок вхідного й вихідного портів нейрона.
+     * На відміну від перемикання, повторний виклик із тим самим значенням не змінює стан.
+     *
+     * @param neuronId ідентифікатор нейрона.
+     * @param directionReversed {@code true}, якщо напрямок портів потрібно розвернути.
+     * @return {@code true}, якщо подання нейрона знайдено й значення застосовано; інакше {@code false}.
+     */
+    public boolean setDirectionReversed(String neuronId, boolean directionReversed) {
+        NeuronPresentation presentation = presentation(neuronId);
+        if (presentation == null) return false;
+        presentation.setDirectionReversed(directionReversed);
         return true;
     }
 
