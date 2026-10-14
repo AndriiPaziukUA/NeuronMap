@@ -14,7 +14,6 @@ import com.example.neuronmap.persistence.sqlite.DefaultMapRepositoryFactory;
 import com.example.neuronmap.persistence.MapRepository;
 import com.example.neuronmap.persistence.MapRepositoryFactory;
 import com.example.neuronmap.persistence.project.ProjectStorageDirectoryResolver;
-import com.example.neuronmap.persistence.window.WindowState;
 import com.example.neuronmap.persistence.window.WindowStateStore;
 import com.example.neuronmap.service.ProjectCatalogService;
 import javafx.application.Application;
@@ -25,13 +24,15 @@ import java.nio.file.Path;
 import java.util.Objects;
 
 /**
- * Є точкою входу JavaFX-застосунку: збирає залежності, готує початковий проєкт редактора та керує головним вікном.
+ * Є точкою входу JavaFX-застосунку: збирає залежності, готує початковий проєкт редактора та створює головне вікно.
+ * Керування вікном і узгоджене завершення роботи делегує {@link MainWindowController}.
  */
 public final class NeuronMapApp extends Application {
 
+    private MainWindowController mainWindowController;
+
     /**
-     * Завантажує конфігурацію, готує сховище й залежності редактора, визначає початковий проєкт і показує головне вікно.
-     * Під час закриття вікна зберігає його геометрію та завершує роботу фасаду редактора.
+     * Завантажує конфігурацію, готує сховища та залежності редактора, визначає початковий проєкт і показує головне вікно.
      *
      * @param stage головне вікно JavaFX, яке потрібно налаштувати та показати.
      */
@@ -60,6 +61,11 @@ public final class NeuronMapApp extends Application {
                 ? mapRepositoryFactory.createSavedProjectRepository(initialProject)
                 : mapRepositoryFactory.createTransientProjectRepository(initialProject);
 
+        WindowStateStore windowStateStore = new WindowStateStore(
+                storageDirectory.resolve(config.window().stateFile())
+        );
+        mainWindowController = new MainWindowController(stage, windowStateStore);
+
         NeuronMapModel model = new NeuronMapModel();
         NeuronMapApplicationService application =
                 new NeuronMapApplicationService(model, repository);
@@ -69,48 +75,33 @@ public final class NeuronMapApp extends Application {
                 localization,
                 projectCatalog,
                 mapRepositoryFactory,
-                stage::close
+                mainWindowController::close
         );
 
         Scene scene = editor.createScene(
                 config.window().defaultWidth(),
                 config.window().defaultHeight()
         );
-
-        stage.setTitle(config.window().title());
-        stage.setScene(scene);
-
-        WindowStateStore windowStateStore = new WindowStateStore(
-                storageDirectory.resolve(config.window().stateFile())
+        mainWindowController.configure(
+                config.window().title(),
+                scene,
+                config.window().defaultWidth(),
+                config.window().defaultHeight(),
+                editor
         );
-        WindowState savedState = windowStateStore.load().orElse(null);
-
-        if (savedState != null) {
-            stage.setWidth(savedState.width());
-            stage.setHeight(savedState.height());
-            stage.setX(savedState.x());
-            stage.setY(savedState.y());
-        }
-
-        stage.setOnCloseRequest(event -> {
-            windowStateStore.save(
-                    new WindowState(
-                            stage.getWidth(),
-                            stage.getHeight(),
-                            stage.getX(),
-                            stage.getY()
-                    )
-            );
-            editor.shutdown();
-        });
-
-        stage.show();
-
-        if (savedState == null) {
-            stage.centerOnScreen();
-        }
-
+        mainWindowController.show();
         editor.centerInitialView();
+    }
+
+    /**
+     * Повторно запитує завершення життєвого циклу як резервний шлях під час зупинки JavaFX.
+     * Координатор запобігає повторному збереженню та повторному звільненню ресурсів після закриття вікна.
+     */
+    @Override
+    public void stop() {
+        if (mainWindowController != null) {
+            mainWindowController.shutdown();
+        }
     }
 
     /**

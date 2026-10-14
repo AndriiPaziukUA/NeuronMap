@@ -10,13 +10,18 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє вибір початкового проєкту: останній відкритий, резервний збережений або новий тимчасовий.
+ * Перевіряє вибір початкового проєкту та узгоджене завершення життєвого циклу головного вікна.
  */
 final class NeuronMapAppTest {
 
@@ -84,6 +89,45 @@ final class NeuronMapAppTest {
         assertEquals("Default project", result.name());
         assertFalse(result.isPersisted());
         assertTrue(projectCatalog.listProjects().isEmpty());
+    }
+
+    /**
+     * Перевіряє, що під час завершення спочатку зберігається геометрія вікна, а потім зупиняється редактор.
+     * Повторний запит завершення не повинен дублювати жодну з операцій.
+     */
+    @Test
+    void persistsWindowStateBeforeShutdownAndRunsOnlyOnce() {
+        List<String> operations = new ArrayList<>();
+        WindowLifecycleCoordinator coordinator = new WindowLifecycleCoordinator(
+                () -> operations.add("persist"),
+                () -> operations.add("shutdown")
+        );
+
+        coordinator.shutdown();
+        coordinator.shutdown();
+
+        assertEquals(List.of("persist", "shutdown"), operations);
+    }
+
+    /**
+     * Перевіряє, що редактор завершується навіть тоді, коли збереження стану вікна завершується помилкою.
+     * Помилка збереження передається виклику, а повторне завершення не запускає очищення знову.
+     */
+    @Test
+    void shutsDownEditorWhenPersistingWindowStateFails() {
+        IllegalStateException persistenceFailure = new IllegalStateException("persistence failed");
+        AtomicInteger shutdownCalls = new AtomicInteger();
+        WindowLifecycleCoordinator coordinator = new WindowLifecycleCoordinator(
+                () -> {
+                    throw persistenceFailure;
+                },
+                shutdownCalls::incrementAndGet
+        );
+
+        assertSame(persistenceFailure, assertThrows(IllegalStateException.class, coordinator::shutdown));
+        coordinator.shutdown();
+
+        assertEquals(1, shutdownCalls.get());
     }
 
     /**
