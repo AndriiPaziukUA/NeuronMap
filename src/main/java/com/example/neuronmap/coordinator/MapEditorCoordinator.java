@@ -575,15 +575,12 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Перемикає напрямок указаного нейрона й оновлює його подання.
+     * Передає зміну напрямку відповідальному контролеру контекстного меню нейрона.
      *
      * @param neuronId ідентифікатор нейрона.
      */
     private void toggleNeuronDirection(String neuronId) {
-        neuronService.toggleDirection(neuronId);
-        refreshMapPresentation();
-        saveNow();
-        updateStatus(localization.text("status.direction_changed"));
+        neuronController.toggleNeuronDirection(neuronId);
     }
 
     /**

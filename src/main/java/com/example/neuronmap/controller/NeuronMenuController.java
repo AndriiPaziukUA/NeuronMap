@@ -137,10 +137,7 @@ public final class NeuronMenuController {
                         },
                         () -> {
                             neuronService.toggleType(neuronId);
-                            refreshVisuals.run();
-                            refreshConnections.run();
-                            refreshOverlays.run();
-                            save.run();
+                            refreshViewsAndSave();
                         },
                         () -> deletionController.deleteNeuron(neuronId)
                 )
@@ -148,6 +145,31 @@ public final class NeuronMenuController {
 
         workspace.overlayLayer().getChildren().add(menu);
         overlayPositioner.position(neuronView, menu, null);
+    }
+
+    /**
+     * Змінює напрямок нейрона та узгоджує його подання, зв’язки, накладки й збережений стан.
+     * Якщо нейрон уже відсутній у моделі, дія завершується без побічних ефектів.
+     *
+     * @param neuronId ідентифікатор нейрона, напрямок якого потрібно перемкнути.
+     */
+    void toggleDirection(String neuronId) {
+        if (neuronId == null || !neuronService.toggleDirection(neuronId)) {
+            return;
+        }
+
+        refreshViewsAndSave();
+        status.accept(localization.text("status.direction_changed"));
+    }
+
+    /**
+     * Оновлює нейрони, залежні подання та накладки, після чого зберігає змінену карту.
+     */
+    private void refreshViewsAndSave() {
+        refreshVisuals.run();
+        refreshConnections.run();
+        refreshOverlays.run();
+        save.run();
     }
 
     /**

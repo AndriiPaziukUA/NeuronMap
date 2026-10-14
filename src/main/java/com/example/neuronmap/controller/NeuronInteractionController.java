@@ -376,6 +376,15 @@ public final class NeuronInteractionController {
     }
 
     /**
+     * Передає запит на зміну напрямку нейрона контролеру контекстного меню.
+     *
+     * @param neuronId ідентифікатор нейрона, напрямок якого потрібно перемкнути.
+     */
+    public void toggleNeuronDirection(String neuronId) {
+        menuController.toggleDirection(neuronId);
+    }
+
+    /**
      * Приховує контекстне меню нейрона.
      */
     public void hideMenu() {
