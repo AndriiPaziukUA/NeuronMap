@@ -2,6 +2,7 @@ package com.example.neuronmap.view;
 
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.NeuronType;
+import com.example.neuronmap.util.NumberDisplayFormatter;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -142,7 +143,7 @@ public final class ToolbarView {
         speedLabel.getStyleClass().add("toolbar-speed-label");
         speedField.getStyleClass().add("toolbar-speed-field");
         speedField.setPrefWidth(88.0);
-        speedField.setText(formatSpeed(initialSpeedMillis));
+        speedField.setText(NumberDisplayFormatter.format(initialSpeedMillis));
         speedField.setAlignment(Pos.CENTER_LEFT);
         speedField.setStyle("-fx-alignment: CENTER-LEFT;");
         speedField.setTextFormatter(new TextFormatter<>(numericSpeedFilter()));
@@ -262,7 +263,7 @@ public final class ToolbarView {
      * @param millis тривалість такту в мілісекундах.
      */
     public void setSimulationSpeedMillis(double millis) {
-        speedField.setText(formatSpeed(millis));
+        speedField.setText(NumberDisplayFormatter.format(millis));
     }
 
     /**
@@ -273,8 +274,8 @@ public final class ToolbarView {
      */
     public void setCameraCoordinates(double x, double y) {
         cameraCoordinatesLabel.setText(
-                "X: " + formatCoordinate(x)
-                        + ", Y: " + formatCoordinate(y)
+                "X: " + NumberDisplayFormatter.format(x)
+                        + ", Y: " + NumberDisplayFormatter.format(y)
         );
     }
 
@@ -380,28 +381,5 @@ public final class ToolbarView {
         Button button = new Button(text);
         button.getStyleClass().add("tool-button");
         return button;
-    }
-
-    /**
-     * Форматує тривалість такту для короткого відображення на панелі.
-     *
-     * @param millis тривалість такту в мілісекундах.
-     */
-    private static String formatSpeed(double millis) {
-        return Math.abs(millis - Math.rint(millis)) < 0.0001
-                ? String.format(Locale.ROOT, "%.0f", millis)
-                : String.format(Locale.ROOT, "%.1f", millis);
-    }
-
-    /**
-     * Форматує координату камери для відображення з обмеженою кількістю знаків.
-     *
-     * @param value значення, яке потрібно зберегти або перевірити.
-     */
-    private static String formatCoordinate(double value) {
-        if (Math.abs(value - Math.rint(value)) < 0.0001) {
-            return String.format(Locale.ROOT, "%.0f", value);
-        }
-        return String.format(Locale.ROOT, "%.1f", value);
     }
 }

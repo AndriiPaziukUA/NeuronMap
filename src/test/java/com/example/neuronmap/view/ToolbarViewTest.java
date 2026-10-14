@@ -17,10 +17,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє склад панелі інструментів і розташування поля швидкості симуляції відносно кнопок.
+ * Перевіряє склад панелі інструментів, розташування поля швидкості та форматування його значення.
  */
 final class ToolbarViewTest {
 
+    /** Запускає JavaFX перед тестами, які створюють і перевіряють компоненти інтерфейсу. */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -32,11 +33,11 @@ final class ToolbarViewTest {
         }
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
-
             throw new IllegalStateException("JavaFX startup timed out");
         }
     }
 
+    /** Перевіряє обмеження введення чисел та вирівнювання текстового поля ліворуч. */
     @Test
     void speedFieldAcceptsOnlyNumericInputAndKeepsLeftAlignment()
             throws Exception {
@@ -66,6 +67,7 @@ final class ToolbarViewTest {
         });
     }
 
+    /** Перевіряє, що поле швидкості розташовано перед динамічними елементами керування симуляцією. */
     @Test
     void speedFieldStaysBeforeDynamicSimulationControls()
             throws Exception {
@@ -85,9 +87,24 @@ final class ToolbarViewTest {
         });
     }
 
-    /**
-     * Перевіряє сценарій «toolbar» і відповідність результату очікуваній поведінці.
-     */
+    /** Перевіряє відображення цілої, дробової та майже цілої тривалості такту в полі швидкості. */
+    @Test
+    void speedFieldUsesSharedCompactNumberFormatting() throws Exception {
+        runOnFxThread(() -> {
+            ToolbarView toolbar = toolbar();
+            TextField field = speedField(toolbar);
+
+            assertEquals("650", field.getText());
+
+            toolbar.setSimulationSpeedMillis(125.5);
+            assertEquals("125.5", field.getText());
+
+            toolbar.setSimulationSpeedMillis(125.00005);
+            assertEquals("125", field.getText());
+        });
+    }
+
+    /** Створює панель інструментів із тестовими callback-ами, які не мають побічних ефектів. */
     private static ToolbarView toolbar() {
         return new ToolbarView(
                 ignored -> { },
@@ -101,9 +118,7 @@ final class ToolbarViewTest {
         );
     }
 
-    /**
-     * Перевіряє сценарій «speed field» і відповідність результату очікуваній поведінці.
-     */
+    /** Повертає текстове поле швидкості з кореневого вузла панелі інструментів. */
     private static TextField speedField(ToolbarView toolbar) {
         return (TextField) toolbar.node().getChildren().stream()
                 .filter(TextField.class::isInstance)
@@ -111,9 +126,7 @@ final class ToolbarViewTest {
                 .orElseThrow();
     }
 
-    /**
-     * Перевіряє сценарій «index of speed field» і відповідність результату очікуваній поведінці.
-     */
+    /** Знаходить позицію текстового поля швидкості серед дочірніх вузлів панелі. */
     private static int indexOfSpeedField(ToolbarView toolbar) {
         return indexOf(
                 toolbar.node().getChildren(),
@@ -121,9 +134,7 @@ final class ToolbarViewTest {
         );
     }
 
-    /**
-     * Перевіряє сценарій «index of button» і відповідність результату очікуваній поведінці.
-     */
+    /** Знаходить позицію кнопки з указаним текстом серед дочірніх вузлів панелі. */
     private static int indexOfButton(
             ToolbarView toolbar,
             String text
@@ -135,9 +146,7 @@ final class ToolbarViewTest {
         );
     }
 
-    /**
-     * Перевіряє сценарій «index of» і відповідність результату очікуваній поведінці.
-     */
+    /** Повертає індекс першого вузла, що задовольняє предикат, або -1, якщо збігу немає. */
     private static int indexOf(
             List<Node> nodes,
             Predicate<Node> predicate
@@ -151,6 +160,7 @@ final class ToolbarViewTest {
         return -1;
     }
 
+    /** Виконує дію в JavaFX Application Thread і передає помилку тесту в основний потік. */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];
@@ -166,12 +176,10 @@ final class ToolbarViewTest {
         });
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
-
             throw new IllegalStateException("JavaFX test timed out");
         }
 
         if (failure[0] != null) {
-
             throw new AssertionError(
                     "JavaFX test failed",
                     failure[0]

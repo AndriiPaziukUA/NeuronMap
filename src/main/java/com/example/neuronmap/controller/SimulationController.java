@@ -7,6 +7,7 @@ import com.example.neuronmap.simulation.SimulationService;
 import com.example.neuronmap.simulation.SimulationSession;
 import com.example.neuronmap.simulation.SimulationSpeed;
 import com.example.neuronmap.simulation.SimulationStep;
+import com.example.neuronmap.util.NumberDisplayFormatter;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
@@ -301,7 +302,10 @@ public final class SimulationController {
 
         finishDelay.setDuration(Duration.millis(tickMillis));
         status.accept(
-                localization.text("status.speed_changed", formatMillis(tickMillis))
+                localization.text(
+                        "status.speed_changed",
+                        NumberDisplayFormatter.format(tickMillis)
+                )
         );
     }
 
@@ -479,17 +483,5 @@ public final class SimulationController {
      */
     private void updateSimulationControlsVisibility() {
         simulationActivityConsumer.accept(hasActiveSimulation());
-    }
-
-    /**
-     * Форматує тривалість такту в мілісекундах для показу в полі швидкості симуляції.
-     *
-     * @param value тривалість такту в мілісекундах.
-     * @return відформатована тривалість без зайвих десяткових знаків.
-     */
-    private static String formatMillis(double value) {
-        return Math.abs(value - Math.rint(value)) < 0.0001
-                ? String.format(java.util.Locale.ROOT, "%.0f", value)
-                : String.format(java.util.Locale.ROOT, "%.1f", value);
     }
 }
