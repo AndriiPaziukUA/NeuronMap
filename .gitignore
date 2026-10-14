@@ -8,6 +8,8 @@ target/
 .idea/jarRepositories.xml
 .idea/compiler.xml
 .idea/libraries/
+# Local database connection configuration
+.idea/dataSources.xml
 *.iws
 *.iml
 *.ipr
@@ -36,3 +38,6 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### Local development data ###
+/identifier.sqlite
