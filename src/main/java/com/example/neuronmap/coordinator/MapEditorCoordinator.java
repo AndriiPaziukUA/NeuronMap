@@ -1,7 +1,7 @@
 package com.example.neuronmap.coordinator;
 
-import com.example.neuronmap.application.DemoMapFactory;
 import com.example.neuronmap.application.EditorState;
+import com.example.neuronmap.application.InitialProjectInitializer;
 import com.example.neuronmap.application.NeuronMapApplicationService;
 import com.example.neuronmap.config.AppConfig;
 import com.example.neuronmap.controller.CameraController;
@@ -163,9 +163,8 @@ public final class MapEditorCoordinator {
         neuronMenuView.removeDeleteConnectionModeExitButton();
 
         mapService.load();
-        if (neuronService.model().isEmpty()
-                && !currentProject.isPersisted()) {
-            DemoMapFactory.populate(neuronService, connectionService);
+        InitialProjectInitializer initialProjectInitializer = new InitialProjectInitializer(application);
+        if (initialProjectInitializer.initializeIfRequired(currentProject)) {
             updateStatus(localization.text("status.demo_created"));
             saveNow();
         }
