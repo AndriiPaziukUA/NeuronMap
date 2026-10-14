@@ -247,13 +247,13 @@ final class MapPresentationWorkflowLifecycleTest {
                 TestMapRepository nextRepository = new TestMapRepository(
                         CameraState.defaultState(),
                         650.0,
-                        fixture.neuronService
+                        true
                 );
 
                 sessionCoordinator.prepareForProjectSwitch();
                 sessionCoordinator.activateProject(nextProject, nextRepository, true);
 
-                assertTrue(nextRepository.loadedModel == fixture.model);
+                assertTrue(nextRepository.loadedModel != fixture.model);
                 assertTrue(activeProject.get() == nextProject);
                 assertNull(fixture.neuronService.find(previousNeuron.id()));
                 assertFalse(fixture.neuronViews.containsKey(previousNeuron.id()));
@@ -474,40 +474,40 @@ final class MapPresentationWorkflowLifecycleTest {
     }
 
     /**
-     * Репозиторій, який імітує завантаження наступної карти в ту саму модель редактора.
+     * Репозиторій, який завантажує дані в передану тимчасову модель для перевірки активації.
      */
     private static final class TestMapRepository implements MapRepository {
 
         private final CameraState cameraState;
         private final double tickMillis;
-        private final NeuronService neuronService;
+        private final boolean includeNeuron;
         private NeuronMapModel loadedModel;
 
         /**
-         * Створює репозиторій із параметрами камери та симуляції і, за потреби, новою картою.
+         * Створює репозиторій із параметрами камери та симуляції без додавання нейрона.
          *
          * @param cameraState стан камери, який потрібно завантажити.
          * @param tickMillis тривалість такту симуляції.
          */
         private TestMapRepository(CameraState cameraState, double tickMillis) {
-            this(cameraState, tickMillis, null);
+            this(cameraState, tickMillis, false);
         }
 
         /**
-         * Створює репозиторій, який може наповнити модель новим нейроном під час завантаження.
+         * Створює репозиторій, який за потреби додає нейрон до моделі, що передана для завантаження.
          *
          * @param cameraState стан камери, який потрібно завантажити.
          * @param tickMillis тривалість такту симуляції.
-         * @param neuronService служба для створення вмісту наступної карти; може бути {@code null}.
+         * @param includeNeuron чи потрібно створити нейрон наступного проєкту.
          */
         private TestMapRepository(
                 CameraState cameraState,
                 double tickMillis,
-                NeuronService neuronService
+                boolean includeNeuron
         ) {
             this.cameraState = cameraState;
             this.tickMillis = tickMillis;
-            this.neuronService = neuronService;
+            this.includeNeuron = includeNeuron;
         }
 
         /** Повертає стабільний тестовий шлях до бази даних. */
@@ -528,15 +528,14 @@ final class MapPresentationWorkflowLifecycleTest {
             return tickMillis;
         }
 
-        /** Очищає попередню модель і, якщо задано службу, додає нейрон наступного проєкту. */
+        /** Очищає передану модель і, якщо потрібно, створює в ній нейрон наступного проєкту. */
         @Override
         public void loadInto(NeuronMapModel model) {
             loadedModel = model;
-            if (neuronService == null) {
-                return;
+            if (includeNeuron) {
+                model.clear();
+                model.createNeuron(NeuronType.INHIBITORY, 420.0, 260.0);
             }
-            model.clear();
-            neuronService.create(NeuronType.INHIBITORY, 420.0, 260.0);
         }
 
         /** Не виконує запис швидкості, оскільки тестовий репозиторій не зберігає файлів. */

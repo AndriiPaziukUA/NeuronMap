@@ -37,12 +37,48 @@ public final class MapService {
     }
 
     /**
-     * Завантажує дані підключеного репозиторію до моделі карти.
+     * Завантажує дані активного репозиторію в тимчасову модель і публікує їх лише після успішного читання.
+     * У разі помилки поточний стан моделі залишається незмінним.
      *
      * @throws IllegalStateException якщо репозиторій наразі від'єднано.
+     * @throws RuntimeException якщо репозиторій не зміг завантажити дані.
      */
     public void load() {
-        activeRepository().loadInto(model);
+        NeuronMapModel loadedModel = loadModel(activeRepository());
+        model.replaceContentsFrom(loadedModel);
+    }
+
+    /**
+     * Завантажує кандидатний репозиторій, а після успішного читання стану активує його та переносить завантажений вміст у спільну модель.
+     * Репозиторій стає власністю цієї служби лише після успішного повернення методу; у разі помилки
+     * відповідальність за закриття кандидата залишається у виклику, який його передав.
+     *
+     * @param candidate репозиторій проєкту, який готується до активації.
+     * @param loadExisting чи потрібно відновити збережені камеру та швидкість симуляції.
+     * @param fallbackSimulationTickMillis типова тривалість такту для нового проєкту або відсутнього значення.
+     * @return знімок стану камери й тривалості такту, отриманий під час підготовки проєкту.
+     * @throws NullPointerException якщо кандидат або зчитаний стан камери дорівнює {@code null}.
+     * @throws RuntimeException якщо завантаження кандидата або закриття попереднього репозиторію завершується помилкою.
+     */
+    public ProjectActivationState activateRepository(
+            MapRepository candidate,
+            boolean loadExisting,
+            double fallbackSimulationTickMillis
+    ) {
+        Objects.requireNonNull(candidate, "candidate");
+
+        NeuronMapModel loadedModel = loadModel(candidate);
+        CameraState cameraState = loadExisting
+                ? Objects.requireNonNull(candidate.loadCameraState(), "cameraState")
+                : CameraState.defaultState();
+        double simulationTickMillis = loadExisting
+                ? candidate.loadSimulationTickMillis(fallbackSimulationTickMillis)
+                : fallbackSimulationTickMillis;
+
+        switchRepository(candidate);
+        model.replaceContentsFrom(loadedModel);
+
+        return new ProjectActivationState(cameraState, simulationTickMillis);
     }
 
     /**
@@ -127,20 +163,26 @@ public final class MapService {
     }
 
     /**
-     * Підключає новий репозиторій і закриває попередній, якщо він досі був підключений.
-     * Від'єднаний раніше репозиторій не закривається повторно.
+     * Передає службі новий репозиторій після від'єднання та закриття попереднього.
+     * Посилання на попередній репозиторій очищується до закриття, тому його помилка не активує кандидата
+     * й не призводить до повторного закриття того самого екземпляра.
      *
      * @param newRepository репозиторій, який має стати активним.
-     * @throws RuntimeException якщо закриття попереднього підключеного репозиторію завершилося помилкою.
+     * @throws RuntimeException якщо закриття попереднього підключеного репозиторію завершилося помилкою;
+     *                          у такому разі новий репозиторій залишається власністю виклику.
      */
     public void switchRepository(MapRepository newRepository) {
         Objects.requireNonNull(newRepository, "newRepository");
+        if (repository == newRepository) {
+            return;
+        }
 
         MapRepository oldRepository = repository;
-        repository = newRepository;
-        if (oldRepository != null && oldRepository != newRepository) {
+        repository = null;
+        if (oldRepository != null) {
             oldRepository.close();
         }
+        repository = newRepository;
     }
 
     /**
@@ -167,6 +209,18 @@ public final class MapService {
     }
 
     /**
+     * Завантажує дані репозиторію в окрему модель, не змінюючи модель редактора до завершення читання.
+     *
+     * @param source репозиторій, з якого завантажуються дані.
+     * @return модель із повністю завантаженим вмістом репозиторію.
+     */
+    private NeuronMapModel loadModel(MapRepository source) {
+        NeuronMapModel loadedModel = new NeuronMapModel();
+        source.loadInto(loadedModel);
+        return loadedModel;
+    }
+
+    /**
      * Повертає підключений репозиторій або повідомляє, що служба тимчасово не має доступного сховища.
      *
      * @return активний репозиторій карти.
@@ -177,5 +231,14 @@ public final class MapService {
             throw new IllegalStateException("Репозиторій карти наразі не підключено.");
         }
         return repository;
+    }
+
+    /**
+     * Містить дані стану, підготовлені під час успішної активації репозиторію проєкту.
+     *
+     * @param cameraState стан камери, який потрібно відновити в редакторі.
+     * @param simulationTickMillis тривалість такту симуляції, прочитана зі сховища або взята за замовчуванням.
+     */
+    public record ProjectActivationState(CameraState cameraState, double simulationTickMillis) {
     }
 }

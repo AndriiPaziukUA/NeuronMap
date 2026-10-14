@@ -108,6 +108,7 @@ public final class EditorProjectSessionCoordinator {
 
     /**
      * Підключає репозиторій проєкту й відновлює модель, камеру, швидкість, історію та подання редактора.
+     * Завантаження карти, камери й швидкості виконує {@link MapService} до зміни активного стану сесії.
      * Якщо у вибраного проєкту немає коректної збереженої швидкості, використовує типове значення конфігурації,
      * а не швидкість попереднього проєкту.
      *
@@ -115,6 +116,7 @@ public final class EditorProjectSessionCoordinator {
      * @param repository репозиторій даних вибраного проєкту.
      * @param loadExisting ознака потреби відновити збережені налаштування та вміст проєкту.
      * @throws NullPointerException якщо опис проєкту або репозиторій не передано.
+     * @throws RuntimeException якщо підготовка репозиторію завершується помилкою.
      */
     public void activateProject(
             ProjectDescriptor project,
@@ -124,23 +126,23 @@ public final class EditorProjectSessionCoordinator {
         Objects.requireNonNull(project, "project");
         Objects.requireNonNull(repository, "repository");
 
-        repository.loadInto(mapService.model());
-        CameraState camera = loadExisting
-                ? repository.loadCameraState()
-                : CameraState.defaultState();
+        MapService.ProjectActivationState activationState = mapService.activateRepository(
+                repository,
+                loadExisting,
+                defaultSimulationTickMillis
+        );
         double fallbackSpeed = defaultSimulationTickMillis;
         double speed = resolveInitialSimulationTickMillis(
-                loadExisting ? repository.loadSimulationTickMillis(fallbackSpeed) : fallbackSpeed,
+                activationState.simulationTickMillis(),
                 fallbackSpeed,
                 minSimulationTickMillis,
                 maxSimulationTickMillis
         );
 
-        mapService.switchRepository(repository);
         currentProjectConsumer.accept(project);
         simulationTickMillisConsumer.accept(speed);
         actions.updateSimulationSpeed(speed);
-        restoreCameraAndSelection(camera);
+        restoreCameraAndSelection(activationState.cameraState());
         historyService.clear();
         historyService.initialize();
         actions.synchronizeViewsWithModel();
@@ -154,7 +156,7 @@ public final class EditorProjectSessionCoordinator {
      * Перевіряє збережену тривалість такту й повертає резервне значення, якщо вона поза дозволеним діапазоном.
      * Метод спільно використовується під час первинного складання редактора та активації наступного проєкту.
      *
-     * @param persistedMillis значення, прочитане з репозиторію.
+     * @param persistedMillis значення, прочитане зі знімка стану проєкту.
      * @param fallbackMillis коректна тривалість, яку слід використати за відсутності допустимого значення.
      * @param minMillis мінімальна допустима тривалість такту.
      * @param maxMillis максимальна допустима тривалість такту.
@@ -176,7 +178,7 @@ public final class EditorProjectSessionCoordinator {
     /**
      * Відновлює камеру та прибирає вибір і тимчасові режими, які не повинні переходити між проєктами.
      *
-     * @param camera стан камери, завантажений із репозиторію або створений за замовчуванням.
+     * @param camera стан камери, завантажений службою карти або створений за замовчуванням.
      */
     private void restoreCameraAndSelection(CameraState camera) {
         state.setZoom(camera.zoom());

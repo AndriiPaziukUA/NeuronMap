@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -70,7 +71,7 @@ public final class NeuronMapModel {
      *
      * @param id унікальний ідентифікатор елемента.
      * @param type тип нейрона або елемента.
-     * @param activation значення «activation», яке використовується в цьому методі.
+     * @param activation значення активації нейрона.
      */
     public Neuron addNeuron(
             String id,
@@ -102,7 +103,7 @@ public final class NeuronMapModel {
      *
      * @param id унікальний ідентифікатор елемента.
      * @param type тип нейрона або елемента.
-     * @param activation значення «activation», яке використовується в цьому методі.
+     * @param activation значення активації нейрона.
      * @param x координата X.
      * @param y координата Y.
      * @param rotationDegrees кут обертання в градусах.
@@ -162,8 +163,9 @@ public final class NeuronMapModel {
     /**
      * Створює напрямлений зв’язок, якщо пара нейронів допустима й такого зв’язку ще немає.
      *
-     * @param sourceId ідентифікатор початкового нейрона зв’язку.
-     * @param targetId ідентифікатор кінцевого нейрона зв’язку.
+     * @param sourceId ідентифікатор початкового нейрона.
+     * @param targetId ідентифікатор кінцевого нейрона.
+     * @return {@code true}, якщо зв’язок створено; інакше {@code false}.
      */
     public boolean createConnection(
             String sourceId,
@@ -192,8 +194,7 @@ public final class NeuronMapModel {
      *
      * @param sourceId ідентифікатор початкового нейрона зв’язку.
      * @param targetId ідентифікатор кінцевого нейрона зв’язку.
-     *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
+     * @return {@code true}, якщо зв’язок існує; інакше {@code false}.
      */
     public boolean hasConnection(
             String sourceId,
@@ -210,19 +211,21 @@ public final class NeuronMapModel {
     /**
      * Видаляє зв’язок за ідентифікатором і повертає видалений елемент.
      *
-     * @param id унікальний ідентифікатор елемента.
+     * @param id унікальний ідентифікатор зв’язку.
+     * @return видалений зв’язок або {@code null}, якщо його не знайдено.
      */
     public Connection removeConnection(String id) {
         return connections.remove(id);
     }
 
-/**
- * Видаляє зв’язки між указаною парою нейронів і повертає кількість видалених зв’язків.
- *
- * @param firstNeuronId ідентифікатор елемента, над яким виконується дія.
- * @param secondNeuronId ідентифікатор елемента, над яким виконується дія.
- */
-public int removeConnectionsBetween(
+    /**
+     * Видаляє зв’язки між указаною парою нейронів і повертає кількість видалених зв’язків.
+     *
+     * @param firstNeuronId ідентифікатор першого нейрона.
+     * @param secondNeuronId ідентифікатор другого нейрона.
+     * @return кількість видалених зв’язків.
+     */
+    public int removeConnectionsBetween(
             String firstNeuronId,
             String secondNeuronId
     ) {
@@ -248,6 +251,7 @@ public int removeConnectionsBetween(
      * Видаляє нейрон разом із його поданням, пов’язаними зв’язками та членством у групах.
      *
      * @param neuronId ідентифікатор нейрона.
+     * @return видалений нейрон або {@code null}, якщо його не знайдено.
      */
     public Neuron removeNeuron(String neuronId) {
         Neuron removed = neurons.remove(neuronId);
@@ -277,7 +281,7 @@ public int removeConnectionsBetween(
     /**
      * Додає групу з указаним ідентифікатором і набором учасників.
      *
-     * @param id унікальний ідентифікатор елемента.
+     * @param id унікальний ідентифікатор групи.
      * @param memberIds ідентифікатори нейронів, які мають увійти до групи.
      */
     public void addGroup(
@@ -306,7 +310,8 @@ public int removeConnectionsBetween(
     /**
      * Знаходить нейрон за ідентифікатором або повертає null, якщо нейрона немає в моделі.
      *
-     * @param id унікальний ідентифікатор елемента.
+     * @param id унікальний ідентифікатор нейрона.
+     * @return знайдений нейрон або {@code null}.
      */
     public Neuron neuron(String id) {
         return neurons.get(id);
@@ -316,6 +321,7 @@ public int removeConnectionsBetween(
      * Знаходить візуальне подання нейрона за його ідентифікатором.
      *
      * @param neuronId ідентифікатор нейрона.
+     * @return подання нейрона або {@code null}.
      */
     public NeuronPresentation presentation(String neuronId) {
         return presentations.get(neuronId);
@@ -324,7 +330,7 @@ public int removeConnectionsBetween(
     /**
      * Повертає нейрони, що зараз містяться в моделі.
      *
-     * @return нейрони, що зараз містяться в моделі.
+     * @return незмінна колекція нейронів.
      */
     public Collection<Neuron> neurons() {
         return Collections.unmodifiableCollection(
@@ -335,7 +341,7 @@ public int removeConnectionsBetween(
     /**
      * Повертає візуальні подання нейронів, які зберігає модель.
      *
-     * @return візуальні подання нейронів, які зберігає модель.
+     * @return незмінна колекція подань нейронів.
      */
     public Collection<NeuronPresentation> presentations() {
         return Collections.unmodifiableCollection(
@@ -346,7 +352,7 @@ public int removeConnectionsBetween(
     /**
      * Повертає всі напрямлені зв’язки моделі.
      *
-     * @return всі напрямлені зв’язки моделі.
+     * @return незмінна колекція зв’язків.
      */
     public Collection<Connection> connections() {
         return Collections.unmodifiableCollection(
@@ -357,7 +363,7 @@ public int removeConnectionsBetween(
     /**
      * Повертає всі групи нейронів моделі.
      *
-     * @return всі групи нейронів моделі.
+     * @return незмінна колекція груп.
      */
     public Collection<NeuronGroup> groups() {
         return Collections.unmodifiableCollection(
@@ -369,6 +375,7 @@ public int removeConnectionsBetween(
      * Знаходить групу, до якої належить вказаний нейрон.
      *
      * @param neuronId ідентифікатор нейрона.
+     * @return відповідна група або {@code null}.
      */
     public NeuronGroup groupContaining(String neuronId) {
         for (NeuronGroup group : groups.values()) {
@@ -437,7 +444,7 @@ public int removeConnectionsBetween(
     /**
      * Перевіряє, чи не містить модель нейронів або інших елементів карти.
      *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
+     * @return {@code true}, якщо модель порожня; інакше {@code false}.
      */
     public boolean isEmpty() {
         return neurons.isEmpty()
@@ -456,9 +463,32 @@ public int removeConnectionsBetween(
     }
 
     /**
-     * Вилучає вибрані нейрони з груп, зберігаючи решту учасників.
+     * Замінює весь вміст моделі даними вже підготовленої моделі, зберігаючи ідентичність цього екземпляра.
+     * Цей метод дає службам змогу спершу повністю завантажити новий стан, а потім замінити вміст спільної моделі без створення нового екземпляра.
      *
-     * @param selectedIds ідентифікатори вибраних нейронів.
+     * @param source модель із підготовленим вмістом.
+     * @throws NullPointerException якщо підготовлену модель не передано.
+     */
+    public void replaceContentsFrom(NeuronMapModel source) {
+        Objects.requireNonNull(source, "source");
+        if (source == this) {
+            return;
+        }
+
+        neurons.clear();
+        neurons.putAll(source.neurons);
+        presentations.clear();
+        presentations.putAll(source.presentations);
+        connections.clear();
+        connections.putAll(source.connections);
+        groups.clear();
+        groups.putAll(source.groups);
+    }
+
+    /**
+     * Вилучає вибраних нейронів із груп, зберігаючи решту учасників.
+     *
+     * @param selectedIds ідентифікатори нейронів, які потрібно вилучити з груп.
      */
     private void removeMembersFromExistingGroups(
             Set<String> selectedIds

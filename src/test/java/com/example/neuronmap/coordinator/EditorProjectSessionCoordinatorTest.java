@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -32,95 +33,52 @@ class EditorProjectSessionCoordinatorTest {
     @Test
     void prepareForProjectSwitchStopsAndResetsSessionInOrder() {
         NeuronMapModel model = new NeuronMapModel();
-        MapService mapService = new MapService(
-                model,
-                new TestMapRepository(CameraState.defaultState(), 30.0)
-        );
+        MapService mapService = new MapService(model, new TestMapRepository(CameraState.defaultState(), 30.0));
         EditorState state = new EditorState(1.25, 15.0, -5.0);
         state.selectOnly("selected-neuron");
         state.setSelectedNeuronForMenu("selected-neuron");
         state.enterRotateMode();
         TestSessionActions actions = new TestSessionActions();
         EditorProjectSessionCoordinator coordinator = createCoordinator(
-                mapService,
-                state,
-                actions,
-                new AtomicReference<>(),
-                new double[]{30.0},
-                new AtomicReference<>()
+                mapService, state, actions, new AtomicReference<>(), new double[]{30.0}, new AtomicReference<>()
         );
 
         coordinator.prepareForProjectSwitch();
 
-        assertEquals(
-                List.of(
-                        "stopSimulation",
-                        "clearConnectionHighlights",
-                        "cancelInteractions",
-                        "hideNeuronMenu",
-                        "cancelPendingCameraSave",
-                        "saveCurrentProject"
-                ),
-                actions.events
-        );
+        assertEquals(List.of("stopSimulation", "clearConnectionHighlights", "cancelInteractions", "hideNeuronMenu",
+                "cancelPendingCameraSave", "saveCurrentProject"), actions.events);
         assertTrue(state.selectedNeuronIds().isEmpty());
         assertNull(state.selectedNeuronForMenu());
         assertFalse(state.isSpecialModeActive());
     }
 
-    /**
-     * Перевіряє відновлення симуляції та анімацій, які були призупинені лише для показу меню.
-     */
+    /** Перевіряє відновлення симуляції та анімацій, які були призупинені лише для показу меню. */
     @Test
     void resumeAfterMenuRestoresPreviouslyRunningSimulation() {
-        NeuronMapModel model = new NeuronMapModel();
-        MapService mapService = new MapService(
-                model,
-                new TestMapRepository(CameraState.defaultState(), 30.0)
-        );
+        MapService mapService = new MapService(new NeuronMapModel(),
+                new TestMapRepository(CameraState.defaultState(), 30.0));
         TestSessionActions actions = new TestSessionActions();
         EditorProjectSessionCoordinator coordinator = createCoordinator(
-                mapService,
-                new EditorState(1.0, 0.0, 0.0),
-                actions,
-                new AtomicReference<>(),
-                new double[]{30.0},
-                new AtomicReference<>()
+                mapService, new EditorState(1.0, 0.0, 0.0), actions,
+                new AtomicReference<>(), new double[]{30.0}, new AtomicReference<>()
         );
 
         coordinator.pauseForMenu();
         coordinator.resumeAfterMenu();
 
-        assertEquals(
-                List.of(
-                        "pauseSimulationForModal",
-                        "pauseConnectionAnimations",
-                        "resumeConnectionAnimations",
-                        "resumeSimulationFromModal"
-                ),
-                actions.events
-        );
+        assertEquals(List.of("pauseSimulationForModal", "pauseConnectionAnimations", "resumeConnectionAnimations",
+                "resumeSimulationFromModal"), actions.events);
     }
 
-    /**
-     * Перевіряє, що після переходу між проєктами закриття меню не відновлює симуляцію попередньої сесії.
-     */
+    /** Перевіряє, що закриття меню після перемикання не відновлює симуляцію попередньої сесії. */
     @Test
     void projectSwitchPreventsResumingPreviousSimulationAfterMenuCloses() {
-        NeuronMapModel model = new NeuronMapModel();
-        MapService mapService = new MapService(
-                model,
-                new TestMapRepository(CameraState.defaultState(), 30.0)
-        );
+        MapService mapService = new MapService(new NeuronMapModel(),
+                new TestMapRepository(CameraState.defaultState(), 30.0));
         EditorState state = new EditorState(1.0, 0.0, 0.0);
         TestSessionActions actions = new TestSessionActions();
         EditorProjectSessionCoordinator coordinator = createCoordinator(
-                mapService,
-                state,
-                actions,
-                new AtomicReference<>(),
-                new double[]{30.0},
-                new AtomicReference<>()
+                mapService, state, actions, new AtomicReference<>(), new double[]{30.0}, new AtomicReference<>()
         );
 
         coordinator.pauseForMenu();
@@ -131,72 +89,40 @@ class EditorProjectSessionCoordinatorTest {
         assertTrue(actions.events.contains("resumeConnectionAnimations"));
     }
 
-    /**
-     * Перевіряє, що некоректна збережена швидкість не успадковується від попереднього проєкту.
-     */
+    /** Перевіряє, що некоректна збережена швидкість не успадковується від попереднього проєкту. */
     @Test
     void activateProjectFallsBackToConfiguredDefaultWhenPersistedSpeedIsOutOfRange() {
-        NeuronMapModel model = new NeuronMapModel();
-        MapService mapService = new MapService(
-                model,
-                new TestMapRepository(CameraState.defaultState(), 35.0)
-        );
-        EditorState state = new EditorState(1.0, 0.0, 0.0);
+        MapService mapService = new MapService(new NeuronMapModel(),
+                new TestMapRepository(CameraState.defaultState(), 35.0));
         TestSessionActions actions = new TestSessionActions();
         double[] speed = {35.0};
         EditorProjectSessionCoordinator coordinator = createCoordinator(
-                mapService,
-                state,
-                actions,
-                new AtomicReference<>(),
-                speed,
-                new AtomicReference<>()
+                mapService, new EditorState(1.0, 0.0, 0.0), actions,
+                new AtomicReference<>(), speed, new AtomicReference<>()
         );
-        TestMapRepository nextRepository = new TestMapRepository(
-                CameraState.defaultState(),
-                900.0
-        );
-        ProjectDescriptor project = new ProjectDescriptor(
-                "invalid-speed-project",
-                "Проєкт з некоректною швидкістю",
-                Path.of("invalid-speed.db"),
-                Instant.EPOCH
-        );
+        TestMapRepository nextRepository = new TestMapRepository(CameraState.defaultState(), 900.0);
+        ProjectDescriptor project = new ProjectDescriptor("invalid-speed-project", "Проєкт з некоректною швидкістю",
+                Path.of("invalid-speed.db"), Instant.EPOCH);
 
         coordinator.activateProject(project, nextRepository, true);
 
         assertEquals(50.0, speed[0], 0.0001);
     }
 
-    /** Перевіряє, що проєкт без збереженої швидкості отримує типове значення, а не налаштування іншого проєкту. */
+    /** Перевіряє, що проєкт без збереженої швидкості отримує типове значення конфігурації. */
     @Test
     void activateProjectWithoutSavedSpeedUsesConfiguredDefault() {
-        NeuronMapModel model = new NeuronMapModel();
-        MapService mapService = new MapService(
-                model,
-                new TestMapRepository(CameraState.defaultState(), 35.0)
-        );
-        EditorState state = new EditorState(1.0, 0.0, 0.0);
+        MapService mapService = new MapService(new NeuronMapModel(),
+                new TestMapRepository(CameraState.defaultState(), 35.0));
         TestSessionActions actions = new TestSessionActions();
         double[] speed = {35.0};
         EditorProjectSessionCoordinator coordinator = createCoordinator(
-                mapService,
-                state,
-                actions,
-                new AtomicReference<>(),
-                speed,
-                new AtomicReference<>()
+                mapService, new EditorState(1.0, 0.0, 0.0), actions,
+                new AtomicReference<>(), speed, new AtomicReference<>()
         );
-        TestMapRepository nextRepository = new TestMapRepository(
-                CameraState.defaultState(),
-                Double.NaN
-        );
-        ProjectDescriptor project = new ProjectDescriptor(
-                "missing-speed-project",
-                "Проєкт без швидкості",
-                Path.of("missing-speed.db"),
-                Instant.EPOCH
-        );
+        TestMapRepository nextRepository = new TestMapRepository(CameraState.defaultState(), Double.NaN);
+        ProjectDescriptor project = new ProjectDescriptor("missing-speed-project", "Проєкт без швидкості",
+                Path.of("missing-speed.db"), Instant.EPOCH);
 
         coordinator.activateProject(project, nextRepository, true);
 
@@ -209,10 +135,7 @@ class EditorProjectSessionCoordinatorTest {
     @Test
     void activateProjectRestoresSavedSessionAndUpdatesLastOpenedProject() {
         NeuronMapModel model = new NeuronMapModel();
-        TestMapRepository previousRepository = new TestMapRepository(
-                CameraState.defaultState(),
-                35.0
-        );
+        TestMapRepository previousRepository = new TestMapRepository(CameraState.defaultState(), 35.0);
         MapService mapService = new MapService(model, previousRepository);
         EditorState state = new EditorState(1.0, 0.0, 0.0);
         state.selectOnly("previous-neuron");
@@ -223,27 +146,18 @@ class EditorProjectSessionCoordinatorTest {
         AtomicReference<ProjectDescriptor> lastOpenedProject = new AtomicReference<>();
         double[] speed = {35.0};
         EditorProjectSessionCoordinator coordinator = createCoordinator(
-                mapService,
-                state,
-                actions,
-                activeProject,
-                speed,
-                lastOpenedProject
+                mapService, state, actions, activeProject, speed, lastOpenedProject
         );
         CameraState savedCamera = new CameraState(1.75, -40.0, 62.0);
         TestMapRepository nextRepository = new TestMapRepository(savedCamera, 90.0);
-        ProjectDescriptor project = new ProjectDescriptor(
-                "project-2",
-                "Другий проєкт",
-                Path.of("project-2.db"),
-                Instant.EPOCH
-        );
+        ProjectDescriptor project = new ProjectDescriptor("project-2", "Другий проєкт",
+                Path.of("project-2.db"), Instant.EPOCH);
 
         coordinator.activateProject(project, nextRepository, true);
 
         assertTrue(previousRepository.closed);
         assertTrue(mapService.isActiveRepository(nextRepository));
-        assertSame(model, nextRepository.loadedModel);
+        assertNotSame(model, nextRepository.loadedModel);
         assertSame(project, activeProject.get());
         assertSame(project, lastOpenedProject.get());
         assertEquals(savedCamera.zoom(), state.zoom(), 0.0001);
@@ -253,52 +167,27 @@ class EditorProjectSessionCoordinatorTest {
         assertNull(state.selectedNeuronForMenu());
         assertFalse(state.isSpecialModeActive());
         assertEquals(90.0, speed[0], 0.0001);
-        assertEquals(
-                List.of(
-                        "updateSimulationSpeed",
-                        "synchronizeViewsWithModel",
-                        "applyCamera",
-                        "showMainPage"
-                ),
-                actions.events
-        );
+        assertEquals(List.of("updateSimulationSpeed", "synchronizeViewsWithModel", "applyCamera", "showMainPage"),
+                actions.events);
     }
 
-    /**
-     * Перевіряє резервну швидкість для нового тимчасового проєкту та очищення ознаки останнього відкриття.
-     */
+    /** Перевіряє резервну швидкість для нового тимчасового проєкту та очищення ознаки останнього відкриття. */
     @Test
     void activateTransientProjectUsesDefaultSpeedAndClearsLastOpenedProject() {
-        NeuronMapModel model = new NeuronMapModel();
-        MapService mapService = new MapService(
-                model,
-                new TestMapRepository(CameraState.defaultState(), 45.0)
-        );
+        MapService mapService = new MapService(new NeuronMapModel(),
+                new TestMapRepository(CameraState.defaultState(), 45.0));
         EditorState state = new EditorState(1.0, 0.0, 0.0);
         TestSessionActions actions = new TestSessionActions();
         AtomicReference<ProjectDescriptor> activeProject = new AtomicReference<>();
         AtomicReference<ProjectDescriptor> lastOpenedProject = new AtomicReference<>(
-                new ProjectDescriptor("old", "Старий", Path.of("old.db"), Instant.EPOCH)
-        );
+                new ProjectDescriptor("old", "Старий", Path.of("old.db"), Instant.EPOCH));
         double[] speed = {45.0};
         EditorProjectSessionCoordinator coordinator = createCoordinator(
-                mapService,
-                state,
-                actions,
-                activeProject,
-                speed,
-                lastOpenedProject
+                mapService, state, actions, activeProject, speed, lastOpenedProject
         );
-        TestMapRepository transientRepository = new TestMapRepository(
-                CameraState.defaultState(),
-                90.0
-        );
-        ProjectDescriptor transientProject = new ProjectDescriptor(
-                "temporary",
-                "Новий проєкт",
-                Path.of("temporary.db"),
-                null
-        );
+        TestMapRepository transientRepository = new TestMapRepository(CameraState.defaultState(), 90.0);
+        ProjectDescriptor transientProject = new ProjectDescriptor("temporary", "Новий проєкт",
+                Path.of("temporary.db"), null);
 
         coordinator.activateProject(transientProject, transientRepository, false);
 
