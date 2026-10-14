@@ -26,6 +26,12 @@
 ./mvnw -Dtest=NeuronServiceTest test
 ```
 
+Регресійні тести життєвого циклу подань:
+
+```bash
+./mvnw -Dtest=MapPresentationWorkflowLifecycleTest test
+```
+
 Кілька класів:
 
 ```bash
@@ -69,6 +75,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 - `EditorProjectSessionCoordinatorTest` — зупинка й відновлення редакторської сесії, перемикання проєктів, камера та швидкість симуляції.
 - `EditorSaveCoordinatorTest` — узгоджене збереження стану редактора.
 - `MapPresentationCoordinatorLifecycleTest` — створення, оновлення та очищення графічних подань карти й ручок обертання.
+- `MapPresentationWorkflowLifecycleTest` — синхронізація реального дерева JavaFX після вставлення, undo/redo та перемикання проєктів.
 - `ProjectWorkflowCoordinatorActivationTest` — послідовність активації проєкту.
 - `ProjectWorkflowCoordinatorRecoveryTest` — відновлення після помилок під час операцій над проєктами.
 - `ProjectWorkflowCoordinatorTest` — основні сценарії створення, відкриття, перейменування та видалення проєктів.
