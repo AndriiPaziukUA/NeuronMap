@@ -83,6 +83,43 @@ final class WindowsWindowRestorationTest {
         assertSame(window, readField(adapter, "hwnd"));
     }
 
+    /**
+     * Перевіряє, що невдале оновлення рамки робить очищення невдалим і залишає стан для повторної спроби.
+     * Після успішної повторної спроби адаптер звільняє збережений дескриптор і стиль.
+     */
+    @Test
+    void retainsPreviousWindowStyleAfterFailedNonClientFrameUpdate() {
+        AtomicInteger styleUpdates = new AtomicInteger();
+        AtomicInteger frameUpdates = new AtomicInteger();
+        WindowsWindowPlatformAdapter adapter = new WindowsWindowPlatformAdapter(
+                (window, index, value) -> {
+                    styleUpdates.incrementAndGet();
+                    return new Pointer(0x42L);
+                },
+                window -> {
+                    if (frameUpdates.incrementAndGet() == 1) {
+                        WindowsWindowPlatformAdapter.validateSetWindowPosResult(false, 5);
+                    }
+                }
+        );
+        HWND window = new HWND(new Pointer(0x24L));
+        writeField(adapter, "hwnd", window);
+        writeField(adapter, "previousWindowStyle", 0x00CF0000L);
+        writeField(adapter, "previousWindowStyleCaptured", true);
+
+        assertFalse(adapter.disposeAndReportCompletion());
+        assertEquals(1, styleUpdates.get());
+        assertEquals(1, frameUpdates.get());
+        assertSame(window, readField(adapter, "hwnd"));
+        assertTrue((Boolean) readField(adapter, "previousWindowStyleCaptured"));
+
+        assertTrue(adapter.disposeAndReportCompletion());
+        assertEquals(2, styleUpdates.get());
+        assertEquals(2, frameUpdates.get());
+        assertNull(readField(adapter, "hwnd"));
+        assertFalse((Boolean) readField(adapter, "previousWindowStyleCaptured"));
+    }
+
     /** Створює набір порожніх callback-ів для тесту життєвого циклу без JavaFX та Win32. */
     private WindowsWindowProcedure.Callbacks noOpCallbacks() {
         return new WindowsWindowProcedure.Callbacks(

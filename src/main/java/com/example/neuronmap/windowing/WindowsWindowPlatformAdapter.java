@@ -6,7 +6,10 @@ import com.example.neuronmap.window.WindowHitTestCalculator.HitTarget;
 import com.example.neuronmap.window.WindowHitTestCalculator.Layout;
 import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.BaseTSD;
+import com.sun.jna.platform.win32.Kernel32;
 import com.sun.jna.platform.win32.User32;
+import com.sun.jna.platform.win32.Win32Exception;
+import com.sun.jna.platform.win32.WinError;
 import com.sun.jna.platform.win32.WinDef.HWND;
 import com.sun.jna.platform.win32.WinDef.LPARAM;
 import com.sun.jna.platform.win32.WinDef.POINT;
@@ -48,6 +51,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
     private final AtomicBoolean disposed = new AtomicBoolean();
     private final WindowsSystemMetrics systemMetrics = new WindowsSystemMetrics();
     private final WindowsWindowLongPtr.Setter windowLongPtrSetter;
+    private final NonClientFrameUpdater nonClientFrameUpdater;
     private Stage stage;
     private WindowChrome chrome;
     private HWND hwnd;
@@ -71,7 +75,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
 
     /** Створює адаптер без підключення до Win32 до виклику {@link #install(Stage, WindowChrome)}. */
     public WindowsWindowPlatformAdapter() {
-        this(WindowsWindowLongPtr::set);
+        this(WindowsWindowLongPtr::set, WindowsWindowPlatformAdapter::setNonClientFrame);
     }
 
     /**
@@ -82,7 +86,23 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
      * @throws NullPointerException якщо механізм не задано.
      */
     WindowsWindowPlatformAdapter(WindowsWindowLongPtr.Setter windowLongPtrSetter) {
+        this(windowLongPtrSetter, WindowsWindowPlatformAdapter::setNonClientFrame);
+    }
+
+    /**
+     * Створює адаптер із контрольованими механізмами зміни атрибутів і оновлення рамки Win32.
+     * Заміна операції оновлення рамки дає змогу перевіряти помилки очищення без реального вікна Windows.
+     *
+     * @param windowLongPtrSetter механізм зміни атрибута Win32.
+     * @param nonClientFrameUpdater механізм оновлення рамки вікна.
+     * @throws NullPointerException якщо один із механізмів не задано.
+     */
+    WindowsWindowPlatformAdapter(
+            WindowsWindowLongPtr.Setter windowLongPtrSetter,
+            NonClientFrameUpdater nonClientFrameUpdater
+    ) {
         this.windowLongPtrSetter = Objects.requireNonNull(windowLongPtrSetter, "windowLongPtrSetter");
+        this.nonClientFrameUpdater = Objects.requireNonNull(nonClientFrameUpdater, "nonClientFrameUpdater");
     }
 
     /**
@@ -412,14 +432,27 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
         currentChrome.setNativeResizeBorders(borders.horizontal(), borders.vertical());
     }
 
-    /** Оновлює системний стиль і просить Windows повторно обчислити рамку вікна. */
+    /**
+     * Оновлює рамку вікна через контрольований механізм і передає помилки до процедури очищення.
+     * Відсутній HWND означає, що немає чинної нативної операції для виконання.
+     */
     private void updateNonClientFrame() {
         HWND currentWindow = hwnd;
-        if (currentWindow == null) {
-            return;
+        if (currentWindow != null) {
+            nonClientFrameUpdater.update(currentWindow);
         }
-        User32.INSTANCE.SetWindowPos(
-                currentWindow,
+    }
+
+    /**
+     * Викликає {@code SetWindowPos} для повторного обчислення неклієнтської рамки вікна.
+     *
+     * @param window дескриптор вікна, рамку якого потрібно оновити.
+     * @throws Win32Exception якщо операція завершилася невдало.
+     */
+    private static void setNonClientFrame(HWND window) {
+        Kernel32.INSTANCE.SetLastError(0);
+        boolean updated = User32.INSTANCE.SetWindowPos(
+                window,
                 null,
                 0,
                 0,
@@ -427,6 +460,21 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
                 0,
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED
         );
+        validateSetWindowPosResult(updated, Kernel32.INSTANCE.GetLastError());
+    }
+
+    /**
+     * Перевіряє результат {@code SetWindowPos} і перетворює невдалий виклик на виняток Win32.
+     *
+     * @param updated логічний результат операції Win32.
+     * @param errorCode код помилки, прочитаний відразу після виклику.
+     * @throws Win32Exception якщо оновлення не вдалося; для нульового коду використовується
+     *                        стандартна помилка загального збою Win32.
+     */
+    static void validateSetWindowPosResult(boolean updated, int errorCode) {
+        if (!updated) {
+            throw new Win32Exception(errorCode == 0 ? WinError.ERROR_GEN_FAILURE : errorCode);
+        }
     }
 
     /**
@@ -454,27 +502,21 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
             }
             try {
                 windowLongPtrSetter.set(currentWindow, GWL_STYLE, new Pointer(previousWindowStyle));
+                if (nativeWindowDestroyed) {
+                    clearDestroyedWindowState();
+                    return true;
+                }
+                updateNonClientFrame();
                 previousWindowStyleCaptured = false;
             } catch (RuntimeException | LinkageError exception) {
                 if (nativeWindowDestroyed) {
                     clearDestroyedWindowState();
                     return true;
                 }
-                LOGGER.log(Level.WARNING, "Не вдалося відновити початковий стиль вікна Windows", exception);
+                LOGGER.log(Level.WARNING,
+                        "Не вдалося відновити початковий стиль або оновити рамку вікна Windows",
+                        exception);
                 return false;
-            }
-            if (nativeWindowDestroyed) {
-                clearDestroyedWindowState();
-                return true;
-            }
-            if (!previousWindowStyleCaptured) {
-                try {
-                    updateNonClientFrame();
-                } catch (RuntimeException | LinkageError exception) {
-                    LOGGER.log(Level.WARNING,
-                            "Початковий стиль вікна відновлено, але не вдалося оновити рамку",
-                            exception);
-                }
             }
         }
 
@@ -491,6 +533,20 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
             }
         }
         return windowProcedure == null && !previousWindowStyleCaptured;
+    }
+
+    /**
+     * Контракт операції оновлення рамки, потрібний для перевірки помилок очищення без виклику user32.
+     */
+    @FunctionalInterface
+    interface NonClientFrameUpdater {
+
+        /**
+         * Оновлює рамку заданого вікна або кидає виняток, якщо операція не вдалася.
+         *
+         * @param window дескриптор вікна.
+         */
+        void update(HWND window);
     }
 
     /**
