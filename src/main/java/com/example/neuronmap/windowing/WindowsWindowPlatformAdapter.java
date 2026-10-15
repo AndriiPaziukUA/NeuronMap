@@ -34,9 +34,6 @@ import java.util.logging.Logger;
 public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter {
 
     private static final Logger LOGGER = Logger.getLogger(WindowsWindowPlatformAdapter.class.getName());
-    private static final User32CoordinateFunctions USER32_COORDINATES = Native.load(
-            "user32", User32CoordinateFunctions.class, W32APIOptions.DEFAULT_OPTIONS
-    );
 
     private static final int GWL_STYLE = -16;
     private static final int GWL_WNDPROC = -4;
@@ -82,6 +79,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
     private Stage stage;
     private WindowChromeView chromeView;
     private HWND hwnd;
+    private volatile User32CoordinateFunctions user32Coordinates;
     private Pointer previousWindowProcedure;
     private long previousWindowStyle;
     private boolean previousWindowStyleCaptured;
@@ -103,8 +101,8 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
     }
 
     /**
-     * Знаходить HWND показаного JavaFX-вікна, додає потрібні стилі Win32 і встановлює власний ланцюжок обробки повідомлень.
-     * Метод викликається після {@code Stage.show()}, коли віконний дескриптор уже створений.
+     * Підключає Win32 до показаного JavaFX-вікна: знаходить HWND, змінює стилі та встановлює власний обробник повідомлень.
+     * Прив'язка до {@code user32} завантажується лише після перевірки потоку JavaFX і видимості {@code Stage}.
      *
      * @param stage показане головне вікно JavaFX.
      * @param chromeView подання з геометрією кнопок і командами керування вікном.
@@ -127,12 +125,16 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
 
         outputScaleX = validScale(stage.getOutputScaleX());
         outputScaleY = validScale(stage.getOutputScaleY());
-        hwnd = findWindowHandle(stage.getTitle());
-        if (hwnd == null) {
-            throw new IllegalStateException("Could not locate the native window for the displayed JavaFX stage");
-        }
 
         try {
+            user32Coordinates = Native.load(
+                    "user32", User32CoordinateFunctions.class, W32APIOptions.DEFAULT_OPTIONS
+            );
+            hwnd = findWindowHandle(stage.getTitle());
+            if (hwnd == null) {
+                throw new IllegalStateException("Could not locate the native window for the displayed JavaFX stage");
+            }
+
             installNativeWindowProcedureAndStyle();
             updateNativeResizeBorders();
             stage.outputScaleXProperty().addListener(outputScaleXListener);
@@ -142,12 +144,13 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
             restoreNativeWindow();
             removeStageListeners();
             hwnd = null;
+            user32Coordinates = null;
             throw new IllegalStateException("Could not install native Windows window behavior", exception);
         }
     }
 
     /**
-     * Відновлює початкові стилі Win32 та початкову процедуру вікна, якщо адаптер був установлений.
+     * Відновлює початкові стилі та процедуру вікна, від'єднує слухачі й очищає посилання на нативний проксі.
      */
     @Override
     public void dispose() {
@@ -157,6 +160,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
         restoreNativeWindow();
         removeStageListeners();
         hwnd = null;
+        user32Coordinates = null;
         stage = null;
         chromeView = null;
         windowProcedure = null;
@@ -311,14 +315,17 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
      * @return результат hit testing або {@code null}, якщо геометрію HWND прочитати не вдалося.
      */
     private WindowHitTestCalculator.HitTarget hitTestNativePoint(LPARAM lParam) {
-        if (chromeView == null || hwnd == null) {
+        WindowChromeView view = chromeView;
+        HWND window = hwnd;
+        User32CoordinateFunctions coordinates = user32Coordinates;
+        if (view == null || window == null || coordinates == null) {
             return null;
         }
-        WindowHitTestCalculator.Layout layout = chromeView.hitTestLayout();
+        WindowHitTestCalculator.Layout layout = view.hitTestLayout();
         RECT clientRectangle = new RECT();
         POINT clientOrigin = new POINT();
-        if (layout == null || !User32.INSTANCE.GetClientRect(hwnd, clientRectangle)
-                || !USER32_COORDINATES.ClientToScreen(hwnd, clientOrigin)) {
+        if (layout == null || !User32.INSTANCE.GetClientRect(window, clientRectangle)
+                || !coordinates.ClientToScreen(window, clientOrigin)) {
             return null;
         }
         long packedPoint = lParam.longValue();
