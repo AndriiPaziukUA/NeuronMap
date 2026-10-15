@@ -22,7 +22,7 @@ import java.util.logging.Logger;
 
 /**
  * Володіє підміною нативної процедури вікна, обробкою повідомлень власного заголовка та викликом початкової процедури.
- * Поки Win32 не підтвердив від'єднання процедури, активний екземпляр утримується в реєстрі сильних посилань.
+ * Поки Win32 не підтвердив від'єднання процедури або знищення HWND, активний екземпляр утримується сильним реєстром.
  */
 final class WindowsWindowProcedure {
 
@@ -65,11 +65,14 @@ final class WindowsWindowProcedure {
     private static final int WM_MOUSEMOVE = 0x0200;
     private static final int WM_LBUTTONUP = 0x0202;
     private static final int WM_CAPTURECHANGED = 0x0215;
+    private static final int WM_NCDESTROY = 0x0082;
 
     private final Callbacks callbacks;
     private final WindowsWindowLongPtr.Setter windowLongPtrSetter;
     private final NativeOperations nativeOperations;
+    private final Runnable nativeWindowDestroyedAction;
     private final AtomicBoolean disposed = new AtomicBoolean();
+    private final AtomicBoolean nativeWindowDestroyed = new AtomicBoolean();
     private final AtomicReference<HitTarget> pressedTarget = new AtomicReference<>();
     private HWND window;
     private Pointer previousWindowProcedure;
@@ -84,7 +87,7 @@ final class WindowsWindowProcedure {
      * @throws NullPointerException якщо набір зворотних викликів не задано.
      */
     WindowsWindowProcedure(Callbacks callbacks) {
-        this(callbacks, WindowsWindowLongPtr::set, SYSTEM_NATIVE_OPERATIONS);
+        this(callbacks, WindowsWindowLongPtr::set, SYSTEM_NATIVE_OPERATIONS, () -> { });
     }
 
     /**
@@ -96,7 +99,7 @@ final class WindowsWindowProcedure {
      * @throws NullPointerException якщо будь-яку залежність не задано.
      */
     WindowsWindowProcedure(Callbacks callbacks, WindowsWindowLongPtr.Setter windowLongPtrSetter) {
-        this(callbacks, windowLongPtrSetter, SYSTEM_NATIVE_OPERATIONS);
+        this(callbacks, windowLongPtrSetter, SYSTEM_NATIVE_OPERATIONS, () -> { });
     }
 
     /**
@@ -112,9 +115,46 @@ final class WindowsWindowProcedure {
             WindowsWindowLongPtr.Setter windowLongPtrSetter,
             NativeOperations nativeOperations
     ) {
+        this(callbacks, windowLongPtrSetter, nativeOperations, () -> { });
+    }
+
+    /**
+     * Створює обробник зі стандартними нативними операціями та сповіщенням про знищення HWND.
+     *
+     * @param callbacks зворотні виклики для визначення областей і передавання UI-команд.
+     * @param windowLongPtrSetter механізм установлення та відновлення адреси WndProc.
+     * @param nativeWindowDestroyedAction дія після передачі WM_NCDESTROY попередній процедурі.
+     * @throws NullPointerException якщо будь-яку залежність не задано.
+     */
+    WindowsWindowProcedure(
+            Callbacks callbacks,
+            WindowsWindowLongPtr.Setter windowLongPtrSetter,
+            Runnable nativeWindowDestroyedAction
+    ) {
+        this(callbacks, windowLongPtrSetter, SYSTEM_NATIVE_OPERATIONS, nativeWindowDestroyedAction);
+    }
+
+    /**
+     * Створює обробник і задає дію, яка сповіщає адаптер про підтверджене знищення HWND.
+     * Цей сигнал дає адаптеру змогу більше не звертатися до вже знищеного нативного вікна.
+     *
+     * @param callbacks зворотні виклики для визначення областей і передавання UI-команд.
+     * @param windowLongPtrSetter механізм установлення та відновлення адреси WndProc.
+     * @param nativeOperations операції захоплення миші й передавання повідомлення попередній процедурі.
+     * @param nativeWindowDestroyedAction дія після пересилання WM_NCDESTROY попередній процедурі.
+     * @throws NullPointerException якщо будь-яку залежність не задано.
+     */
+    WindowsWindowProcedure(
+            Callbacks callbacks,
+            WindowsWindowLongPtr.Setter windowLongPtrSetter,
+            NativeOperations nativeOperations,
+            Runnable nativeWindowDestroyedAction
+    ) {
         this.callbacks = Objects.requireNonNull(callbacks, "callbacks");
         this.windowLongPtrSetter = Objects.requireNonNull(windowLongPtrSetter, "windowLongPtrSetter");
         this.nativeOperations = Objects.requireNonNull(nativeOperations, "nativeOperations");
+        this.nativeWindowDestroyedAction = Objects.requireNonNull(
+                nativeWindowDestroyedAction, "nativeWindowDestroyedAction");
     }
 
     /**
@@ -155,13 +195,26 @@ final class WindowsWindowProcedure {
     }
 
     /**
+     * Вимикає обробку власного заголовка, але залишає нативний callback прикріпленим до завершення очищення.
+     * Це дозволяє безпечно передавати всі повідомлення попередній процедурі, поки адаптер повторює відновлення стилю.
+     */
+    void deactivate() {
+        disposed.set(true);
+        pressedTarget.set(null);
+    }
+
+    /**
      * Відновлює початкову процедуру та звільняє callback лише після успішного завершення виклику Win32.
-     * У разі помилки зберігає всі потрібні посилання й дозволяє повторити спробу очищення.
+     * Якщо відновлення не вдалося, callback лишається активним до повторної спроби або WM_NCDESTROY.
      *
-     * @return {@code true}, якщо callback гарантовано від'єднано; {@code false}, якщо його потрібно утримувати.
+     * @return {@code true}, якщо callback гарантовано більше не викликається; {@code false}, якщо його потрібно утримувати.
      */
     synchronized boolean dispose() {
         if (windowProcedure == null) {
+            return true;
+        }
+        if (nativeWindowDestroyed.get()) {
+            completeNativeWindowDestruction();
             return true;
         }
         disposed.set(true);
@@ -169,14 +222,14 @@ final class WindowsWindowProcedure {
         if (windowProcedureInstalled) {
             HWND currentWindow = window;
             if (currentWindow == null) {
-                LOGGER.warning("Неможливо відновити процедуру вікна Windows: дескриптор уже відсутній; callback утримується");
+                LOGGER.warning("Неможливо відновити процедуру вікна Windows: HWND відсутній; callback утримується");
                 return false;
             }
             try {
                 windowLongPtrSetter.set(currentWindow, GWL_WNDPROC, previousWindowProcedure);
             } catch (RuntimeException | LinkageError exception) {
                 LOGGER.log(Level.WARNING,
-                        "Не вдалося відновити початкову процедуру вікна Windows; callback залишається активним",
+                        "Не вдалося відновити початкову процедуру вікна Windows; callback утримується до повторної спроби або WM_NCDESTROY",
                         exception);
                 return false;
             }
@@ -191,8 +244,7 @@ final class WindowsWindowProcedure {
 
     /**
      * Обробляє повідомлення власного заголовка або передає його початковій процедурі JavaFX Glass.
-     * Помилка додаткової обробки не повинна переривати нативний ланцюжок повідомлень.
-     * Метод доступний у межах пакета, щоб перевіряти маршрутизацію без створення реального Windows-вікна.
+     * WM_NCDESTROY обробляється окремо, навіть після початку очищення, щоб звільнити callback після знищення HWND.
      *
      * @param sourceWindow HWND, від якого надійшло повідомлення.
      * @param message ідентифікатор повідомлення Win32.
@@ -201,6 +253,9 @@ final class WindowsWindowProcedure {
      * @return результат власної обробки або результат попередньої процедури.
      */
     LRESULT handleMessage(HWND sourceWindow, int message, WPARAM wParam, LPARAM lParam) {
+        if (message == WM_NCDESTROY) {
+            return handleNativeWindowDestroyed(sourceWindow, message, wParam, lParam);
+        }
         if (disposed.get()) {
             return callPreviousWindowProcedure(sourceWindow, message, wParam, lParam);
         }
@@ -213,6 +268,58 @@ final class WindowsWindowProcedure {
             LOGGER.log(Level.WARNING, "Помилка під час обробки нативної взаємодії з вікном", exception);
         }
         return callPreviousWindowProcedure(sourceWindow, message, wParam, lParam);
+    }
+
+    /**
+     * Передає WM_NCDESTROY попередній процедурі та звільняє callback після завершення нативного ланцюжка.
+     * Помилки передачі не перешкоджають завершальному очищенню, оскільки Windows підтверджує знищення HWND.
+     *
+     * @param sourceWindow HWND, який знищується.
+     * @param message ідентифікатор повідомлення WM_NCDESTROY.
+     * @param wParam перший параметр повідомлення.
+     * @param lParam другий параметр повідомлення.
+     * @return результат попередньої процедури або нуль, якщо вона завершилася помилкою.
+     */
+    private LRESULT handleNativeWindowDestroyed(
+            HWND sourceWindow,
+            int message,
+            WPARAM wParam,
+            LPARAM lParam
+    ) {
+        LRESULT result;
+        try {
+            result = callPreviousWindowProcedure(sourceWindow, message, wParam, lParam);
+        } catch (RuntimeException | LinkageError exception) {
+            LOGGER.log(Level.WARNING, "Не вдалося передати WM_NCDESTROY попередній процедурі вікна", exception);
+            result = new LRESULT(0L);
+        } finally {
+            completeNativeWindowDestruction();
+        }
+        return result;
+    }
+
+    /**
+     * Звільняє сильне посилання на callback після підтвердженого завершення життєвого циклу HWND.
+     * Виклик є одноразовим; дія адаптера виконується вже після вилучення процедури з реєстру.
+     */
+    private void completeNativeWindowDestruction() {
+        synchronized (this) {
+            if (!nativeWindowDestroyed.compareAndSet(false, true)) {
+                return;
+            }
+            disposed.set(true);
+            pressedTarget.set(null);
+            ACTIVE_PROCEDURES.remove(this);
+            windowProcedureInstalled = false;
+            previousWindowProcedure = null;
+            windowProcedure = null;
+            window = null;
+        }
+        try {
+            nativeWindowDestroyedAction.run();
+        } catch (RuntimeException | LinkageError exception) {
+            LOGGER.log(Level.WARNING, "Не вдалося повідомити адаптер про знищення HWND", exception);
+        }
     }
 
     /**

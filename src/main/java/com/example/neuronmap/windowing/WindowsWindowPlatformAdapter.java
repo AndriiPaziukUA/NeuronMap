@@ -56,6 +56,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
     private long previousWindowStyle;
     private boolean previousWindowStyleCaptured;
     private boolean installationAttempted;
+    private volatile boolean nativeWindowDestroyed;
     private volatile double outputScaleX = 1.0;
     private volatile double outputScaleY = 1.0;
     private final ChangeListener<Number> outputScaleXListener = (observable, oldValue, newValue) -> {
@@ -133,19 +134,31 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
     }
 
     /**
-     * Відновлює початкові стилі та процедуру вікна й від'єднує слухачі адаптера.
-     * Якщо відновлення не вдалося, зберігає ресурси, потрібні для безпечного callback і повторної спроби.
+     * Звільняє ресурси адаптера й повідомляє, чи завершилося очищення повністю.
+     * Якщо HWND ще існує, але Win32 відмовив у відновленні, ресурси зберігаються для наступної спроби.
+     * Після WM_NCDESTROY відновлювати стиль уже не потрібно, а процедура сама звільняє callback.
      */
     @Override
     public synchronized void dispose() {
+        disposeAndReportCompletion();
+    }
+
+    /**
+     * Повторює очищення та повертає його фактичний результат для власника адаптера.
+     *
+     * @return {@code true}, якщо всі ресурси звільнено або HWND уже знищено; інакше {@code false}.
+     */
+    @Override
+    public synchronized boolean disposeAndReportCompletion() {
         if (disposed.get() && windowProcedure == null && !previousWindowStyleCaptured) {
-            return;
+            return true;
         }
         disposed.set(true);
         boolean restored = restoreNativeWindow();
         removeStageListeners();
         if (!restored) {
-            return;
+            LOGGER.warning("Очищення Windows-вікна не завершено; адаптер потрібно зберегти для повторної спроби");
+            return false;
         }
         hwnd = null;
         user32Extensions = null;
@@ -154,6 +167,33 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
         windowProcedure = null;
         previousWindowStyle = 0L;
         previousWindowStyleCaptured = false;
+        return true;
+    }
+
+    /**
+     * Позначає підтверджене знищення HWND та планує завершальне очищення поза нативним callback.
+     * Відкладений виклик звільняє посилання JavaFX на правильному потоці й не створює блокування між WndProc
+     * та операціями відновлення Win32.
+     */
+    void onNativeWindowDestroyed() {
+        nativeWindowDestroyed = true;
+        try {
+            Platform.runLater(this::disposeAfterNativeWindowDestroyed);
+        } catch (IllegalStateException toolkitUnavailable) {
+            LOGGER.log(Level.FINE,
+                    "JavaFX уже зупинено; очищення адаптера буде завершено під час наступного виклику dispose()",
+                    toolkitUnavailable);
+        }
+    }
+
+    /**
+     * Завершує звільнення адаптера після асинхронного підтвердження знищення вікна.
+     * Повторне очищення не виконує нативних операцій, оскільки HWND уже недійсний.
+     */
+    private void disposeAfterNativeWindowDestroyed() {
+        if (nativeWindowDestroyed) {
+            disposeAndReportCompletion();
+        }
     }
 
     /**
@@ -194,7 +234,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
                 this::updateNativePressed,
                 this::performNativeButtonAction,
                 this::performCaptionDoubleClick
-        ), windowLongPtrSetter);
+        ), windowLongPtrSetter, this::onNativeWindowDestroyed);
         windowProcedure.install(hwnd);
 
         long customStyle = (style & ~(WS_CAPTION | WS_POPUP | WS_CHILD))
@@ -390,47 +430,78 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
     }
 
     /**
-     * Відновлює процедуру та стиль незалежними спробами, зберігаючи невідновлені ресурси для повторної спроби.
+     * Відновлює стиль перед від'єднанням WndProc, щоб callback міг безпечно дочекатися повторної спроби.
+     * Після підтвердженого знищення HWND пропускає нативні виклики та завершує очищення локального стану.
      *
-     * @return {@code true}, якщо всі операції відновлення підтверджено; інакше {@code false}.
+     * @return {@code true}, якщо відновлення завершено або HWND знищено; інакше {@code false}.
      */
     private boolean restoreNativeWindow() {
-        boolean restored = true;
+        if (nativeWindowDestroyed) {
+            clearDestroyedWindowState();
+            return true;
+        }
+
         WindowsWindowProcedure currentProcedure = windowProcedure;
+        if (currentProcedure != null) {
+            currentProcedure.deactivate();
+        }
+
+        if (previousWindowStyleCaptured) {
+            HWND currentWindow = hwnd;
+            if (currentWindow == null) {
+                LOGGER.warning("Неможливо відновити початковий стиль вікна Windows: дескриптор відсутній");
+                return false;
+            }
+            try {
+                windowLongPtrSetter.set(currentWindow, GWL_STYLE, new Pointer(previousWindowStyle));
+                previousWindowStyleCaptured = false;
+            } catch (RuntimeException | LinkageError exception) {
+                if (nativeWindowDestroyed) {
+                    clearDestroyedWindowState();
+                    return true;
+                }
+                LOGGER.log(Level.WARNING, "Не вдалося відновити початковий стиль вікна Windows", exception);
+                return false;
+            }
+            if (nativeWindowDestroyed) {
+                clearDestroyedWindowState();
+                return true;
+            }
+            if (!previousWindowStyleCaptured) {
+                try {
+                    updateNonClientFrame();
+                } catch (RuntimeException | LinkageError exception) {
+                    LOGGER.log(Level.WARNING,
+                            "Початковий стиль вікна відновлено, але не вдалося оновити рамку",
+                            exception);
+                }
+            }
+        }
+
+        if (nativeWindowDestroyed) {
+            clearDestroyedWindowState();
+            return true;
+        }
         if (currentProcedure != null) {
             if (currentProcedure.dispose()) {
                 windowProcedure = null;
             } else {
-                restored = false;
-                LOGGER.warning("Нативна процедура вікна ще не відновлена; посилання на callback збережено");
+                LOGGER.warning("Нативна процедура вікна ще не відновлена; callback збережено до WM_NCDESTROY");
+                return false;
             }
         }
+        return windowProcedure == null && !previousWindowStyleCaptured;
+    }
 
-        HWND currentWindow = hwnd;
-        if (previousWindowStyleCaptured) {
-            if (currentWindow == null) {
-                LOGGER.warning("Неможливо відновити початковий стиль вікна Windows: дескриптор відсутній");
-                restored = false;
-            } else {
-                try {
-                    windowLongPtrSetter.set(currentWindow, GWL_STYLE, new Pointer(previousWindowStyle));
-                    previousWindowStyleCaptured = false;
-                } catch (RuntimeException | LinkageError exception) {
-                    LOGGER.log(Level.WARNING, "Не вдалося відновити початковий стиль вікна Windows", exception);
-                    restored = false;
-                }
-                if (!previousWindowStyleCaptured) {
-                    try {
-                        updateNonClientFrame();
-                    } catch (RuntimeException | LinkageError exception) {
-                        LOGGER.log(Level.WARNING,
-                                "Початковий стиль вікна відновлено, але не вдалося оновити рамку",
-                                exception);
-                    }
-                }
-            }
-        }
-        return restored && windowProcedure == null && !previousWindowStyleCaptured;
+    /**
+     * Скидає нативні посилання після WM_NCDESTROY, коли звертатися до HWND більше не можна.
+     */
+    private void clearDestroyedWindowState() {
+        hwnd = null;
+        user32Extensions = null;
+        windowProcedure = null;
+        previousWindowStyle = 0L;
+        previousWindowStyleCaptured = false;
     }
 
     /** Від'єднує слухачі Stage, щоб закрите вікно не утримувало адаптер через властивості масштабування. */

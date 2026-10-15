@@ -229,8 +229,9 @@ public final class MainWindowController {
     }
 
     /**
-     * Завершує життєвий цикл один раз і звільняє адаптер та подання навіть за помилки збереження або редактора.
-     * Викликається також із {@code Application.stop()} як резервний шлях завершення.
+     * Завершує збереження та роботу редактора один раз, а під час кожного виклику повторює очищення ресурсів вікна.
+     * Якщо адаптер ще не підтвердив звільнення ресурсів, контролер зберігає його для повторної спроби.
+     * Метод також викликається з {@code Application.stop()} як резервний шлях завершення.
      */
     public void shutdown() {
         try {
@@ -329,25 +330,24 @@ public final class MainWindowController {
     }
 
     /**
-     * Централізовано звільняє поточний адаптер і подання та очищає посилання контролера незалежно від результату.
-     * Помилка одного компонента не перешкоджає спробі очистити інший; всі проблеми реєструються в журналі.
+     * Очищує подання та звільняє адаптер. Якщо адаптер повідомляє про незавершене очищення,
+     * контролер зберігає його і власний обробник приховування вікна для повторної спроби.
+     * Windows-адаптер додатково завершує життєвий цикл callback після підтвердженого WM_NCDESTROY.
      */
     private void disposeWindowResources() {
-        stage.removeEventHandler(WindowEvent.WINDOW_HIDDEN, windowHiddenHandler);
         WindowPlatformAdapter activeAdapter = windowPlatformAdapter;
         WindowChromeView activeChromeView = windowChromeView;
-        windowPlatformAdapter = null;
-        windowChromeView = null;
-        windowPlatformAdapterInstalled = false;
-
+        boolean adapterDisposed = activeAdapter == null;
         Throwable cleanupFailure = null;
+
         if (activeAdapter != null) {
             try {
-                activeAdapter.dispose();
+                adapterDisposed = activeAdapter.disposeAndReportCompletion();
             } catch (RuntimeException | LinkageError exception) {
                 cleanupFailure = exception;
             }
         }
+
         if (activeChromeView != null) {
             try {
                 activeChromeView.dispose();
@@ -358,6 +358,17 @@ public final class MainWindowController {
                     cleanupFailure.addSuppressed(exception);
                 }
             }
+        }
+
+        windowChromeView = null;
+        windowPlatformAdapterInstalled = false;
+        if (adapterDisposed) {
+            if (windowPlatformAdapter == activeAdapter) {
+                windowPlatformAdapter = null;
+            }
+            stage.removeEventHandler(WindowEvent.WINDOW_HIDDEN, windowHiddenHandler);
+        } else {
+            LOGGER.warning("Очищення адаптера вікна не завершено; збережено посилання для повторної спроби");
         }
         if (cleanupFailure != null) {
             LOGGER.log(Level.WARNING, "Не вдалося повністю очистити ресурси заголовка головного вікна", cleanupFailure);
