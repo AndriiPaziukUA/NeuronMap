@@ -13,7 +13,7 @@
 
     <!-- Signal transmission timing in milliseconds per simulation tick. -->
     <simulation
-            defaultTickMs="650"
-            minTickMs="50"
-            maxTickMs="5000"/>
+            defaultTickMs="500"
+            minTickMs="1"
+            maxTickMs="1000000000000"/>
 </app>
