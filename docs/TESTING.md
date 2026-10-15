@@ -201,10 +201,14 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 
 - `JavaFxNodeLookupTest` — пошук вузлів і предків у дереві JavaFX.
 
+### `window`
+
+- `WindowHitTestCalculatorTest` — геометрія кнопок, заголовка, клієнтської області та зон зміни розміру без залежності від JavaFX і Win32.
+
 ### `windowing`
 
 - `WindowPlatformAdapterFactoryTest` — вибір платформи та створення Windows-адаптера без завантаження `user32`; запускай цей регресійний тест на Linux.
-- `WindowHitTestCalculatorTest` — визначення областей заголовка, кнопок і меж зміни розміру.
+- `Win32HitTestCodeTest` — зіставлення семантичних областей із кодами Win32, включно з `HTMAXBUTTON` для Snap Layouts.
 - `WindowChromeLocalizationTest` — локалізовані назви елементів власного заголовка вікна.
 
 ## Принципи написання тестів

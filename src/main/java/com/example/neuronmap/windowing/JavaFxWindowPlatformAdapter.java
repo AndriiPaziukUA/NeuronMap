@@ -1,6 +1,7 @@
 package com.example.neuronmap.windowing;
 
-import com.example.neuronmap.view.window.WindowChromeView;
+import com.example.neuronmap.window.WindowChrome;
+import com.example.neuronmap.window.WindowHitTestCalculator;
 import javafx.event.EventHandler;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
@@ -13,15 +14,16 @@ import java.util.Objects;
 
 /**
  * Забезпечує переміщення та зміну розміру безрамкового JavaFX-вікна як резервний механізм.
- * Цей адаптер не може замінити системні Win32 hit-test-повідомлення й використовується лише коли нативне підключення
- * не вдалося встановити; звичайні непідтримувані ОС залишаються із системним оформленням.
+ * Працює з коренем Scene та платформонезалежним контрактом заголовка, а не з конкретним класом подання.
  */
 public final class JavaFxWindowPlatformAdapter implements WindowPlatformAdapter {
 
     private static final double RESIZE_BORDER = WindowHitTestCalculator.DEFAULT_RESIZE_BORDER;
+    private static final String CAPTION_BUTTON_STYLE_CLASS = "window-control-button";
 
     private Stage stage;
-    private WindowChromeView chromeView;
+    private WindowChrome chrome;
+    private Node eventSource;
     private EventHandler<MouseEvent> pressedHandler;
     private EventHandler<MouseEvent> draggedHandler;
     private EventHandler<MouseEvent> movedHandler;
@@ -43,54 +45,57 @@ public final class JavaFxWindowPlatformAdapter implements WindowPlatformAdapter 
     }
 
     /**
-     * Під'єднує обробники миші для ручного переміщення та зміни розміру безрамкового вікна.
+     * Під'єднує обробники миші до кореня сцени для ручного переміщення й зміни розміру вікна.
      *
-     * @param stage безрамкове JavaFX-вікно.
-     * @param chromeView подання заголовка та вмісту.
-     * @throws NullPointerException якщо не задано вікно або подання.
-     * @throws IllegalStateException якщо адаптер уже встановлено.
+     * @param stage безрамкове JavaFX-вікно зі створеною сценою.
+     * @param chrome платформонезалежний контракт геометрії та команд заголовка.
+     * @throws NullPointerException якщо не задано вікно, сцену або контракт.
+     * @throws IllegalStateException якщо адаптер уже встановлено або сцена відсутня.
      */
     @Override
-    public void install(Stage stage, WindowChromeView chromeView) {
+    public void install(Stage stage, WindowChrome chrome) {
         if (installed) {
             throw new IllegalStateException("JavaFX window adapter is already installed");
         }
         this.stage = Objects.requireNonNull(stage, "stage");
-        this.chromeView = Objects.requireNonNull(chromeView, "chromeView");
+        this.chrome = Objects.requireNonNull(chrome, "chrome");
+        if (stage.getScene() == null || stage.getScene().getRoot() == null) {
+            throw new IllegalStateException("Stage must have a scene root before installing the JavaFX adapter");
+        }
+        eventSource = stage.getScene().getRoot();
         pressedHandler = this::onMousePressed;
         draggedHandler = this::onMouseDragged;
         movedHandler = this::onMouseMoved;
         releasedHandler = this::onMouseReleased;
         clickedHandler = this::onMouseClicked;
-        chromeView.addEventFilter(MouseEvent.MOUSE_PRESSED, pressedHandler);
-        chromeView.addEventFilter(MouseEvent.MOUSE_DRAGGED, draggedHandler);
-        chromeView.addEventFilter(MouseEvent.MOUSE_MOVED, movedHandler);
-        chromeView.addEventFilter(MouseEvent.MOUSE_RELEASED, releasedHandler);
-        chromeView.addEventFilter(MouseEvent.MOUSE_CLICKED, clickedHandler);
+        eventSource.addEventFilter(MouseEvent.MOUSE_PRESSED, pressedHandler);
+        eventSource.addEventFilter(MouseEvent.MOUSE_DRAGGED, draggedHandler);
+        eventSource.addEventFilter(MouseEvent.MOUSE_MOVED, movedHandler);
+        eventSource.addEventFilter(MouseEvent.MOUSE_RELEASED, releasedHandler);
+        eventSource.addEventFilter(MouseEvent.MOUSE_CLICKED, clickedHandler);
         stage.addEventHandler(WindowEvent.WINDOW_HIDDEN, hiddenHandler);
         installed = true;
     }
 
-    /**
-     * Від'єднує всі обробники миші та скидає активну операцію.
-     */
+    /** Від'єднує всі обробники миші та скидає активну операцію. */
     @Override
     public void dispose() {
         if (!installed) {
             return;
         }
-        chromeView.removeEventFilter(MouseEvent.MOUSE_PRESSED, pressedHandler);
-        chromeView.removeEventFilter(MouseEvent.MOUSE_DRAGGED, draggedHandler);
-        chromeView.removeEventFilter(MouseEvent.MOUSE_MOVED, movedHandler);
-        chromeView.removeEventFilter(MouseEvent.MOUSE_RELEASED, releasedHandler);
-        chromeView.removeEventFilter(MouseEvent.MOUSE_CLICKED, clickedHandler);
+        eventSource.removeEventFilter(MouseEvent.MOUSE_PRESSED, pressedHandler);
+        eventSource.removeEventFilter(MouseEvent.MOUSE_DRAGGED, draggedHandler);
+        eventSource.removeEventFilter(MouseEvent.MOUSE_MOVED, movedHandler);
+        eventSource.removeEventFilter(MouseEvent.MOUSE_RELEASED, releasedHandler);
+        eventSource.removeEventFilter(MouseEvent.MOUSE_CLICKED, clickedHandler);
         stage.removeEventHandler(WindowEvent.WINDOW_HIDDEN, hiddenHandler);
-        chromeView.setCursor(Cursor.DEFAULT);
+        eventSource.setCursor(Cursor.DEFAULT);
         activeResizeEdge = ResizeEdge.NONE;
         moving = false;
         installed = false;
         stage = null;
-        chromeView = null;
+        chrome = null;
+        eventSource = null;
         pressedHandler = null;
         draggedHandler = null;
         movedHandler = null;
@@ -105,9 +110,9 @@ public final class JavaFxWindowPlatformAdapter implements WindowPlatformAdapter 
      */
     private void onMouseClicked(MouseEvent event) {
         if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2
-                && event.getSceneY() <= chromeView.titleBar().getHeight()
-                && (!(event.getTarget() instanceof Node target) || !chromeView.isCaptionButtonNode(target))) {
-            chromeView.performNativeCaptionDoubleClick();
+                && event.getSceneY() <= titleBarHeight()
+                && (!(event.getTarget() instanceof Node target) || !isCaptionButtonNode(target))) {
+            chrome.performNativeCaptionDoubleClick();
             event.consume();
         }
     }
@@ -119,7 +124,7 @@ public final class JavaFxWindowPlatformAdapter implements WindowPlatformAdapter 
      */
     private void onMousePressed(MouseEvent event) {
         if (event.getButton() != MouseButton.PRIMARY
-                || (event.getTarget() instanceof Node target && chromeView.isCaptionButtonNode(target))) {
+                || (event.getTarget() instanceof Node target && isCaptionButtonNode(target))) {
             return;
         }
         initialScreenX = event.getScreenX();
@@ -129,7 +134,7 @@ public final class JavaFxWindowPlatformAdapter implements WindowPlatformAdapter 
         initialWidth = stage.getWidth();
         initialHeight = stage.getHeight();
         activeResizeEdge = stage.isMaximized() ? ResizeEdge.NONE : resizeEdgeAt(event.getSceneX(), event.getSceneY());
-        moving = activeResizeEdge == ResizeEdge.NONE && event.getSceneY() <= chromeView.titleBar().getHeight();
+        moving = activeResizeEdge == ResizeEdge.NONE && event.getSceneY() <= titleBarHeight();
         if (moving || activeResizeEdge != ResizeEdge.NONE) {
             event.consume();
         }
@@ -150,7 +155,6 @@ public final class JavaFxWindowPlatformAdapter implements WindowPlatformAdapter 
         if (activeResizeEdge == ResizeEdge.NONE || stage.isMaximized()) {
             return;
         }
-
         double deltaX = event.getScreenX() - initialScreenX;
         double deltaY = event.getScreenY() - initialScreenY;
         resizeWindow(deltaX, deltaY);
@@ -163,12 +167,12 @@ public final class JavaFxWindowPlatformAdapter implements WindowPlatformAdapter 
      * @param event подія переміщення миші.
      */
     private void onMouseMoved(MouseEvent event) {
-        if (event.getTarget() instanceof Node target && chromeView.isCaptionButtonNode(target)) {
-            chromeView.setCursor(Cursor.DEFAULT);
+        if (event.getTarget() instanceof Node target && isCaptionButtonNode(target)) {
+            eventSource.setCursor(Cursor.DEFAULT);
             return;
         }
         ResizeEdge edge = stage.isMaximized() ? ResizeEdge.NONE : resizeEdgeAt(event.getSceneX(), event.getSceneY());
-        chromeView.setCursor(edge.cursor());
+        eventSource.setCursor(edge.cursor());
     }
 
     /**
@@ -182,6 +186,33 @@ public final class JavaFxWindowPlatformAdapter implements WindowPlatformAdapter 
     }
 
     /**
+     * Повертає висоту заголовка за спільним знімком геометрії.
+     *
+     * @return висота заголовка або нуль, якщо компонування ще не завершилося.
+     */
+    private double titleBarHeight() {
+        WindowHitTestCalculator.Layout layout = chrome.hitTestLayout();
+        return layout == null ? 0.0 : layout.titleBarHeight();
+    }
+
+    /**
+     * Перевіряє, чи належить вузол або один із його предків до кнопки заголовка за спільним класом стилю.
+     *
+     * @param node вузол події миші.
+     * @return {@code true}, якщо вузол належить кнопці заголовка.
+     */
+    private boolean isCaptionButtonNode(Node node) {
+        Node current = node;
+        while (current != null && current != eventSource) {
+            if (current.getStyleClass().contains(CAPTION_BUTTON_STYLE_CLASS)) {
+                return true;
+            }
+            current = current.getParent();
+        }
+        return false;
+    }
+
+    /**
      * Визначає зону зміни розміру для точки, що лежить біля одного або двох країв вікна.
      *
      * @param x горизонтальна координата сцени.
@@ -189,8 +220,8 @@ public final class JavaFxWindowPlatformAdapter implements WindowPlatformAdapter 
      * @return зона resize або {@link ResizeEdge#NONE}.
      */
     private ResizeEdge resizeEdgeAt(double x, double y) {
-        double width = chromeView.getWidth();
-        double height = chromeView.getHeight();
+        double width = eventSource.getBoundsInLocal().getWidth();
+        double height = eventSource.getBoundsInLocal().getHeight();
         boolean left = x >= 0.0 && x < RESIZE_BORDER;
         boolean right = x <= width && x > width - RESIZE_BORDER;
         boolean top = y >= 0.0 && y < RESIZE_BORDER;

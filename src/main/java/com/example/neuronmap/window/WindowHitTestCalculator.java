@@ -1,82 +1,62 @@
-package com.example.neuronmap.windowing;
+package com.example.neuronmap.window;
 
 import java.util.Objects;
 
 /**
- * Обчислює роль точки в безрамковому вікні незалежно від JavaFX і Win32.
- * Окремий розрахунок дозволяє тестувати правила заголовка та країв і повторно використовувати їх іншими платформними адаптерами.
+ * Обчислює призначення точки у геометрії власного оформлення вікна без залежності від JavaFX та ОС.
+ * Типи описують логічні області, а перетворення цих областей на коди конкретної платформи виконується адаптером.
  */
 public final class WindowHitTestCalculator {
 
-    /** Базова товщина інтерактивної смуги зміни розміру в логічних пікселях JavaFX. */
+    /** Базова товщина інтерактивної смуги зміни розміру в логічних пікселях. */
     public static final double DEFAULT_RESIZE_BORDER = 6.0;
 
-    /** Види нативних областей, які повертає перевірка наведення. */
+    /** Семантичні області власного заголовка й меж вікна. */
     public enum HitTarget {
         /** Звичайна клієнтська область. */
-        CLIENT(1),
+        CLIENT,
         /** Перетягування вікна за заголовок. */
-        CAPTION(2),
+        CAPTION,
         /** Кнопка згортання вікна. */
-        MINIMIZE_BUTTON(8),
-        /** Кнопка максимізації або відновлення; підтримує системне меню Snap Layouts. */
-        MAXIMIZE_BUTTON(9),
+        MINIMIZE_BUTTON,
+        /** Кнопка максимізації або відновлення. */
+        MAXIMIZE_BUTTON,
         /** Кнопка закриття вікна. */
-        CLOSE_BUTTON(20),
+        CLOSE_BUTTON,
         /** Лівий край для зміни ширини. */
-        RESIZE_LEFT(10),
+        RESIZE_LEFT,
         /** Правий край для зміни ширини. */
-        RESIZE_RIGHT(11),
+        RESIZE_RIGHT,
         /** Верхній край для зміни висоти. */
-        RESIZE_TOP(12),
+        RESIZE_TOP,
         /** Верхній лівий кут для зміни розміру. */
-        RESIZE_TOP_LEFT(13),
+        RESIZE_TOP_LEFT,
         /** Верхній правий кут для зміни розміру. */
-        RESIZE_TOP_RIGHT(14),
+        RESIZE_TOP_RIGHT,
         /** Нижній край для зміни висоти. */
-        RESIZE_BOTTOM(15),
+        RESIZE_BOTTOM,
         /** Нижній лівий кут для зміни розміру. */
-        RESIZE_BOTTOM_LEFT(16),
+        RESIZE_BOTTOM_LEFT,
         /** Нижній правий кут для зміни розміру. */
-        RESIZE_BOTTOM_RIGHT(17);
-
-        private final int nativeCode;
+        RESIZE_BOTTOM_RIGHT;
 
         /**
-         * Створює відповідність між логічною областю та кодом Win32.
+         * Перевіряє, чи є область однією з інтерактивних кнопок заголовка.
          *
-         * @param nativeCode код області для повідомлення {@code WM_NCHITTEST}.
-         */
-        HitTarget(int nativeCode) {
-            this.nativeCode = nativeCode;
-        }
-
-        /**
-         * Повертає код Win32 для результату {@code WM_NCHITTEST}.
-         *
-         * @return нативний hit-test-код.
-         */
-        public int nativeCode() {
-            return nativeCode;
-        }
-
-        /**
-         * Перевіряє, чи відповідає область одній із трьох кнопок заголовка.
-         *
-         * @return {@code true} для кнопки згортання, максимізації/відновлення або закриття.
+         * @return {@code true} для згортання, максимізації/відновлення або закриття.
          */
         public boolean isCaptionButton() {
             return this == MINIMIZE_BUTTON || this == MAXIMIZE_BUTTON || this == CLOSE_BUTTON;
         }
     }
 
-    /** Прямокутник області заголовка у координатах сцени. */
+    /** Прямокутник інтерактивної області у координатах вікна. */
     public record Rectangle(double left, double top, double right, double bottom) {
 
         /**
          * Перевіряє коректність координат прямокутника.
          *
-         * @throws IllegalArgumentException якщо координати не є скінченними або утворюють порожній прямокутник.
+         * @throws IllegalArgumentException якщо координати не є скінченними або впорядкованими.
          */
         public Rectangle {
             if (!Double.isFinite(left) || !Double.isFinite(top)
@@ -91,14 +71,14 @@ public final class WindowHitTestCalculator {
          *
          * @param x горизонтальна координата точки.
          * @param y вертикальна координата точки.
-         * @return {@code true}, якщо точка лежить усередині прямокутника.
+         * @return {@code true}, якщо точка розміщена всередині прямокутника.
          */
         public boolean contains(double x, double y) {
             return x >= left && x < right && y >= top && y < bottom;
         }
     }
 
-    /** Геометрія вікна та інтерактивних кнопок, потрібна нативному callback-у. */
+    /** Незмінний знімок розмірів вікна й геометрії трьох кнопок заголовка. */
     public record Layout(
             double width,
             double height,
@@ -112,10 +92,10 @@ public final class WindowHitTestCalculator {
     ) {
 
         /**
-         * Перевіряє геометрію, перш ніж її використовуватиме обробник Win32.
+         * Перевіряє знімок геометрії перед використанням у платформному обробнику подій.
          *
-         * @throws IllegalArgumentException якщо розміри невалідні.
-         * @throws NullPointerException якщо не передано геометрію однієї з кнопок.
+         * @throws IllegalArgumentException якщо розміри або відступи некоректні.
+         * @throws NullPointerException якщо не задано геометрію будь-якої кнопки.
          */
         public Layout {
             if (!Double.isFinite(width) || width <= 0.0
@@ -132,18 +112,18 @@ public final class WindowHitTestCalculator {
         }
     }
 
-    /** Створює безстанний обчислювач нативних областей вікна. */
+    /** Створює безстанний обчислювач областей вікна. */
     private WindowHitTestCalculator() {
     }
 
     /**
-     * Визначає, що має відбуватися під курсором: системне перетягування, команда заголовка, зміна розміру чи вміст.
-     * Кнопки перевіряються перед клієнтською областю, а краї вікна мають пріоритет над неактивною частиною заголовка.
+     * Визначає інтерактивну область за координатами точки відносно вікна.
+     * Кнопки мають пріоритет над заголовком, а краї звичайного вікна — над усіма іншими областями.
      *
-     * @param layout актуальний незмінний знімок геометрії вікна.
-     * @param x горизонтальна координата точки відносно вікна в логічних пікселях.
-     * @param y вертикальна координата точки відносно вікна в логічних пікселях.
-     * @return відповідна нативна інтерактивна область.
+     * @param layout актуальний незмінний знімок геометрії.
+     * @param x горизонтальна координата точки в логічних пікселях.
+     * @param y вертикальна координата точки в логічних пікселях.
+     * @return семантична область точки.
      * @throws NullPointerException якщо геометрію не задано.
      */
     public static HitTarget hitTest(Layout layout, double x, double y) {
@@ -176,12 +156,12 @@ public final class WindowHitTestCalculator {
     }
 
     /**
-     * Визначає код зміни розміру для точки біля країв звичайного вікна.
+     * Визначає інтерактивний край або кут звичайного вікна.
      *
      * @param layout геометрія вікна.
-     * @param x горизонтальна координата.
-     * @param y вертикальна координата.
-     * @return відповідний край або {@code null}, якщо точка не є зоною зміни розміру.
+     * @param x горизонтальна координата точки.
+     * @param y вертикальна координата точки.
+     * @return край або {@code null}, якщо точка не належить зоні зміни розміру.
      */
     private static HitTarget resizeTarget(Layout layout, double x, double y) {
         double borderX = Math.min(layout.resizeBorderX(), layout.width() / 2.0);

@@ -1,6 +1,9 @@
 package com.example.neuronmap.windowing;
 
-import com.example.neuronmap.view.window.WindowChromeView;
+import com.example.neuronmap.window.WindowChrome;
+import com.example.neuronmap.window.WindowHitTestCalculator;
+import com.example.neuronmap.window.WindowHitTestCalculator.HitTarget;
+import com.example.neuronmap.window.WindowHitTestCalculator.Layout;
 import com.sun.jna.CallbackReference;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
@@ -29,7 +32,7 @@ import java.util.logging.Logger;
 
 /**
  * Інтегрує власний заголовок із Win32, залишаючи переміщення, зміну розміру та системні команди в розпорядженні Windows.
- * Вікно отримує нативні hit-test-коди для країв, області заголовка й кнопок; HTMAXBUTTON потрібен для Snap Layouts Windows 11.
+ * Перетворення семантичних областей у коди Win32 зосереджено в платформному пакеті; Snap Layouts працює через HTMAXBUTTON.
  */
 public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter {
 
@@ -66,7 +69,9 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
 
     /** Нативні функції user32, відсутні в інтерфейсі User32 конкретної версії JNA. */
     private interface User32CoordinateFunctions extends StdCallLibrary {
-        /** Перетворює координати клієнтської області у координати екрана.
+        /**
+         * Перетворює координати клієнтської області у координати екрана.
+         *
          * @param window дескриптор вікна.
          * @param point точка клієнтської області на вході та екранна точка на виході.
          * @return {@code true}, якщо перетворення виконано.
@@ -75,9 +80,9 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
     }
 
     private final AtomicBoolean disposed = new AtomicBoolean();
-    private final AtomicReference<WindowHitTestCalculator.HitTarget> pressedTarget = new AtomicReference<>();
+    private final AtomicReference<HitTarget> pressedTarget = new AtomicReference<>();
     private Stage stage;
-    private WindowChromeView chromeView;
+    private WindowChrome chrome;
     private HWND hwnd;
     private volatile User32CoordinateFunctions user32Coordinates;
     private Pointer previousWindowProcedure;
@@ -96,7 +101,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
     };
     private final EventHandler<WindowEvent> hiddenHandler = event -> dispose();
 
-    /** Створює адаптер без підключення до Win32 до виклику {@link #install(Stage, WindowChromeView)}. */
+    /** Створює адаптер без підключення до Win32 до виклику {@link #install(Stage, WindowChrome)}. */
     public WindowsWindowPlatformAdapter() {
     }
 
@@ -105,17 +110,17 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
      * Прив'язка до {@code user32} завантажується лише після перевірки потоку JavaFX і видимості {@code Stage}.
      *
      * @param stage показане головне вікно JavaFX.
-     * @param chromeView подання з геометрією кнопок і командами керування вікном.
+     * @param chrome платформонезалежний контракт геометрії та команд заголовка.
      * @throws IllegalStateException якщо HWND не знайдено або нативний обробник неможливо встановити.
      * @throws NullPointerException якщо передано порожню залежність.
      */
     @Override
-    public void install(Stage stage, WindowChromeView chromeView) {
+    public void install(Stage stage, WindowChrome chrome) {
         if (this.hwnd != null) {
             throw new IllegalStateException("Windows window adapter is already installed");
         }
         this.stage = Objects.requireNonNull(stage, "stage");
-        this.chromeView = Objects.requireNonNull(chromeView, "chromeView");
+        this.chrome = Objects.requireNonNull(chrome, "chrome");
         if (!Platform.isFxApplicationThread()) {
             throw new IllegalStateException("Windows window adapter must be installed on the JavaFX Application Thread");
         }
@@ -149,9 +154,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
         }
     }
 
-    /**
-     * Відновлює початкові стилі та процедуру вікна, від'єднує слухачі й очищає посилання на нативний проксі.
-     */
+    /** Відновлює початкові стилі та процедуру вікна й від'єднує слухачі адаптера. */
     @Override
     public void dispose() {
         if (!disposed.compareAndSet(false, true)) {
@@ -162,16 +165,14 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
         hwnd = null;
         user32Coordinates = null;
         stage = null;
-        chromeView = null;
+        chrome = null;
         windowProcedure = null;
         previousWindowProcedure = null;
         previousWindowStyle = 0L;
         previousWindowStyleCaptured = false;
     }
 
-    /**
-     * Установлює callback, прибирає системний заголовок і залишає нативні стилі зміни розміру та системних команд.
-     */
+    /** Установлює callback, прибирає системний заголовок і залишає нативні стилі зміни розміру та системних команд. */
     private void installNativeWindowProcedureAndStyle() {
         BaseTSD.LONG_PTR styleValue = User32.INSTANCE.GetWindowLongPtr(hwnd, GWL_STYLE);
         if (styleValue == null) {
@@ -223,47 +224,47 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
                 return new LRESULT(0L);
             }
             if (message == WM_NCHITTEST) {
-                WindowHitTestCalculator.HitTarget hitTarget = hitTestNativePoint(lParam);
+                HitTarget hitTarget = hitTestNativePoint(lParam);
                 if (hitTarget != null) {
                     updateNativeHover(hitTarget.isCaptionButton() ? hitTarget : null);
-                    return new LRESULT(hitTarget.nativeCode());
+                    return new LRESULT(Win32HitTestCode.toNativeCode(hitTarget));
                 }
             } else if (message == WM_NCMOUSEMOVE) {
-                updateNativeHover(hitTargetFromNativeCode(wParam.intValue()));
+                updateNativeHover(Win32HitTestCode.captionButtonFromNativeCode(wParam.intValue()));
             } else if (message == WM_NCMOUSELEAVE) {
                 updateNativeHover(null);
             } else if (message == WM_MOUSEMOVE && pressedTarget.get() != null) {
                 updateNativeHover(hitTestClientPoint(lParam));
             } else if (message == WM_LBUTTONUP && pressedTarget.get() != null) {
-                WindowHitTestCalculator.HitTarget wasPressed = pressedTarget.getAndSet(null);
+                HitTarget wasPressed = pressedTarget.getAndSet(null);
                 User32WithTracking.INSTANCE.ReleaseCapture();
                 updateNativePressed(null);
-                WindowHitTestCalculator.HitTarget released = hitTestClientPoint(lParam);
+                HitTarget released = hitTestClientPoint(lParam);
                 if (wasPressed == released) {
                     performNativeButtonAction(wasPressed);
                 }
                 return new LRESULT(0L);
             } else if (message == WM_NCLBUTTONDOWN) {
-                WindowHitTestCalculator.HitTarget target = hitTargetFromNativeCode(wParam.intValue());
-                if (target != null && target.isCaptionButton()) {
+                HitTarget target = Win32HitTestCode.captionButtonFromNativeCode(wParam.intValue());
+                if (target != null) {
                     pressedTarget.set(target);
                     updateNativePressed(target);
                     User32WithTracking.INSTANCE.SetCapture(window);
                     return new LRESULT(0L);
                 }
             } else if (message == WM_NCLBUTTONUP) {
-                WindowHitTestCalculator.HitTarget wasPressed = pressedTarget.getAndSet(null);
+                HitTarget wasPressed = pressedTarget.getAndSet(null);
                 if (wasPressed != null) {
                     User32WithTracking.INSTANCE.ReleaseCapture();
                     updateNativePressed(null);
-                    WindowHitTestCalculator.HitTarget released = hitTargetFromNativeCode(wParam.intValue());
+                    HitTarget released = Win32HitTestCode.captionButtonFromNativeCode(wParam.intValue());
                     if (wasPressed == released) {
                         performNativeButtonAction(wasPressed);
                     }
                     return new LRESULT(0L);
                 }
             } else if (message == WM_NCLBUTTONDBLCLK
-                    && wParam.intValue() == WindowHitTestCalculator.HitTarget.CAPTION.nativeCode()) {
+                    && wParam.intValue() == Win32HitTestCode.toNativeCode(HitTarget.CAPTION)) {
                 performCaptionDoubleClick();
                 return new LRESULT(0L);
             } else if (message == WM_CAPTURECHANGED && pressedTarget.getAndSet(null) != null) {
@@ -309,19 +310,19 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
     }
 
     /**
-     * Розраховує код області нативного вікна за екранними координатами WM_NCHITTEST.
+     * Розраховує семантичну область нативного вікна за екранними координатами WM_NCHITTEST.
      *
      * @param lParam упаковані знакові координати курсора у фізичних пікселях екрана.
-     * @return результат hit testing або {@code null}, якщо геометрію HWND прочитати не вдалося.
+     * @return область hit testing або {@code null}, якщо геометрію HWND прочитати не вдалося.
      */
-    private WindowHitTestCalculator.HitTarget hitTestNativePoint(LPARAM lParam) {
-        WindowChromeView view = chromeView;
+    private HitTarget hitTestNativePoint(LPARAM lParam) {
+        WindowChrome currentChrome = chrome;
         HWND window = hwnd;
         User32CoordinateFunctions coordinates = user32Coordinates;
-        if (view == null || window == null || coordinates == null) {
+        if (currentChrome == null || window == null || coordinates == null) {
             return null;
         }
-        WindowHitTestCalculator.Layout layout = view.hitTestLayout();
+        Layout layout = currentChrome.hitTestLayout();
         RECT clientRectangle = new RECT();
         POINT clientOrigin = new POINT();
         if (layout == null || !User32.INSTANCE.GetClientRect(window, clientRectangle)
@@ -337,16 +338,17 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
     }
 
     /**
-     * Перевіряє точку в координатах клієнтської області; цей шлях потрібен, коли натиснута кнопка захопила мишу.
+     * Перевіряє точку в координатах клієнтської області під час захоплення миші кнопкою.
      *
      * @param lParam упаковані координати миші відносно клієнтської області.
      * @return кнопка або інша область під курсором; {@code null}, якщо геометрія ще не готова.
      */
-    private WindowHitTestCalculator.HitTarget hitTestClientPoint(LPARAM lParam) {
-        if (chromeView == null) {
+    private HitTarget hitTestClientPoint(LPARAM lParam) {
+        WindowChrome currentChrome = chrome;
+        if (currentChrome == null) {
             return null;
         }
-        WindowHitTestCalculator.Layout layout = chromeView.hitTestLayout();
+        Layout layout = currentChrome.hitTestLayout();
         if (layout == null) {
             return null;
         }
@@ -357,84 +359,67 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
     }
 
     /**
-     * Передає зміну стану наведення у JavaFX Application Thread.
+     * Передає зміну наведення у JavaFX Application Thread.
      *
-     * @param target активна кнопка або {@code null}, якщо курсор залишив кнопки заголовка.
+     * @param target активна кнопка або {@code null}, якщо курсор залишив кнопки.
      */
-    private void updateNativeHover(WindowHitTestCalculator.HitTarget target) {
-        WindowChromeView view = chromeView;
-        if (view == null || disposed.get()) {
+    private void updateNativeHover(HitTarget target) {
+        WindowChrome currentChrome = chrome;
+        if (currentChrome == null || disposed.get()) {
             return;
         }
         Platform.runLater(() -> {
-            if (!disposed.get() && chromeView == view) {
-                view.setNativeHoveredControl(target);
+            if (!disposed.get() && chrome == currentChrome) {
+                currentChrome.setNativeHoveredControl(target);
             }
         });
     }
 
     /**
-     * Передає зміну стану натискання у JavaFX Application Thread.
+     * Передає зміну натискання у JavaFX Application Thread.
      *
-     * @param target натиснута кнопка або {@code null}, якщо кнопка відпущена.
+     * @param target натиснута кнопка або {@code null}, якщо натискання завершено.
      */
-    private void updateNativePressed(WindowHitTestCalculator.HitTarget target) {
-        WindowChromeView view = chromeView;
-        if (view == null || disposed.get()) {
+    private void updateNativePressed(HitTarget target) {
+        WindowChrome currentChrome = chrome;
+        if (currentChrome == null || disposed.get()) {
             return;
         }
         Platform.runLater(() -> {
-            if (!disposed.get() && chromeView == view) {
-                view.setNativePressedControl(target);
+            if (!disposed.get() && chrome == currentChrome) {
+                currentChrome.setNativePressedControl(target);
             }
         });
     }
 
     /**
-     * Виконує команду кнопки в потоці JavaFX після нативного клацання.
+     * Виконує команду кнопки у JavaFX Application Thread після нативного клацання.
      *
      * @param target кнопка, на якій завершився клік.
      */
-    private void performNativeButtonAction(WindowHitTestCalculator.HitTarget target) {
-        WindowChromeView view = chromeView;
-        if (view == null || disposed.get()) {
+    private void performNativeButtonAction(HitTarget target) {
+        WindowChrome currentChrome = chrome;
+        if (currentChrome == null || disposed.get()) {
             return;
         }
         Platform.runLater(() -> {
-            if (!disposed.get() && chromeView == view) {
-                view.performNativeButtonAction(target);
+            if (!disposed.get() && chrome == currentChrome) {
+                currentChrome.performNativeButtonAction(target);
             }
         });
     }
 
-    /**
-     * Виконує системоподібне перемикання максимізації після подвійного клацання по заголовку.
-     */
+    /** Виконує перемикання максимізації після подвійного клацання по заголовку. */
     private void performCaptionDoubleClick() {
-        WindowChromeView view = chromeView;
-        if (view == null || disposed.get()) {
+        WindowChrome currentChrome = chrome;
+        if (currentChrome == null || disposed.get()) {
             return;
         }
         Platform.runLater(() -> {
-            if (!disposed.get() && chromeView == view) {
-                view.performNativeCaptionDoubleClick();
+            if (!disposed.get() && chrome == currentChrome) {
+                currentChrome.performNativeCaptionDoubleClick();
             }
         });
-    }
-
-    /**
-     * Перетворює код Win32, отриманий для non-client-повідомлення, на типізовану область заголовка.
-     *
-     * @param nativeCode нативний код області.
-     * @return відповідна область заголовка або {@code null}, якщо код не стосується кнопки.
-     */
-    private static WindowHitTestCalculator.HitTarget hitTargetFromNativeCode(int nativeCode) {
-        for (WindowHitTestCalculator.HitTarget target : WindowHitTestCalculator.HitTarget.values()) {
-            if (target.nativeCode() == nativeCode && target.isCaptionButton()) {
-                return target;
-            }
-        }
-        return null;
     }
 
     /**
@@ -454,14 +439,13 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
         return User32.INSTANCE.CallWindowProc(previous, window, message, wParam, lParam);
     }
 
-    /**
-     * Отримує фактичну товщину нативної зони resize для поточного DPI й передає її знімку геометрії JavaFX.
-     */
+    /** Отримує системну товщину resize для поточного DPI й передає її нейтральному контракту оформлення. */
     private void updateNativeResizeBorders() {
         Stage currentStage = stage;
-        WindowChromeView view = chromeView;
+        WindowChrome currentChrome = chrome;
         HWND currentWindow = hwnd;
-        if (currentStage == null || view == null || currentWindow == null || !Platform.isFxApplicationThread()) {
+        if (currentStage == null || currentChrome == null || currentWindow == null
+                || !Platform.isFxApplicationThread()) {
             return;
         }
         int dpi = (int) Math.round(96.0 * Math.max(outputScaleX, outputScaleY));
@@ -477,11 +461,11 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
                 + systemResizeMetric(SM_CXPADDEDBORDER, dpi, outputScaleX);
         double vertical = systemResizeMetric(SM_CYSIZEFRAME, dpi, outputScaleY)
                 + systemResizeMetric(SM_CXPADDEDBORDER, dpi, outputScaleY);
-        view.setNativeResizeBorders(positiveMetric(horizontal), positiveMetric(vertical));
+        currentChrome.setNativeResizeBorders(positiveMetric(horizontal), positiveMetric(vertical));
     }
 
     /**
-     * Зчитує одну системну метрику у фізичних пікселях і повертає її в логічних одиницях JavaFX.
+     * Зчитує системну метрику у фізичних пікселях і повертає її в логічних одиницях JavaFX.
      *
      * @param metric індекс системної метрики Windows.
      * @param dpi DPI поточного вікна.
@@ -508,9 +492,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
                 : WindowHitTestCalculator.DEFAULT_RESIZE_BORDER;
     }
 
-    /**
-     * Оновлює системний стиль та просить Windows повторно обчислити рамку вікна.
-     */
+    /** Оновлює системний стиль і просить Windows повторно обчислити рамку вікна. */
     private void updateNonClientFrame() {
         User32.INSTANCE.SetWindowPos(
                 hwnd,
@@ -523,9 +505,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
         );
     }
 
-    /**
-     * Відновлює попередні нативні стиль і процедуру, якщо їх уже було змінено.
-     */
+    /** Відновлює попередні нативні стиль і процедуру, якщо їх уже було змінено. */
     private void restoreNativeWindow() {
         HWND window = hwnd;
         if (window == null) {
@@ -544,9 +524,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
         }
     }
 
-    /**
-     * Від'єднує слухачі Stage, щоб закрите вікно не утримувало адаптер через властивості масштабування.
-     */
+    /** Від'єднує слухачі Stage, щоб закрите вікно не утримувало адаптер через властивості масштабування. */
     private void removeStageListeners() {
         Stage currentStage = stage;
         if (currentStage != null) {
@@ -562,7 +540,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
         User32WithTracking INSTANCE = Native.load("user32", User32WithTracking.class, W32APIOptions.DEFAULT_OPTIONS);
 
         /**
-         * Передає тимчасове захоплення миші заданому вікну, щоб отримати подію відпускання кнопки за межами кнопки.
+         * Передає тимчасове захоплення миші вікну, щоб отримати подію відпускання поза кнопкою.
          *
          * @param window HWND, що захоплює мишу.
          * @return попередній HWND, який мав захоплення.
@@ -577,7 +555,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
         boolean ReleaseCapture();
 
         /**
-         * Повертає системний коефіцієнт зміни розміру, масштабований під конкретний DPI.
+         * Повертає системний коефіцієнт зміни розміру для конкретного DPI.
          *
          * @param metric індекс SM_* метрики.
          * @param dpi DPI екрана.

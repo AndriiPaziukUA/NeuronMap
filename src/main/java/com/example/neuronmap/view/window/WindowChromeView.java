@@ -1,7 +1,8 @@
 package com.example.neuronmap.view.window;
 
 import com.example.neuronmap.i18n.LocalizationService;
-import com.example.neuronmap.windowing.WindowHitTestCalculator;
+import com.example.neuronmap.window.WindowChrome;
+import com.example.neuronmap.window.WindowHitTestCalculator;
 import javafx.beans.value.ChangeListener;
 import javafx.css.PseudoClass;
 import javafx.event.EventHandler;
@@ -31,9 +32,9 @@ import java.util.function.Consumer;
 
 /**
  * Відображає стилізовану смугу заголовка поверх наявного вмісту редактора.
- * Подання не керує нативними повідомленнями: команди передаються контролеру, а геометрія публікується адаптеру ОС.
+ * Подання реалізує нейтральний контракт геометрії та дій, не залежачи від платформних адаптерів.
  */
-public final class WindowChromeView extends BorderPane {
+public final class WindowChromeView extends BorderPane implements WindowChrome {
 
     /** Висота смуги заголовка в логічних пікселях. */
     public static final double TITLE_BAR_HEIGHT = 36.0;
@@ -115,15 +116,6 @@ public final class WindowChromeView extends BorderPane {
     }
 
     /**
-     * Повертає основний контейнер заголовка для платформного резервного механізму перетягування.
-     *
-     * @return контейнер смуги заголовка.
-     */
-    public HBox titleBar() {
-        return titleBar;
-    }
-
-    /**
      * Встановлює вміст редактора під заголовком і додає окрему таблицю стилів власної рамки до сцени.
      * Виконується після створення сцени й до показу Stage.
      *
@@ -166,75 +158,13 @@ public final class WindowChromeView extends BorderPane {
     }
 
     /**
-     * Застосовує виміряні системні відступи resize, щоб зона курсора відповідала метрикам поточного Windows DPI.
-     * Виклик виконується платформним адаптером у JavaFX Application Thread.
+     * Повертає контейнер смуги заголовка для подань або засобів автоматизації, яким потрібен доступ до її вузлів.
+     * Платформні адаптери натомість використовують спільний контракт {@link WindowChrome}.
      *
-     * @param horizontalBorder горизонтальна товщина зон resize у логічних пікселях.
-     * @param verticalBorder вертикальна товщина зон resize у логічних пікселях.
-     * @throws IllegalArgumentException якщо будь-який відступ не є скінченним додатним числом.
+     * @return контейнер смуги заголовка.
      */
-    public void setNativeResizeBorders(double horizontalBorder, double verticalBorder) {
-        if (!Double.isFinite(horizontalBorder) || horizontalBorder <= 0.0
-                || !Double.isFinite(verticalBorder) || verticalBorder <= 0.0) {
-            throw new IllegalArgumentException("native resize borders must be finite and positive");
-        }
-        resizeBorderX = horizontalBorder;
-        resizeBorderY = verticalBorder;
-        titleBar.setPadding(new Insets(3.0, Math.max(6.0, horizontalBorder), 3.0, 12.0));
-        requestLayout();
-        refreshHitTestLayout();
-    }
-
-    /**
-     * Повертає останній незмінний знімок розташування кнопок і меж вікна для native callback-а.
-     *
-     * @return знімок геометрії або {@code null}, доки JavaFX не виконає перше компонування.
-     */
-    public WindowHitTestCalculator.Layout hitTestLayout() {
-        return hitTestLayout.get();
-    }
-
-    /**
-     * Виконує команду кнопки після нативного кліку, який Windows передає як non-client mouse event.
-     * Виклик має відбуватися в JavaFX Application Thread.
-     *
-     * @param target кнопка, на якій завершився клік.
-     */
-    public void performNativeButtonAction(WindowHitTestCalculator.HitTarget target) {
-        if (target == WindowHitTestCalculator.HitTarget.MINIMIZE_BUTTON) {
-            minimizeAction.run();
-        } else if (target == WindowHitTestCalculator.HitTarget.MAXIMIZE_BUTTON) {
-            toggleMaximizedAction.run();
-        } else if (target == WindowHitTestCalculator.HitTarget.CLOSE_BUTTON) {
-            closeAction.run();
-        }
-    }
-
-    /**
-     * Перемикає максимізацію після подвійного клацання по області заголовка.
-     * Виклик має відбуватися в JavaFX Application Thread.
-     */
-    public void performNativeCaptionDoubleClick() {
-        toggleMaximizedAction.run();
-    }
-
-    /**
-     * Перемикає нативний стан наведення конкретної кнопки без залежності від JavaFX mouse events.
-     * Windows класифікує ці точки як non-client areas, тому звичайні події миші JavaFX можуть не надходити.
-     *
-     * @param target область, над якою перебуває курсор.
-     */
-    public void setNativeHoveredControl(WindowHitTestCalculator.HitTarget target) {
-        updateNativeButtonState(target, false);
-    }
-
-    /**
-     * Перемикає нативний стан натискання конкретної кнопки заголовка.
-     *
-     * @param target область кнопки, яку натискають, або {@code null}, якщо натискання завершено.
-     */
-    public void setNativePressedControl(WindowHitTestCalculator.HitTarget target) {
-        updateNativeButtonState(target, true);
+    public HBox titleBar() {
+        return titleBar;
     }
 
     /**
@@ -252,6 +182,81 @@ public final class WindowChromeView extends BorderPane {
             current = current.getParent();
         }
         return false;
+    }
+
+    /**
+     * Застосовує виміряні системні відступи resize, щоб зона курсора відповідала метрикам поточного DPI.
+     * Виклик виконується платформним адаптером у JavaFX Application Thread.
+     *
+     * @param horizontalBorder горизонтальна товщина зон resize у логічних пікселях.
+     * @param verticalBorder вертикальна товщина зон resize у логічних пікселях.
+     * @throws IllegalArgumentException якщо будь-який відступ не є скінченним додатним числом.
+     */
+    @Override
+    public void setNativeResizeBorders(double horizontalBorder, double verticalBorder) {
+        if (!Double.isFinite(horizontalBorder) || horizontalBorder <= 0.0
+                || !Double.isFinite(verticalBorder) || verticalBorder <= 0.0) {
+            throw new IllegalArgumentException("native resize borders must be finite and positive");
+        }
+        resizeBorderX = horizontalBorder;
+        resizeBorderY = verticalBorder;
+        titleBar.setPadding(new Insets(3.0, Math.max(6.0, horizontalBorder), 3.0, 12.0));
+        requestLayout();
+        refreshHitTestLayout();
+    }
+
+    /**
+     * Повертає останній незмінний знімок розташування кнопок і меж вікна для платформного callback-а.
+     *
+     * @return знімок геометрії або {@code null}, доки JavaFX не виконає перше компонування.
+     */
+    @Override
+    public WindowHitTestCalculator.Layout hitTestLayout() {
+        return hitTestLayout.get();
+    }
+
+    /**
+     * Виконує команду кнопки після нативного кліку, який Windows передає як non-client mouse event.
+     * Виклик має відбуватися в JavaFX Application Thread.
+     *
+     * @param target кнопка, на якій завершився клік.
+     */
+    @Override
+    public void performNativeButtonAction(WindowHitTestCalculator.HitTarget target) {
+        if (target == WindowHitTestCalculator.HitTarget.MINIMIZE_BUTTON) {
+            minimizeAction.run();
+        } else if (target == WindowHitTestCalculator.HitTarget.MAXIMIZE_BUTTON) {
+            toggleMaximizedAction.run();
+        } else if (target == WindowHitTestCalculator.HitTarget.CLOSE_BUTTON) {
+            closeAction.run();
+        }
+    }
+
+    /** Перемикає максимізацію після подвійного клацання по вільній області заголовка. */
+    @Override
+    public void performNativeCaptionDoubleClick() {
+        toggleMaximizedAction.run();
+    }
+
+    /**
+     * Перемикає нативний стан наведення конкретної кнопки без залежності від JavaFX mouse events.
+     * Windows класифікує ці точки як non-client areas, тому звичайні події миші JavaFX можуть не надходити.
+     *
+     * @param target область, над якою перебуває курсор.
+     */
+    @Override
+    public void setNativeHoveredControl(WindowHitTestCalculator.HitTarget target) {
+        updateNativeButtonState(target, false);
+    }
+
+    /**
+     * Перемикає нативний стан натискання конкретної кнопки заголовка.
+     *
+     * @param target область кнопки, яку натискають, або {@code null}, якщо натискання завершено.
+     */
+    @Override
+    public void setNativePressedControl(WindowHitTestCalculator.HitTarget target) {
+        updateNativeButtonState(target, true);
     }
 
     /** Після компонування оновлює знімок геометрії, який читає нативний callback. */
@@ -277,7 +282,7 @@ public final class WindowChromeView extends BorderPane {
         updateMaximizeIcon();
     }
 
-    /** Завантажує невеликий ресурсний набір перекладів заголовка для активної локалі застосунку. */
+    /** Завантажує ресурсний набір перекладів заголовка для активної локалі застосунку. */
     private ResourceBundle chromeLabels() {
         return ResourceBundle.getBundle(LABELS_BUNDLE, localization.locale());
     }
@@ -287,9 +292,7 @@ public final class WindowChromeView extends BorderPane {
         button.setAccessibleText(label);
     }
 
-    /**
-     * Перераховує координати кнопок відносно кореня вікна й атомарно публікує актуальну геометрію.
-     */
+    /** Перераховує межі кнопок і публікує актуальний незмінний знімок для платформного адаптера. */
     private void refreshHitTestLayout() {
         if (disposed || getScene() == null || getWidth() <= 0.0 || getHeight() <= 0.0
                 || minimizeButton.getScene() == null || maximizeButton.getScene() == null
@@ -329,8 +332,8 @@ public final class WindowChromeView extends BorderPane {
     /**
      * Застосовує псевдоклас наведення або натискання лише до відповідної кнопки.
      *
-     * @param target поточна нативна область курсора.
-     * @param pressed {@code true}, якщо оновлюється натискання; інакше оновлюється наведення.
+     * @param target активна область кнопки або {@code null}, якщо жодна кнопка не активна.
+     * @param pressed {@code true}, якщо оновлюється стан натискання; інакше стан наведення.
      */
     private void updateNativeButtonState(WindowHitTestCalculator.HitTarget target, boolean pressed) {
         updateButtonState(minimizeButton, target == WindowHitTestCalculator.HitTarget.MINIMIZE_BUTTON, pressed);
@@ -366,7 +369,7 @@ public final class WindowChromeView extends BorderPane {
         return iconCanvas(line);
     }
 
-    /** Створює значок максимізації або відновлення з прямокутників, які відповідають нативним символам Windows. */
+    /** Створює значок максимізації або відновлення з прямокутників у стилі Windows. */
     private static Node createMaximizeIcon(boolean restore) {
         Rectangle front = new Rectangle(3.0, restore ? 5.0 : 3.0, 10.0, 10.0);
         front.setFill(Color.TRANSPARENT);
@@ -382,7 +385,7 @@ public final class WindowChromeView extends BorderPane {
         return iconCanvas(back, front);
     }
 
-    /** Створює великий хрестик із двох діагональних ліній замість малого текстового символу. */
+    /** Створює великий хрестик із двох діагональних ліній замість текстового символу. */
     private static Node createCloseIcon() {
         Line first = new Line(3.0, 3.0, 13.0, 13.0);
         Line second = new Line(3.0, 13.0, 13.0, 3.0);
@@ -393,7 +396,7 @@ public final class WindowChromeView extends BorderPane {
         return iconCanvas(first, second);
     }
 
-    /** Розміщує графічні елементи в області однакового розміру для узгодженого центрування значків. */
+    /** Розміщує графічні елементи в області однакового розміру для центрування значків. */
     private static Pane iconCanvas(Node... shapes) {
         Pane canvas = new Pane(shapes);
         canvas.setMinSize(16.0, 16.0);

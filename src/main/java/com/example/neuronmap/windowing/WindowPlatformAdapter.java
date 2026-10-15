@@ -1,11 +1,11 @@
 package com.example.neuronmap.windowing;
 
-import com.example.neuronmap.view.window.WindowChromeView;
+import com.example.neuronmap.window.WindowChrome;
 import javafx.stage.Stage;
 
 /**
- * Інтегрує власне оформлення головного вікна з механізмами керування вікнами конкретної операційної системи.
- * Реалізації можуть використовувати нативні API або платформний резервний механізм, не змінюючи контролер вікна.
+ * Інтегрує власне оформлення вікна з механізмами керування вікнами конкретної операційної системи.
+ * Контракт подання є платформонезалежним, тому адаптери не залежать від конкретного JavaFX-класу заголовка.
  */
 public interface WindowPlatformAdapter {
 
@@ -13,10 +13,10 @@ public interface WindowPlatformAdapter {
      * Під'єднує обробку переміщення, зміни розміру та системних команд до вже показаного вікна.
      *
      * @param stage головне JavaFX-вікно.
-     * @param chromeView власне подання заголовка та вмісту вікна.
+     * @param chrome платформонезалежний контракт геометрії та команд заголовка.
      * @throws RuntimeException якщо платформну інтеграцію неможливо встановити.
      */
-    void install(Stage stage, WindowChromeView chromeView);
+    void install(Stage stage, WindowChrome chrome);
 
     /**
      * Від'єднує нативні обробники й звільняє ресурси адаптера.
