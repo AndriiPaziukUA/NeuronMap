@@ -46,7 +46,7 @@ class AppConfigLoaderTest {
         assertEquals("NeuronMap", config.window().title());
         assertEquals(1280.0, config.window().defaultWidth());
         assertEquals(720.0, config.window().defaultHeight());
-        assertEquals(650.0, config.simulation().defaultTickMillis());
+        assertEquals(500.0, config.simulation().defaultTickMillis());
     }
 
     /**

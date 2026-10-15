@@ -263,14 +263,19 @@ public final class LocalizationService {
     }
 
     /**
-     * Завантажує ресурсний набір за його базовим ім'ям і вказаною локаллю.
-     * Спільний метод підтримує як основні повідомлення, так і тематичні набори перекладів.
+     * Завантажує ресурсний набір за базовим ім'ям і вказаною локаллю.
+     * Англійська мова використовує виключно базовий ресурс без суфікса локалі,
+     * а для інших мов зберігається стандартний ланцюжок спадкування до базового набору.
+     * Оскільки всі набори мають базовий файл, локалізація не залежить від системної локалі JVM.
      *
      * @param bundleBaseName базове ім'я ресурсного набору.
      * @param locale локаль, для якої потрібно отримати переклади.
      * @return ресурсний набір, доступний для вказаної локалі.
      */
     private static ResourceBundle loadBundle(String bundleBaseName, Locale locale) {
-        return ResourceBundle.getBundle(bundleBaseName, locale);
+        Locale bundleLocale = Locale.ENGLISH.getLanguage().equalsIgnoreCase(locale.getLanguage())
+                ? Locale.ROOT
+                : locale;
+        return ResourceBundle.getBundle(bundleBaseName, bundleLocale);
     }
 }
