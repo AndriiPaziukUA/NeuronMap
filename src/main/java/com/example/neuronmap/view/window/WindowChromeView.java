@@ -26,7 +26,6 @@ import javafx.stage.WindowEvent;
 import java.net.URL;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -270,21 +269,15 @@ public final class WindowChromeView extends BorderPane implements WindowChrome {
     private void updateMaximizeIcon() {
         maximizeButton.setGraphic(createMaximizeIcon(maximized));
         String labelKey = maximized ? "restore" : "maximize";
-        String label = chromeLabels().getString(labelKey);
+        String label = localization.textFrom(LABELS_BUNDLE, labelKey);
         maximizeButton.setAccessibleText(label);
     }
 
     /** Оновлює доступні назви кнопок відповідно до активної локалі. */
     private void refreshControlLabels() {
-        ResourceBundle labels = chromeLabels();
-        setControlLabel(minimizeButton, labels.getString("minimize"));
-        setControlLabel(closeButton, labels.getString("close"));
+        setControlLabel(minimizeButton, localization.textFrom(LABELS_BUNDLE, "minimize"));
+        setControlLabel(closeButton, localization.textFrom(LABELS_BUNDLE, "close"));
         updateMaximizeIcon();
-    }
-
-    /** Завантажує ресурсний набір перекладів заголовка для активної локалі застосунку. */
-    private ResourceBundle chromeLabels() {
-        return ResourceBundle.getBundle(LABELS_BUNDLE, localization.locale());
     }
 
     /** Застосовує локалізовану доступну назву кнопки для допоміжних технологій. */

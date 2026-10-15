@@ -35,7 +35,7 @@ public final class LocalizationService {
                 "languagePreferenceStore"
         );
         this.locale = loadInitialLocale(languagePreferenceStore);
-        this.bundle = loadBundle(locale);
+        this.bundle = loadBundle(BUNDLE_BASE_NAME, locale);
         this.confirmedLanguage = SupportedLanguage.fromLocale(locale);
     }
 
@@ -48,7 +48,7 @@ public final class LocalizationService {
     public LocalizationService(Locale initialLocale) {
         this.languagePreferenceStore = null;
         this.locale = SupportedLanguage.fromLocale(initialLocale).locale();
-        this.bundle = loadBundle(locale);
+        this.bundle = loadBundle(BUNDLE_BASE_NAME, locale);
         this.confirmedLanguage = SupportedLanguage.fromLocale(locale);
     }
 
@@ -91,7 +91,7 @@ public final class LocalizationService {
     /**
      * Повертає переклад за ключем або сам ключ, якщо переклад відсутній.
      *
-     * @param key ключ повідомлення в ресурсному наборі.
+     * @param key ключ повідомлення в основному ресурсному наборі.
      * @return перекладений текст або ключ, якщо перекладу немає чи ключ порожній.
      */
     public String text(String key) {
@@ -99,6 +99,27 @@ public final class LocalizationService {
             return "";
         }
         return bundle.containsKey(key) ? bundle.getString(key) : key;
+    }
+
+    /**
+     * Повертає переклад із тематичного ресурсного набору для поточної активної локалі.
+     * Метод дає змогу окремим підсистемам зберігати власні файли перекладів, не завантажуючи
+     * ресурсні набори самостійно та не обходячи спільний механізм локалізації.
+     *
+     * @param bundleBaseName базове ім'я ресурсного набору, наприклад {@code i18n.windowChrome}.
+     * @param key ключ повідомлення в указаному наборі.
+     * @return перекладений текст або ключ, якщо перекладу немає; порожній рядок для порожнього ключа.
+     * @throws IllegalArgumentException якщо базове ім'я ресурсного набору порожнє.
+     */
+    public String textFrom(String bundleBaseName, String key) {
+        if (bundleBaseName == null || bundleBaseName.isBlank()) {
+            throw new IllegalArgumentException("bundleBaseName must not be blank");
+        }
+        if (key == null || key.isBlank()) {
+            return "";
+        }
+        ResourceBundle themedBundle = loadBundle(bundleBaseName, locale);
+        return themedBundle.containsKey(key) ? themedBundle.getString(key) : key;
     }
 
     /**
@@ -197,9 +218,10 @@ public final class LocalizationService {
     }
 
     /**
-     * Нормалізує локаль, завантажує її ресурсний набір і сповіщає слухачів лише за фактичної зміни мови.
+     * Нормалізує локаль, завантажує основний ресурсний набір і сповіщає слухачів лише за фактичної зміни мови.
      *
      * @param newLocale локаль, яку потрібно застосувати.
+     * @param persist {@code true}, якщо нову мову потрібно підтвердити й зберегти.
      */
     private void setLocale(Locale newLocale, boolean persist) {
         SupportedLanguage supported = SupportedLanguage.fromLocale(newLocale);
@@ -207,7 +229,7 @@ public final class LocalizationService {
         boolean changed = !normalized.getLanguage().equalsIgnoreCase(locale.getLanguage());
         if (changed) {
             locale = normalized;
-            bundle = loadBundle(locale);
+            bundle = loadBundle(BUNDLE_BASE_NAME, locale);
         }
         if (persist) {
             if (languagePreferenceStore != null) {
@@ -241,12 +263,14 @@ public final class LocalizationService {
     }
 
     /**
-     * Завантажує ресурсний набір перекладів для заданої локалі.
+     * Завантажує ресурсний набір за його базовим ім'ям і вказаною локаллю.
+     * Спільний метод підтримує як основні повідомлення, так і тематичні набори перекладів.
      *
-     * @param locale локаль, для якої потрібно завантажити переклади.
-     * @return ресурсний набір перекладів.
+     * @param bundleBaseName базове ім'я ресурсного набору.
+     * @param locale локаль, для якої потрібно отримати переклади.
+     * @return ресурсний набір, доступний для вказаної локалі.
      */
-    private static ResourceBundle loadBundle(Locale locale) {
-        return ResourceBundle.getBundle(BUNDLE_BASE_NAME, locale);
+    private static ResourceBundle loadBundle(String bundleBaseName, Locale locale) {
+        return ResourceBundle.getBundle(bundleBaseName, locale);
     }
 }
