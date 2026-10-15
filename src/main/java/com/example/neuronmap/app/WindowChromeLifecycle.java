@@ -9,6 +9,9 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.stage.WindowEvent;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -18,7 +21,7 @@ import java.util.logging.Logger;
 /**
  * Володіє повним життєвим циклом власного оформлення вікна, не керуючи геометрією чи завершенням редактора.
  * Вибір основного адаптера делегується фабриці, а для помилки нативного підключення використовується спільний
- * JavaFX-адаптер, тому додавання іншої ОС не потребує змін у контролері головного вікна.
+ * JavaFX-адаптер. Адаптери з незавершеним очищенням зберігаються окремо від активного адаптера.
  */
 final class WindowChromeLifecycle {
 
@@ -31,6 +34,7 @@ final class WindowChromeLifecycle {
     private final Runnable minimizeAction;
     private final Runnable toggleMaximizedAction;
     private final javafx.event.EventHandler<WindowEvent> hiddenHandler = event -> dispose();
+    private final List<WindowPlatformAdapter> adaptersPendingCleanup = new ArrayList<>();
 
     private WindowChromeView windowChromeView;
     private WindowPlatformAdapter activeAdapter;
@@ -149,8 +153,8 @@ final class WindowChromeLifecycle {
     }
 
     /**
-     * Звільняє ресурси оформлення. Адаптер зберігається, якщо він повідомляє про незавершене очищення,
-     * щоб наступний виклик shutdown або подія приховування могли повторити операцію.
+     * Звільняє ресурси активного адаптера та повторює очищення адаптерів, що очікують на завершення.
+     * Посилання зберігаються, доки кожен адаптер не підтвердить успішне звільнення ресурсів.
      */
     void dispose() {
         WindowPlatformAdapter adapterToDispose = activeAdapter;
@@ -174,15 +178,21 @@ final class WindowChromeLifecycle {
             }
         }
 
+        cleanupFailure = combineFailures(cleanupFailure, retryPendingAdapterCleanup());
         windowChromeView = null;
         adapterInstalled = false;
-        if (adapterDisposed) {
-            if (activeAdapter == adapterToDispose) {
-                activeAdapter = null;
-            }
+
+        if (adapterDisposed && activeAdapter == adapterToDispose) {
+            activeAdapter = null;
+        }
+        if (adapterDisposed && adaptersPendingCleanup.isEmpty()) {
             removeHiddenHandler();
-        } else {
-            LOGGER.warning("Очищення адаптера вікна не завершено; збережено посилання для повторної спроби");
+        }
+        if (!adapterDisposed) {
+            LOGGER.warning("Очищення активного адаптера вікна не завершено; посилання збережено для повторної спроби");
+        }
+        if (!adaptersPendingCleanup.isEmpty()) {
+            LOGGER.warning("Очищення одного або кількох попередніх адаптерів не завершено; повторну спробу буде збережено");
         }
 
         if (cleanupFailure != null) {
@@ -206,18 +216,60 @@ final class WindowChromeLifecycle {
     }
 
     /**
-     * Звільняє адаптер, встановлення якого завершилося помилкою, не маскуючи первинний збій.
+     * Звільняє адаптер після невдалого встановлення та зберігає його, якщо очищення не завершилося.
+     * Помилка очищення додається до первинного збою, не приховуючи його причину.
      *
      * @param adapter адаптер, який не вдалося встановити.
      * @param installationFailure першопричина, до якої додаються помилки очищення.
      */
     private void disposeAfterInstallationFailure(WindowPlatformAdapter adapter, Throwable installationFailure) {
         try {
-            adapter.dispose();
+            if (adapter.disposeAndReportCompletion()) {
+                adaptersPendingCleanup.removeIf(pendingAdapter -> pendingAdapter == adapter);
+                return;
+            }
+            retainAdapterForCleanup(adapter);
+            LOGGER.warning("Очищення адаптера після невдалого встановлення не завершено; збережено для повторної спроби");
         } catch (RuntimeException | LinkageError cleanupFailure) {
+            retainAdapterForCleanup(adapter);
             if (installationFailure != cleanupFailure) {
                 installationFailure.addSuppressed(cleanupFailure);
             }
+        }
+    }
+
+    /**
+     * Повторює очищення адаптерів, які вже не є активними, і вилучає лише підтверджено очищені екземпляри.
+     *
+     * @return об'єднані винятки, що виникли під час повторного очищення, або {@code null}, якщо винятків не було.
+     */
+    private Throwable retryPendingAdapterCleanup() {
+        Throwable cleanupFailure = null;
+        Iterator<WindowPlatformAdapter> pendingAdapters = adaptersPendingCleanup.iterator();
+        while (pendingAdapters.hasNext()) {
+            WindowPlatformAdapter pendingAdapter = pendingAdapters.next();
+            try {
+                if (pendingAdapter.disposeAndReportCompletion()) {
+                    pendingAdapters.remove();
+                } else {
+                    LOGGER.warning("Повторне очищення попереднього адаптера ще не завершено");
+                }
+            } catch (RuntimeException | LinkageError exception) {
+                cleanupFailure = combineFailures(cleanupFailure, exception);
+            }
+        }
+        return cleanupFailure;
+    }
+
+    /**
+     * Зберігає адаптер для повторного очищення, не додаючи повторні посилання на той самий екземпляр.
+     *
+     * @param adapter адаптер, ресурси якого ще можуть залишатися зайнятими.
+     */
+    private void retainAdapterForCleanup(WindowPlatformAdapter adapter) {
+        boolean alreadyRetained = adaptersPendingCleanup.stream().anyMatch(pendingAdapter -> pendingAdapter == adapter);
+        if (!alreadyRetained) {
+            adaptersPendingCleanup.add(adapter);
         }
     }
 
@@ -232,13 +284,13 @@ final class WindowChromeLifecycle {
         if (primaryFailure == null) {
             return nextFailure;
         }
-        if (primaryFailure != nextFailure) {
+        if (nextFailure != null && primaryFailure != nextFailure) {
             primaryFailure.addSuppressed(nextFailure);
         }
         return primaryFailure;
     }
 
-    /** Від'єднує обробник приховування лише після підтвердженого очищення адаптера. */
+    /** Від'єднує обробник приховування лише після підтвердженого очищення всіх адаптерів. */
     private void removeHiddenHandler() {
         if (hiddenHandlerRegistered) {
             stage.removeEventHandler(WindowEvent.WINDOW_HIDDEN, hiddenHandler);
