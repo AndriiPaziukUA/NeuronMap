@@ -3,6 +3,7 @@ package com.example.neuronmap.windowing;
 import com.example.neuronmap.window.WindowChrome;
 import com.example.neuronmap.window.WindowHitTestCalculator;
 import javafx.event.EventHandler;
+import javafx.geometry.Point2D;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.input.MouseButton;
@@ -22,8 +23,6 @@ import java.util.logging.Logger;
 public final class JavaFxWindowPlatformAdapter implements WindowPlatformAdapter {
 
     private static final Logger LOGGER = Logger.getLogger(JavaFxWindowPlatformAdapter.class.getName());
-    private static final double RESIZE_BORDER = WindowHitTestCalculator.DEFAULT_RESIZE_BORDER;
-    private static final String CAPTION_BUTTON_STYLE_CLASS = "window-control-button";
 
     private final AtomicBoolean disposed = new AtomicBoolean();
     private Stage stage;
@@ -184,32 +183,37 @@ public final class JavaFxWindowPlatformAdapter implements WindowPlatformAdapter 
      * @param event подія кліку миші.
      */
     private void onMouseClicked(MouseEvent event) {
-        if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2
-                && event.getSceneY() <= titleBarHeight()
-                && (!(event.getTarget() instanceof Node target) || !isCaptionButtonNode(target))) {
-            chrome.performNativeCaptionDoubleClick();
-            event.consume();
+        if (event.getButton() != MouseButton.PRIMARY || event.getClickCount() != 2
+                || hitTargetAt(event) != WindowHitTestCalculator.HitTarget.CAPTION) {
+            return;
         }
+        chrome.performNativeCaptionDoubleClick();
+        event.consume();
     }
 
     /**
-     * Починає переміщення або зміну розміру за координатами початкового натискання.
+     * Починає переміщення або зміну розміру за семантичною областю точки натискання.
+     * Класифікація надходить зі спільного обчислювача геометрії, а не з цільового JavaFX-вузла.
      *
      * @param event подія натискання кнопки миші.
      */
     private void onMousePressed(MouseEvent event) {
-        if (event.getButton() != MouseButton.PRIMARY
-                || (event.getTarget() instanceof Node target && isCaptionButtonNode(target))) {
+        if (event.getButton() != MouseButton.PRIMARY) {
             return;
         }
+        WindowHitTestCalculator.HitTarget target = hitTargetAt(event);
+        if (target.isCaptionButton() || target == WindowHitTestCalculator.HitTarget.CLIENT) {
+            return;
+        }
+
         initialScreenX = event.getScreenX();
         initialScreenY = event.getScreenY();
         initialX = stage.getX();
         initialY = stage.getY();
         initialWidth = stage.getWidth();
         initialHeight = stage.getHeight();
-        activeResizeEdge = stage.isMaximized() ? ResizeEdge.NONE : resizeEdgeAt(event.getSceneX(), event.getSceneY());
-        moving = activeResizeEdge == ResizeEdge.NONE && event.getSceneY() <= titleBarHeight();
+        activeResizeEdge = stage.isMaximized() ? ResizeEdge.NONE : resizeEdgeFor(target);
+        moving = activeResizeEdge == ResizeEdge.NONE && target == WindowHitTestCalculator.HitTarget.CAPTION;
         if (moving || activeResizeEdge != ResizeEdge.NONE) {
             event.consume();
         }
@@ -237,17 +241,12 @@ public final class JavaFxWindowPlatformAdapter implements WindowPlatformAdapter 
     }
 
     /**
-     * Оновлює курсор відповідно до інтерактивної зони біля країв вікна.
+     * Оновлює курсор відповідно до семантичної зони біля країв вікна.
      *
      * @param event подія переміщення миші.
      */
     private void onMouseMoved(MouseEvent event) {
-        if (event.getTarget() instanceof Node target && isCaptionButtonNode(target)) {
-            eventSource.setCursor(Cursor.DEFAULT);
-            return;
-        }
-        ResizeEdge edge = stage.isMaximized() ? ResizeEdge.NONE : resizeEdgeAt(event.getSceneX(), event.getSceneY());
-        eventSource.setCursor(edge.cursor());
+        eventSource.setCursor(resizeEdgeFor(hitTargetAt(event)).cursor());
     }
 
     /**
@@ -261,71 +260,40 @@ public final class JavaFxWindowPlatformAdapter implements WindowPlatformAdapter 
     }
 
     /**
-     * Повертає висоту заголовка за спільним знімком геометрії.
+     * Визначає семантичну область точки за актуальним знімком геометрії заголовка.
+     * Координати сцени перетворюються в локальні координати кореня, відносно якого виміряно знімок.
      *
-     * @return висота заголовка або нуль, якщо компонування ще не завершилося.
+     * @param event подія миші, яку потрібно класифікувати.
+     * @return область вікна; за відсутності знімка повертається клієнтська область.
      */
-    private double titleBarHeight() {
+    private WindowHitTestCalculator.HitTarget hitTargetAt(MouseEvent event) {
         WindowHitTestCalculator.Layout layout = chrome.hitTestLayout();
-        return layout == null ? 0.0 : layout.titleBarHeight();
+        if (layout == null) {
+            return WindowHitTestCalculator.HitTarget.CLIENT;
+        }
+        Point2D localPoint = eventSource.sceneToLocal(event.getSceneX(), event.getSceneY());
+        return WindowHitTestCalculator.hitTest(layout, localPoint.getX(), localPoint.getY());
     }
 
     /**
-     * Перевіряє, чи належить вузол або один із його предків до кнопки заголовка за спільним класом стилю.
+     * Перетворює семантичну зону resize на відповідну операцію резервного адаптера.
+     * Геометричні пороги тут не обчислюються: їх централізовано визначає {@link WindowHitTestCalculator}.
      *
-     * @param node вузол події миші.
-     * @return {@code true}, якщо вузол належить кнопці заголовка.
+     * @param target область, визначена спільним обчислювачем.
+     * @return зона resize або {@link ResizeEdge#NONE}, якщо точка не належить відповідному краю.
      */
-    private boolean isCaptionButtonNode(Node node) {
-        Node current = node;
-        while (current != null && current != eventSource) {
-            if (current.getStyleClass().contains(CAPTION_BUTTON_STYLE_CLASS)) {
-                return true;
-            }
-            current = current.getParent();
-        }
-        return false;
-    }
-
-    /**
-     * Визначає зону зміни розміру для точки, що лежить біля одного або двох країв вікна.
-     *
-     * @param x горизонтальна координата сцени.
-     * @param y вертикальна координата сцени.
-     * @return зона resize або {@link ResizeEdge#NONE}.
-     */
-    private ResizeEdge resizeEdgeAt(double x, double y) {
-        double width = eventSource.getBoundsInLocal().getWidth();
-        double height = eventSource.getBoundsInLocal().getHeight();
-        boolean left = x >= 0.0 && x < RESIZE_BORDER;
-        boolean right = x <= width && x > width - RESIZE_BORDER;
-        boolean top = y >= 0.0 && y < RESIZE_BORDER;
-        boolean bottom = y <= height && y > height - RESIZE_BORDER;
-        if (top && left) {
-            return ResizeEdge.TOP_LEFT;
-        }
-        if (top && right) {
-            return ResizeEdge.TOP_RIGHT;
-        }
-        if (bottom && left) {
-            return ResizeEdge.BOTTOM_LEFT;
-        }
-        if (bottom && right) {
-            return ResizeEdge.BOTTOM_RIGHT;
-        }
-        if (left) {
-            return ResizeEdge.LEFT;
-        }
-        if (right) {
-            return ResizeEdge.RIGHT;
-        }
-        if (top) {
-            return ResizeEdge.TOP;
-        }
-        if (bottom) {
-            return ResizeEdge.BOTTOM;
-        }
-        return ResizeEdge.NONE;
+    private ResizeEdge resizeEdgeFor(WindowHitTestCalculator.HitTarget target) {
+        return switch (target) {
+            case RESIZE_LEFT -> ResizeEdge.LEFT;
+            case RESIZE_RIGHT -> ResizeEdge.RIGHT;
+            case RESIZE_TOP -> ResizeEdge.TOP;
+            case RESIZE_BOTTOM -> ResizeEdge.BOTTOM;
+            case RESIZE_TOP_LEFT -> ResizeEdge.TOP_LEFT;
+            case RESIZE_TOP_RIGHT -> ResizeEdge.TOP_RIGHT;
+            case RESIZE_BOTTOM_LEFT -> ResizeEdge.BOTTOM_LEFT;
+            case RESIZE_BOTTOM_RIGHT -> ResizeEdge.BOTTOM_RIGHT;
+            default -> ResizeEdge.NONE;
+        };
     }
 
     /**

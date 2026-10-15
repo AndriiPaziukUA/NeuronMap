@@ -118,7 +118,8 @@ public final class WindowHitTestCalculator {
 
     /**
      * Визначає інтерактивну область за координатами точки відносно вікна.
-     * Кнопки мають пріоритет над заголовком, а краї звичайного вікна — над усіма іншими областями.
+     * Кнопки заголовка мають пріоритет над зонами resize, щоб їхні межі залишалися клікабельними;
+     * resize має пріоритет над вільною областю заголовка та клієнтським вмістом.
      *
      * @param layout актуальний незмінний знімок геометрії.
      * @param x горизонтальна координата точки в логічних пікселях.
@@ -133,13 +134,6 @@ public final class WindowHitTestCalculator {
             return HitTarget.CLIENT;
         }
 
-        if (!layout.maximized()) {
-            HitTarget edge = resizeTarget(layout, x, y);
-            if (edge != null) {
-                return edge;
-            }
-        }
-
         if (layout.minimizeButton().contains(x, y)) {
             return HitTarget.MINIMIZE_BUTTON;
         }
@@ -149,6 +143,14 @@ public final class WindowHitTestCalculator {
         if (layout.closeButton().contains(x, y)) {
             return HitTarget.CLOSE_BUTTON;
         }
+
+        if (!layout.maximized()) {
+            HitTarget edge = resizeTarget(layout, x, y);
+            if (edge != null) {
+                return edge;
+            }
+        }
+
         if (y < layout.titleBarHeight()) {
             return HitTarget.CAPTION;
         }

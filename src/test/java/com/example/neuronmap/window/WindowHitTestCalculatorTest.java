@@ -34,6 +34,18 @@ final class WindowHitTestCalculatorTest {
         assertTrue(MAXIMIZE_BUTTON.isCaptionButton());
     }
 
+    /** Перевіряє, що краї кнопок заголовка мають пріоритет над зоною resize, яка геометрично їх перекриває. */
+    @Test
+    void captionButtonsTakePriorityAtTheirEdges() {
+        WindowHitTestCalculator.Layout layout = layout(false);
+
+        assertEquals(MINIMIZE_BUTTON, WindowHitTestCalculator.hitTest(layout, 856.0, 3.0));
+        assertEquals(MAXIMIZE_BUTTON, WindowHitTestCalculator.hitTest(layout, 920.0, 3.0));
+        assertEquals(CLOSE_BUTTON, WindowHitTestCalculator.hitTest(layout, 993.9, 3.0));
+        assertEquals(RESIZE_RIGHT, WindowHitTestCalculator.hitTest(layout, 994.0, 15.0));
+        assertEquals(CAPTION, WindowHitTestCalculator.hitTest(layout, 993.9, 33.0));
+    }
+
     /** Перевіряє розрізнення вільної області заголовка, клієнтського вмісту й некоректних координат. */
     @Test
     void distinguishesCaptionFromEditorContent() {

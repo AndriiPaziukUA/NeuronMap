@@ -1,8 +1,12 @@
 package com.example.neuronmap.windowing;
 
 import com.example.neuronmap.window.WindowChrome;
+import com.example.neuronmap.window.WindowHitTestCalculator;
 import javafx.application.Platform;
+import javafx.event.EventType;
 import javafx.scene.Scene;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import org.junit.jupiter.api.BeforeAll;
@@ -13,6 +17,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Перевіряє одноразовий життєвий цикл резервного адаптера та очищення після невдалого встановлення. */
@@ -52,7 +58,7 @@ final class JavaFxWindowPlatformAdapterLifecycleTest {
         runOnFxThread(() -> {
             Stage stage = stageWithScene();
             JavaFxWindowPlatformAdapter adapter = new JavaFxWindowPlatformAdapter();
-            WindowChrome chrome = chromeStub();
+            WindowChrome chrome = chromeStub(null);
 
             adapter.install(stage, chrome);
             assertThrows(IllegalStateException.class, () -> adapter.install(stage, chrome));
@@ -60,6 +66,57 @@ final class JavaFxWindowPlatformAdapterLifecycleTest {
             adapter.dispose();
 
             assertThrows(IllegalStateException.class, () -> adapter.install(stage, chrome));
+            stage.close();
+        });
+    }
+
+    /**
+     * Перевіряє, що клацання по краю кнопки не запускає resize, навіть якщо цільовий вузол не має CSS-класу кнопки.
+     *
+     * @throws InterruptedException якщо очікування завершення перевірки перервано.
+     */
+    @Test
+    void captionButtonEdgeDoesNotStartResizeWithoutButtonStyleClass() throws InterruptedException {
+        runOnFxThread(() -> {
+            StackPane root = new StackPane();
+            Stage stage = new Stage();
+            stage.setScene(new Scene(root, 320.0, 240.0));
+            stage.setX(100.0);
+            stage.setY(100.0);
+            stage.setWidth(320.0);
+            stage.setHeight(240.0);
+            stage.setMinWidth(100.0);
+            stage.setMinHeight(100.0);
+
+            WindowHitTestCalculator.Layout layout = new WindowHitTestCalculator.Layout(
+                    320.0,
+                    240.0,
+                    36.0,
+                    WindowHitTestCalculator.DEFAULT_RESIZE_BORDER,
+                    WindowHitTestCalculator.DEFAULT_RESIZE_BORDER,
+                    false,
+                    new WindowHitTestCalculator.Rectangle(240.0, 3.0, 260.0, 33.0),
+                    new WindowHitTestCalculator.Rectangle(260.0, 3.0, 280.0, 33.0),
+                    new WindowHitTestCalculator.Rectangle(280.0, 3.0, 314.0, 33.0)
+            );
+            WindowChrome chrome = chromeStub(layout);
+            JavaFxWindowPlatformAdapter adapter = new JavaFxWindowPlatformAdapter();
+            adapter.install(stage, chrome);
+
+            double initialX = stage.getX();
+            double initialY = stage.getY();
+            double initialWidth = stage.getWidth();
+            double initialHeight = stage.getHeight();
+            assertFalse(root.getStyleClass().contains("window-control-button"));
+
+            root.fireEvent(mouseEvent(MouseEvent.MOUSE_PRESSED, 300.0, 3.0, 400.0, 400.0));
+            root.fireEvent(mouseEvent(MouseEvent.MOUSE_DRAGGED, 300.0, 43.0, 400.0, 440.0));
+
+            assertEquals(initialX, stage.getX(), 0.001);
+            assertEquals(initialY, stage.getY(), 0.001);
+            assertEquals(initialWidth, stage.getWidth(), 0.001);
+            assertEquals(initialHeight, stage.getHeight(), 0.001);
+            adapter.dispose();
             stage.close();
         });
     }
@@ -74,7 +131,7 @@ final class JavaFxWindowPlatformAdapterLifecycleTest {
         runOnFxThread(() -> {
             Stage stage = new Stage();
             JavaFxWindowPlatformAdapter adapter = new JavaFxWindowPlatformAdapter();
-            WindowChrome chrome = chromeStub();
+            WindowChrome chrome = chromeStub(null);
 
             assertThrows(IllegalStateException.class, () -> adapter.install(stage, chrome));
             stage.setScene(new Scene(new StackPane(), 320.0, 240.0));
@@ -91,12 +148,56 @@ final class JavaFxWindowPlatformAdapterLifecycleTest {
         return stage;
     }
 
-    /** Створює нейтральну реалізацію контракту, оскільки тести перевіряють лише життєвий цикл обробників. */
-    private static WindowChrome chromeStub() {
+    /**
+     * Створює реалізацію контракту, яка повертає переданий знімок геометрії й не виконує нативних команд.
+     *
+     * @param layout геометрія для перевірки або {@code null}, якщо hit-test не використовується.
+     * @return тестова реалізація {@link WindowChrome}.
+     */
+    private static WindowChrome chromeStub(WindowHitTestCalculator.Layout layout) {
         return (WindowChrome) Proxy.newProxyInstance(
                 WindowChrome.class.getClassLoader(),
                 new Class<?>[]{WindowChrome.class},
-                (proxy, method, arguments) -> null
+                (proxy, method, arguments) -> method.getName().equals("hitTestLayout") ? layout : null
+        );
+    }
+
+    /**
+     * Створює синтетичну подію миші для тестового кореня JavaFX.
+     *
+     * @param type тип події миші.
+     * @param x локальна координата курсора по горизонталі.
+     * @param y локальна координата курсора по вертикалі.
+     * @param screenX координата курсора на екрані по горизонталі.
+     * @param screenY координата курсора на екрані по вертикалі.
+     * @return синтетична подія основної кнопки миші.
+     */
+    private static MouseEvent mouseEvent(
+            EventType<MouseEvent> type,
+            double x,
+            double y,
+            double screenX,
+            double screenY
+    ) {
+        return new MouseEvent(
+                type,
+                x,
+                y,
+                screenX,
+                screenY,
+                MouseButton.PRIMARY,
+                1,
+                false,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false,
+                false,
+                false,
+                true,
+                null
         );
     }
 
