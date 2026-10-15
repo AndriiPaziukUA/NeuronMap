@@ -16,7 +16,6 @@ import com.sun.jna.platform.win32.WinDef.POINT;
 import com.sun.jna.platform.win32.WinDef.RECT;
 import com.sun.jna.platform.win32.WinDef.WPARAM;
 import com.sun.jna.platform.win32.WinUser;
-import com.sun.jna.win32.StdCallLibrary;
 import com.sun.jna.win32.W32APIOptions;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
@@ -67,24 +66,12 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
     private static final int SM_CYSIZEFRAME = 33;
     private static final int SM_CXPADDEDBORDER = 92;
 
-    /** Нативні функції user32, відсутні в інтерфейсі User32 конкретної версії JNA. */
-    private interface User32CoordinateFunctions extends StdCallLibrary {
-        /**
-         * Перетворює координати клієнтської області у координати екрана.
-         *
-         * @param window дескриптор вікна.
-         * @param point точка клієнтської області на вході та екранна точка на виході.
-         * @return {@code true}, якщо перетворення виконано.
-         */
-        boolean ClientToScreen(HWND window, POINT point);
-    }
-
     private final AtomicBoolean disposed = new AtomicBoolean();
     private final AtomicReference<HitTarget> pressedTarget = new AtomicReference<>();
     private Stage stage;
     private WindowChrome chrome;
     private HWND hwnd;
-    private volatile User32CoordinateFunctions user32Coordinates;
+    private volatile WindowsUser32Extensions user32Extensions;
     private Pointer previousWindowProcedure;
     private long previousWindowStyle;
     private boolean previousWindowStyleCaptured;
@@ -132,9 +119,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
         outputScaleY = validScale(stage.getOutputScaleY());
 
         try {
-            user32Coordinates = Native.load(
-                    "user32", User32CoordinateFunctions.class, W32APIOptions.DEFAULT_OPTIONS
-            );
+            user32Extensions = WindowsUser32Extensions.INSTANCE;
             hwnd = findWindowHandle(stage.getTitle());
             if (hwnd == null) {
                 throw new IllegalStateException("Could not locate the native window for the displayed JavaFX stage");
@@ -149,7 +134,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
             restoreNativeWindow();
             removeStageListeners();
             hwnd = null;
-            user32Coordinates = null;
+            user32Extensions = null;
             throw new IllegalStateException("Could not install native Windows window behavior", exception);
         }
     }
@@ -163,7 +148,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
         restoreNativeWindow();
         removeStageListeners();
         hwnd = null;
-        user32Coordinates = null;
+        user32Extensions = null;
         stage = null;
         chrome = null;
         windowProcedure = null;
@@ -318,7 +303,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
     private HitTarget hitTestNativePoint(LPARAM lParam) {
         WindowChrome currentChrome = chrome;
         HWND window = hwnd;
-        User32CoordinateFunctions coordinates = user32Coordinates;
+        WindowsUser32Extensions coordinates = user32Extensions;
         if (currentChrome == null || window == null || coordinates == null) {
             return null;
         }

@@ -40,14 +40,25 @@ final class MainWindowControllerTest {
     @TempDir
     private Path temporaryDirectory;
 
-    /** Запускає JavaFX перед тестами, які створюють і показують Stage. */
+    /**
+     * Запускає JavaFX і зберігає toolkit активним після закриття тестових вікон.
+     * Це дозволяє всім тестам у межах процесу повторно використовувати один JavaFX Application Thread.
+     *
+     * @throws InterruptedException якщо очікування запуску JavaFX було перервано.
+     */
     @BeforeAll
-    static void startJavaFx() throws Exception {
+    static void startJavaFx() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         try {
-            Platform.startup(latch::countDown);
+            Platform.startup(() -> {
+                Platform.setImplicitExit(false);
+                latch.countDown();
+            });
         } catch (IllegalStateException alreadyStarted) {
-            latch.countDown();
+            Platform.runLater(() -> {
+                Platform.setImplicitExit(false);
+                latch.countDown();
+            });
         }
         if (!latch.await(5, TimeUnit.SECONDS)) {
             throw new IllegalStateException("JavaFX startup timed out");
@@ -85,14 +96,18 @@ final class MainWindowControllerTest {
     @Test
     void rejectsRepeatedShowWithoutReinstallingAdapter() throws Exception {
         runOnFxThread(() -> {
-            Stage stage = new Stage();
+            Stage stage = createTestStage();
             RecordingWindowPlatformAdapter adapter = new RecordingWindowPlatformAdapter(null);
-            MainWindowController controller = createController(stage, adapter);
+            AtomicInteger showCalls = new AtomicInteger();
+            MainWindowController controller = createController(stage, adapter, showCalls::incrementAndGet);
             controller.configure(windowConfig(), new Scene(new StackPane(), 640.0, 480.0), () -> { });
 
             controller.show();
 
+            assertEquals(1, showCalls.get());
+            assertFalse(stage.isShowing(), "Тест не повинен показувати нативне вікно");
             assertThrows(IllegalStateException.class, controller::show);
+            assertEquals(1, showCalls.get());
             assertEquals(1, adapter.installCalls.get());
 
             controller.close();
@@ -108,7 +123,7 @@ final class MainWindowControllerTest {
     @Test
     void keepsFallbackAdapterAsActiveAfterNativeInstallationFails() throws Exception {
         runOnFxThread(() -> {
-            Stage stage = new Stage();
+            Stage stage = createTestStage();
             RecordingWindowPlatformAdapter failedAdapter = new RecordingWindowPlatformAdapter(
                     new IllegalStateException("native installation failed"));
             MainWindowController controller = createController(stage, failedAdapter);
@@ -133,7 +148,7 @@ final class MainWindowControllerTest {
     @Test
     void closingWindowDisposesActiveAdapterAndClearsOwnedReferences() throws Exception {
         runOnFxThread(() -> {
-            Stage stage = new Stage();
+            Stage stage = createTestStage();
             RecordingWindowPlatformAdapter adapter = new RecordingWindowPlatformAdapter(null);
             AtomicInteger shutdownCalls = new AtomicInteger();
             MainWindowController controller = createController(stage, adapter);
@@ -157,7 +172,7 @@ final class MainWindowControllerTest {
     @Test
     void cleanupRunsWhenEditorShutdownFails() throws Exception {
         runOnFxThread(() -> {
-            Stage stage = new Stage();
+            Stage stage = createTestStage();
             RecordingWindowPlatformAdapter adapter = new RecordingWindowPlatformAdapter(null);
             MainWindowController controller = createController(stage, adapter);
             controller.configure(windowConfig(), new Scene(new StackPane(), 640.0, 480.0), () -> {
@@ -173,13 +188,40 @@ final class MainWindowControllerTest {
         });
     }
 
-    /** Створює контролер із тестовим адаптером, не змінюючи публічну точку входу застосунку. */
+    /**
+     * Створює JavaFX Stage для перевірки конфігурації без створення видимого вікна операційної системи.
+     * Переданий контролеру тестовий callback не викликає {@code Stage.show()}.
+     *
+     * @return створений, але не показаний Stage.
+     */
+    private static Stage createTestStage() {
+        return new Stage();
+    }
+
+    /** Створює контролер із тестовим адаптером і без показу нативного вікна. */
     private MainWindowController createController(Stage stage, RecordingWindowPlatformAdapter adapter) {
+        return createController(stage, adapter, () -> { });
+    }
+
+    /**
+     * Створює контролер із заданою тестовою дією показу, не змінюючи публічного контракту застосунку.
+     *
+     * @param stage JavaFX-вікно, яке залишається непоказаним.
+     * @param adapter адаптер, поведінку встановлення й очищення якого перевіряє тест.
+     * @param showWindowAction тестова дія замість створення нативного вікна.
+     * @return налаштований контролер.
+     */
+    private MainWindowController createController(
+            Stage stage,
+            RecordingWindowPlatformAdapter adapter,
+            Runnable showWindowAction
+    ) {
         return new MainWindowController(
                 stage,
                 new WindowStateStore(temporaryDirectory.resolve("window-state.properties")),
                 new LocalizationService(Locale.forLanguageTag("uk")),
-                () -> Optional.of(adapter)
+                () -> Optional.of(adapter),
+                showWindowAction
         );
     }
 

@@ -33,6 +33,7 @@ public final class MainWindowController {
     private final WindowStateStore windowStateStore;
     private final LocalizationService localization;
     private final Supplier<Optional<WindowPlatformAdapter>> windowPlatformAdapterFactory;
+    private final Runnable showWindowAction;
     private final EventHandler<WindowEvent> windowHiddenHandler = event -> disposeWindowResources();
     private WindowLifecycleCoordinator lifecycleCoordinator;
     private WindowChromeView windowChromeView;
@@ -45,7 +46,7 @@ public final class MainWindowController {
     /**
      * Створює контролер вікна на основі наявного JavaFX-вікна та спільного сховища його геометрії.
      *
-     * @param stage головне вікно JavaFX.
+     * @param stage головне JavaFX-вікно.
      * @param windowStateStore сховище геометрії, яке вже використовується застосунком.
      * @throws NullPointerException якщо вікно або сховище не задано.
      */
@@ -56,7 +57,7 @@ public final class MainWindowController {
     /**
      * Створює контролер вікна зі спільним сховищем геометрії та активною службою локалізації застосунку.
      *
-     * @param stage головне вікно JavaFX.
+     * @param stage головне JavaFX-вікно.
      * @param windowStateStore сховище геометрії вікна.
      * @param localization служба поточної локалі та перекладів.
      * @throws NullPointerException якщо будь-яку залежність не задано.
@@ -74,7 +75,7 @@ public final class MainWindowController {
      * Створює контролер із заданим постачальником платформного адаптера для детермінованої перевірки життєвого циклу.
      * Цей конструктор доступний лише всередині пакета й не змінює публічний контракт запуску застосунку.
      *
-     * @param stage головне вікно JavaFX.
+     * @param stage головне JavaFX-вікно.
      * @param windowStateStore сховище геометрії вікна.
      * @param localization служба поточної локалі та перекладів.
      * @param windowPlatformAdapterFactory постачальник адаптера для поточної платформи.
@@ -86,11 +87,35 @@ public final class MainWindowController {
             LocalizationService localization,
             Supplier<Optional<WindowPlatformAdapter>> windowPlatformAdapterFactory
     ) {
+        this(stage, windowStateStore, localization, windowPlatformAdapterFactory,
+                Objects.requireNonNull(stage, "stage")::show);
+    }
+
+    /**
+     * Створює контролер із можливістю підмінити побічний ефект показу вікна в тестах.
+     * У робочому застосунку передається {@link Stage#show()}, а тести можуть перевіряти життєвий цикл
+     * без створення нативних вікон операційної системи.
+     *
+     * @param stage головне JavaFX-вікно.
+     * @param windowStateStore сховище геометрії вікна.
+     * @param localization служба поточної локалі та перекладів.
+     * @param windowPlatformAdapterFactory постачальник платформного адаптера.
+     * @param showWindowAction дія показу вікна; у тестах може бути порожньою.
+     * @throws NullPointerException якщо будь-яку залежність або дію не задано.
+     */
+    MainWindowController(
+            Stage stage,
+            WindowStateStore windowStateStore,
+            LocalizationService localization,
+            Supplier<Optional<WindowPlatformAdapter>> windowPlatformAdapterFactory,
+            Runnable showWindowAction
+    ) {
         this.stage = Objects.requireNonNull(stage, "stage");
         this.windowStateStore = Objects.requireNonNull(windowStateStore, "windowStateStore");
         this.localization = Objects.requireNonNull(localization, "localization");
         this.windowPlatformAdapterFactory = Objects.requireNonNull(
                 windowPlatformAdapterFactory, "windowPlatformAdapterFactory");
+        this.showWindowAction = Objects.requireNonNull(showWindowAction, "showWindowAction");
     }
 
     /**
@@ -155,7 +180,7 @@ public final class MainWindowController {
         showAttempted = true;
 
         try {
-            stage.show();
+            showWindowAction.run();
             installWindowPlatformAdapter();
             if (!savedStateRestored) {
                 stage.centerOnScreen();
