@@ -28,6 +28,32 @@ final class WindowsWindowProcedure {
 
     private static final Logger LOGGER = Logger.getLogger(WindowsWindowProcedure.class.getName());
     private static final Set<WindowsWindowProcedure> ACTIVE_PROCEDURES = ConcurrentHashMap.newKeySet();
+    private static final NativeOperations SYSTEM_NATIVE_OPERATIONS = new NativeOperations() {
+        /** {@inheritDoc} */
+        @Override
+        public void setCapture(HWND window) {
+            WindowsUser32Extensions.INSTANCE.SetCapture(window);
+        }
+
+        /** {@inheritDoc} */
+        @Override
+        public void releaseCapture() {
+            WindowsUser32Extensions.INSTANCE.ReleaseCapture();
+        }
+
+        /** {@inheritDoc} */
+        @Override
+        public LRESULT callPreviousWindowProcedure(
+                Pointer previousProcedure,
+                HWND sourceWindow,
+                int message,
+                WPARAM wParam,
+                LPARAM lParam
+        ) {
+            return User32.INSTANCE.CallWindowProc(previousProcedure, sourceWindow, message, wParam, lParam);
+        }
+    };
+
     private static final int GWL_WNDPROC = -4;
     private static final int WM_NCCALCSIZE = 0x0083;
     private static final int WM_NCHITTEST = 0x0084;
@@ -42,6 +68,7 @@ final class WindowsWindowProcedure {
 
     private final Callbacks callbacks;
     private final WindowsWindowLongPtr.Setter windowLongPtrSetter;
+    private final NativeOperations nativeOperations;
     private final AtomicBoolean disposed = new AtomicBoolean();
     private final AtomicReference<HitTarget> pressedTarget = new AtomicReference<>();
     private HWND window;
@@ -51,25 +78,43 @@ final class WindowsWindowProcedure {
     private boolean installationAttempted;
 
     /**
-     * Створює обробник повідомлень із функціями взаємодії з геометрією та поданням заголовка.
+     * Створює обробник повідомлень із системними операціями Win32 та функціями роботи із заголовком.
      *
      * @param callbacks зворотні виклики для визначення областей і передавання UI-команд.
      * @throws NullPointerException якщо набір зворотних викликів не задано.
      */
     WindowsWindowProcedure(Callbacks callbacks) {
-        this(callbacks, WindowsWindowLongPtr::set);
+        this(callbacks, WindowsWindowLongPtr::set, SYSTEM_NATIVE_OPERATIONS);
     }
 
     /**
-     * Створює обробник із заданим механізмом зміни атрибутів вікна для тестування помилок Win32 без Windows.
+     * Створює обробник із заданим механізмом зміни атрибутів вікна та системними операціями Win32.
+     * Конструктор з ін'єкцією setter дає змогу перевіряти помилки встановлення й відновлення без Windows.
      *
      * @param callbacks зворотні виклики для визначення областей і передавання UI-команд.
      * @param windowLongPtrSetter перевірений механізм зміни атрибута Win32.
      * @throws NullPointerException якщо будь-яку залежність не задано.
      */
     WindowsWindowProcedure(Callbacks callbacks, WindowsWindowLongPtr.Setter windowLongPtrSetter) {
+        this(callbacks, windowLongPtrSetter, SYSTEM_NATIVE_OPERATIONS);
+    }
+
+    /**
+     * Створює обробник із замінними нативними операціями для перевірки маршрутизації повідомлень без user32.dll.
+     *
+     * @param callbacks зворотні виклики для визначення областей і передавання UI-команд.
+     * @param windowLongPtrSetter механізм установлення та відновлення адреси WndProc.
+     * @param nativeOperations операції захоплення миші й передавання повідомлення попередній процедурі.
+     * @throws NullPointerException якщо будь-яку залежність не задано.
+     */
+    WindowsWindowProcedure(
+            Callbacks callbacks,
+            WindowsWindowLongPtr.Setter windowLongPtrSetter,
+            NativeOperations nativeOperations
+    ) {
         this.callbacks = Objects.requireNonNull(callbacks, "callbacks");
         this.windowLongPtrSetter = Objects.requireNonNull(windowLongPtrSetter, "windowLongPtrSetter");
+        this.nativeOperations = Objects.requireNonNull(nativeOperations, "nativeOperations");
     }
 
     /**
@@ -147,6 +192,7 @@ final class WindowsWindowProcedure {
     /**
      * Обробляє повідомлення власного заголовка або передає його початковій процедурі JavaFX Glass.
      * Помилка додаткової обробки не повинна переривати нативний ланцюжок повідомлень.
+     * Метод доступний у межах пакета, щоб перевіряти маршрутизацію без створення реального Windows-вікна.
      *
      * @param sourceWindow HWND, від якого надійшло повідомлення.
      * @param message ідентифікатор повідомлення Win32.
@@ -154,7 +200,7 @@ final class WindowsWindowProcedure {
      * @param lParam другий параметр повідомлення.
      * @return результат власної обробки або результат попередньої процедури.
      */
-    private LRESULT handleMessage(HWND sourceWindow, int message, WPARAM wParam, LPARAM lParam) {
+    LRESULT handleMessage(HWND sourceWindow, int message, WPARAM wParam, LPARAM lParam) {
         if (disposed.get()) {
             return callPreviousWindowProcedure(sourceWindow, message, wParam, lParam);
         }
@@ -196,7 +242,7 @@ final class WindowsWindowProcedure {
             callbacks.hoverUpdater().accept(callbacks.clientHitTester().apply(lParam));
         } else if (message == WM_LBUTTONUP && pressedTarget.get() != null) {
             HitTarget wasPressed = pressedTarget.getAndSet(null);
-            WindowsUser32Extensions.INSTANCE.ReleaseCapture();
+            nativeOperations.releaseCapture();
             callbacks.pressedUpdater().accept(null);
             if (wasPressed == callbacks.clientHitTester().apply(lParam)) {
                 callbacks.buttonAction().accept(wasPressed);
@@ -207,13 +253,13 @@ final class WindowsWindowProcedure {
             if (target != null) {
                 pressedTarget.set(target);
                 callbacks.pressedUpdater().accept(target);
-                WindowsUser32Extensions.INSTANCE.SetCapture(sourceWindow);
+                nativeOperations.setCapture(sourceWindow);
                 return new LRESULT(0L);
             }
         } else if (message == WM_NCLBUTTONUP) {
             HitTarget wasPressed = pressedTarget.getAndSet(null);
             if (wasPressed != null) {
-                WindowsUser32Extensions.INSTANCE.ReleaseCapture();
+                nativeOperations.releaseCapture();
                 callbacks.pressedUpdater().accept(null);
                 if (wasPressed == Win32HitTestCode.captionButtonFromNativeCode(wParam.intValue())) {
                     callbacks.buttonAction().accept(wasPressed);
@@ -244,7 +290,39 @@ final class WindowsWindowProcedure {
         if (previous == null) {
             return new LRESULT(0L);
         }
-        return User32.INSTANCE.CallWindowProc(previous, sourceWindow, message, wParam, lParam);
+        return nativeOperations.callPreviousWindowProcedure(previous, sourceWindow, message, wParam, lParam);
+    }
+
+    /** Описує доступ до системних операцій, що залишають маршрутизацію повідомлень незалежною від Win32. */
+    interface NativeOperations {
+
+        /**
+         * Передає захоплення миші вікну до завершення натискання кнопки заголовка.
+         *
+         * @param window HWND, якому передається захоплення.
+         */
+        void setCapture(HWND window);
+
+        /** Звільняє захоплення миші після завершення або скасування натискання кнопки заголовка. */
+        void releaseCapture();
+
+        /**
+         * Передає повідомлення збереженій нативній процедурі вікна.
+         *
+         * @param previousProcedure адреса попередньої процедури, збережена під час встановлення.
+         * @param sourceWindow HWND, від якого надійшло повідомлення.
+         * @param message ідентифікатор повідомлення Win32.
+         * @param wParam перший параметр повідомлення.
+         * @param lParam другий параметр повідомлення.
+         * @return результат попередньої процедури.
+         */
+        LRESULT callPreviousWindowProcedure(
+                Pointer previousProcedure,
+                HWND sourceWindow,
+                int message,
+                WPARAM wParam,
+                LPARAM lParam
+        );
     }
 
     /** Набір функцій, якими процедура спілкується з координатором платформного адаптера. */
