@@ -2,10 +2,7 @@ package com.example.neuronmap.view.neuron;
 
 import com.example.neuronmap.i18n.LocalizationService;
 import javafx.application.Platform;
-import javafx.scene.Scene;
 import javafx.scene.control.Button;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -15,17 +12,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/**
- * Перевіряє створення та оформлення елементів контекстного меню нейрона у view-шарі.
- */
+/** Перевіряє створення та оформлення елементів контекстного меню нейрона у view-шарі. */
 final class NeuronMenuViewTest {
 
+    /** Запускає JavaFX toolkit перед перевірками графічних компонентів меню нейрона. */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -39,19 +33,11 @@ final class NeuronMenuViewTest {
         }
     }
 
-    @Test
-    void rejectsNullToolbarRoot() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new NeuronMenuView(null)
-        );
-    }
-
+    /** Перевіряє кольори й підказки для кнопок активації та видалення нейрона. */
     @Test
     void customizeMenuButtonAppliesActivationAndDeleteStyles() throws Exception {
         runOnFxThread(() -> {
             NeuronMenuView view = new NeuronMenuView(
-                    new VBox(),
                     () -> null,
                     null,
                     new LocalizationService(Locale.forLanguageTag("uk"))
@@ -73,12 +59,12 @@ final class NeuronMenuViewTest {
         });
     }
 
+    /** Перевіряє, що кнопка напрямку передає ідентифікатор вибраного нейрона callback-у. */
     @Test
     void directionButtonDelegatesSelectedNeuronIdToCallback() throws Exception {
         runOnFxThread(() -> {
             AtomicReference<String> handledId = new AtomicReference<>();
             NeuronMenuView view = new NeuronMenuView(
-                    new VBox(),
                     () -> "neuron-42",
                     handledId::set,
                     new LocalizationService(Locale.forLanguageTag("uk"))
@@ -94,31 +80,16 @@ final class NeuronMenuViewTest {
         });
     }
 
+    /** Перевіряє, що кнопка напрямку не створюється, якщо дія для неї не задана. */
     @Test
     void directionButtonIsOmittedWhenNoActionIsProvided() throws Exception {
         runOnFxThread(() -> {
-            NeuronMenuView view = new NeuronMenuView(new VBox());
+            NeuronMenuView view = new NeuronMenuView();
             assertNull(view.createDirectionButton());
         });
     }
 
-    @Test
-    void removesExitButtonFromNestedToolbarPane() throws Exception {
-        runOnFxThread(() -> {
-            Button exit = new Button("Exit");
-            exit.getStyleClass().add("delete-connection-exit-button");
-            HBox toolbarRow = new HBox(exit);
-            VBox toolbar = new VBox(toolbarRow);
-            new Scene(toolbar, 300.0, 100.0);
-            toolbar.applyCss();
-
-            NeuronMenuView view = new NeuronMenuView(toolbar);
-            view.removeDeleteConnectionModeExitButton();
-
-            assertFalse(toolbarRow.getChildren().contains(exit));
-        });
-    }
-
+    /** Виконує перевірки в потоці JavaFX і передає помилки до потоку JUnit. */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];

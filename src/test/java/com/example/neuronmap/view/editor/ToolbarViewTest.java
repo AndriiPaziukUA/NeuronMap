@@ -14,10 +14,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє склад панелі інструментів, розташування поля швидкості та форматування його значення.
+ * Перевіряє склад панелі інструментів, відсутність застарілих елементів і роботу поля швидкості симуляції.
  */
 final class ToolbarViewTest {
 
@@ -39,18 +40,13 @@ final class ToolbarViewTest {
 
     /** Перевіряє обмеження введення чисел та вирівнювання текстового поля ліворуч. */
     @Test
-    void speedFieldAcceptsOnlyNumericInputAndKeepsLeftAlignment()
-            throws Exception {
+    void speedFieldAcceptsOnlyNumericInputAndKeepsLeftAlignment() throws Exception {
         runOnFxThread(() -> {
             ToolbarView toolbar = toolbar();
             TextField field = speedField(toolbar);
 
             assertEquals(Pos.CENTER_LEFT, field.getAlignment());
-            assertTrue(
-                    field.getStyle().contains(
-                            "-fx-alignment: CENTER-LEFT;"
-                    )
-            );
+            assertTrue(field.getStyle().contains("-fx-alignment: CENTER-LEFT;"));
 
             field.clear();
             field.replaceText(0, 0, "12abc");
@@ -67,10 +63,24 @@ final class ToolbarViewTest {
         });
     }
 
+    /** Перевіряє, що застаріла кнопка виходу з режиму видалення зв'язків не додається до панелі. */
+    @Test
+    void doesNotIncludeObsoleteConnectionDeletionExitButton() throws Exception {
+        runOnFxThread(() -> {
+            ToolbarView toolbar = toolbar();
+
+            boolean hasObsoleteButton = toolbar.node().getChildren().stream()
+                    .filter(Button.class::isInstance)
+                    .map(Button.class::cast)
+                    .anyMatch(button -> button.getStyleClass().contains("tool-button-danger"));
+
+            assertFalse(hasObsoleteButton);
+        });
+    }
+
     /** Перевіряє, що поле швидкості розташовано перед динамічними елементами керування симуляцією. */
     @Test
-    void speedFieldStaysBeforeDynamicSimulationControls()
-            throws Exception {
+    void speedFieldStaysBeforeDynamicSimulationControls() throws Exception {
         runOnFxThread(() -> {
             ToolbarView toolbar = toolbar();
 
@@ -112,7 +122,6 @@ final class ToolbarViewTest {
                 () -> { },
                 () -> { },
                 () -> { },
-                () -> { },
                 ignored -> { },
                 650.0
         );
@@ -135,22 +144,15 @@ final class ToolbarViewTest {
     }
 
     /** Знаходить позицію кнопки з указаним текстом серед дочірніх вузлів панелі. */
-    private static int indexOfButton(
-            ToolbarView toolbar,
-            String text
-    ) {
+    private static int indexOfButton(ToolbarView toolbar, String text) {
         return indexOf(
                 toolbar.node().getChildren(),
-                node -> node instanceof Button button
-                        && text.equals(button.getText())
+                node -> node instanceof Button button && text.equals(button.getText())
         );
     }
 
     /** Повертає індекс першого вузла, що задовольняє предикат, або -1, якщо збігу немає. */
-    private static int indexOf(
-            List<Node> nodes,
-            Predicate<Node> predicate
-    ) {
+    private static int indexOf(List<Node> nodes, Predicate<Node> predicate) {
         for (int index = 0; index < nodes.size(); index++) {
             if (predicate.test(nodes.get(index))) {
                 return index;
@@ -180,10 +182,7 @@ final class ToolbarViewTest {
         }
 
         if (failure[0] != null) {
-            throw new AssertionError(
-                    "JavaFX test failed",
-                    failure[0]
-            );
+            throw new AssertionError("Тест JavaFX завершився помилкою", failure[0]);
         }
     }
 }

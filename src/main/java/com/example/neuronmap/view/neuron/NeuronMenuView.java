@@ -4,29 +4,24 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.view.support.TooltipFactory;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
-import javafx.scene.layout.Pane;
 
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * Створює та оформлює кнопки контекстного меню нейрона й керує презентаційними елементами toolbar.
+ * Створює та оформлює кнопки контекстного меню нейрона.
  */
 public final class NeuronMenuView {
 
-    private final Node toolbarRoot;
     private final Supplier<String> selectedNeuronIdSupplier;
     private final Consumer<String> directionAction;
     private final LocalizationService localization;
 
     /**
-     * Створює подання меню з українською локалізацією та без дії зміни напрямку.
-     *
-     * @param toolbarRoot кореневий вузол панелі інструментів.
+     * Створює меню нейрона з українською локалізацією та без дії зміни напрямку.
      */
-    public NeuronMenuView(Node toolbarRoot) {
+    public NeuronMenuView() {
         this(
-                toolbarRoot,
                 () -> null,
                 null,
                 new LocalizationService(java.util.Locale.forLanguageTag("uk"))
@@ -36,21 +31,15 @@ public final class NeuronMenuView {
     /**
      * Створює подання меню з переданими залежностями та службою локалізації.
      *
-     * @param toolbarRoot кореневий вузол панелі інструментів.
      * @param selectedNeuronIdSupplier функція, що повертає ідентифікатор нейрона для контекстного меню.
      * @param directionAction callback, який передає ідентифікатор нейрона контролеру для зміни напрямку.
      * @param localization служба локалізації інтерфейсу.
      */
     public NeuronMenuView(
-            Node toolbarRoot,
             Supplier<String> selectedNeuronIdSupplier,
             Consumer<String> directionAction,
             LocalizationService localization
     ) {
-        if (toolbarRoot == null) {
-            throw new IllegalArgumentException("toolbarRoot must not be null");
-        }
-        this.toolbarRoot = toolbarRoot;
         this.selectedNeuronIdSupplier = selectedNeuronIdSupplier == null
                 ? () -> null
                 : selectedNeuronIdSupplier;
@@ -58,6 +47,24 @@ public final class NeuronMenuView {
         this.localization = localization == null
                 ? new LocalizationService(java.util.Locale.forLanguageTag("uk"))
                 : localization;
+    }
+
+    /**
+     * Зберігає сумісність із наявними викликами, які раніше передавали корінь панелі інструментів.
+     * Після вилучення застарілої кнопки поданню меню більше не потрібно знати про цей вузол.
+     *
+     * @param ignoredToolbarRoot кореневий вузол панелі зі старого контракту; більше не використовується.
+     * @param selectedNeuronIdSupplier функція, що повертає ідентифікатор нейрона для контекстного меню.
+     * @param directionAction callback, який передає ідентифікатор нейрона контролеру для зміни напрямку.
+     * @param localization служба локалізації інтерфейсу.
+     */
+    public NeuronMenuView(
+            Node ignoredToolbarRoot,
+            Supplier<String> selectedNeuronIdSupplier,
+            Consumer<String> directionAction,
+            LocalizationService localization
+    ) {
+        this(selectedNeuronIdSupplier, directionAction, localization);
     }
 
     /**
@@ -122,16 +129,5 @@ public final class NeuronMenuView {
                 localization.text("neuron.menu.direction")
         );
         return directionButton;
-    }
-
-    /**
-     * Прибирає з toolbar кнопку виходу з режиму видалення зв’язку, якщо вона присутня.
-     */
-    public void removeDeleteConnectionModeExitButton() {
-        toolbarRoot.lookupAll(".delete-connection-exit-button").forEach(node -> {
-            if (node.getParent() instanceof Pane pane) {
-                pane.getChildren().remove(node);
-            }
-        });
     }
 }

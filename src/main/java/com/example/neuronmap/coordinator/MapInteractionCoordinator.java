@@ -87,9 +87,7 @@ public final class MapInteractionCoordinator {
         );
     }
 
-    /**
-     * Реєструє обробники подій полотна й кнопок інструментів.
-     */
+    /** Реєструє обробники подій полотна й кнопок інструментів. */
     public void install() {
         workspace.node().addEventFilter(MouseEvent.MOUSE_CLICKED, this::handleCanvasClick);
         toolDragController.install();
@@ -111,9 +109,7 @@ public final class MapInteractionCoordinator {
         status.accept(localization.text("status.add_neuron_hint"));
     }
 
-    /**
-     * Скасовує незавершені режими взаємодії та очищує тимчасові подання.
-     */
+    /** Скасовує незавершені режими взаємодії та очищує тимчасові подання. */
     public void cancelInteractions() {
         toolDragController.clearPreview();
         connectionController.cancelCreate();
@@ -142,33 +138,19 @@ public final class MapInteractionCoordinator {
         status.accept(localization.text("status.new_neuron"));
     }
 
-    /**
-     * Створює групу з вибраних нейронів через відповідну службу вибору.
-     */
+    /** Створює групу з вибраних нейронів через відповідну службу вибору. */
     public void groupSelection() {
         selectionController.groupSelection();
         presentation.refreshAll();
     }
 
-    /**
-     * Знімає групування з вибраних нейронів.
-     */
+    /** Знімає групування з вибраних нейронів. */
     public void ungroupSelection() {
         selectionController.ungroupSelection();
         presentation.refreshAll();
     }
 
-    /**
-     * Завершує режим видалення зв'язків і прибирає його тимчасове підсвічування.
-     */
-    public void exitDeleteConnectionMode() {
-        connectionController.exitDelete();
-        status.accept(localization.text("status.delete_mode_exit"));
-    }
-
-    /**
-     * Очищає тимчасовий попередній перегляд перетягування.
-     */
+    /** Очищає тимчасовий попередній перегляд перетягування. */
     public void dispose() {
         toolDragController.clearPreview();
     }

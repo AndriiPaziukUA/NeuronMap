@@ -141,7 +141,6 @@ public final class MapEditorCoordinator {
                 this::beginAddNeuronMode,
                 this::groupSelection,
                 this::ungroupSelection,
-                this::exitDeleteConnectionMode,
                 this::toggleSimulationPause,
                 this::stopSimulationSignals,
                 this::changeSimulationSpeed,
@@ -156,12 +155,10 @@ public final class MapEditorCoordinator {
         );
 
         neuronMenuView = new NeuronMenuView(
-                view.toolbar().node(),
                 state::selectedNeuronForMenu,
                 this::toggleNeuronDirection,
                 localization
         );
-        neuronMenuView.removeDeleteConnectionModeExitButton();
 
         mapService.load();
         InitialProjectInitializer initialProjectInitializer = new InitialProjectInitializer(application);
@@ -502,17 +499,13 @@ public final class MapEditorCoordinator {
         mapService.close();
     }
 
-    /**
-     * Перемикає симуляцію між виконанням і паузою.
-     */
+    /** Перемикає симуляцію між виконанням і паузою. */
     private void toggleSimulationPause() {
         simulationController.pauseOrResume();
         view.toolbar().setSimulationPaused(simulationController.isPaused());
     }
 
-    /**
-     * Зупиняє симуляцію та прибирає незавершені сигнали й анімації.
-     */
+    /** Зупиняє симуляцію та прибирає незавершені сигнали й анімації. */
     private void stopSimulationSignals() {
         simulationController.stopSignals();
         view.toolbar().setSimulationPaused(false);
@@ -553,25 +546,14 @@ public final class MapEditorCoordinator {
         interaction.beginAddNeuronMode(type);
     }
 
-    /**
-     * Створює групу з поточно вибраних нейронів.
-     */
+    /** Створює групу з поточно вибраних нейронів. */
     private void groupSelection() {
         interaction.groupSelection();
     }
 
-    /**
-     * Вилучає поточно вибрані нейрони зі складу їхньої групи.
-     */
+    /** Вилучає поточно вибрані нейрони зі складу їхньої групи. */
     private void ungroupSelection() {
         interaction.ungroupSelection();
-    }
-
-    /**
-     * Завершує режим видалення зв'язків і повертає редактор до звичайної взаємодії.
-     */
-    private void exitDeleteConnectionMode() {
-        interaction.exitDeleteConnectionMode();
     }
 
     /**
@@ -583,16 +565,12 @@ public final class MapEditorCoordinator {
         neuronController.toggleNeuronDirection(neuronId);
     }
 
-    /**
-     * Оновлює візуальні подання всіх елементів карти.
-     */
+    /** Оновлює візуальні подання всіх елементів карти. */
     private void refreshMapPresentation() {
         presentation.refreshAll();
     }
 
-    /**
-     * Оновлює зовнішній вигляд нейронів за їхнім поточним типом і станом.
-     */
+    /** Оновлює зовнішній вигляд нейронів за їхнім поточним типом і станом. */
     private void refreshNeuronVisuals() {
         presentation.refreshNeurons();
     }
@@ -616,5 +594,4 @@ public final class MapEditorCoordinator {
     private void updateStatus(String text) {
         view.setStatus(text);
     }
-
 }

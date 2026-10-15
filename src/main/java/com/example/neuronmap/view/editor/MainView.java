@@ -33,7 +33,6 @@ public final class MainView {
      * @param addNeuron дія додавання нейрона вибраного типу.
      * @param group дія групування поточного вибору.
      * @param ungroup дія розгрупування поточного вибору.
-     * @param exitDelete дія виходу з режиму видалення зв’язків.
      * @param pauseResume дія перемикання паузи симуляції.
      * @param stopSignals дія зупинки передачі сигналів.
      * @param speedChanged обробник зміни швидкості симуляції.
@@ -44,7 +43,6 @@ public final class MainView {
             Consumer<NeuronType> addNeuron,
             Runnable group,
             Runnable ungroup,
-            Runnable exitDelete,
             Runnable pauseResume,
             Runnable stopSignals,
             Consumer<String> speedChanged,
@@ -52,7 +50,7 @@ public final class MainView {
             LocalizationService localization
     ) {
         toolbar = new ToolbarView(
-                addNeuron, group, ungroup, exitDelete, pauseResume, stopSignals,
+                addNeuron, group, ungroup, pauseResume, stopSignals,
                 speedChanged, initialSpeedMillis, localization);
         mainMenu = new MainMenuView(localization, this::setMainMenuVisualState);
 
@@ -64,6 +62,43 @@ public final class MainView {
         root.getStyleClass().add("root");
         root.getChildren().addAll(content, mainMenu);
         root.setPickOnBounds(true);
+    }
+
+    /**
+     * Зберігає сумісність із наявними викликами старого конструктора, які передавали дію для вилученої кнопки.
+     * Переданий callback навмисно не використовується, оскільки кнопки виходу з режиму видалення більше немає.
+     *
+     * @param addNeuron дія додавання нейрона вибраного типу.
+     * @param group дія групування поточного вибору.
+     * @param ungroup дія розгрупування поточного вибору.
+     * @param ignoredExitDeleteConnectionMode дія застарілої кнопки, яка більше не використовується.
+     * @param pauseResume дія перемикання паузи симуляції.
+     * @param stopSignals дія зупинки передачі сигналів.
+     * @param speedChanged обробник зміни швидкості симуляції.
+     * @param initialSpeedMillis початкова тривалість такту симуляції в мілісекундах.
+     * @param localization служба локалізації повідомлень інтерфейсу.
+     */
+    public MainView(
+            Consumer<NeuronType> addNeuron,
+            Runnable group,
+            Runnable ungroup,
+            Runnable ignoredExitDeleteConnectionMode,
+            Runnable pauseResume,
+            Runnable stopSignals,
+            Consumer<String> speedChanged,
+            double initialSpeedMillis,
+            LocalizationService localization
+    ) {
+        this(
+                addNeuron,
+                group,
+                ungroup,
+                pauseResume,
+                stopSignals,
+                speedChanged,
+                initialSpeedMillis,
+                localization
+        );
     }
 
     /**

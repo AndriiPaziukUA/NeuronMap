@@ -36,7 +36,6 @@ public final class ToolbarView {
     private final Button addInhibitoryButton = toolButton();
     private final Button groupButton = toolButton();
     private final Button ungroupButton = toolButton();
-    private final Button exitDeleteButton = toolButton();
     private final Button pauseResumeButton = iconButton("❚❚");
     private final Button stopSignalsButton = iconButton("■");
     private final Separator simulationSeparator = new Separator();
@@ -51,22 +50,20 @@ public final class ToolbarView {
     private boolean committingSpeed;
 
     /**
-     * Створює екземпляр ToolbarView та зберігає передані залежності, потрібні для його роботи.
+     * Створює панель інструментів зі стандартною українською локалізацією.
      *
-     * @param addNeuron значення «add neuron», яке використовується в цьому методі.
-     * @param group значення «group», яке використовується в цьому методі.
-     * @param ungroup значення «ungroup», яке використовується в цьому методі.
-     * @param exitDelete callback, який завершує режим видалення зв’язку.
-     * @param pauseResume значення «pause resume», яке використовується в цьому методі.
-     * @param stopSignals значення «stop signals», яке використовується в цьому методі.
-     * @param speedChanged значення «speed changed», яке використовується в цьому методі.
-     * @param initialSpeedMillis значення «initial speed millis», яке використовується в цьому методі.
+     * @param addNeuron дія створення нейрона вибраного типу.
+     * @param group дія групування вибраних нейронів.
+     * @param ungroup дія розгрупування вибраних нейронів.
+     * @param pauseResume дія перемикання паузи симуляції.
+     * @param stopSignals дія зупинки передачі сигналів.
+     * @param speedChanged дія застосування введеної швидкості.
+     * @param initialSpeedMillis початкова тривалість такту симуляції в мілісекундах.
      */
     public ToolbarView(
             Consumer<NeuronType> addNeuron,
             Runnable group,
             Runnable ungroup,
-            Runnable exitDelete,
             Runnable pauseResume,
             Runnable stopSignals,
             Consumer<String> speedChanged,
@@ -76,7 +73,6 @@ public final class ToolbarView {
                 addNeuron,
                 group,
                 ungroup,
-                exitDelete,
                 pauseResume,
                 stopSignals,
                 speedChanged,
@@ -86,23 +82,21 @@ public final class ToolbarView {
     }
 
     /**
-     * Створює екземпляр ToolbarView та зберігає передані залежності, потрібні для його роботи.
+     * Створює панель інструментів зі спільною службою локалізації застосунку.
      *
-     * @param addNeuron значення «add neuron», яке використовується в цьому методі.
-     * @param group значення «group», яке використовується в цьому методі.
-     * @param ungroup значення «ungroup», яке використовується в цьому методі.
-     * @param exitDelete callback, який завершує режим видалення зв’язку.
-     * @param pauseResume значення «pause resume», яке використовується в цьому методі.
-     * @param stopSignals значення «stop signals», яке використовується в цьому методі.
-     * @param speedChanged значення «speed changed», яке використовується в цьому методі.
-     * @param initialSpeedMillis значення «initial speed millis», яке використовується в цьому методі.
-     * @param localization служба локалізації інтерфейсу.
+     * @param addNeuron дія створення нейрона вибраного типу.
+     * @param group дія групування вибраних нейронів.
+     * @param ungroup дія розгрупування вибраних нейронів.
+     * @param pauseResume дія перемикання паузи симуляції.
+     * @param stopSignals дія зупинки передачі сигналів.
+     * @param speedChanged дія застосування введеної швидкості.
+     * @param initialSpeedMillis початкова тривалість такту симуляції в мілісекундах.
+     * @param localization служба локалізації повідомлень інтерфейсу.
      */
     public ToolbarView(
             Consumer<NeuronType> addNeuron,
             Runnable group,
             Runnable ungroup,
-            Runnable exitDelete,
             Runnable pauseResume,
             Runnable stopSignals,
             Consumer<String> speedChanged,
@@ -123,10 +117,6 @@ public final class ToolbarView {
 
         Label title = new Label("NeuronMap");
         title.getStyleClass().add("toolbar-title");
-
-        exitDeleteButton.getStyleClass().add("tool-button-danger");
-        exitDeleteButton.setVisible(false);
-        exitDeleteButton.setManaged(false);
 
         pauseResumeButton.getStyleClass().add("simulation-icon-button");
         stopSignalsButton.getStyleClass().add("simulation-icon-button-danger");
@@ -180,7 +170,6 @@ public final class ToolbarView {
         addInhibitoryButton.setOnAction(event -> addNeuron.accept(NeuronType.INHIBITORY));
         groupButton.setOnAction(event -> group.run());
         ungroupButton.setOnAction(event -> ungroup.run());
-        exitDeleteButton.setOnAction(event -> exitDelete.run());
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -192,7 +181,6 @@ public final class ToolbarView {
                 new Separator(),
                 groupButton,
                 ungroupButton,
-                exitDeleteButton,
                 speedLabel,
                 speedField,
                 simulationSeparator,
@@ -216,23 +204,27 @@ public final class ToolbarView {
     }
 
     /**
-     * Створює та додає кнопку інструмента для додавання збуджувального нейрона.
+     * Повертає кнопку додавання збуджувального нейрона.
+     *
+     * @return кнопка інструмента додавання збуджувального нейрона.
      */
     public Button addExcitatoryButton() {
         return addExcitatoryButton;
     }
 
     /**
-     * Створює та додає кнопку інструмента для додавання гальмівного нейрона.
+     * Повертає кнопку додавання гальмівного нейрона.
+     *
+     * @return кнопка інструмента додавання гальмівного нейрона.
      */
     public Button addInhibitoryButton() {
         return addInhibitoryButton;
     }
 
     /**
-     * Установлює simulation controls visible для поточного об’єкта.
+     * Відображає або приховує елементи керування активною симуляцією.
      *
-     * @param visible значення «visible», яке використовується в цьому методі.
+     * @param visible {@code true}, щоб показати елементи керування; інакше приховати їх.
      */
     public void setSimulationControlsVisible(boolean visible) {
         simulationSeparator.setVisible(visible);
@@ -246,7 +238,7 @@ public final class ToolbarView {
     /**
      * Оновлює вигляд елементів керування, щоб показати, чи симуляція призупинена.
      *
-     * @param paused значення «paused», яке використовується в цьому методі.
+     * @param paused {@code true}, якщо симуляція призупинена.
      */
     public void setSimulationPaused(boolean paused) {
         pauseResumeButton.setText(paused ? "▶" : "❚❚");
@@ -279,9 +271,7 @@ public final class ToolbarView {
         );
     }
 
-    /**
-     * Оновлює «texts» за поточним станом моделі або інтерфейсу.
-     */
+    /** Оновлює підписи панелі інструментів відповідно до поточної мови інтерфейсу. */
     private void refreshTexts() {
         addExcitatoryButton.setText(localization.text("toolbar.excitatory"));
         addExcitatoryButton.setTooltip(new Tooltip(localization.text("toolbar.excitatory.tooltip")));
@@ -291,8 +281,6 @@ public final class ToolbarView {
         groupButton.setTooltip(new Tooltip(localization.text("toolbar.group.tooltip")));
         ungroupButton.setText(localization.text("toolbar.ungroup"));
         ungroupButton.setTooltip(new Tooltip(localization.text("toolbar.ungroup.tooltip")));
-        exitDeleteButton.setText(localization.text("toolbar.exit_delete"));
-        exitDeleteButton.setTooltip(new Tooltip(localization.text("toolbar.exit_delete.tooltip")));
         stopSignalsButton.setTooltip(new Tooltip(localization.text("toolbar.stop.tooltip")));
         speedLabel.setText(localization.text("toolbar.speed"));
         speedField.setPromptText(localization.text("toolbar.speed.prompt"));
@@ -300,9 +288,9 @@ public final class ToolbarView {
     }
 
     /**
-     * Обробляє подію «scene mouse pressed» і передає її до відповідної операції редактора.
+     * Завершує редагування швидкості, коли користувач клацає за межами текстового поля.
      *
-     * @param event подія інтерфейсу, яку потрібно обробити.
+     * @param event подія натискання кнопки миші.
      */
     private void handleSceneMousePressed(MouseEvent event) {
         if (!speedField.isFocused()) {
@@ -315,9 +303,7 @@ public final class ToolbarView {
         commitSpeedEdit();
     }
 
-    /**
-     * Перевіряє введену тривалість такту й передає нове значення контролеру симуляції.
-     */
+    /** Перевіряє введену тривалість такту й передає нове значення контролеру симуляції. */
     private void commitSpeedEdit() {
         if (committingSpeed) {
             return;
@@ -331,9 +317,7 @@ public final class ToolbarView {
         }
     }
 
-    /**
-     * Створює фільтр текстового поля, який обмежує введення числом допустимого формату.
-     */
+    /** Створює фільтр текстового поля, який дозволяє вводити лише число допустимого формату. */
     private static UnaryOperator<TextFormatter.Change> numericSpeedFilter() {
         return change -> {
             String text = change.getControlNewText();
@@ -345,12 +329,11 @@ public final class ToolbarView {
     }
 
     /**
-     * Перевіряє, чи descendant or self за поточного стану компонента.
+     * Перевіряє, чи є вузол ціллю або нащадком заданого вузла.
      *
-     * @param target цільовий вузол або об’єкт інтерфейсу, який потрібно перевірити чи знайти.
-     * @param parent батьківський XML-елемент або вузол, у якому виконується пошук.
-     *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
+     * @param target цільовий вузол, який потрібно перевірити.
+     * @param parent вузол, відносно якого виконується перевірка.
+     * @return {@code true}, якщо target збігається з parent або є його нащадком.
      */
     private static boolean isDescendantOrSelf(Node target, Node parent) {
         Node current = target;
@@ -363,9 +346,7 @@ public final class ToolbarView {
         return false;
     }
 
-    /**
-     * Створює кнопку інструмента для панелі редактора зі спільним оформленням.
-     */
+    /** Створює кнопку інструмента панелі редактора зі спільним оформленням. */
     private static Button toolButton() {
         Button button = new Button();
         button.getStyleClass().add("tool-button");
@@ -373,9 +354,10 @@ public final class ToolbarView {
     }
 
     /**
-     * Створює кнопку панелі інструментів із заданим текстом і значком.
+     * Створює кнопку панелі інструментів із заданим текстом та значком.
      *
-     * @param text текст, який потрібно показати або розібрати.
+     * @param text текст значка.
+     * @return створена кнопка з базовим оформленням.
      */
     private static Button iconButton(String text) {
         Button button = new Button(text);
