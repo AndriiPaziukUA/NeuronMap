@@ -4,19 +4,13 @@ import com.example.neuronmap.window.WindowChrome;
 import com.example.neuronmap.window.WindowHitTestCalculator;
 import com.example.neuronmap.window.WindowHitTestCalculator.HitTarget;
 import com.example.neuronmap.window.WindowHitTestCalculator.Layout;
-import com.sun.jna.CallbackReference;
-import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.BaseTSD;
 import com.sun.jna.platform.win32.User32;
 import com.sun.jna.platform.win32.WinDef.HWND;
 import com.sun.jna.platform.win32.WinDef.LPARAM;
-import com.sun.jna.platform.win32.WinDef.LRESULT;
 import com.sun.jna.platform.win32.WinDef.POINT;
 import com.sun.jna.platform.win32.WinDef.RECT;
-import com.sun.jna.platform.win32.WinDef.WPARAM;
-import com.sun.jna.platform.win32.WinUser;
-import com.sun.jna.win32.W32APIOptions;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.event.EventHandler;
@@ -30,15 +24,14 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Інтегрує власний заголовок із Win32, залишаючи переміщення, зміну розміру та системні команди в розпорядженні Windows.
- * Перетворення семантичних областей у коди Win32 зосереджено в платформному пакеті; Snap Layouts працює через HTMAXBUTTON.
+ * Координує інтеграцію власного заголовка з Win32 та керує життєвим циклом системних ресурсів.
+ * Пошук HWND і системні стилі залишаються тут, а нативна процедура та системні метрики мають окремі відповідальності.
  */
 public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter {
 
     private static final Logger LOGGER = Logger.getLogger(WindowsWindowPlatformAdapter.class.getName());
 
     private static final int GWL_STYLE = -16;
-    private static final int GWL_WNDPROC = -4;
     private static final long WS_CAPTION = 0x00C00000L;
     private static final long WS_POPUP = 0x80000000L;
     private static final long WS_CHILD = 0x40000000L;
@@ -52,38 +45,24 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
     private static final int SWP_NOACTIVATE = 0x0010;
     private static final int SWP_FRAMECHANGED = 0x0020;
 
-    private static final int WM_NCCALCSIZE = 0x0083;
-    private static final int WM_NCHITTEST = 0x0084;
-    private static final int WM_NCLBUTTONDOWN = 0x00A1;
-    private static final int WM_NCLBUTTONUP = 0x00A2;
-    private static final int WM_NCLBUTTONDBLCLK = 0x00A3;
-    private static final int WM_NCMOUSEMOVE = 0x00A0;
-    private static final int WM_NCMOUSELEAVE = 0x02A2;
-    private static final int WM_MOUSEMOVE = 0x0200;
-    private static final int WM_LBUTTONUP = 0x0202;
-    private static final int WM_CAPTURECHANGED = 0x0215;
-    private static final int SM_CXSIZEFRAME = 32;
-    private static final int SM_CYSIZEFRAME = 33;
-    private static final int SM_CXPADDEDBORDER = 92;
-
     private final AtomicBoolean disposed = new AtomicBoolean();
-    private final AtomicReference<HitTarget> pressedTarget = new AtomicReference<>();
+    private final WindowsSystemMetrics systemMetrics = new WindowsSystemMetrics();
     private Stage stage;
     private WindowChrome chrome;
     private HWND hwnd;
     private volatile WindowsUser32Extensions user32Extensions;
-    private Pointer previousWindowProcedure;
+    private WindowsWindowProcedure windowProcedure;
     private long previousWindowStyle;
     private boolean previousWindowStyleCaptured;
-    private WinUser.WindowProc windowProcedure;
+    private boolean installationAttempted;
     private volatile double outputScaleX = 1.0;
     private volatile double outputScaleY = 1.0;
     private final ChangeListener<Number> outputScaleXListener = (observable, oldValue, newValue) -> {
-        outputScaleX = validScale(newValue.doubleValue());
+        outputScaleX = WindowsSystemMetrics.validScale(newValue.doubleValue());
         updateNativeResizeBorders();
     };
     private final ChangeListener<Number> outputScaleYListener = (observable, oldValue, newValue) -> {
-        outputScaleY = validScale(newValue.doubleValue());
+        outputScaleY = WindowsSystemMetrics.validScale(newValue.doubleValue());
         updateNativeResizeBorders();
     };
     private final EventHandler<WindowEvent> hiddenHandler = event -> dispose();
@@ -93,53 +72,57 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
     }
 
     /**
-     * Підключає Win32 до показаного JavaFX-вікна: знаходить HWND, змінює стилі та встановлює власний обробник повідомлень.
-     * Прив'язка до {@code user32} завантажується лише після перевірки потоку JavaFX і видимості {@code Stage}.
+     * Підключає Win32 до показаного JavaFX-вікна: знаходить HWND, змінює стилі та реєструє нативну процедуру.
+     * Нативні бібліотеки завантажуються лише після перевірки потоку JavaFX і видимості {@code Stage}.
+     * Екземпляр одноразовий, зокрема після невдалої спроби встановлення.
      *
      * @param stage показане головне вікно JavaFX.
      * @param chrome платформонезалежний контракт геометрії та команд заголовка.
-     * @throws IllegalStateException якщо HWND не знайдено або нативний обробник неможливо встановити.
+     * @throws IllegalStateException якщо адаптер уже використовували, HWND не знайдено або інтеграцію не встановлено.
      * @throws NullPointerException якщо передано порожню залежність.
      */
     @Override
     public void install(Stage stage, WindowChrome chrome) {
-        if (this.hwnd != null) {
-            throw new IllegalStateException("Windows window adapter is already installed");
+        if (installationAttempted || disposed.get()) {
+            throw new IllegalStateException("Windows window adapter can only be installed once");
         }
-        this.stage = Objects.requireNonNull(stage, "stage");
-        this.chrome = Objects.requireNonNull(chrome, "chrome");
+        Stage requestedStage = Objects.requireNonNull(stage, "stage");
+        WindowChrome requestedChrome = Objects.requireNonNull(chrome, "chrome");
+        installationAttempted = true;
         if (!Platform.isFxApplicationThread()) {
             throw new IllegalStateException("Windows window adapter must be installed on the JavaFX Application Thread");
         }
-        if (!stage.isShowing()) {
+        if (!requestedStage.isShowing()) {
             throw new IllegalStateException("Stage must be showing before native window integration");
         }
 
-        outputScaleX = validScale(stage.getOutputScaleX());
-        outputScaleY = validScale(stage.getOutputScaleY());
+        this.stage = requestedStage;
+        this.chrome = requestedChrome;
+        outputScaleX = WindowsSystemMetrics.validScale(requestedStage.getOutputScaleX());
+        outputScaleY = WindowsSystemMetrics.validScale(requestedStage.getOutputScaleY());
 
         try {
             user32Extensions = WindowsUser32Extensions.INSTANCE;
-            hwnd = findWindowHandle(stage.getTitle());
+            hwnd = findWindowHandle(requestedStage.getTitle());
             if (hwnd == null) {
                 throw new IllegalStateException("Could not locate the native window for the displayed JavaFX stage");
             }
 
             installNativeWindowProcedureAndStyle();
             updateNativeResizeBorders();
-            stage.outputScaleXProperty().addListener(outputScaleXListener);
-            stage.outputScaleYProperty().addListener(outputScaleYListener);
-            stage.addEventHandler(WindowEvent.WINDOW_HIDDEN, hiddenHandler);
+            requestedStage.outputScaleXProperty().addListener(outputScaleXListener);
+            requestedStage.outputScaleYProperty().addListener(outputScaleYListener);
+            requestedStage.addEventHandler(WindowEvent.WINDOW_HIDDEN, hiddenHandler);
         } catch (RuntimeException | LinkageError exception) {
-            restoreNativeWindow();
-            removeStageListeners();
-            hwnd = null;
-            user32Extensions = null;
+            disposeAfterFailedInstall(exception);
             throw new IllegalStateException("Could not install native Windows window behavior", exception);
         }
     }
 
-    /** Відновлює початкові стилі та процедуру вікна й від'єднує слухачі адаптера. */
+    /**
+     * Відновлює початкові стилі та процедуру вікна й від'єднує слухачі адаптера.
+     * Повторний виклик безпечний; після очищення цей екземпляр не можна встановлювати повторно.
+     */
     @Override
     public void dispose() {
         if (!disposed.compareAndSet(false, true)) {
@@ -152,12 +135,29 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
         stage = null;
         chrome = null;
         windowProcedure = null;
-        previousWindowProcedure = null;
         previousWindowStyle = 0L;
         previousWindowStyleCaptured = false;
     }
 
-    /** Установлює callback, прибирає системний заголовок і залишає нативні стилі зміни розміру та системних команд. */
+    /**
+     * Звільняє ресурси після помилки встановлення, додаючи помилку очищення до первинної причини.
+     *
+     * @param installationFailure помилка, що перервала встановлення адаптера.
+     */
+    private void disposeAfterFailedInstall(Throwable installationFailure) {
+        try {
+            dispose();
+        } catch (RuntimeException | LinkageError cleanupFailure) {
+            if (cleanupFailure != installationFailure) {
+                installationFailure.addSuppressed(cleanupFailure);
+            }
+        }
+    }
+
+    /**
+     * Зчитує початковий стиль, установлює нативну процедуру та залишає системні команди й resize активними.
+     * Збережені значення потрібні для відновлення в разі помилки або закриття вікна.
+     */
     private void installNativeWindowProcedureAndStyle() {
         BaseTSD.LONG_PTR styleValue = User32.INSTANCE.GetWindowLongPtr(hwnd, GWL_STYLE);
         if (styleValue == null) {
@@ -167,20 +167,19 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
         if (style == 0L) {
             throw new IllegalStateException("Native window style is unexpectedly empty");
         }
-
-        windowProcedure = this::windowProcedureCallback;
-        previousWindowProcedure = User32.INSTANCE.SetWindowLongPtr(
-                hwnd,
-                GWL_WNDPROC,
-                CallbackReference.getFunctionPointer(windowProcedure)
-        );
-        if (previousWindowProcedure == null) {
-            windowProcedure = null;
-            throw new IllegalStateException("Could not replace the native window procedure");
-        }
-
         previousWindowStyle = style;
         previousWindowStyleCaptured = true;
+
+        windowProcedure = new WindowsWindowProcedure(new WindowsWindowProcedure.Callbacks(
+                this::hitTestNativePoint,
+                this::hitTestClientPoint,
+                this::updateNativeHover,
+                this::updateNativePressed,
+                this::performNativeButtonAction,
+                this::performCaptionDoubleClick
+        ));
+        windowProcedure.install(hwnd);
+
         long customStyle = (style & ~(WS_CAPTION | WS_POPUP | WS_CHILD))
                 | WS_THICKFRAME
                 | WS_SYSMENU
@@ -194,78 +193,10 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
     }
 
     /**
-     * Обробляє повідомлення рамки, а решту передає попередній процедурі JavaFX Glass.
-     * Помилка в додатковій обробці не повинна переривати нативний ланцюжок повідомлень.
-     *
-     * @param window нативний HWND джерела повідомлення.
-     * @param message ідентифікатор повідомлення Win32.
-     * @param wParam перший параметр повідомлення.
-     * @param lParam другий параметр повідомлення.
-     * @return результат Win32 або результат попередньої процедури вікна.
-     */
-    private LRESULT windowProcedureCallback(HWND window, int message, WPARAM wParam, LPARAM lParam) {
-        try {
-            if (message == WM_NCCALCSIZE) {
-                return new LRESULT(0L);
-            }
-            if (message == WM_NCHITTEST) {
-                HitTarget hitTarget = hitTestNativePoint(lParam);
-                if (hitTarget != null) {
-                    updateNativeHover(hitTarget.isCaptionButton() ? hitTarget : null);
-                    return new LRESULT(Win32HitTestCode.toNativeCode(hitTarget));
-                }
-            } else if (message == WM_NCMOUSEMOVE) {
-                updateNativeHover(Win32HitTestCode.captionButtonFromNativeCode(wParam.intValue()));
-            } else if (message == WM_NCMOUSELEAVE) {
-                updateNativeHover(null);
-            } else if (message == WM_MOUSEMOVE && pressedTarget.get() != null) {
-                updateNativeHover(hitTestClientPoint(lParam));
-            } else if (message == WM_LBUTTONUP && pressedTarget.get() != null) {
-                HitTarget wasPressed = pressedTarget.getAndSet(null);
-                User32WithTracking.INSTANCE.ReleaseCapture();
-                updateNativePressed(null);
-                HitTarget released = hitTestClientPoint(lParam);
-                if (wasPressed == released) {
-                    performNativeButtonAction(wasPressed);
-                }
-                return new LRESULT(0L);
-            } else if (message == WM_NCLBUTTONDOWN) {
-                HitTarget target = Win32HitTestCode.captionButtonFromNativeCode(wParam.intValue());
-                if (target != null) {
-                    pressedTarget.set(target);
-                    updateNativePressed(target);
-                    User32WithTracking.INSTANCE.SetCapture(window);
-                    return new LRESULT(0L);
-                }
-            } else if (message == WM_NCLBUTTONUP) {
-                HitTarget wasPressed = pressedTarget.getAndSet(null);
-                if (wasPressed != null) {
-                    User32WithTracking.INSTANCE.ReleaseCapture();
-                    updateNativePressed(null);
-                    HitTarget released = Win32HitTestCode.captionButtonFromNativeCode(wParam.intValue());
-                    if (wasPressed == released) {
-                        performNativeButtonAction(wasPressed);
-                    }
-                    return new LRESULT(0L);
-                }
-            } else if (message == WM_NCLBUTTONDBLCLK
-                    && wParam.intValue() == Win32HitTestCode.toNativeCode(HitTarget.CAPTION)) {
-                performCaptionDoubleClick();
-                return new LRESULT(0L);
-            } else if (message == WM_CAPTURECHANGED && pressedTarget.getAndSet(null) != null) {
-                updateNativePressed(null);
-            }
-        } catch (RuntimeException | LinkageError exception) {
-            LOGGER.log(Level.WARNING, "Помилка під час обробки нативної взаємодії з вікном", exception);
-        }
-        return callPreviousWindowProcedure(window, message, wParam, lParam);
-    }
-
-    /**
-     * Визначає HWND за назвою та PID поточного процесу, не використовуючи приватні API JavaFX.
+     * Визначає HWND за заголовком і PID поточного процесу без використання приватних API JavaFX.
      *
      * @param title заголовок JavaFX-вікна.
-     * @return знайдений HWND або {@code null}, якщо відповідного вікна немає.
+     * @return знайдений HWND або {@code null}, якщо відповідного видимого вікна немає.
      */
     private HWND findWindowHandle(String title) {
         long currentProcessId = ProcessHandle.current().pid();
@@ -295,7 +226,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
     }
 
     /**
-     * Розраховує семантичну область нативного вікна за екранними координатами WM_NCHITTEST.
+     * Розраховує семантичну область вікна за екранними координатами повідомлення {@code WM_NCHITTEST}.
      *
      * @param lParam упаковані знакові координати курсора у фізичних пікселях екрана.
      * @return область hit testing або {@code null}, якщо геометрію HWND прочитати не вдалося.
@@ -308,9 +239,12 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
             return null;
         }
         Layout layout = currentChrome.hitTestLayout();
+        if (layout == null) {
+            return null;
+        }
         RECT clientRectangle = new RECT();
         POINT clientOrigin = new POINT();
-        if (layout == null || !User32.INSTANCE.GetClientRect(window, clientRectangle)
+        if (!User32.INSTANCE.GetClientRect(window, clientRectangle)
                 || !coordinates.ClientToScreen(window, clientOrigin)) {
             return null;
         }
@@ -394,7 +328,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
         });
     }
 
-    /** Виконує перемикання максимізації після подвійного клацання по заголовку. */
+    /** Виконує перемикання максимізації після подвійного клацання по заголовку у JavaFX Application Thread. */
     private void performCaptionDoubleClick() {
         WindowChrome currentChrome = chrome;
         if (currentChrome == null || disposed.get()) {
@@ -407,80 +341,28 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
         });
     }
 
-    /**
-     * Передає повідомлення початковій процедурі JavaFX Glass, збереженій перед під'єднанням адаптера.
-     *
-     * @param window HWND вікна.
-     * @param message ідентифікатор Win32-повідомлення.
-     * @param wParam перший параметр повідомлення.
-     * @param lParam другий параметр повідомлення.
-     * @return результат початкової процедури або нуль, якщо вона вже відновлюється.
-     */
-    private LRESULT callPreviousWindowProcedure(HWND window, int message, WPARAM wParam, LPARAM lParam) {
-        Pointer previous = previousWindowProcedure;
-        if (previous == null) {
-            return new LRESULT(0L);
-        }
-        return User32.INSTANCE.CallWindowProc(previous, window, message, wParam, lParam);
-    }
-
-    /** Отримує системну товщину resize для поточного DPI й передає її нейтральному контракту оформлення. */
+    /** Оновлює системну зону зміни розміру через окремий обчислювач метрик Windows. */
     private void updateNativeResizeBorders() {
         Stage currentStage = stage;
         WindowChrome currentChrome = chrome;
         HWND currentWindow = hwnd;
-        if (currentStage == null || currentChrome == null || currentWindow == null
+        if (currentStage == null || currentChrome == null || currentWindow == null || disposed.get()
                 || !Platform.isFxApplicationThread()) {
             return;
         }
-        int dpi = (int) Math.round(96.0 * Math.max(outputScaleX, outputScaleY));
-        try {
-            int windowDpi = User32WithTracking.INSTANCE.GetDpiForWindow(currentWindow);
-            if (windowDpi > 0) {
-                dpi = windowDpi;
-            }
-        } catch (UnsatisfiedLinkError exception) {
-            LOGGER.log(Level.FINE, "GetDpiForWindow недоступний; для метрик використовується масштаб JavaFX", exception);
-        }
-        double horizontal = systemResizeMetric(SM_CXSIZEFRAME, dpi, outputScaleX)
-                + systemResizeMetric(SM_CXPADDEDBORDER, dpi, outputScaleX);
-        double vertical = systemResizeMetric(SM_CYSIZEFRAME, dpi, outputScaleY)
-                + systemResizeMetric(SM_CXPADDEDBORDER, dpi, outputScaleY);
-        currentChrome.setNativeResizeBorders(positiveMetric(horizontal), positiveMetric(vertical));
-    }
-
-    /**
-     * Зчитує системну метрику у фізичних пікселях і повертає її в логічних одиницях JavaFX.
-     *
-     * @param metric індекс системної метрики Windows.
-     * @param dpi DPI поточного вікна.
-     * @param scale коефіцієнт масштабування відповідної осі.
-     * @return значення метрики в логічних пікселях або нуль для відсутньої метрики.
-     */
-    private double systemResizeMetric(int metric, int dpi, double scale) {
-        try {
-            return User32WithTracking.INSTANCE.GetSystemMetricsForDpi(metric, dpi) / validScale(scale);
-        } catch (UnsatisfiedLinkError exception) {
-            return User32.INSTANCE.GetSystemMetrics(metric) / validScale(scale);
-        }
-    }
-
-    /**
-     * Замінює відсутню або недодатну системну товщину безпечним типовим значенням.
-     *
-     * @param metric сумарна товщина resize у логічних пікселях.
-     * @return додатна товщина зони resize.
-     */
-    private static double positiveMetric(double metric) {
-        return Double.isFinite(metric) && metric > 0.0
-                ? metric
-                : WindowHitTestCalculator.DEFAULT_RESIZE_BORDER;
+        WindowsSystemMetrics.ResizeBorders borders =
+                systemMetrics.readResizeBorders(currentWindow, outputScaleX, outputScaleY);
+        currentChrome.setNativeResizeBorders(borders.horizontal(), borders.vertical());
     }
 
     /** Оновлює системний стиль і просить Windows повторно обчислити рамку вікна. */
     private void updateNonClientFrame() {
+        HWND currentWindow = hwnd;
+        if (currentWindow == null) {
+            return;
+        }
         User32.INSTANCE.SetWindowPos(
-                hwnd,
+                currentWindow,
                 null,
                 0,
                 0,
@@ -490,22 +372,27 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
         );
     }
 
-    /** Відновлює попередні нативні стиль і процедуру, якщо їх уже було змінено. */
+    /**
+     * Відновлює попередню процедуру та початковий стиль незалежними спробами, щоб одна помилка не блокувала іншу.
+     */
     private void restoreNativeWindow() {
-        HWND window = hwnd;
-        if (window == null) {
+        WindowsWindowProcedure currentProcedure = windowProcedure;
+        if (currentProcedure != null) {
+            currentProcedure.dispose();
+            windowProcedure = null;
+        }
+
+        HWND currentWindow = hwnd;
+        if (currentWindow == null || !previousWindowStyleCaptured) {
             return;
         }
         try {
-            if (previousWindowProcedure != null) {
-                User32.INSTANCE.SetWindowLongPtr(window, GWL_WNDPROC, previousWindowProcedure);
-            }
-            if (previousWindowStyleCaptured) {
-                User32.INSTANCE.SetWindowLongPtr(window, GWL_STYLE, new Pointer(previousWindowStyle));
-                updateNonClientFrame();
-            }
+            User32.INSTANCE.SetWindowLongPtr(currentWindow, GWL_STYLE, new Pointer(previousWindowStyle));
+            updateNonClientFrame();
         } catch (RuntimeException | LinkageError exception) {
-            LOGGER.log(Level.WARNING, "Не вдалося повністю відновити початковий стан вікна Windows", exception);
+            LOGGER.log(Level.WARNING, "Не вдалося відновити початковий стиль вікна Windows", exception);
+        } finally {
+            previousWindowStyleCaptured = false;
         }
     }
 
@@ -517,53 +404,5 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
             currentStage.outputScaleYProperty().removeListener(outputScaleYListener);
             currentStage.removeEventHandler(WindowEvent.WINDOW_HIDDEN, hiddenHandler);
         }
-    }
-
-    /** Інтерфейс доступу до додаткових функцій user32, яких немає у базовому наборі JNA User32. */
-    public interface User32WithTracking extends User32 {
-        /** Спільний Win32-проксі з коректними параметрами виклику stdcall. */
-        User32WithTracking INSTANCE = Native.load("user32", User32WithTracking.class, W32APIOptions.DEFAULT_OPTIONS);
-
-        /**
-         * Передає тимчасове захоплення миші вікну, щоб отримати подію відпускання поза кнопкою.
-         *
-         * @param window HWND, що захоплює мишу.
-         * @return попередній HWND, який мав захоплення.
-         */
-        HWND SetCapture(HWND window);
-
-        /**
-         * Звільняє захоплення миші після завершення нативного кліку.
-         *
-         * @return {@code true}, якщо захоплення було звільнено.
-         */
-        boolean ReleaseCapture();
-
-        /**
-         * Повертає системний коефіцієнт зміни розміру для конкретного DPI.
-         *
-         * @param metric індекс SM_* метрики.
-         * @param dpi DPI екрана.
-         * @return значення метрики у фізичних пікселях.
-         */
-        int GetSystemMetricsForDpi(int metric, int dpi);
-
-        /**
-         * Повертає DPI, встановлений для HWND.
-         *
-         * @param window HWND вікна.
-         * @return DPI вікна.
-         */
-        int GetDpiForWindow(HWND window);
-    }
-
-    /**
-     * Перевіряє коефіцієнт масштабування екрана та замінює недопустиме значення одиницею.
-     *
-     * @param scale коефіцієнт JavaFX для відповідної осі.
-     * @return скінченний додатний коефіцієнт.
-     */
-    private static double validScale(double scale) {
-        return Double.isFinite(scale) && scale > 0.0 ? scale : 1.0;
     }
 }

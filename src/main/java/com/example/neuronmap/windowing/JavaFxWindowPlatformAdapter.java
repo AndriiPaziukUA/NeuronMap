@@ -11,6 +11,9 @@ import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Забезпечує переміщення та зміну розміру безрамкового JavaFX-вікна як резервний механізм.
@@ -18,9 +21,11 @@ import java.util.Objects;
  */
 public final class JavaFxWindowPlatformAdapter implements WindowPlatformAdapter {
 
+    private static final Logger LOGGER = Logger.getLogger(JavaFxWindowPlatformAdapter.class.getName());
     private static final double RESIZE_BORDER = WindowHitTestCalculator.DEFAULT_RESIZE_BORDER;
     private static final String CAPTION_BUTTON_STYLE_CLASS = "window-control-button";
 
+    private final AtomicBoolean disposed = new AtomicBoolean();
     private Stage stage;
     private WindowChrome chrome;
     private Node eventSource;
@@ -30,7 +35,7 @@ public final class JavaFxWindowPlatformAdapter implements WindowPlatformAdapter 
     private EventHandler<MouseEvent> releasedHandler;
     private EventHandler<MouseEvent> clickedHandler;
     private final EventHandler<WindowEvent> hiddenHandler = event -> dispose();
-    private boolean installed;
+    private boolean installAttempted;
     private ResizeEdge activeResizeEdge = ResizeEdge.NONE;
     private boolean moving;
     private double initialScreenX;
@@ -46,53 +51,123 @@ public final class JavaFxWindowPlatformAdapter implements WindowPlatformAdapter 
 
     /**
      * Під'єднує обробники миші до кореня сцени для ручного переміщення й зміни розміру вікна.
+     * Екземпляр одноразовий: у разі помилки часткова реєстрація обробників очищується, а адаптер відкидається.
      *
      * @param stage безрамкове JavaFX-вікно зі створеною сценою.
      * @param chrome платформонезалежний контракт геометрії та команд заголовка.
-     * @throws NullPointerException якщо не задано вікно, сцену або контракт.
-     * @throws IllegalStateException якщо адаптер уже встановлено або сцена відсутня.
+     * @throws NullPointerException якщо не задано вікно або контракт.
+     * @throws IllegalStateException якщо встановлення вже починалося або сцена відсутня.
      */
     @Override
     public void install(Stage stage, WindowChrome chrome) {
-        if (installed) {
-            throw new IllegalStateException("JavaFX window adapter is already installed");
+        if (installAttempted || disposed.get()) {
+            throw new IllegalStateException("JavaFX window adapter can only be installed once");
         }
-        this.stage = Objects.requireNonNull(stage, "stage");
-        this.chrome = Objects.requireNonNull(chrome, "chrome");
-        if (stage.getScene() == null || stage.getScene().getRoot() == null) {
-            throw new IllegalStateException("Stage must have a scene root before installing the JavaFX adapter");
+        Stage requestedStage = Objects.requireNonNull(stage, "stage");
+        WindowChrome requestedChrome = Objects.requireNonNull(chrome, "chrome");
+        installAttempted = true;
+        this.stage = requestedStage;
+        this.chrome = requestedChrome;
+
+        try {
+            if (requestedStage.getScene() == null || requestedStage.getScene().getRoot() == null) {
+                throw new IllegalStateException(
+                        "Stage must have a scene root before installing the JavaFX adapter");
+            }
+            eventSource = requestedStage.getScene().getRoot();
+            pressedHandler = this::onMousePressed;
+            draggedHandler = this::onMouseDragged;
+            movedHandler = this::onMouseMoved;
+            releasedHandler = this::onMouseReleased;
+            clickedHandler = this::onMouseClicked;
+            eventSource.addEventFilter(MouseEvent.MOUSE_PRESSED, pressedHandler);
+            eventSource.addEventFilter(MouseEvent.MOUSE_DRAGGED, draggedHandler);
+            eventSource.addEventFilter(MouseEvent.MOUSE_MOVED, movedHandler);
+            eventSource.addEventFilter(MouseEvent.MOUSE_RELEASED, releasedHandler);
+            eventSource.addEventFilter(MouseEvent.MOUSE_CLICKED, clickedHandler);
+            requestedStage.addEventHandler(WindowEvent.WINDOW_HIDDEN, hiddenHandler);
+        } catch (RuntimeException | LinkageError installationFailure) {
+            try {
+                dispose();
+            } catch (RuntimeException | LinkageError cleanupFailure) {
+                if (cleanupFailure != installationFailure) {
+                    installationFailure.addSuppressed(cleanupFailure);
+                }
+            }
+            throw installationFailure;
         }
-        eventSource = stage.getScene().getRoot();
-        pressedHandler = this::onMousePressed;
-        draggedHandler = this::onMouseDragged;
-        movedHandler = this::onMouseMoved;
-        releasedHandler = this::onMouseReleased;
-        clickedHandler = this::onMouseClicked;
-        eventSource.addEventFilter(MouseEvent.MOUSE_PRESSED, pressedHandler);
-        eventSource.addEventFilter(MouseEvent.MOUSE_DRAGGED, draggedHandler);
-        eventSource.addEventFilter(MouseEvent.MOUSE_MOVED, movedHandler);
-        eventSource.addEventFilter(MouseEvent.MOUSE_RELEASED, releasedHandler);
-        eventSource.addEventFilter(MouseEvent.MOUSE_CLICKED, clickedHandler);
-        stage.addEventHandler(WindowEvent.WINDOW_HIDDEN, hiddenHandler);
-        installed = true;
     }
 
-    /** Від'єднує всі обробники миші та скидає активну операцію. */
+    /**
+     * Від'єднує всі обробники миші, скидає активну операцію та звільняє посилання на сцену.
+     * Очищення є ідемпотентним; після нього цей екземпляр не можна встановлювати повторно.
+     */
     @Override
     public void dispose() {
-        if (!installed) {
+        if (!disposed.compareAndSet(false, true)) {
             return;
         }
-        eventSource.removeEventFilter(MouseEvent.MOUSE_PRESSED, pressedHandler);
-        eventSource.removeEventFilter(MouseEvent.MOUSE_DRAGGED, draggedHandler);
-        eventSource.removeEventFilter(MouseEvent.MOUSE_MOVED, movedHandler);
-        eventSource.removeEventFilter(MouseEvent.MOUSE_RELEASED, releasedHandler);
-        eventSource.removeEventFilter(MouseEvent.MOUSE_CLICKED, clickedHandler);
-        stage.removeEventHandler(WindowEvent.WINDOW_HIDDEN, hiddenHandler);
-        eventSource.setCursor(Cursor.DEFAULT);
+        Stage currentStage = stage;
+        Node currentEventSource = eventSource;
+        Throwable cleanupFailure = null;
+        if (currentEventSource != null) {
+            cleanupFailure = attemptCleanup(
+                    () -> currentEventSource.removeEventFilter(MouseEvent.MOUSE_PRESSED, pressedHandler),
+                    cleanupFailure);
+            cleanupFailure = attemptCleanup(
+                    () -> currentEventSource.removeEventFilter(MouseEvent.MOUSE_DRAGGED, draggedHandler),
+                    cleanupFailure);
+            cleanupFailure = attemptCleanup(
+                    () -> currentEventSource.removeEventFilter(MouseEvent.MOUSE_MOVED, movedHandler),
+                    cleanupFailure);
+            cleanupFailure = attemptCleanup(
+                    () -> currentEventSource.removeEventFilter(MouseEvent.MOUSE_RELEASED, releasedHandler),
+                    cleanupFailure);
+            cleanupFailure = attemptCleanup(
+                    () -> currentEventSource.removeEventFilter(MouseEvent.MOUSE_CLICKED, clickedHandler),
+                    cleanupFailure);
+            cleanupFailure = attemptCleanup(() -> currentEventSource.setCursor(Cursor.DEFAULT), cleanupFailure);
+        }
+        if (currentStage != null) {
+            cleanupFailure = attemptCleanup(
+                    () -> currentStage.removeEventHandler(WindowEvent.WINDOW_HIDDEN, hiddenHandler),
+                    cleanupFailure);
+        }
+        clearReferences();
+        if (cleanupFailure != null) {
+            LOGGER.log(Level.WARNING, "Не вдалося повністю очистити резервний адаптер вікна JavaFX", cleanupFailure);
+            if (cleanupFailure instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw (LinkageError) cleanupFailure;
+        }
+    }
+
+    /**
+     * Виконує одну дію очищення та зберігає попередні помилки, щоб решта ресурсів теж була звільнена.
+     *
+     * @param cleanup дія звільнення одного ресурсу.
+     * @param previousFailure раніше отримана помилка або {@code null}.
+     * @return перша помилка очищення із доданими наступними помилками як suppressed.
+     */
+    private Throwable attemptCleanup(Runnable cleanup, Throwable previousFailure) {
+        try {
+            cleanup.run();
+        } catch (RuntimeException | LinkageError cleanupFailure) {
+            if (previousFailure == null) {
+                return cleanupFailure;
+            }
+            if (previousFailure != cleanupFailure) {
+                previousFailure.addSuppressed(cleanupFailure);
+            }
+        }
+        return previousFailure;
+    }
+
+    /** Скидає активну операцію та звільняє всі посилання, які утримували Stage або корінь сцени. */
+    private void clearReferences() {
         activeResizeEdge = ResizeEdge.NONE;
         moving = false;
-        installed = false;
         stage = null;
         chrome = null;
         eventSource = null;
