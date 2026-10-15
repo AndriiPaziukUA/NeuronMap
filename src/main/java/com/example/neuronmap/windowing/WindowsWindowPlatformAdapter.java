@@ -47,6 +47,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
 
     private final AtomicBoolean disposed = new AtomicBoolean();
     private final WindowsSystemMetrics systemMetrics = new WindowsSystemMetrics();
+    private final WindowsWindowLongPtr.Setter windowLongPtrSetter;
     private Stage stage;
     private WindowChrome chrome;
     private HWND hwnd;
@@ -69,6 +70,18 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
 
     /** Створює адаптер без підключення до Win32 до виклику {@link #install(Stage, WindowChrome)}. */
     public WindowsWindowPlatformAdapter() {
+        this(WindowsWindowLongPtr::set);
+    }
+
+    /**
+     * Створює адаптер із заданим механізмом зміни атрибутів Win32.
+     * Конструктор з ін'єкцією залежності використовується для ізольованої перевірки сценаріїв помилки.
+     *
+     * @param windowLongPtrSetter перевірений механізм зміни атрибута Win32.
+     * @throws NullPointerException якщо механізм не задано.
+     */
+    WindowsWindowPlatformAdapter(WindowsWindowLongPtr.Setter windowLongPtrSetter) {
+        this.windowLongPtrSetter = Objects.requireNonNull(windowLongPtrSetter, "windowLongPtrSetter");
     }
 
     /**
@@ -121,15 +134,19 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
 
     /**
      * Відновлює початкові стилі та процедуру вікна й від'єднує слухачі адаптера.
-     * Повторний виклик безпечний; після очищення цей екземпляр не можна встановлювати повторно.
+     * Якщо відновлення не вдалося, зберігає ресурси, потрібні для безпечного callback і повторної спроби.
      */
     @Override
-    public void dispose() {
-        if (!disposed.compareAndSet(false, true)) {
+    public synchronized void dispose() {
+        if (disposed.get() && windowProcedure == null && !previousWindowStyleCaptured) {
             return;
         }
-        restoreNativeWindow();
+        disposed.set(true);
+        boolean restored = restoreNativeWindow();
         removeStageListeners();
+        if (!restored) {
+            return;
+        }
         hwnd = null;
         user32Extensions = null;
         stage = null;
@@ -177,7 +194,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
                 this::updateNativePressed,
                 this::performNativeButtonAction,
                 this::performCaptionDoubleClick
-        ));
+        ), windowLongPtrSetter);
         windowProcedure.install(hwnd);
 
         long customStyle = (style & ~(WS_CAPTION | WS_POPUP | WS_CHILD))
@@ -185,7 +202,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
                 | WS_SYSMENU
                 | WS_MINIMIZEBOX
                 | WS_MAXIMIZEBOX;
-        Pointer previousStyle = User32.INSTANCE.SetWindowLongPtr(hwnd, GWL_STYLE, new Pointer(customStyle));
+        Pointer previousStyle = windowLongPtrSetter.set(hwnd, GWL_STYLE, new Pointer(customStyle));
         if (previousStyle == null) {
             throw new IllegalStateException("Could not update the native window style");
         }
@@ -373,27 +390,47 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
     }
 
     /**
-     * Відновлює попередню процедуру та початковий стиль незалежними спробами, щоб одна помилка не блокувала іншу.
+     * Відновлює процедуру та стиль незалежними спробами, зберігаючи невідновлені ресурси для повторної спроби.
+     *
+     * @return {@code true}, якщо всі операції відновлення підтверджено; інакше {@code false}.
      */
-    private void restoreNativeWindow() {
+    private boolean restoreNativeWindow() {
+        boolean restored = true;
         WindowsWindowProcedure currentProcedure = windowProcedure;
         if (currentProcedure != null) {
-            currentProcedure.dispose();
-            windowProcedure = null;
+            if (currentProcedure.dispose()) {
+                windowProcedure = null;
+            } else {
+                restored = false;
+                LOGGER.warning("Нативна процедура вікна ще не відновлена; посилання на callback збережено");
+            }
         }
 
         HWND currentWindow = hwnd;
-        if (currentWindow == null || !previousWindowStyleCaptured) {
-            return;
+        if (previousWindowStyleCaptured) {
+            if (currentWindow == null) {
+                LOGGER.warning("Неможливо відновити початковий стиль вікна Windows: дескриптор відсутній");
+                restored = false;
+            } else {
+                try {
+                    windowLongPtrSetter.set(currentWindow, GWL_STYLE, new Pointer(previousWindowStyle));
+                    previousWindowStyleCaptured = false;
+                } catch (RuntimeException | LinkageError exception) {
+                    LOGGER.log(Level.WARNING, "Не вдалося відновити початковий стиль вікна Windows", exception);
+                    restored = false;
+                }
+                if (!previousWindowStyleCaptured) {
+                    try {
+                        updateNonClientFrame();
+                    } catch (RuntimeException | LinkageError exception) {
+                        LOGGER.log(Level.WARNING,
+                                "Початковий стиль вікна відновлено, але не вдалося оновити рамку",
+                                exception);
+                    }
+                }
+            }
         }
-        try {
-            User32.INSTANCE.SetWindowLongPtr(currentWindow, GWL_STYLE, new Pointer(previousWindowStyle));
-            updateNonClientFrame();
-        } catch (RuntimeException | LinkageError exception) {
-            LOGGER.log(Level.WARNING, "Не вдалося відновити початковий стиль вікна Windows", exception);
-        } finally {
-            previousWindowStyleCaptured = false;
-        }
+        return restored && windowProcedure == null && !previousWindowStyleCaptured;
     }
 
     /** Від'єднує слухачі Stage, щоб закрите вікно не утримувало адаптер через властивості масштабування. */

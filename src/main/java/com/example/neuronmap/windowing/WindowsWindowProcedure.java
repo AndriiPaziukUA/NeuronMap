@@ -11,6 +11,8 @@ import com.sun.jna.platform.win32.WinDef.WPARAM;
 import com.sun.jna.platform.win32.WinUser;
 
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -20,11 +22,12 @@ import java.util.logging.Logger;
 
 /**
  * Володіє підміною нативної процедури вікна, обробкою повідомлень власного заголовка та викликом початкової процедури.
- * Геометрію та команди JavaFX отримує через зворотні виклики, не залежачи від контролера чи конкретного подання.
+ * Поки Win32 не підтвердив від'єднання процедури, активний екземпляр утримується в реєстрі сильних посилань.
  */
 final class WindowsWindowProcedure {
 
     private static final Logger LOGGER = Logger.getLogger(WindowsWindowProcedure.class.getName());
+    private static final Set<WindowsWindowProcedure> ACTIVE_PROCEDURES = ConcurrentHashMap.newKeySet();
     private static final int GWL_WNDPROC = -4;
     private static final int WM_NCCALCSIZE = 0x0083;
     private static final int WM_NCHITTEST = 0x0084;
@@ -38,11 +41,13 @@ final class WindowsWindowProcedure {
     private static final int WM_CAPTURECHANGED = 0x0215;
 
     private final Callbacks callbacks;
+    private final WindowsWindowLongPtr.Setter windowLongPtrSetter;
     private final AtomicBoolean disposed = new AtomicBoolean();
     private final AtomicReference<HitTarget> pressedTarget = new AtomicReference<>();
     private HWND window;
     private Pointer previousWindowProcedure;
     private WinUser.WindowProc windowProcedure;
+    private boolean windowProcedureInstalled;
     private boolean installationAttempted;
 
     /**
@@ -52,7 +57,19 @@ final class WindowsWindowProcedure {
      * @throws NullPointerException якщо набір зворотних викликів не задано.
      */
     WindowsWindowProcedure(Callbacks callbacks) {
+        this(callbacks, WindowsWindowLongPtr::set);
+    }
+
+    /**
+     * Створює обробник із заданим механізмом зміни атрибутів вікна для тестування помилок Win32 без Windows.
+     *
+     * @param callbacks зворотні виклики для визначення областей і передавання UI-команд.
+     * @param windowLongPtrSetter перевірений механізм зміни атрибута Win32.
+     * @throws NullPointerException якщо будь-яку залежність не задано.
+     */
+    WindowsWindowProcedure(Callbacks callbacks, WindowsWindowLongPtr.Setter windowLongPtrSetter) {
         this.callbacks = Objects.requireNonNull(callbacks, "callbacks");
+        this.windowLongPtrSetter = Objects.requireNonNull(windowLongPtrSetter, "windowLongPtrSetter");
     }
 
     /**
@@ -60,10 +77,10 @@ final class WindowsWindowProcedure {
      * Екземпляр одноразовий: після спроби встановлення він не може повторно підключатися до іншого HWND.
      *
      * @param window дескриптор вікна Windows.
-     * @throws IllegalStateException якщо встановлення вже починалося або попередню процедуру неможливо зберегти.
+     * @throws IllegalStateException якщо встановлення вже починалося або попередня процедура має нульову адресу.
      * @throws NullPointerException якщо дескриптор вікна не задано.
      */
-    void install(HWND window) {
+    synchronized void install(HWND window) {
         if (installationAttempted || disposed.get()) {
             throw new IllegalStateException("Native window procedure can only be installed once");
         }
@@ -71,41 +88,60 @@ final class WindowsWindowProcedure {
         this.window = Objects.requireNonNull(window, "window");
         windowProcedure = this::handleMessage;
         try {
-            previousWindowProcedure = User32.INSTANCE.SetWindowLongPtr(
+            previousWindowProcedure = windowLongPtrSetter.set(
                     window,
                     GWL_WNDPROC,
                     CallbackReference.getFunctionPointer(windowProcedure)
             );
+            windowProcedureInstalled = true;
+            ACTIVE_PROCEDURES.add(this);
             if (previousWindowProcedure == null) {
-                throw new IllegalStateException("Could not replace the native window procedure");
+                throw new IllegalStateException("The previous native window procedure has an empty address");
             }
         } catch (RuntimeException | LinkageError exception) {
-            disposed.set(true);
-            this.window = null;
-            windowProcedure = null;
+            if (!windowProcedureInstalled) {
+                disposed.set(true);
+                this.window = null;
+                windowProcedure = null;
+                previousWindowProcedure = null;
+            }
             throw exception;
         }
     }
 
-    /** Відновлює початкову процедуру вікна та звільняє посилання на нативний callback. */
-    void dispose() {
-        if (!disposed.compareAndSet(false, true)) {
-            return;
+    /**
+     * Відновлює початкову процедуру та звільняє callback лише після успішного завершення виклику Win32.
+     * У разі помилки зберігає всі потрібні посилання й дозволяє повторити спробу очищення.
+     *
+     * @return {@code true}, якщо callback гарантовано від'єднано; {@code false}, якщо його потрібно утримувати.
+     */
+    synchronized boolean dispose() {
+        if (windowProcedure == null) {
+            return true;
         }
-        HWND currentWindow = window;
-        Pointer previousProcedure = previousWindowProcedure;
-        try {
-            if (currentWindow != null && previousProcedure != null) {
-                User32.INSTANCE.SetWindowLongPtr(currentWindow, GWL_WNDPROC, previousProcedure);
+        disposed.set(true);
+        pressedTarget.set(null);
+        if (windowProcedureInstalled) {
+            HWND currentWindow = window;
+            if (currentWindow == null) {
+                LOGGER.warning("Неможливо відновити процедуру вікна Windows: дескриптор уже відсутній; callback утримується");
+                return false;
             }
-        } catch (RuntimeException | LinkageError exception) {
-            LOGGER.log(Level.WARNING, "Не вдалося відновити початкову процедуру вікна Windows", exception);
-        } finally {
-            pressedTarget.set(null);
-            previousWindowProcedure = null;
-            windowProcedure = null;
-            window = null;
+            try {
+                windowLongPtrSetter.set(currentWindow, GWL_WNDPROC, previousWindowProcedure);
+            } catch (RuntimeException | LinkageError exception) {
+                LOGGER.log(Level.WARNING,
+                        "Не вдалося відновити початкову процедуру вікна Windows; callback залишається активним",
+                        exception);
+                return false;
+            }
         }
+        ACTIVE_PROCEDURES.remove(this);
+        windowProcedureInstalled = false;
+        previousWindowProcedure = null;
+        windowProcedure = null;
+        window = null;
+        return true;
     }
 
     /**
