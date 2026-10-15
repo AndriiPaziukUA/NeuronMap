@@ -43,6 +43,14 @@ final class WindowsWindowProcedure {
 
         /** {@inheritDoc} */
         @Override
+        public boolean trackNonClientMouseLeave(HWND window) {
+            WindowsUser32Extensions.TrackMouseEventInfo tracking =
+                    new WindowsUser32Extensions.TrackMouseEventInfo(window);
+            return WindowsUser32Extensions.INSTANCE.TrackMouseEvent(tracking);
+        }
+
+        /** {@inheritDoc} */
+        @Override
         public LRESULT callPreviousWindowProcedure(
                 Pointer previousProcedure,
                 HWND sourceWindow,
@@ -79,6 +87,8 @@ final class WindowsWindowProcedure {
     private WinUser.WindowProc windowProcedure;
     private boolean windowProcedureInstalled;
     private boolean installationAttempted;
+    private final AtomicBoolean nonClientMouseLeaveTracking = new AtomicBoolean();
+    private final AtomicBoolean nonClientMouseLeaveTrackingFailureLogged = new AtomicBoolean();
 
     /**
      * Створює обробник повідомлень із системними операціями Win32 та функціями роботи із заголовком.
@@ -107,7 +117,7 @@ final class WindowsWindowProcedure {
      *
      * @param callbacks зворотні виклики для визначення областей і передавання UI-команд.
      * @param windowLongPtrSetter механізм установлення та відновлення адреси WndProc.
-     * @param nativeOperations операції захоплення миші й передавання повідомлення попередній процедурі.
+     * @param nativeOperations операції керування мишею й передавання повідомлень попередній процедурі.
      * @throws NullPointerException якщо будь-яку залежність не задано.
      */
     WindowsWindowProcedure(
@@ -140,7 +150,7 @@ final class WindowsWindowProcedure {
      *
      * @param callbacks зворотні виклики для визначення областей і передавання UI-команд.
      * @param windowLongPtrSetter механізм установлення та відновлення адреси WndProc.
-     * @param nativeOperations операції захоплення миші й передавання повідомлення попередній процедурі.
+     * @param nativeOperations операції керування мишею й передавання повідомлень попередній процедурі.
      * @param nativeWindowDestroyedAction дія після пересилання WM_NCDESTROY попередній процедурі.
      * @throws NullPointerException якщо будь-яку залежність не задано.
      */
@@ -201,6 +211,7 @@ final class WindowsWindowProcedure {
     void deactivate() {
         disposed.set(true);
         pressedTarget.set(null);
+        nonClientMouseLeaveTracking.set(false);
     }
 
     /**
@@ -219,6 +230,7 @@ final class WindowsWindowProcedure {
         }
         disposed.set(true);
         pressedTarget.set(null);
+        nonClientMouseLeaveTracking.set(false);
         if (windowProcedureInstalled) {
             HWND currentWindow = window;
             if (currentWindow == null) {
@@ -309,6 +321,7 @@ final class WindowsWindowProcedure {
             }
             disposed.set(true);
             pressedTarget.set(null);
+            nonClientMouseLeaveTracking.set(false);
             ACTIVE_PROCEDURES.remove(this);
             windowProcedureInstalled = false;
             previousWindowProcedure = null;
@@ -342,11 +355,18 @@ final class WindowsWindowProcedure {
                 return new LRESULT(Win32HitTestCode.toNativeCode(target));
             }
         } else if (message == WM_NCMOUSEMOVE) {
+            trackNonClientMouseLeave(sourceWindow);
             callbacks.hoverUpdater().accept(Win32HitTestCode.captionButtonFromNativeCode(wParam.intValue()));
         } else if (message == WM_NCMOUSELEAVE) {
+            nonClientMouseLeaveTracking.set(false);
             callbacks.hoverUpdater().accept(null);
-        } else if (message == WM_MOUSEMOVE && pressedTarget.get() != null) {
-            callbacks.hoverUpdater().accept(callbacks.clientHitTester().apply(lParam));
+        } else if (message == WM_MOUSEMOVE) {
+            nonClientMouseLeaveTracking.set(false);
+            if (pressedTarget.get() != null) {
+                callbacks.hoverUpdater().accept(callbacks.clientHitTester().apply(lParam));
+            } else {
+                callbacks.hoverUpdater().accept(null);
+            }
         } else if (message == WM_LBUTTONUP && pressedTarget.get() != null) {
             HitTarget wasPressed = pressedTarget.getAndSet(null);
             nativeOperations.releaseCapture();
@@ -384,6 +404,47 @@ final class WindowsWindowProcedure {
     }
 
     /**
+     * Реєструє одноразове сповіщення Win32 про вихід курсора з non-client області цього вікна.
+     * Після WM_NCMOUSELEAVE або переходу до клієнтської області наступний рух знову ініціює реєстрацію.
+     *
+     * @param sourceWindow HWND, для якого потрібно відстежувати вихід курсора.
+     */
+    private void trackNonClientMouseLeave(HWND sourceWindow) {
+        if (!nonClientMouseLeaveTracking.compareAndSet(false, true)) {
+            return;
+        }
+        try {
+            if (!nativeOperations.trackNonClientMouseLeave(sourceWindow)) {
+                nonClientMouseLeaveTracking.set(false);
+                logNonClientMouseLeaveTrackingFailure(null);
+                return;
+            }
+            nonClientMouseLeaveTrackingFailureLogged.set(false);
+        } catch (RuntimeException | LinkageError exception) {
+            nonClientMouseLeaveTracking.set(false);
+            logNonClientMouseLeaveTrackingFailure(exception);
+        }
+    }
+
+    /**
+     * Записує помилку відстеження не частіше одного разу до наступної успішної реєстрації.
+     * Це запобігає засміченню журналу, якщо Win32 постійно відхиляє запити під час руху курсора.
+     *
+     * @param exception виняток нативної операції або {@code null}, якщо Win32 повернув {@code false}.
+     */
+    private void logNonClientMouseLeaveTrackingFailure(Throwable exception) {
+        if (!nonClientMouseLeaveTrackingFailureLogged.compareAndSet(false, true)) {
+            return;
+        }
+        String message = "Не вдалося зареєструвати відстеження виходу курсора з non-client області вікна Windows";
+        if (exception == null) {
+            LOGGER.warning(message);
+        } else {
+            LOGGER.log(Level.WARNING, message, exception);
+        }
+    }
+
+    /**
      * Передає невідоме повідомлення попередній процедурі вікна.
      *
      * @param sourceWindow HWND, від якого надійшло повідомлення.
@@ -412,6 +473,14 @@ final class WindowsWindowProcedure {
 
         /** Звільняє захоплення миші після завершення або скасування натискання кнопки заголовка. */
         void releaseCapture();
+
+        /**
+         * Просить Windows надіслати WM_NCMOUSELEAVE після виходу курсора з non-client області вікна.
+         *
+         * @param window HWND, для якого реєструється відстеження.
+         * @return {@code true}, якщо Windows прийняла запит відстеження.
+         */
+        boolean trackNonClientMouseLeave(HWND window);
 
         /**
          * Передає повідомлення збереженій нативній процедурі вікна.

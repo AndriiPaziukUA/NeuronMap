@@ -171,7 +171,7 @@ final class WindowsWindowProcedureDestructionTest {
         private final AtomicInteger forwardedCalls = new AtomicInteger();
         private final LRESULT previousResult = new LRESULT(73L);
 
-        /** Імітує захоплення курсора, яке для тесту очищення не має додаткових ефектів. */
+        /** Імітує захоплення миші, яке для тесту очищення не має додаткових ефектів. */
         @Override
         public void setCapture(HWND window) {
             // Немає потреби імітувати захоплення миші в цьому тесті.
@@ -181,6 +181,12 @@ final class WindowsWindowProcedureDestructionTest {
         @Override
         public void releaseCapture() {
             // Немає потреби імітувати захоплення миші в цьому тесті.
+        }
+
+        /** Імітує відмову від реєстрації відстеження, яку тест очищення не використовує. */
+        @Override
+        public boolean trackNonClientMouseLeave(HWND window) {
+            return false;
         }
 
         /**

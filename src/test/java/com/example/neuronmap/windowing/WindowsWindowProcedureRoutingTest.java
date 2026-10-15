@@ -78,16 +78,55 @@ final class WindowsWindowProcedureRoutingTest {
         assertEquals(1, harness.nativeOperations.forwardedCalls.get());
     }
 
-    /** Перевіряє оновлення наведення для non-client повідомлень і скидання стану під час виходу курсора. */
+    /** Перевіряє реєстрацію non-client відстеження курсора та скидання наведення після WM_NCMOUSELEAVE. */
     @Test
-    void nonClientMouseMessagesUpdateAndClearHover() {
+    void nonClientMouseMessagesTrackCursorAndClearHoverOnLeave() {
         harness = new TestHarness();
 
         harness.send(WM_NCMOUSEMOVE, 20, 0);
         assertSame(HitTarget.CLOSE_BUTTON, harness.hoveredTargets.getLast());
+        assertEquals(1, harness.nativeOperations.trackCalls.get());
+        assertSame(harness.window, harness.nativeOperations.trackedWindow);
+
+        harness.send(WM_NCMOUSEMOVE, 20, 0);
+        assertEquals(1, harness.nativeOperations.trackCalls.get(),
+                "Повторні повідомлення переміщення не повинні повторно реєструвати активне відстеження");
 
         harness.send(WM_NCMOUSELEAVE, 0, 0);
         assertNull(harness.hoveredTargets.getLast());
+
+        harness.send(WM_NCMOUSEMOVE, 20, 0);
+        assertEquals(2, harness.nativeOperations.trackCalls.get(),
+                "Після WM_NCMOUSELEAVE відстеження потрібно зареєструвати знову");
+    }
+
+    /** Перевіряє, що невдалу реєстрацію можна повторити на наступному русі курсора. */
+    @Test
+    void failedNonClientTrackingRegistrationCanBeRetried() {
+        harness = new TestHarness();
+        harness.nativeOperations.trackResult = false;
+
+        harness.send(WM_NCMOUSEMOVE, 20, 0);
+        assertEquals(1, harness.nativeOperations.trackCalls.get());
+
+        harness.nativeOperations.trackResult = true;
+        harness.send(WM_NCMOUSEMOVE, 20, 0);
+
+        assertEquals(2, harness.nativeOperations.trackCalls.get());
+    }
+
+    /** Перевіряє, що перехід у клієнтську область скидає наведення навіть без натискання кнопки. */
+    @Test
+    void clientMouseMoveClearsHoverWhenNoButtonIsPressed() {
+        harness = new TestHarness();
+        harness.send(WM_NCMOUSEMOVE, 20, 0);
+        assertSame(HitTarget.CLOSE_BUTTON, harness.hoveredTargets.getLast());
+
+        harness.send(WM_MOUSEMOVE, 0, 0);
+
+        assertNull(harness.hoveredTargets.getLast());
+        assertEquals(0, harness.actions.size());
+        assertEquals(0, harness.nativeOperations.captureCalls.get());
     }
 
     /** Перевіряє захоплення миші на натисканні кнопки та команду лише після відпускання тієї самої кнопки. */
@@ -270,9 +309,12 @@ final class WindowsWindowProcedureRoutingTest {
 
         private final AtomicInteger captureCalls = new AtomicInteger();
         private final AtomicInteger releaseCalls = new AtomicInteger();
+        private final AtomicInteger trackCalls = new AtomicInteger();
         private final AtomicInteger forwardedCalls = new AtomicInteger();
         private final LRESULT previousResult = new LRESULT(73L);
+        private boolean trackResult = true;
         private HWND capturedWindow;
+        private HWND trackedWindow;
         private Pointer forwardedProcedure;
         private HWND forwardedWindow;
         private int forwardedMessage;
@@ -290,6 +332,14 @@ final class WindowsWindowProcedureRoutingTest {
         @Override
         public void releaseCapture() {
             releaseCalls.incrementAndGet();
+        }
+
+        /** Записує запит відстеження non-client курсора без виклику Win32. */
+        @Override
+        public boolean trackNonClientMouseLeave(HWND window) {
+            trackCalls.incrementAndGet();
+            trackedWindow = window;
+            return trackResult;
         }
 
         /** Запам'ятовує повідомлення й повертає контрольований результат попередньої процедури. */
