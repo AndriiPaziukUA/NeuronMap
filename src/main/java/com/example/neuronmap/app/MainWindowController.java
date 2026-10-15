@@ -1,26 +1,29 @@
 package com.example.neuronmap.app;
 
 import com.example.neuronmap.config.AppConfig;
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.persistence.window.WindowState;
 import com.example.neuronmap.persistence.window.WindowStateStore;
-import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.view.window.WindowChromeView;
 import com.example.neuronmap.windowing.JavaFxWindowPlatformAdapter;
 import com.example.neuronmap.windowing.WindowPlatformAdapter;
 import com.example.neuronmap.windowing.WindowPlatformAdapterFactory;
+import javafx.event.EventHandler;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.stage.WindowEvent;
 
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Керує операціями головного вікна JavaFX, відновленням його геометрії та узгодженим життєвим циклом.
- * На Windows під'єднує стилізований заголовок через платформний адаптер, зберігаючи один шлях закриття й очищення.
+ * Керує головним JavaFX-вікном, відновленням його геометрії та узгодженим життєвим циклом.
+ * Контролер володіє активним платформним адаптером і поданням заголовка та дозволяє показати вікно лише один раз.
  */
 public final class MainWindowController {
 
@@ -29,11 +32,15 @@ public final class MainWindowController {
     private final Stage stage;
     private final WindowStateStore windowStateStore;
     private final LocalizationService localization;
+    private final Supplier<Optional<WindowPlatformAdapter>> windowPlatformAdapterFactory;
+    private final EventHandler<WindowEvent> windowHiddenHandler = event -> disposeWindowResources();
     private WindowLifecycleCoordinator lifecycleCoordinator;
     private WindowChromeView windowChromeView;
     private WindowPlatformAdapter windowPlatformAdapter;
     private boolean configured;
     private boolean savedStateRestored;
+    private boolean showAttempted;
+    private boolean windowPlatformAdapterInstalled;
 
     /**
      * Створює контролер вікна на основі наявного JavaFX-вікна та спільного сховища його геометрії.
@@ -59,9 +66,31 @@ public final class MainWindowController {
             WindowStateStore windowStateStore,
             LocalizationService localization
     ) {
+        this(stage, windowStateStore, localization,
+                WindowPlatformAdapterFactory::createForCurrentOperatingSystem);
+    }
+
+    /**
+     * Створює контролер із заданим постачальником платформного адаптера для детермінованої перевірки життєвого циклу.
+     * Цей конструктор доступний лише всередині пакета й не змінює публічний контракт запуску застосунку.
+     *
+     * @param stage головне вікно JavaFX.
+     * @param windowStateStore сховище геометрії вікна.
+     * @param localization служба поточної локалі та перекладів.
+     * @param windowPlatformAdapterFactory постачальник адаптера для поточної платформи.
+     * @throws NullPointerException якщо будь-яку залежність не задано.
+     */
+    MainWindowController(
+            Stage stage,
+            WindowStateStore windowStateStore,
+            LocalizationService localization,
+            Supplier<Optional<WindowPlatformAdapter>> windowPlatformAdapterFactory
+    ) {
         this.stage = Objects.requireNonNull(stage, "stage");
         this.windowStateStore = Objects.requireNonNull(windowStateStore, "windowStateStore");
         this.localization = Objects.requireNonNull(localization, "localization");
+        this.windowPlatformAdapterFactory = Objects.requireNonNull(
+                windowPlatformAdapterFactory, "windowPlatformAdapterFactory");
     }
 
     /**
@@ -107,26 +136,41 @@ public final class MainWindowController {
                 shutdownEditor
         );
         stage.setOnCloseRequest(event -> shutdown());
+        stage.addEventHandler(WindowEvent.WINDOW_HIDDEN, windowHiddenHandler);
         configured = true;
     }
 
     /**
-     * Показує налаштоване вікно та під'єднує адаптер до створеного HWND.
-     * Вікно центрується лише тоді, коли відновлювати попереднє розташування не потрібно.
+     * Показує налаштоване вікно та під'єднує активний платформний адаптер до показаного вікна.
+     * Центрування виконується лише за відсутності збереженої геометрії. Контролер одноразовий:
+     * навіть після невдалого першого показу повторний виклик заборонений, щоб не перевстановлювати обробники.
      *
-     * @throws IllegalStateException якщо вікно ще не налаштовано.
+     * @throws IllegalStateException якщо вікно ще не налаштовано або показ уже було розпочато.
      */
     public void show() {
         requireConfigured();
-        stage.show();
-        installWindowPlatformAdapter();
-        if (!savedStateRestored) {
-            stage.centerOnScreen();
+        if (showAttempted) {
+            throw new IllegalStateException("main window can only be shown once");
+        }
+        showAttempted = true;
+
+        try {
+            stage.show();
+            installWindowPlatformAdapter();
+            if (!savedStateRestored) {
+                stage.centerOnScreen();
+            }
+        } catch (RuntimeException | Error exception) {
+            disposeWindowResources();
+            if (stage.isShowing()) {
+                stage.hide();
+            }
+            throw exception;
         }
     }
 
     /**
-     * Запитує звичайне закриття вікна; збереження та очищення виконує спільний обробник життєвого циклу.
+     * Запитує звичайне закриття вікна; збереження, завершення редактора та очищення виконує спільний життєвий цикл.
      * Цей самий метод використовується власною кнопкою заголовка й меню виходу.
      *
      * @throws IllegalStateException якщо вікно ще не налаштовано.
@@ -172,12 +216,16 @@ public final class MainWindowController {
     }
 
     /**
-     * Завершує життєвий цикл, якщо його ще не було запущено обробником закриття.
+     * Завершує життєвий цикл один раз і звільняє адаптер та подання навіть за помилки збереження або редактора.
      * Викликається також із {@code Application.stop()} як резервний шлях завершення.
      */
     public void shutdown() {
-        if (lifecycleCoordinator != null) {
-            lifecycleCoordinator.shutdown();
+        try {
+            if (lifecycleCoordinator != null) {
+                lifecycleCoordinator.shutdown();
+            }
+        } finally {
+            disposeWindowResources();
         }
     }
 
@@ -197,7 +245,8 @@ public final class MainWindowController {
      * @param scene сцена, корінь якої може бути обгорнуто власним заголовком.
      */
     private void configureWindowChrome(Scene scene) {
-        Optional<WindowPlatformAdapter> adapter = WindowPlatformAdapterFactory.createForCurrentOperatingSystem();
+        Optional<WindowPlatformAdapter> adapter = Objects.requireNonNull(
+                windowPlatformAdapterFactory.get(), "window platform adapter factory result");
         if (adapter.isEmpty()) {
             return;
         }
@@ -209,21 +258,96 @@ public final class MainWindowController {
     }
 
     /**
-     * Під'єднує платформний адаптер після створення нативного вікна й за помилки Windows використовує JavaFX fallback.
+     * Встановлює активний адаптер один раз; за помилки нативного адаптера зберігає та встановлює JavaFX fallback.
+     * Якщо встановлення резервної реалізації також завершується помилкою, звільняє її й передає помилку виклику.
      */
     private void installWindowPlatformAdapter() {
-        if (windowPlatformAdapter == null || windowChromeView == null) {
+        if (windowPlatformAdapter == null || windowChromeView == null || windowPlatformAdapterInstalled) {
             return;
         }
+
+        WindowPlatformAdapter primaryAdapter = windowPlatformAdapter;
+        Throwable primaryFailure;
         try {
-            windowPlatformAdapter.install(stage, windowChromeView);
-        } catch (RuntimeException | LinkageError exception) {
+            primaryAdapter.install(stage, windowChromeView);
+            windowPlatformAdapterInstalled = true;
+            return;
+        } catch (RuntimeException | LinkageError installationFailure) {
+            primaryFailure = installationFailure;
+            disposeAfterInstallationFailure(primaryAdapter, installationFailure);
+            if (primaryAdapter instanceof JavaFxWindowPlatformAdapter) {
+                windowPlatformAdapter = null;
+                throw installationFailure;
+            }
             LOGGER.log(Level.WARNING,
                     "Нативне оформлення вікна не вдалося під'єднати; використовується резервне керування JavaFX",
-                    exception);
-            windowPlatformAdapter.dispose();
-            WindowPlatformAdapter fallbackAdapter = new JavaFxWindowPlatformAdapter();
+                    installationFailure);
+        }
+
+        WindowPlatformAdapter fallbackAdapter = new JavaFxWindowPlatformAdapter();
+        windowPlatformAdapter = fallbackAdapter;
+        try {
             fallbackAdapter.install(stage, windowChromeView);
+            windowPlatformAdapterInstalled = true;
+        } catch (RuntimeException | LinkageError fallbackFailure) {
+            disposeAfterInstallationFailure(fallbackAdapter, fallbackFailure);
+            if (fallbackFailure != primaryFailure) {
+                fallbackFailure.addSuppressed(primaryFailure);
+            }
+            windowPlatformAdapter = null;
+            throw fallbackFailure;
+        }
+    }
+
+    /**
+     * Звільняє адаптер після невдалого встановлення, не маскуючи першопричину помилкою очищення.
+     *
+     * @param adapter адаптер, чиє встановлення не завершилося успішно.
+     * @param installationFailure первинна помилка встановлення, до якої додаються проблеми очищення.
+     */
+    private void disposeAfterInstallationFailure(WindowPlatformAdapter adapter, Throwable installationFailure) {
+        try {
+            adapter.dispose();
+        } catch (RuntimeException | LinkageError cleanupFailure) {
+            if (installationFailure != cleanupFailure) {
+                installationFailure.addSuppressed(cleanupFailure);
+            }
+        }
+    }
+
+    /**
+     * Централізовано звільняє поточний адаптер і подання та очищає посилання контролера незалежно від результату.
+     * Помилка одного компонента не перешкоджає спробі очистити інший; всі проблеми реєструються в журналі.
+     */
+    private void disposeWindowResources() {
+        stage.removeEventHandler(WindowEvent.WINDOW_HIDDEN, windowHiddenHandler);
+        WindowPlatformAdapter activeAdapter = windowPlatformAdapter;
+        WindowChromeView activeChromeView = windowChromeView;
+        windowPlatformAdapter = null;
+        windowChromeView = null;
+        windowPlatformAdapterInstalled = false;
+
+        Throwable cleanupFailure = null;
+        if (activeAdapter != null) {
+            try {
+                activeAdapter.dispose();
+            } catch (RuntimeException | LinkageError exception) {
+                cleanupFailure = exception;
+            }
+        }
+        if (activeChromeView != null) {
+            try {
+                activeChromeView.dispose();
+            } catch (RuntimeException | LinkageError exception) {
+                if (cleanupFailure == null) {
+                    cleanupFailure = exception;
+                } else if (cleanupFailure != exception) {
+                    cleanupFailure.addSuppressed(exception);
+                }
+            }
+        }
+        if (cleanupFailure != null) {
+            LOGGER.log(Level.WARNING, "Не вдалося повністю очистити ресурси заголовка головного вікна", cleanupFailure);
         }
     }
 
