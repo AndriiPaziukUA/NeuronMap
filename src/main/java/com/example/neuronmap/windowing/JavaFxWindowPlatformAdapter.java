@@ -1,0 +1,323 @@
+package com.example.neuronmap.windowing;
+
+import com.example.neuronmap.view.window.WindowChromeView;
+import javafx.event.EventHandler;
+import javafx.scene.Cursor;
+import javafx.scene.Node;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
+import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
+
+import java.util.Objects;
+
+/**
+ * Забезпечує переміщення та зміну розміру безрамкового JavaFX-вікна як резервний механізм.
+ * Цей адаптер не може замінити системні Win32 hit-test-повідомлення й використовується лише коли нативне підключення
+ * не вдалося встановити; звичайні непідтримувані ОС залишаються із системним оформленням.
+ */
+public final class JavaFxWindowPlatformAdapter implements WindowPlatformAdapter {
+
+    private static final double RESIZE_BORDER = WindowHitTestCalculator.DEFAULT_RESIZE_BORDER;
+
+    private Stage stage;
+    private WindowChromeView chromeView;
+    private EventHandler<MouseEvent> pressedHandler;
+    private EventHandler<MouseEvent> draggedHandler;
+    private EventHandler<MouseEvent> movedHandler;
+    private EventHandler<MouseEvent> releasedHandler;
+    private EventHandler<MouseEvent> clickedHandler;
+    private final EventHandler<WindowEvent> hiddenHandler = event -> dispose();
+    private boolean installed;
+    private ResizeEdge activeResizeEdge = ResizeEdge.NONE;
+    private boolean moving;
+    private double initialScreenX;
+    private double initialScreenY;
+    private double initialX;
+    private double initialY;
+    private double initialWidth;
+    private double initialHeight;
+
+    /** Створює резервний адаптер без підписки на події JavaFX. */
+    public JavaFxWindowPlatformAdapter() {
+    }
+
+    /**
+     * Під'єднує обробники миші для ручного переміщення та зміни розміру безрамкового вікна.
+     *
+     * @param stage безрамкове JavaFX-вікно.
+     * @param chromeView подання заголовка та вмісту.
+     * @throws NullPointerException якщо не задано вікно або подання.
+     * @throws IllegalStateException якщо адаптер уже встановлено.
+     */
+    @Override
+    public void install(Stage stage, WindowChromeView chromeView) {
+        if (installed) {
+            throw new IllegalStateException("JavaFX window adapter is already installed");
+        }
+        this.stage = Objects.requireNonNull(stage, "stage");
+        this.chromeView = Objects.requireNonNull(chromeView, "chromeView");
+        pressedHandler = this::onMousePressed;
+        draggedHandler = this::onMouseDragged;
+        movedHandler = this::onMouseMoved;
+        releasedHandler = this::onMouseReleased;
+        clickedHandler = this::onMouseClicked;
+        chromeView.addEventFilter(MouseEvent.MOUSE_PRESSED, pressedHandler);
+        chromeView.addEventFilter(MouseEvent.MOUSE_DRAGGED, draggedHandler);
+        chromeView.addEventFilter(MouseEvent.MOUSE_MOVED, movedHandler);
+        chromeView.addEventFilter(MouseEvent.MOUSE_RELEASED, releasedHandler);
+        chromeView.addEventFilter(MouseEvent.MOUSE_CLICKED, clickedHandler);
+        stage.addEventHandler(WindowEvent.WINDOW_HIDDEN, hiddenHandler);
+        installed = true;
+    }
+
+    /**
+     * Від'єднує всі обробники миші та скидає активну операцію.
+     */
+    @Override
+    public void dispose() {
+        if (!installed) {
+            return;
+        }
+        chromeView.removeEventFilter(MouseEvent.MOUSE_PRESSED, pressedHandler);
+        chromeView.removeEventFilter(MouseEvent.MOUSE_DRAGGED, draggedHandler);
+        chromeView.removeEventFilter(MouseEvent.MOUSE_MOVED, movedHandler);
+        chromeView.removeEventFilter(MouseEvent.MOUSE_RELEASED, releasedHandler);
+        chromeView.removeEventFilter(MouseEvent.MOUSE_CLICKED, clickedHandler);
+        stage.removeEventHandler(WindowEvent.WINDOW_HIDDEN, hiddenHandler);
+        chromeView.setCursor(Cursor.DEFAULT);
+        activeResizeEdge = ResizeEdge.NONE;
+        moving = false;
+        installed = false;
+        stage = null;
+        chromeView = null;
+        pressedHandler = null;
+        draggedHandler = null;
+        movedHandler = null;
+        releasedHandler = null;
+        clickedHandler = null;
+    }
+
+    /**
+     * Перемикає максимізацію за подвійним клацанням по вільній області заголовка.
+     *
+     * @param event подія кліку миші.
+     */
+    private void onMouseClicked(MouseEvent event) {
+        if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2
+                && event.getSceneY() <= chromeView.titleBar().getHeight()
+                && (!(event.getTarget() instanceof Node target) || !chromeView.isCaptionButtonNode(target))) {
+            chromeView.performNativeCaptionDoubleClick();
+            event.consume();
+        }
+    }
+
+    /**
+     * Починає переміщення або зміну розміру за координатами початкового натискання.
+     *
+     * @param event подія натискання кнопки миші.
+     */
+    private void onMousePressed(MouseEvent event) {
+        if (event.getButton() != MouseButton.PRIMARY
+                || (event.getTarget() instanceof Node target && chromeView.isCaptionButtonNode(target))) {
+            return;
+        }
+        initialScreenX = event.getScreenX();
+        initialScreenY = event.getScreenY();
+        initialX = stage.getX();
+        initialY = stage.getY();
+        initialWidth = stage.getWidth();
+        initialHeight = stage.getHeight();
+        activeResizeEdge = stage.isMaximized() ? ResizeEdge.NONE : resizeEdgeAt(event.getSceneX(), event.getSceneY());
+        moving = activeResizeEdge == ResizeEdge.NONE && event.getSceneY() <= chromeView.titleBar().getHeight();
+        if (moving || activeResizeEdge != ResizeEdge.NONE) {
+            event.consume();
+        }
+    }
+
+    /**
+     * Застосовує дельту руху миші до розташування або розміру вікна.
+     *
+     * @param event подія перетягування миші.
+     */
+    private void onMouseDragged(MouseEvent event) {
+        if (moving) {
+            stage.setX(initialX + event.getScreenX() - initialScreenX);
+            stage.setY(initialY + event.getScreenY() - initialScreenY);
+            event.consume();
+            return;
+        }
+        if (activeResizeEdge == ResizeEdge.NONE || stage.isMaximized()) {
+            return;
+        }
+
+        double deltaX = event.getScreenX() - initialScreenX;
+        double deltaY = event.getScreenY() - initialScreenY;
+        resizeWindow(deltaX, deltaY);
+        event.consume();
+    }
+
+    /**
+     * Оновлює курсор відповідно до інтерактивної зони біля країв вікна.
+     *
+     * @param event подія переміщення миші.
+     */
+    private void onMouseMoved(MouseEvent event) {
+        if (event.getTarget() instanceof Node target && chromeView.isCaptionButtonNode(target)) {
+            chromeView.setCursor(Cursor.DEFAULT);
+            return;
+        }
+        ResizeEdge edge = stage.isMaximized() ? ResizeEdge.NONE : resizeEdgeAt(event.getSceneX(), event.getSceneY());
+        chromeView.setCursor(edge.cursor());
+    }
+
+    /**
+     * Завершує поточну операцію переміщення або зміни розміру.
+     *
+     * @param event подія відпускання кнопки миші.
+     */
+    private void onMouseReleased(MouseEvent event) {
+        moving = false;
+        activeResizeEdge = ResizeEdge.NONE;
+    }
+
+    /**
+     * Визначає зону зміни розміру для точки, що лежить біля одного або двох країв вікна.
+     *
+     * @param x горизонтальна координата сцени.
+     * @param y вертикальна координата сцени.
+     * @return зона resize або {@link ResizeEdge#NONE}.
+     */
+    private ResizeEdge resizeEdgeAt(double x, double y) {
+        double width = chromeView.getWidth();
+        double height = chromeView.getHeight();
+        boolean left = x >= 0.0 && x < RESIZE_BORDER;
+        boolean right = x <= width && x > width - RESIZE_BORDER;
+        boolean top = y >= 0.0 && y < RESIZE_BORDER;
+        boolean bottom = y <= height && y > height - RESIZE_BORDER;
+        if (top && left) {
+            return ResizeEdge.TOP_LEFT;
+        }
+        if (top && right) {
+            return ResizeEdge.TOP_RIGHT;
+        }
+        if (bottom && left) {
+            return ResizeEdge.BOTTOM_LEFT;
+        }
+        if (bottom && right) {
+            return ResizeEdge.BOTTOM_RIGHT;
+        }
+        if (left) {
+            return ResizeEdge.LEFT;
+        }
+        if (right) {
+            return ResizeEdge.RIGHT;
+        }
+        if (top) {
+            return ResizeEdge.TOP;
+        }
+        if (bottom) {
+            return ResizeEdge.BOTTOM;
+        }
+        return ResizeEdge.NONE;
+    }
+
+    /**
+     * Розраховує нові координати й розміри з урахуванням мінімальних розмірів Stage.
+     *
+     * @param deltaX горизонтальне переміщення курсора від початку зміни розміру.
+     * @param deltaY вертикальне переміщення курсора від початку зміни розміру.
+     */
+    private void resizeWindow(double deltaX, double deltaY) {
+        double width = initialWidth;
+        double height = initialHeight;
+        double x = initialX;
+        double y = initialY;
+        if (activeResizeEdge.hasLeft()) {
+            width = Math.max(stage.getMinWidth(), initialWidth - deltaX);
+            x = initialX + initialWidth - width;
+        } else if (activeResizeEdge.hasRight()) {
+            width = Math.max(stage.getMinWidth(), initialWidth + deltaX);
+        }
+        if (activeResizeEdge.hasTop()) {
+            height = Math.max(stage.getMinHeight(), initialHeight - deltaY);
+            y = initialY + initialHeight - height;
+        } else if (activeResizeEdge.hasBottom()) {
+            height = Math.max(stage.getMinHeight(), initialHeight + deltaY);
+        }
+        stage.setX(x);
+        stage.setY(y);
+        stage.setWidth(width);
+        stage.setHeight(height);
+    }
+
+    /** Опис резервних зон зміни розміру та їхніх курсорів. */
+    private enum ResizeEdge {
+        /** Зміна розміру не активна. */
+        NONE(Cursor.DEFAULT, false, false, false, false),
+        /** Лівий край. */
+        LEFT(Cursor.W_RESIZE, true, false, false, false),
+        /** Правий край. */
+        RIGHT(Cursor.E_RESIZE, false, true, false, false),
+        /** Верхній край. */
+        TOP(Cursor.N_RESIZE, false, false, true, false),
+        /** Нижній край. */
+        BOTTOM(Cursor.S_RESIZE, false, false, false, true),
+        /** Верхній лівий кут. */
+        TOP_LEFT(Cursor.NW_RESIZE, true, false, true, false),
+        /** Верхній правий кут. */
+        TOP_RIGHT(Cursor.NE_RESIZE, false, true, true, false),
+        /** Нижній лівий кут. */
+        BOTTOM_LEFT(Cursor.SW_RESIZE, true, false, false, true),
+        /** Нижній правий кут. */
+        BOTTOM_RIGHT(Cursor.SE_RESIZE, false, true, false, true);
+
+        private final Cursor cursor;
+        private final boolean left;
+        private final boolean right;
+        private final boolean top;
+        private final boolean bottom;
+
+        /**
+         * Створює опис краю та відповідного курсора.
+         *
+         * @param cursor курсор resize.
+         * @param left чи змінюється лівий край.
+         * @param right чи змінюється правий край.
+         * @param top чи змінюється верхній край.
+         * @param bottom чи змінюється нижній край.
+         */
+        ResizeEdge(Cursor cursor, boolean left, boolean right, boolean top, boolean bottom) {
+            this.cursor = cursor;
+            this.left = left;
+            this.right = right;
+            this.top = top;
+            this.bottom = bottom;
+        }
+
+        /** @return курсор, що відповідає зоні. */
+        private Cursor cursor() {
+            return cursor;
+        }
+
+        /** @return чи потрібно змінювати лівий край. */
+        private boolean hasLeft() {
+            return left;
+        }
+
+        /** @return чи потрібно змінювати правий край. */
+        private boolean hasRight() {
+            return right;
+        }
+
+        /** @return чи потрібно змінювати верхній край. */
+        private boolean hasTop() {
+            return top;
+        }
+
+        /** @return чи потрібно змінювати нижній край. */
+        private boolean hasBottom() {
+            return bottom;
+        }
+    }
+}

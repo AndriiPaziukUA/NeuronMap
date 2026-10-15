@@ -3,22 +3,37 @@ package com.example.neuronmap.app;
 import com.example.neuronmap.config.AppConfig;
 import com.example.neuronmap.persistence.window.WindowState;
 import com.example.neuronmap.persistence.window.WindowStateStore;
+import com.example.neuronmap.i18n.LocalizationService;
+import com.example.neuronmap.view.window.WindowChromeView;
+import com.example.neuronmap.windowing.JavaFxWindowPlatformAdapter;
+import com.example.neuronmap.windowing.WindowPlatformAdapter;
+import com.example.neuronmap.windowing.WindowPlatformAdapterFactory;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 
+import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
- * Керує операціями головного вікна JavaFX і надає спільні команди для системного та майбутнього власного оформлення.
- * Відповідає за початкове налаштування вікна, відновлення геометрії та під'єднання узгодженого життєвого циклу.
+ * Керує операціями головного вікна JavaFX, відновленням його геометрії та узгодженим життєвим циклом.
+ * На Windows під'єднує стилізований заголовок через платформний адаптер, зберігаючи один шлях закриття й очищення.
  */
 public final class MainWindowController {
 
+    private static final Logger LOGGER = Logger.getLogger(MainWindowController.class.getName());
+
     private final Stage stage;
     private final WindowStateStore windowStateStore;
+    private final LocalizationService localization;
     private WindowLifecycleCoordinator lifecycleCoordinator;
+    private WindowChromeView windowChromeView;
+    private WindowPlatformAdapter windowPlatformAdapter;
     private boolean configured;
-    private boolean hasRestoredWindowState;
+    private boolean savedStateRestored;
 
     /**
      * Створює контролер вікна на основі наявного JavaFX-вікна та спільного сховища його геометрії.
@@ -28,13 +43,31 @@ public final class MainWindowController {
      * @throws NullPointerException якщо вікно або сховище не задано.
      */
     public MainWindowController(Stage stage, WindowStateStore windowStateStore) {
-        this.stage = Objects.requireNonNull(stage, "stage");
-        this.windowStateStore = Objects.requireNonNull(windowStateStore, "windowStateStore");
+        this(stage, windowStateStore, new LocalizationService(Locale.getDefault()));
     }
 
     /**
-     * Налаштовує головне вікно, відновлює збережену геометрію та під'єднує єдиний обробник завершення.
-     * Викликати метод слід один раз до показу вікна.
+     * Створює контролер вікна зі спільним сховищем геометрії та активною службою локалізації застосунку.
+     *
+     * @param stage головне вікно JavaFX.
+     * @param windowStateStore сховище геометрії вікна.
+     * @param localization служба поточної локалі та перекладів.
+     * @throws NullPointerException якщо будь-яку залежність не задано.
+     */
+    public MainWindowController(
+            Stage stage,
+            WindowStateStore windowStateStore,
+            LocalizationService localization
+    ) {
+        this.stage = Objects.requireNonNull(stage, "stage");
+        this.windowStateStore = Objects.requireNonNull(windowStateStore, "windowStateStore");
+        this.localization = Objects.requireNonNull(localization, "localization");
+    }
+
+    /**
+     * Налаштовує головне вікно, за потреби встановлює власний заголовок, відновлює геометрію
+     * та під'єднує єдиний обробник завершення. Викликати метод слід один раз до показу вікна.
+     * Залежності редактора не зберігаються: контролер отримує лише дію його завершення.
      *
      * @param windowConfig перевірені налаштування головного вікна з конфігурації застосунку.
      * @param scene сцена редактора.
@@ -54,13 +87,14 @@ public final class MainWindowController {
         Objects.requireNonNull(scene, "scene");
         Objects.requireNonNull(shutdownEditor, "shutdownEditor");
 
+        configureWindowChrome(scene);
         stage.setTitle(windowConfig.title());
         stage.setScene(scene);
         stage.setWidth(windowConfig.defaultWidth());
         stage.setHeight(windowConfig.defaultHeight());
 
         WindowState savedState = windowStateStore.load().orElse(null);
-        hasRestoredWindowState = savedState != null;
+        savedStateRestored = savedState != null;
         if (savedState != null) {
             stage.setWidth(savedState.width());
             stage.setHeight(savedState.height());
@@ -77,21 +111,23 @@ public final class MainWindowController {
     }
 
     /**
-     * Показує налаштоване вікно та центрує його лише тоді, коли відновлювати попереднє розташування не потрібно.
+     * Показує налаштоване вікно та під'єднує адаптер до створеного HWND.
+     * Вікно центрується лише тоді, коли відновлювати попереднє розташування не потрібно.
      *
      * @throws IllegalStateException якщо вікно ще не налаштовано.
      */
     public void show() {
         requireConfigured();
         stage.show();
-        if (!hasRestoredWindowState) {
+        installWindowPlatformAdapter();
+        if (!savedStateRestored) {
             stage.centerOnScreen();
         }
     }
 
     /**
-     * Запитує звичайне закриття вікна; подальше збереження та очищення виконує спільний обробник життєвого циклу.
-     * Саме цей метод передається кнопці виходу, щоб вона використовувала той самий шлях, що й системна кнопка закриття.
+     * Запитує звичайне закриття вікна; збереження та очищення виконує спільний обробник життєвого циклу.
+     * Цей самий метод використовується власною кнопкою заголовка й меню виходу.
      *
      * @throws IllegalStateException якщо вікно ще не налаштовано.
      */
@@ -105,7 +141,7 @@ public final class MainWindowController {
     }
 
     /**
-     * Згортає головне вікно. Метод призначений для системних або майбутніх власних кнопок керування вікном.
+     * Згортає головне вікно через API Stage, щоб стан залишався узгодженим із системою.
      *
      * @throws IllegalStateException якщо вікно ще не налаштовано.
      */
@@ -115,7 +151,7 @@ public final class MainWindowController {
     }
 
     /**
-     * Перемикає вікно між звичайним і максимізованим станами.
+     * Перемикає вікно між звичайним і максимізованим станами через API Stage.
      *
      * @throws IllegalStateException якщо вікно ще не налаштовано.
      */
@@ -136,7 +172,7 @@ public final class MainWindowController {
     }
 
     /**
-     * Завершує життєвий цикл, якщо він ще не був запущений обробником закриття.
+     * Завершує життєвий цикл, якщо його ще не було запущено обробником закриття.
      * Викликається також із {@code Application.stop()} як резервний шлях завершення.
      */
     public void shutdown() {
@@ -152,6 +188,43 @@ public final class MainWindowController {
      */
     private WindowState currentWindowState() {
         return new WindowState(stage.getWidth(), stage.getHeight(), stage.getX(), stage.getY());
+    }
+
+    /**
+     * Застосовує власний заголовок лише там, де є окремий платформний адаптер.
+     * Стандартне оформлення непідтримуваних ОС не змінюється.
+     *
+     * @param scene сцена, корінь якої може бути обгорнуто власним заголовком.
+     */
+    private void configureWindowChrome(Scene scene) {
+        Optional<WindowPlatformAdapter> adapter = WindowPlatformAdapterFactory.createForCurrentOperatingSystem();
+        if (adapter.isEmpty()) {
+            return;
+        }
+        stage.initStyle(StageStyle.UNDECORATED);
+        windowPlatformAdapter = adapter.orElseThrow();
+        windowChromeView = new WindowChromeView(
+                stage, localization, this::close, this::minimize, this::toggleMaximized);
+        windowChromeView.installInto(scene);
+    }
+
+    /**
+     * Під'єднує платформний адаптер після створення нативного вікна й за помилки Windows використовує JavaFX fallback.
+     */
+    private void installWindowPlatformAdapter() {
+        if (windowPlatformAdapter == null || windowChromeView == null) {
+            return;
+        }
+        try {
+            windowPlatformAdapter.install(stage, windowChromeView);
+        } catch (RuntimeException | LinkageError exception) {
+            LOGGER.log(Level.WARNING,
+                    "Нативне оформлення вікна не вдалося під'єднати; використовується резервне керування JavaFX",
+                    exception);
+            windowPlatformAdapter.dispose();
+            WindowPlatformAdapter fallbackAdapter = new JavaFxWindowPlatformAdapter();
+            fallbackAdapter.install(stage, windowChromeView);
+        }
     }
 
     /**

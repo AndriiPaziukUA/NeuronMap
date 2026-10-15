@@ -64,7 +64,7 @@ public final class NeuronMapApp extends Application {
         WindowStateStore windowStateStore = new WindowStateStore(
                 storageDirectory.resolve(config.window().stateFile())
         );
-        mainWindowController = new MainWindowController(stage, windowStateStore);
+        mainWindowController = new MainWindowController(stage, windowStateStore, localization);
 
         NeuronMapModel model = new NeuronMapModel();
         NeuronMapApplicationService application =
