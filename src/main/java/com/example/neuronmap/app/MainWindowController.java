@@ -1,5 +1,6 @@
 package com.example.neuronmap.app;
 
+import com.example.neuronmap.config.AppConfig;
 import com.example.neuronmap.persistence.window.WindowState;
 import com.example.neuronmap.persistence.window.WindowStateStore;
 import javafx.scene.Scene;
@@ -17,7 +18,7 @@ public final class MainWindowController {
     private final WindowStateStore windowStateStore;
     private WindowLifecycleCoordinator lifecycleCoordinator;
     private boolean configured;
-    private boolean savedStateRestored;
+    private boolean hasRestoredWindowState;
 
     /**
      * Створює контролер вікна на основі наявного JavaFX-вікна та спільного сховища його геометрії.
@@ -35,43 +36,31 @@ public final class MainWindowController {
      * Налаштовує головне вікно, відновлює збережену геометрію та під'єднує єдиний обробник завершення.
      * Викликати метод слід один раз до показу вікна.
      *
-     * @param title назва головного вікна.
+     * @param windowConfig перевірені налаштування головного вікна з конфігурації застосунку.
      * @param scene сцена редактора.
-     * @param defaultWidth типова ширина вікна, якщо збережений стан відсутній.
-     * @param defaultHeight типова висота вікна, якщо збережений стан відсутній.
-     * @param editor фасад редактора, ресурси якого потрібно звільнити під час завершення.
-     * @throws NullPointerException якщо назву, сцену або фасад не задано.
-     * @throws IllegalArgumentException якщо назва порожня або розміри не є скінченними додатними числами.
+     * @param shutdownEditor дія завершення редактора та звільнення його ресурсів.
+     * @throws NullPointerException якщо конфігурацію, сцену або дію завершення не задано.
      * @throws IllegalStateException якщо контролер уже налаштовано.
      */
     public void configure(
-            String title,
+            AppConfig.Window windowConfig,
             Scene scene,
-            double defaultWidth,
-            double defaultHeight,
-            NeuronMapEditor editor
+            Runnable shutdownEditor
     ) {
         if (configured) {
             throw new IllegalStateException("main window is already configured");
         }
-        Objects.requireNonNull(title, "title");
+        Objects.requireNonNull(windowConfig, "windowConfig");
         Objects.requireNonNull(scene, "scene");
-        Objects.requireNonNull(editor, "editor");
-        if (title.isBlank()) {
-            throw new IllegalArgumentException("title must not be blank");
-        }
-        if (!Double.isFinite(defaultWidth) || defaultWidth <= 0.0
-                || !Double.isFinite(defaultHeight) || defaultHeight <= 0.0) {
-            throw new IllegalArgumentException("default window dimensions must be finite and positive");
-        }
+        Objects.requireNonNull(shutdownEditor, "shutdownEditor");
 
-        stage.setTitle(title);
+        stage.setTitle(windowConfig.title());
         stage.setScene(scene);
-        stage.setWidth(defaultWidth);
-        stage.setHeight(defaultHeight);
+        stage.setWidth(windowConfig.defaultWidth());
+        stage.setHeight(windowConfig.defaultHeight());
 
         WindowState savedState = windowStateStore.load().orElse(null);
-        savedStateRestored = savedState != null;
+        hasRestoredWindowState = savedState != null;
         if (savedState != null) {
             stage.setWidth(savedState.width());
             stage.setHeight(savedState.height());
@@ -81,7 +70,7 @@ public final class MainWindowController {
 
         lifecycleCoordinator = new WindowLifecycleCoordinator(
                 () -> windowStateStore.save(currentWindowState()),
-                editor::shutdown
+                shutdownEditor
         );
         stage.setOnCloseRequest(event -> shutdown());
         configured = true;
@@ -95,7 +84,7 @@ public final class MainWindowController {
     public void show() {
         requireConfigured();
         stage.show();
-        if (!savedStateRestored) {
+        if (!hasRestoredWindowState) {
             stage.centerOnScreen();
         }
     }
@@ -168,7 +157,7 @@ public final class MainWindowController {
     /**
      * Перевіряє, що перед використанням команд керування вікном виконано одноразове налаштування.
      *
-     * @throws IllegalStateException якщо {@link #configure(String, Scene, double, double, NeuronMapEditor)} ще не викликано.
+     * @throws IllegalStateException якщо {@link #configure(AppConfig.Window, Scene, Runnable)} ще не викликано.
      */
     private void requireConfigured() {
         if (!configured) {

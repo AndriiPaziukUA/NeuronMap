@@ -83,11 +83,9 @@ public final class NeuronMapApp extends Application {
                 config.window().defaultHeight()
         );
         mainWindowController.configure(
-                config.window().title(),
+                config.window(),
                 scene,
-                config.window().defaultWidth(),
-                config.window().defaultHeight(),
-                editor
+                editor::shutdown
         );
         mainWindowController.show();
         editor.centerInitialView();

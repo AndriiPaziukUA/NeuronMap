@@ -131,6 +131,29 @@ final class NeuronMapAppTest {
     }
 
     /**
+     * Перевіряє, що помилка завершення редактора не маскує первинну помилку збереження стану вікна.
+     * Другий збій додається до первинного як suppressed exception.
+     */
+    @Test
+    void preservesPersistenceFailureWhenEditorShutdownAlsoFails() {
+        IllegalStateException persistenceFailure = new IllegalStateException("persistence failed");
+        IllegalArgumentException shutdownFailure = new IllegalArgumentException("shutdown failed");
+        WindowLifecycleCoordinator coordinator = new WindowLifecycleCoordinator(
+                () -> {
+                    throw persistenceFailure;
+                },
+                () -> {
+                    throw shutdownFailure;
+                }
+        );
+
+        assertSame(persistenceFailure, assertThrows(IllegalStateException.class, coordinator::shutdown));
+
+        assertEquals(1, persistenceFailure.getSuppressed().length);
+        assertSame(shutdownFailure, persistenceFailure.getSuppressed()[0]);
+    }
+
+    /**
      * Створює службу каталогу, ізольовану у тимчасовому каталозі поточного тесту.
      *
      * @param storageDirectory кореневий каталог збережених проєктів.
