@@ -14,7 +14,6 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.stage.WindowEvent;
 
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -42,17 +41,6 @@ public final class MainWindowController {
     private boolean savedStateRestored;
     private boolean showAttempted;
     private boolean windowPlatformAdapterInstalled;
-
-    /**
-     * Створює контролер вікна на основі наявного JavaFX-вікна та спільного сховища його геометрії.
-     *
-     * @param stage головне JavaFX-вікно.
-     * @param windowStateStore сховище геометрії, яке вже використовується застосунком.
-     * @throws NullPointerException якщо вікно або сховище не задано.
-     */
-    public MainWindowController(Stage stage, WindowStateStore windowStateStore) {
-        this(stage, windowStateStore, new LocalizationService(Locale.getDefault()));
-    }
 
     /**
      * Створює контролер вікна зі спільним сховищем геометрії та активною службою локалізації застосунку.

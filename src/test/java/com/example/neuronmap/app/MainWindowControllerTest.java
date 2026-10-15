@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Перевіряє архітектурний контракт контролера головного вікна та одноразовий життєвий цикл платформного адаптера.
@@ -86,6 +87,27 @@ final class MainWindowControllerTest {
         assertFalse(Arrays.stream(MainWindowController.class.getDeclaredFields())
                 .map(Field::getType)
                 .anyMatch(type -> type == NeuronMapEditor.class));
+    }
+
+    /**
+     * Перевіряє, що кожен шлях створення контролера отримує спільну службу локалізації застосунку.
+     * Це запобігає появі паралельної ініціалізації з системної локалі, яка ігнорує збережений вибір мови.
+     */
+    @Test
+    void requiresSharedLocalizationServiceAtConstruction() {
+        assertTrue(Arrays.stream(MainWindowController.class.getConstructors())
+                .anyMatch(constructor -> Arrays.equals(
+                        constructor.getParameterTypes(),
+                        new Class<?>[]{Stage.class, WindowStateStore.class, LocalizationService.class}
+                )));
+        assertFalse(Arrays.stream(MainWindowController.class.getDeclaredConstructors())
+                .anyMatch(constructor -> {
+                    Class<?>[] parameterTypes = constructor.getParameterTypes();
+                    return parameterTypes.length >= 2
+                            && parameterTypes[0] == Stage.class
+                            && parameterTypes[1] == WindowStateStore.class
+                            && (parameterTypes.length < 3 || parameterTypes[2] != LocalizationService.class);
+                }));
     }
 
     /**
