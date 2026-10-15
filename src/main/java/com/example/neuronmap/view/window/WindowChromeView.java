@@ -11,7 +11,6 @@ import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -68,7 +67,7 @@ public final class WindowChromeView extends BorderPane {
 
     /**
      * Створює смугу заголовка та кнопки, які делегують команди контролеру головного вікна.
-     * Назви кнопок і підказки оновлюються разом з активною локаллю застосунку.
+     * Доступні назви кнопок оновлюються разом з активною локаллю застосунку.
      *
      * @param stage головне вікно, властивості якого відображає подання.
      * @param localization спільна служба локалізації застосунку.
@@ -268,10 +267,9 @@ public final class WindowChromeView extends BorderPane {
         String labelKey = maximized ? "restore" : "maximize";
         String label = chromeLabels().getString(labelKey);
         maximizeButton.setAccessibleText(label);
-        maximizeButton.setTooltip(new Tooltip(label));
     }
 
-    /** Оновлює підказки та доступні назви кнопок відповідно до активної локалі. */
+    /** Оновлює доступні назви кнопок відповідно до активної локалі. */
     private void refreshControlLabels() {
         ResourceBundle labels = chromeLabels();
         setControlLabel(minimizeButton, labels.getString("minimize"));
@@ -284,10 +282,9 @@ public final class WindowChromeView extends BorderPane {
         return ResourceBundle.getBundle(LABELS_BUNDLE, localization.locale());
     }
 
-    /** Застосовує локалізований текст до підказки й назви для допоміжних технологій. */
+    /** Застосовує локалізовану доступну назву кнопки для допоміжних технологій. */
     private static void setControlLabel(Button button, String label) {
         button.setAccessibleText(label);
-        button.setTooltip(new Tooltip(label));
     }
 
     /**
