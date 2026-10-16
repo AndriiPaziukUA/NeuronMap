@@ -6,11 +6,14 @@ import com.example.neuronmap.persistence.window.WindowState;
 import com.example.neuronmap.persistence.window.WindowStateStore;
 import com.example.neuronmap.windowing.WindowPlatformAdapter;
 import com.example.neuronmap.windowing.WindowPlatformAdapterFactory;
+import javafx.application.ConditionalFeature;
+import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 /**
@@ -30,6 +33,7 @@ public final class MainWindowController {
 
     /**
      * Створює контролер головного вікна зі спільним сховищем геометрії та службою локалізації застосунку.
+     * JavaFX повідомляє, чи підтримує поточний toolkit розширену системну смугу заголовка.
      *
      * @param stage головне JavaFX-вікно.
      * @param windowStateStore сховище геометрії вікна.
@@ -42,17 +46,19 @@ public final class MainWindowController {
             LocalizationService localization
     ) {
         this(stage, windowStateStore, localization,
-                WindowPlatformAdapterFactory::createForCurrentOperatingSystem);
+                WindowPlatformAdapterFactory::createForCurrentOperatingSystem,
+                Objects.requireNonNull(stage, "stage")::show,
+                () -> Platform.isSupported(ConditionalFeature.EXTENDED_WINDOW));
     }
 
     /**
-     * Створює контролер із постачальником адаптера, який дає змогу перевірити життєвий цикл незалежно від ОС.
-     * Конструктор доступний лише всередині пакета та не змінює публічний контракт запуску застосунку.
+     * Створює контролер із постачальником адаптера для тестування резервного шляху незалежно від ОС.
+     * Цей конструктор явно залишає вибір режиму розширеного вікна вимкненим, щоб тести могли перевіряти fallback.
      *
      * @param stage головне JavaFX-вікно.
      * @param windowStateStore сховище геометрії вікна.
      * @param localization служба поточної локалі та перекладів.
-     * @param windowPlatformAdapterFactory постачальник адаптера для поточної платформи.
+     * @param windowPlatformAdapterFactory постачальник адаптера для резервної платформної інтеграції.
      * @throws NullPointerException якщо будь-яку залежність не задано.
      */
     MainWindowController(
@@ -82,16 +88,43 @@ public final class MainWindowController {
             Supplier<Optional<WindowPlatformAdapter>> windowPlatformAdapterFactory,
             Runnable showWindowAction
     ) {
+        this(stage, windowStateStore, localization, windowPlatformAdapterFactory,
+                showWindowAction, () -> false);
+    }
+
+    /**
+     * Створює контролер із контрольованою перевіркою підтримки нативного заголовка JavaFX.
+     * Такий контракт дозволяє окремо перевірити новий шлях і резервну інтеграцію без залежності від ОС.
+     *
+     * @param stage головне JavaFX-вікно.
+     * @param windowStateStore сховище геометрії вікна.
+     * @param localization спільна служба локалізації застосунку.
+     * @param windowPlatformAdapterFactory постачальник адаптера для резервного шляху.
+     * @param showWindowAction дія показу вікна.
+     * @param extendedWindowSupport перевірка підтримки {@link ConditionalFeature#EXTENDED_WINDOW}.
+     * @throws NullPointerException якщо будь-яку залежність або дію не задано.
+     */
+    MainWindowController(
+            Stage stage,
+            WindowStateStore windowStateStore,
+            LocalizationService localization,
+            Supplier<Optional<WindowPlatformAdapter>> windowPlatformAdapterFactory,
+            Runnable showWindowAction,
+            BooleanSupplier extendedWindowSupport
+    ) {
         this.stage = Objects.requireNonNull(stage, "stage");
         this.windowStateStore = Objects.requireNonNull(windowStateStore, "windowStateStore");
         LocalizationService requiredLocalization = Objects.requireNonNull(localization, "localization");
         Supplier<Optional<WindowPlatformAdapter>> requiredAdapterFactory = Objects.requireNonNull(
                 windowPlatformAdapterFactory, "windowPlatformAdapterFactory");
         this.showWindowAction = Objects.requireNonNull(showWindowAction, "showWindowAction");
+        BooleanSupplier requiredExtendedWindowSupport = Objects.requireNonNull(
+                extendedWindowSupport, "extendedWindowSupport");
         this.windowChromeLifecycle = new WindowChromeLifecycle(
                 this.stage,
                 requiredLocalization,
                 requiredAdapterFactory,
+                requiredExtendedWindowSupport,
                 this::close,
                 this::minimize,
                 this::toggleMaximized
@@ -144,7 +177,7 @@ public final class MainWindowController {
     }
 
     /**
-     * Показує налаштоване вікно й передає вже показаний Stage власнику платформного оформлення.
+     * Показує налаштоване вікно й передає вже показаний Stage власнику системного оформлення.
      * Центрування виконується лише за відсутності збереженої геометрії. Повторний показ заборонений.
      *
      * @throws IllegalStateException якщо вікно ще не налаштовано або показ уже було розпочато.

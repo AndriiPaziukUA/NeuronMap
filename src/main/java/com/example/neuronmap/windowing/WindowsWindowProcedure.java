@@ -21,7 +21,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Володіє підміною нативної процедури вікна, обробкою повідомлень власного заголовка та викликом початкової процедури.
+ * Володіє підміною нативної процедури вікна, обробкою рамки й заголовка та викликом початкової процедури.
  * Поки Win32 не підтвердив від'єднання процедури або знищення HWND, активний екземпляр утримується сильним реєстром.
  */
 final class WindowsWindowProcedure {
@@ -73,6 +73,8 @@ final class WindowsWindowProcedure {
     private static final int WM_MOUSEMOVE = 0x0200;
     private static final int WM_LBUTTONUP = 0x0202;
     private static final int WM_CAPTURECHANGED = 0x0215;
+    private static final int WM_NCPAINT = 0x0085;
+    private static final int WM_NCACTIVATE = 0x0086;
     private static final int WM_NCDESTROY = 0x0082;
 
     private final Callbacks callbacks;
@@ -255,7 +257,7 @@ final class WindowsWindowProcedure {
     }
 
     /**
-     * Обробляє повідомлення власного заголовка або передає його початковій процедурі JavaFX Glass.
+     * Обробляє повідомлення власної рамки й заголовка або передає їх початковій процедурі JavaFX Glass.
      * WM_NCDESTROY обробляється окремо, навіть після початку очищення, щоб звільнити callback після знищення HWND.
      *
      * @param sourceWindow HWND, від якого надійшло повідомлення.
@@ -336,7 +338,7 @@ final class WindowsWindowProcedure {
     }
 
     /**
-     * Обробляє лише повідомлення, поведінка яких належить власному заголовку.
+     * Обробляє повідомлення власної рамки й заголовка, не змінюючи маршрутизацію решти повідомлень.
      *
      * @param sourceWindow HWND, від якого надійшло повідомлення.
      * @param message ідентифікатор повідомлення Win32.
@@ -347,6 +349,12 @@ final class WindowsWindowProcedure {
     private LRESULT handleChromeMessage(HWND sourceWindow, int message, WPARAM wParam, LPARAM lParam) {
         if (message == WM_NCCALCSIZE) {
             return new LRESULT(0L);
+        }
+        if (message == WM_NCPAINT) {
+            return new LRESULT(0L);
+        }
+        if (message == WM_NCACTIVATE) {
+            return callPreviousWindowProcedure(sourceWindow, message, wParam, new LPARAM(-1L));
         }
         if (message == WM_NCHITTEST) {
             HitTarget target = callbacks.nativeHitTester().apply(lParam);

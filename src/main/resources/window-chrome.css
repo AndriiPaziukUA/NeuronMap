@@ -4,10 +4,15 @@
 
 .window-title-bar {
     -fx-background-color: #22252a;
-    -fx-border-color: #30343b;
-    -fx-border-width: 0 0 1 0;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
     -fx-spacing: 0;
     -fx-alignment: center-left;
+}
+
+.window-title-bar-host {
+    -fx-background-color: #22252a;
+    -fx-padding: 0;
 }
 
 .window-title {
@@ -46,42 +51,42 @@
 }
 
 .window-control-minimize:hover,
-.window-control-minimize:native-hover {
+.window-control-minimize.native-hover {
     -fx-background-color: #1976d2;
     -fx-text-fill: white;
 }
 
 .window-control-minimize:hover .window-icon-stroke,
-.window-control-minimize:native-hover .window-icon-stroke {
+.window-control-minimize.native-hover .window-icon-stroke {
     -fx-stroke: white;
 }
 
 .window-control-maximize:hover,
-.window-control-maximize:native-hover {
+.window-control-maximize.native-hover {
     -fx-background-color: #e6b422;
     -fx-text-fill: #17191d;
 }
 
 .window-control-maximize:hover .window-icon-stroke,
-.window-control-maximize:native-hover .window-icon-stroke,
+.window-control-maximize.native-hover .window-icon-stroke,
 .window-control-maximize:hover .window-icon-outline,
-.window-control-maximize:native-hover .window-icon-outline {
+.window-control-maximize.native-hover .window-icon-outline {
     -fx-stroke: #17191d;
 }
 
 .window-control-close:hover,
-.window-control-close:native-hover {
+.window-control-close.native-hover {
     -fx-background-color: #e81123;
     -fx-text-fill: white;
 }
 
 .window-control-close:hover .window-icon-stroke,
-.window-control-close:native-hover .window-icon-stroke {
+.window-control-close.native-hover .window-icon-stroke {
     -fx-stroke: white;
 }
 
-.window-control-minimize:native-pressed,
-.window-control-maximize:native-pressed,
-.window-control-close:native-pressed {
+.window-control-minimize.native-pressed,
+.window-control-maximize.native-pressed,
+.window-control-close.native-pressed {
     -fx-background-insets: 1;
 }

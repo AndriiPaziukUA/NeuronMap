@@ -49,6 +49,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
     private static final int SWP_FRAMECHANGED = 0x0020;
 
     private final AtomicBoolean disposed = new AtomicBoolean();
+    private final AtomicBoolean frameBoundsFailureLogged = new AtomicBoolean();
     private final WindowsSystemMetrics systemMetrics = new WindowsSystemMetrics();
     private final WindowsWindowLongPtr.Setter windowLongPtrSetter;
     private final NonClientFrameUpdater nonClientFrameUpdater;
@@ -63,14 +64,10 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
     private volatile boolean nativeWindowDestroyed;
     private volatile double outputScaleX = 1.0;
     private volatile double outputScaleY = 1.0;
-    private final ChangeListener<Number> outputScaleXListener = (observable, oldValue, newValue) -> {
-        outputScaleX = WindowsSystemMetrics.validScale(newValue.doubleValue());
-        updateNativeResizeBorders();
-    };
-    private final ChangeListener<Number> outputScaleYListener = (observable, oldValue, newValue) -> {
-        outputScaleY = WindowsSystemMetrics.validScale(newValue.doubleValue());
-        updateNativeResizeBorders();
-    };
+    private final ChangeListener<Number> outputScaleXListener = (observable, oldValue, newValue) ->
+            outputScaleX = WindowsSystemMetrics.validScale(newValue.doubleValue());
+    private final ChangeListener<Number> outputScaleYListener = (observable, oldValue, newValue) ->
+            outputScaleY = WindowsSystemMetrics.validScale(newValue.doubleValue());
     private final EventHandler<WindowEvent> hiddenHandler = event -> dispose();
 
     /** Створює адаптер без підключення до Win32 до виклику {@link #install(Stage, WindowChrome)}. */
@@ -143,7 +140,6 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
             }
 
             installNativeWindowProcedureAndStyle();
-            updateNativeResizeBorders();
             requestedStage.outputScaleXProperty().addListener(outputScaleXListener);
             requestedStage.outputScaleYProperty().addListener(outputScaleYListener);
             requestedStage.addEventHandler(WindowEvent.WINDOW_HIDDEN, hiddenHandler);
@@ -303,7 +299,9 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
     }
 
     /**
-     * Розраховує семантичну область вікна за екранними координатами повідомлення {@code WM_NCHITTEST}.
+     * Розраховує семантичну область за екранними координатами WM_NCHITTEST.
+     * Спочатку перевіряється зовнішній простір між GetWindowRect і видимою рамкою DWM; лише після цього
+     * координати передаються геометрії JavaFX, яка не резервує внутрішню смугу resize.
      *
      * @param lParam упаковані знакові координати курсора у фізичних пікселях екрана.
      * @return область hit testing або {@code null}, якщо геометрію HWND прочитати не вдалося.
@@ -319,18 +317,142 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
         if (layout == null) {
             return null;
         }
-        RECT clientRectangle = new RECT();
-        POINT clientOrigin = new POINT();
-        if (!User32.INSTANCE.GetClientRect(window, clientRectangle)
-                || !coordinates.ClientToScreen(window, clientOrigin)) {
-            return null;
-        }
+
         long packedPoint = lParam.longValue();
         int screenX = (short) (packedPoint & 0xFFFFL);
         int screenY = (short) ((packedPoint >>> 16) & 0xFFFFL);
+
+        RECT windowBounds = new RECT();
+        RECT visibleBounds = new RECT();
+        boolean frameBoundsAvailable = readNativeFrameBounds(window, windowBounds, visibleBounds);
+        if (frameBoundsAvailable) {
+            WindowHitTestCalculator.Rectangle nativeWindowBounds = toRectangle(windowBounds);
+            if (!nativeWindowBounds.contains(screenX, screenY)) {
+                return null;
+            }
+            HitTarget outerTarget = WindowHitTestCalculator.hitTestOuterResizeArea(
+                    nativeWindowBounds,
+                    toRectangle(visibleBounds),
+                    screenX,
+                    screenY,
+                    layout.maximized()
+            );
+            if (outerTarget != null) {
+                return outerTarget;
+            }
+        }
+
+        POINT clientOrigin = new POINT();
+        if (!coordinates.ClientToScreen(window, clientOrigin)) {
+            return null;
+        }
         double localX = (screenX - clientOrigin.x) / outputScaleX;
         double localY = (screenY - clientOrigin.y) / outputScaleY;
-        return WindowHitTestCalculator.hitTest(layout, localX, localY);
+        return frameBoundsAvailable
+                ? WindowHitTestCalculator.hitTestClientArea(layout, localX, localY)
+                : WindowHitTestCalculator.hitTest(layout, localX, localY);
+    }
+
+    /**
+     * Отримує зовнішні та видимі межі HWND. Якщо DWM недоступний, видимі межі оцінюються за системними метриками,
+     * щоб resize-зона залишалася зовні JavaFX-контенту.
+     *
+     * @param window HWND, для якого читаються межі.
+     * @param windowBounds вихідний зовнішній прямокутник HWND.
+     * @param visibleBounds вихідний прямокутник видимої рамки.
+     * @return {@code true}, якщо отримано зовнішній прямокутник і точні або оцінені видимі межі.
+     */
+    private boolean readNativeFrameBounds(HWND window, RECT windowBounds, RECT visibleBounds) {
+        if (!User32.INSTANCE.GetWindowRect(window, windowBounds)) {
+            return false;
+        }
+        windowBounds.read();
+        try {
+            int result = WindowsDwmExtensions.INSTANCE.DwmGetWindowAttribute(
+                    window,
+                    WindowsDwmExtensions.DWMWA_EXTENDED_FRAME_BOUNDS,
+                    visibleBounds,
+                    visibleBounds.size()
+            );
+            if (result >= 0) {
+                visibleBounds.read();
+                if (hasFrameInsets(windowBounds, visibleBounds)) {
+                    frameBoundsFailureLogged.set(false);
+                    return true;
+                }
+                logFrameBoundsFailure(
+                        "DWM не повернув окрему видиму рамку; використовуються системні метрики", null);
+            } else {
+                logFrameBoundsFailure("DwmGetWindowAttribute повернув HRESULT " + result, null);
+            }
+        } catch (RuntimeException | LinkageError exception) {
+            logFrameBoundsFailure("Не вдалося отримати видимі межі рамки через DWM", exception);
+        }
+
+        WindowsSystemMetrics.ResizeBorders borders =
+                systemMetrics.readResizeBorders(window, outputScaleX, outputScaleY);
+        int horizontal = (int) Math.ceil(borders.horizontal() * outputScaleX);
+        int vertical = (int) Math.ceil(borders.vertical() * outputScaleY);
+        visibleBounds.left = windowBounds.left + horizontal;
+        visibleBounds.right = windowBounds.right - horizontal;
+        visibleBounds.top = windowBounds.top + vertical;
+        visibleBounds.bottom = windowBounds.bottom - vertical;
+        if (visibleBounds.right < visibleBounds.left) {
+            visibleBounds.left = windowBounds.left;
+            visibleBounds.right = windowBounds.right;
+        }
+        if (visibleBounds.bottom < visibleBounds.top) {
+            visibleBounds.top = windowBounds.top;
+            visibleBounds.bottom = windowBounds.bottom;
+        }
+        return true;
+    }
+
+    /**
+     * Перевіряє, що межі DWM лежать усередині зовнішнього прямокутника та залишають зовнішню смугу.
+     *
+     * @param windowBounds зовнішні межі HWND.
+     * @param visibleBounds видимі межі DWM.
+     * @return {@code true}, якщо зовнішній прямокутник містить видиму рамку й має хоча б один відступ.
+     */
+    private static boolean hasFrameInsets(RECT windowBounds, RECT visibleBounds) {
+        boolean contained = visibleBounds.left >= windowBounds.left
+                && visibleBounds.top >= windowBounds.top
+                && visibleBounds.right <= windowBounds.right
+                && visibleBounds.bottom <= windowBounds.bottom;
+        boolean inset = windowBounds.left < visibleBounds.left
+                || windowBounds.top < visibleBounds.top
+                || windowBounds.right > visibleBounds.right
+                || windowBounds.bottom > visibleBounds.bottom;
+        return contained && inset;
+    }
+
+    /**
+     * Записує помилку визначення видимих меж лише один раз, щоб рух курсора не засмічував журнал.
+     *
+     * @param message опис проблеми читання меж.
+     * @param exception причина помилки або {@code null}, якщо DWM повернув помилковий HRESULT.
+     */
+    private void logFrameBoundsFailure(String message, Throwable exception) {
+        if (!frameBoundsFailureLogged.compareAndSet(false, true)) {
+            return;
+        }
+        if (exception == null) {
+            LOGGER.fine(message);
+        } else {
+            LOGGER.log(Level.FINE, message, exception);
+        }
+    }
+
+    /**
+     * Перетворює нативний прямокутник Win32 на платформонезалежну геометрію.
+     *
+     * @param rectangle прямокутник у координатах екрана.
+     * @return еквівалентний прямокутник обчислювача.
+     */
+    private static WindowHitTestCalculator.Rectangle toRectangle(RECT rectangle) {
+        return new WindowHitTestCalculator.Rectangle(
+                rectangle.left, rectangle.top, rectangle.right, rectangle.bottom);
     }
 
     /**
@@ -351,7 +473,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
         long packedPoint = lParam.longValue();
         int clientX = (short) (packedPoint & 0xFFFFL);
         int clientY = (short) ((packedPoint >>> 16) & 0xFFFFL);
-        return WindowHitTestCalculator.hitTest(layout, clientX / outputScaleX, clientY / outputScaleY);
+        return WindowHitTestCalculator.hitTestClientArea(layout, clientX / outputScaleX, clientY / outputScaleY);
     }
 
     /**
@@ -416,20 +538,6 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
                 currentChrome.performNativeCaptionDoubleClick();
             }
         });
-    }
-
-    /** Оновлює системну зону зміни розміру через окремий обчислювач метрик Windows. */
-    private void updateNativeResizeBorders() {
-        Stage currentStage = stage;
-        WindowChrome currentChrome = chrome;
-        HWND currentWindow = hwnd;
-        if (currentStage == null || currentChrome == null || currentWindow == null || disposed.get()
-                || !Platform.isFxApplicationThread()) {
-            return;
-        }
-        WindowsSystemMetrics.ResizeBorders borders =
-                systemMetrics.readResizeBorders(currentWindow, outputScaleX, outputScaleY);
-        currentChrome.setNativeResizeBorders(borders.horizontal(), borders.vertical());
     }
 
     /**
@@ -535,9 +643,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
         return windowProcedure == null && !previousWindowStyleCaptured;
     }
 
-    /**
-     * Контракт операції оновлення рамки, потрібний для перевірки помилок очищення без виклику user32.
-     */
+    /** Контракт операції оновлення рамки, потрібний для перевірки помилок очищення без виклику user32. */
     @FunctionalInterface
     interface NonClientFrameUpdater {
 
@@ -549,9 +655,7 @@ public final class WindowsWindowPlatformAdapter implements WindowPlatformAdapter
         void update(HWND window);
     }
 
-    /**
-     * Скидає нативні посилання після WM_NCDESTROY, коли звертатися до HWND більше не можна.
-     */
+    /** Скидає нативні посилання після WM_NCDESTROY, коли звертатися до HWND більше не можна. */
     private void clearDestroyedWindowState() {
         hwnd = null;
         user32Extensions = null;

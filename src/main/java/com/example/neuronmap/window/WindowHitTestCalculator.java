@@ -50,7 +50,7 @@ public final class WindowHitTestCalculator {
         }
     }
 
-    /** Прямокутник інтерактивної області у координатах вікна. */
+    /** Прямокутник геометрії у вибраній системі координат. */
     public record Rectangle(double left, double top, double right, double bottom) {
 
         /**
@@ -117,9 +117,8 @@ public final class WindowHitTestCalculator {
     }
 
     /**
-     * Визначає інтерактивну область за координатами точки відносно вікна.
-     * Кнопки заголовка мають пріоритет над зонами resize, щоб їхні межі залишалися клікабельними;
-     * resize має пріоритет над вільною областю заголовка та клієнтським вмістом.
+     * Визначає інтерактивну область за координатами точки відносно вікна, включно з внутрішніми зонами resize.
+     * Кнопки заголовка мають пріоритет над зонами resize, а resize — над заголовком і клієнтським вмістом.
      *
      * @param layout актуальний незмінний знімок геометрії.
      * @param x горизонтальна координата точки в логічних пікселях.
@@ -128,6 +127,92 @@ public final class WindowHitTestCalculator {
      * @throws NullPointerException якщо геометрію не задано.
      */
     public static HitTarget hitTest(Layout layout, double x, double y) {
+        return hitTest(layout, x, y, true);
+    }
+
+    /**
+     * Визначає область усередині клієнтського вмісту, не резервуючи внутрішню смугу під зміну розміру.
+     * Цей варіант підходить нативним рамкам, де resize виконується окремою зовнішньою областю ОС.
+     *
+     * @param layout актуальний незмінний знімок геометрії.
+     * @param x горизонтальна координата точки в логічних пікселях.
+     * @param y вертикальна координата точки в логічних пікселях.
+     * @return семантична область кнопки, заголовка або клієнтського вмісту.
+     * @throws NullPointerException якщо геометрію не задано.
+     */
+    public static HitTarget hitTestClientArea(Layout layout, double x, double y) {
+        return hitTest(layout, x, y, false);
+    }
+
+    /**
+     * Визначає resize-область між зовнішнім прямокутником HWND і видимими межами DWM.
+     * Прямокутники й точка мають бути задані в одній системі екранних координат.
+     *
+     * @param windowBounds зовнішній прямокутник HWND, отриманий через {@code GetWindowRect}.
+     * @param visibleBounds видимий прямокутник рамки, отриманий через DWM.
+     * @param screenX горизонтальна екранна координата курсора.
+     * @param screenY вертикальна екранна координата курсора.
+     * @param maximized чи максимізоване вікно.
+     * @return системний край або кут; {@code null}, якщо точка не належить зовнішній resize-області.
+     * @throws NullPointerException якщо один із прямокутників не задано.
+     */
+    public static HitTarget hitTestOuterResizeArea(
+            Rectangle windowBounds,
+            Rectangle visibleBounds,
+            double screenX,
+            double screenY,
+            boolean maximized
+    ) {
+        Objects.requireNonNull(windowBounds, "windowBounds");
+        Objects.requireNonNull(visibleBounds, "visibleBounds");
+        if (maximized || !Double.isFinite(screenX) || !Double.isFinite(screenY)
+                || !windowBounds.contains(screenX, screenY)
+                || visibleBounds.contains(screenX, screenY)) {
+            return null;
+        }
+
+        boolean left = screenX < visibleBounds.left() && windowBounds.left() < visibleBounds.left();
+        boolean right = screenX >= visibleBounds.right() && windowBounds.right() > visibleBounds.right();
+        boolean top = screenY < visibleBounds.top() && windowBounds.top() < visibleBounds.top();
+        boolean bottom = screenY >= visibleBounds.bottom() && windowBounds.bottom() > visibleBounds.bottom();
+
+        if (top && left) {
+            return HitTarget.RESIZE_TOP_LEFT;
+        }
+        if (top && right) {
+            return HitTarget.RESIZE_TOP_RIGHT;
+        }
+        if (bottom && left) {
+            return HitTarget.RESIZE_BOTTOM_LEFT;
+        }
+        if (bottom && right) {
+            return HitTarget.RESIZE_BOTTOM_RIGHT;
+        }
+        if (left) {
+            return HitTarget.RESIZE_LEFT;
+        }
+        if (right) {
+            return HitTarget.RESIZE_RIGHT;
+        }
+        if (top) {
+            return HitTarget.RESIZE_TOP;
+        }
+        if (bottom) {
+            return HitTarget.RESIZE_BOTTOM;
+        }
+        return null;
+    }
+
+    /**
+     * Визначає область точки з можливістю вимкнути resize-пороги всередині вікна.
+     *
+     * @param layout геометрія вікна.
+     * @param x горизонтальна координата точки.
+     * @param y вертикальна координата точки.
+     * @param includeClientResize чи потрібно вважати внутрішні краї клієнтської області зонами resize.
+     * @return семантична область точки.
+     */
+    private static HitTarget hitTest(Layout layout, double x, double y, boolean includeClientResize) {
         Objects.requireNonNull(layout, "layout");
         if (!Double.isFinite(x) || !Double.isFinite(y)
                 || x < 0.0 || y < 0.0 || x >= layout.width() || y >= layout.height()) {
@@ -144,7 +229,7 @@ public final class WindowHitTestCalculator {
             return HitTarget.CLOSE_BUTTON;
         }
 
-        if (!layout.maximized()) {
+        if (includeClientResize && !layout.maximized()) {
             HitTarget edge = resizeTarget(layout, x, y);
             if (edge != null) {
                 return edge;
