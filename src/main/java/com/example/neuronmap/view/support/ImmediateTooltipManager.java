@@ -1,10 +1,10 @@
 package com.example.neuronmap.view.support;
 
+import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Control;
 import javafx.scene.control.Tooltip;
-import javafx.event.EventHandler;
 import javafx.scene.input.MouseEvent;
 
 /**
@@ -22,7 +22,7 @@ public final class ImmediateTooltipManager {
     private Control activeControl;
 
     /**
-     * Створює екземпляр ImmediateTooltipManager та зберігає передані залежності, потрібні для його роботи.
+     * Створює менеджер і відразу реєструє обробники подій на переданій сцені.
      *
      * @param scene сцена JavaFX, до якої приєднують компонент.
      */
@@ -35,6 +35,8 @@ public final class ImmediateTooltipManager {
      * Створює менеджер миттєвих підказок і під’єднує його до сцени.
      *
      * @param scene сцена JavaFX, до якої приєднують компонент.
+     * @return менеджер, який керує показом підказок на сцені.
+     * @throws IllegalArgumentException якщо сцену не задано.
      */
     public static ImmediateTooltipManager install(Scene scene) {
         if (scene == null) {
@@ -44,7 +46,7 @@ public final class ImmediateTooltipManager {
     }
 
     /**
-     * Від’єднує обробники подій і звільняє ресурси, якими керує компонент.
+     * Від’єднує обробники подій і приховує активну підказку, звільняючи ресурси компонента.
      */
     public void dispose() {
         hideActiveTooltip();
@@ -63,7 +65,7 @@ public final class ImmediateTooltipManager {
     }
 
     /**
-     * Реєструє обробники подій, потрібні для handlers.
+     * Реєструє обробники входу, руху та виходу вказівника, потрібні для миттєвого показу підказок.
      */
     private void installHandlers() {
         scene.addEventFilter(
@@ -81,9 +83,9 @@ public final class ImmediateTooltipManager {
     }
 
     /**
-     * Визначає елемент під курсором і за потреби показує його підказку.
+     * Знаходить елемент із підказкою під вказівником і показує підказку, якщо ціль змінилася.
      *
-     * @param event подія інтерфейсу, яку потрібно обробити.
+     * @param event подія миші, що містить цільовий вузол і координати екрана.
      */
     private void handleMouseMoved(MouseEvent event) {
         Control control = findTooltipControl(event.getTarget());
@@ -99,7 +101,7 @@ public final class ImmediateTooltipManager {
             return;
         }
 
-        configureTooltip(tooltip);
+        TooltipFactory.configure(tooltip);
 
         if (activeControl == control) {
             return;
@@ -115,9 +117,9 @@ public final class ImmediateTooltipManager {
     }
 
     /**
-     * Приховує активну підказку після виходу курсора з її цільового елемента.
+     * Приховує активну підказку, якщо вказівник вийшов за межі елемента, що її надає.
      *
-     * @param event подія інтерфейсу, яку потрібно обробити.
+     * @param event подія виходу миші з цільового вузла.
      */
     private void handleMouseExited(MouseEvent event) {
         Node target = event.getTarget() instanceof Node node
@@ -130,18 +132,22 @@ public final class ImmediateTooltipManager {
     }
 
     /**
-     * Налаштовує tooltip для роботи з відповідним елементом інтерфейсу.
+     * Знаходить найближчого предка з типом {@link Control}, який має власну підказку.
+     * Обхід дерева вузлів виконує спільний {@link JavaFxNodeLookup}, щоб не дублювати механізм пошуку.
      *
-     * @param tooltip значення «tooltip», яке використовується в цьому методі.
+     * @param target цільовий вузол події або інший об’єкт, переданий JavaFX.
+     * @return найближчий елемент керування з підказкою або {@code null}, якщо такого немає.
      */
-    private void configureTooltip(Tooltip tooltip) {
-        tooltip.setShowDelay(UiTiming.TOOLTIP_SHOW_DELAY);
-        tooltip.setShowDuration(UiTiming.TOOLTIP_VISIBLE_DURATION);
-        tooltip.setHideDelay(UiTiming.TOOLTIP_HIDE_DELAY);
+    private static Control findTooltipControl(Object target) {
+        Node ancestor = JavaFxNodeLookup.findAncestorMatching(
+                target,
+                node -> node instanceof Control control && control.getTooltip() != null
+        );
+        return ancestor instanceof Control control ? control : null;
     }
 
     /**
-     * Приховує active tooltip і завершує пов’язаний стан відображення.
+     * Приховує активну підказку й скидає посилання на її елемент керування.
      */
     private void hideActiveTooltip() {
         if (activeControl == null) {
@@ -153,26 +159,5 @@ public final class ImmediateTooltipManager {
             tooltip.hide();
         }
         activeControl = null;
-    }
-
-    /**
-     * Знаходить елемент керування JavaFX, що відповідає за підказку під курсором.
-     *
-     * @param target цільовий вузол або об’єкт інтерфейсу, який потрібно перевірити чи знайти.
-     */
-    private static Control findTooltipControl(Object target) {
-        Node node = target instanceof Node targetNode
-                ? targetNode
-                : null;
-
-        while (node != null) {
-            if (node instanceof Control control
-                    && control.getTooltip() != null) {
-                return control;
-            }
-            node = node.getParent();
-        }
-
-        return null;
     }
 }
