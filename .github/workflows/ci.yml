@@ -17,16 +17,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            shell: bash
-            test_command: xvfb-run -a bash ./mvnw --batch-mode clean test
-          - os: windows-latest
-            shell: pwsh
-            test_command: .\mvnw.cmd --batch-mode clean test
-          - os: macos-latest
-            shell: bash
-            test_command: bash ./mvnw --batch-mode clean test
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
 
     steps:
       - name: Checkout repository
@@ -45,6 +39,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes xvfb
 
-      - name: Run tests
-        shell: ${{ matrix.shell }}
-        run: ${{ matrix.test_command }}
+      - name: Run tests on Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        run: xvfb-run -a bash ./mvnw --batch-mode clean test
+
+      - name: Run tests on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: .\mvnw.cmd --batch-mode clean test
+
+      - name: Run tests on macOS
+        if: runner.os == 'macOS'
+        shell: bash
+        run: bash ./mvnw --batch-mode clean test
