@@ -3,6 +3,7 @@ package com.example.neuronmap.view.window;
 import com.example.neuronmap.i18n.LocalizationService;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -15,6 +16,7 @@ import javafx.scene.layout.HeaderDragType;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
@@ -47,8 +49,6 @@ public final class WindowChromeView extends BorderPane {
     private final HBox titleBar = new HBox();
     private final Label titleLabel = new Label();
     private final Region spacer = new Region();
-    private final Region leadingSpacer = new Region();
-    private final Region trailingSpacer = new Region();
     private final HBox controlGroup = new HBox();
     private final Button minimizeButton = createButton("window-control-minimize", createMinimizeIcon());
     private final Button maximizeButton = createButton("window-control-maximize", createMaximizeIcon(false));
@@ -105,16 +105,18 @@ public final class WindowChromeView extends BorderPane {
         titleLabel.getStyleClass().add("window-title");
         titleLabel.textProperty().bind(stage.titleProperty());
         spacer.getStyleClass().add("window-title-spacer");
-        leadingSpacer.getStyleClass().add("window-title-spacer");
-        trailingSpacer.getStyleClass().add("window-title-spacer");
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox.setHgrow(leadingSpacer, Priority.ALWAYS);
-        HBox.setHgrow(trailingSpacer, Priority.ALWAYS);
 
         controlGroup.getStyleClass().add("window-control-group");
         if (platformStyle.controlsOnLeadingEdge()) {
             controlGroup.getChildren().addAll(closeButton, minimizeButton, maximizeButton);
-            titleBar.getChildren().addAll(controlGroup, leadingSpacer, titleLabel, trailingSpacer);
+            StackPane centeredHeader = new StackPane(titleLabel, controlGroup);
+            centeredHeader.getStyleClass().add("window-title-centered-header");
+            centeredHeader.setMaxWidth(Double.MAX_VALUE);
+            StackPane.setAlignment(titleLabel, Pos.CENTER);
+            StackPane.setAlignment(controlGroup, Pos.CENTER_LEFT);
+            HBox.setHgrow(centeredHeader, Priority.ALWAYS);
+            titleBar.getChildren().add(centeredHeader);
         } else {
             titleBar.getChildren().addAll(titleLabel, spacer, minimizeButton, maximizeButton, closeButton);
         }
@@ -194,7 +196,7 @@ public final class WindowChromeView extends BorderPane {
         HeaderBar.setDragType(closeButton, HeaderDragType.NONE);
 
         titleBar.setPadding(platformStyle.controlsOnLeadingEdge()
-                ? new Insets(3.0, 12.0, 3.0, 6.0)
+                ? new Insets(3.0, 6.0, 3.0, 6.0)
                 : new Insets(3.0, 0.0, 3.0, 12.0));
         titleBar.setMaxWidth(Double.MAX_VALUE);
         setTop(null);
@@ -275,7 +277,7 @@ public final class WindowChromeView extends BorderPane {
         if (originalRoot != null && getCenter() == originalRoot) {
             priorFailure = attemptCleanup(priorFailure, () -> setCenter(null));
         }
-        if (originalRoot != null && scene.getRoot() != originalRoot) {
+        if (originalRoot != null && scene.getRoot() == this) {
             priorFailure = attemptCleanup(priorFailure, () -> scene.setRoot(originalRoot));
         }
         for (int index = addedStylesheets.size() - 1; index >= 0; index--) {
@@ -339,10 +341,10 @@ public final class WindowChromeView extends BorderPane {
         updateMaximizeIcon();
     }
 
-    /** Оновлює графічний значок і доступну назву кнопки максимізації або відновлення. */
+    /** Оновлює графічний значок і доступну назву кнопки відповідно до платформної семантики вікна. */
     private void updateMaximizeIcon() {
         maximizeButton.setGraphic(createMaximizeIcon(maximized));
-        String labelKey = maximized ? "restore" : "maximize";
+        String labelKey = platformStyle.maximizeLabelKey(stage.isMaximized(), stage.isFullScreen());
         maximizeButton.setAccessibleText(localization.textFrom(LABELS_BUNDLE, labelKey));
     }
 

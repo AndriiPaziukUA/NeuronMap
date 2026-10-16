@@ -83,6 +83,20 @@ enum WindowChromePlatformStyle {
     }
 
     /**
+     * Визначає ключ доступної назви кнопки відповідно до платформної семантики та фактичного стану вікна.
+     *
+     * @param maximized чи максимізоване вікно; на macOS цей стан не змінює типову дію зеленої кнопки.
+     * @param fullScreen чи перебуває вікно в повноекранному режимі.
+     * @return ключ локалізації для доступної назви кнопки.
+     */
+    String maximizeLabelKey(boolean maximized, boolean fullScreen) {
+        if (this == MACOS) {
+            return fullScreen ? "exitFullScreen" : "enterFullScreen";
+        }
+        return maximized || fullScreen ? "restore" : "maximize";
+    }
+
+    /**
      * Повертає CSS-клас, який ідентифікує вибрану платформну схему.
      *
      * @return клас для кореневого вузла оформлення.
