@@ -11,11 +11,15 @@ import java.nio.file.attribute.FileTime;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Реалізує постійне сховище карти на SQLite та керує транзакціями, параметрами камери й налаштуваннями симуляції.
  */
 public final class SqliteMapRepository implements MapRepository {
+
+    private static final Logger LOGGER = Logger.getLogger(SqliteMapRepository.class.getName());
 
     private final Path databasePath;
     private final Connection connection;
@@ -95,9 +99,10 @@ public final class SqliteMapRepository implements MapRepository {
     }
 
     /**
-     * Завантажує параметри камери. Пошкоджені числові значення замінює типовим станом, але не приховує помилки SQLite.
+     * Завантажує параметри камери. Відсутні налаштування замінює типовим станом без попередження,
+     * а пошкоджені або неповні збережені значення реєструє та відновлює до типового стану.
      *
-     * @return коректний збережений стан камери або типовий стан, якщо дані відсутні чи пошкоджені.
+     * @return коректний збережений стан камери або типовий стан, якщо налаштування відсутні чи пошкоджені.
      * @throws IllegalStateException якщо репозиторій закрито.
      * @throws PersistenceException якщо SQLite не може прочитати налаштування.
      */
@@ -105,17 +110,37 @@ public final class SqliteMapRepository implements MapRepository {
     public CameraState loadCameraState() {
         ensureOpen();
         try {
-            double zoom = Double.parseDouble(settings.load("zoom"));
-            double panX = Double.parseDouble(settings.load("panX"));
-            double panY = Double.parseDouble(settings.load("panY"));
+            String zoomValue = settings.load("zoom");
+            String panXValue = settings.load("panX");
+            String panYValue = settings.load("panY");
 
-            if (!Double.isFinite(zoom) || zoom <= 0.0
-                    || !Double.isFinite(panX) || !Double.isFinite(panY)) {
+            if (zoomValue == null && panXValue == null && panYValue == null) {
                 return CameraState.defaultState();
             }
-            return new CameraState(zoom, panX, panY);
-        } catch (NumberFormatException exception) {
-            return CameraState.defaultState();
+            if (zoomValue == null || panXValue == null || panYValue == null) {
+                LOGGER.log(
+                        Level.WARNING,
+                        "Неповний збережений стан камери в SQLite; використано типовий стан. Database: {0}",
+                        databasePath
+                );
+                return CameraState.defaultState();
+            }
+
+            try {
+                return new CameraState(
+                        Double.parseDouble(zoomValue),
+                        Double.parseDouble(panXValue),
+                        Double.parseDouble(panYValue)
+                );
+            } catch (IllegalArgumentException exception) {
+                LOGGER.log(
+                        Level.WARNING,
+                        "Некоректний збережений стан камери в SQLite; використано типовий стан. Database: "
+                                + databasePath,
+                        exception
+                );
+                return CameraState.defaultState();
+            }
         } catch (SQLException exception) {
             throw failure("Не вдалося завантажити стан камери з SQLite.", exception);
         }

@@ -11,8 +11,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Завантажує та зберігає геометрію головного вікна в окремому файлі, не перериваючи завершення застосунку,
- * якщо необов’язковий запис стану не вдався.
+ * Завантажує та зберігає геометрію головного вікна в окремому файлі, не перериваючи запуск або завершення застосунку,
+ * якщо необов’язковий стан відсутній чи пошкоджений.
  */
 public final class WindowStateStore {
 
@@ -40,6 +40,7 @@ public final class WindowStateStore {
 
     /**
      * Завантажує збережену геометрію вікна, якщо файл містить коректний стан.
+     * Відсутній файл є штатним випадком, а пошкоджений файл спричиняє попередження в журналі й типовий fallback.
      *
      * @return збережений стан вікна або порожній результат, якщо файл відсутній чи містить некоректні дані.
      */
@@ -49,7 +50,6 @@ public final class WindowStateStore {
         }
 
         Properties properties = new Properties();
-
         try (InputStream input = Files.newInputStream(file)) {
             properties.load(input);
         } catch (IOException exception) {
@@ -59,7 +59,8 @@ public final class WindowStateStore {
                     exception
             );
             return Optional.empty();
-        } catch (IllegalArgumentException ignored) {
+        } catch (IllegalArgumentException exception) {
+            logInvalidState("Файл геометрії вікна містить некоректний формат властивостей", exception);
             return Optional.empty();
         }
 
@@ -70,11 +71,13 @@ public final class WindowStateStore {
                     Double.parseDouble(properties.getProperty(X)),
                     Double.parseDouble(properties.getProperty(Y))
             );
-
-            return state.isValid()
-                    ? Optional.of(state)
-                    : Optional.empty();
-        } catch (NumberFormatException ignored) {
+            if (!state.isValid()) {
+                logInvalidState("Файл геометрії вікна містить недопустимі числові значення", null);
+                return Optional.empty();
+            }
+            return Optional.of(state);
+        } catch (NumberFormatException exception) {
+            logInvalidState("Файл геометрії вікна містить значення, які не є числами", exception);
             return Optional.empty();
         }
     }
@@ -115,6 +118,20 @@ public final class WindowStateStore {
                     "Не вдалося зберегти геометрію вікна у файлі " + file,
                     exception
             );
+        }
+    }
+
+    /**
+     * Реєструє діагностику пошкодженого файла геометрії без включення його вмісту до журналу.
+     *
+     * @param message короткий опис дефекту формату або даних.
+     * @param cause виняток, який пояснює помилку, або {@code null} для недопустимого, але розбірного стану.
+     */
+    private void logInvalidState(String message, RuntimeException cause) {
+        if (cause == null) {
+            LOGGER.log(Level.WARNING, "{0}: {1}", new Object[]{message, file});
+        } else {
+            LOGGER.log(Level.WARNING, message + ": " + file, cause);
         }
     }
 }

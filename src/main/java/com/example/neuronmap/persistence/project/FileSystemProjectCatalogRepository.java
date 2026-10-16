@@ -13,30 +13,66 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Реалізує збереження каталогу проєктів у файловій системі та зберігає назву останнього відкритого проєкту.
  */
 public final class FileSystemProjectCatalogRepository implements ProjectCatalogRepository {
 
+    private static final Logger LOGGER = Logger.getLogger(FileSystemProjectCatalogRepository.class.getName());
     private static final String PROJECT_FILE_NAME = "project.db";
     private static final String LAST_PROJECT_NAME_KEY = "last_project_name";
 
     private final Path storageDirectory;
     private final GlobalSettingsStore globalSettings;
+    private final LastModifiedTimeReader lastModifiedTimeReader;
 
     /**
-     * Створює файловий репозиторій каталогу проєктів.
+     * Створює файловий репозиторій каталогу проєктів зі стандартним читачем метаданих файлової системи.
      *
      * @param storageDirectory кореневий каталог збереження проєктів.
      * @param globalSettings сховище глобальних налаштувань застосунку.
      */
     public FileSystemProjectCatalogRepository(Path storageDirectory, GlobalSettingsStore globalSettings) {
-        if (storageDirectory == null || globalSettings == null) {
-            throw new IllegalArgumentException("storageDirectory and globalSettings must not be null");
+        this(storageDirectory, globalSettings, Files::getLastModifiedTime);
+    }
+
+    /**
+     * Створює репозиторій з контрольованим читачем часових міток, щоб ізольовано перевіряти помилки метаданих.
+     *
+     * @param storageDirectory кореневий каталог збереження проєктів.
+     * @param globalSettings сховище глобальних налаштувань застосунку.
+     * @param lastModifiedTimeReader читач часу останньої зміни файла.
+     * @throws IllegalArgumentException якщо будь-яку залежність не задано.
+     */
+    FileSystemProjectCatalogRepository(
+            Path storageDirectory,
+            GlobalSettingsStore globalSettings,
+            LastModifiedTimeReader lastModifiedTimeReader
+    ) {
+        if (storageDirectory == null || globalSettings == null || lastModifiedTimeReader == null) {
+            throw new IllegalArgumentException("storageDirectory, globalSettings and lastModifiedTimeReader must not be null");
         }
         this.storageDirectory = storageDirectory.toAbsolutePath().normalize();
         this.globalSettings = globalSettings;
+        this.lastModifiedTimeReader = lastModifiedTimeReader;
+    }
+
+    /**
+     * Абстрагує читання часової мітки файла для тестування помилок доступу до метаданих.
+     */
+    @FunctionalInterface
+    interface LastModifiedTimeReader {
+        /**
+         * Зчитує часову мітку останньої зміни файла.
+         *
+         * @param path шлях до файла.
+         * @return час останньої зміни файла.
+         * @throws IOException якщо метадані файла недоступні.
+         */
+        FileTime read(Path path) throws IOException;
     }
 
     /**
@@ -77,7 +113,7 @@ public final class FileSystemProjectCatalogRepository implements ProjectCatalogR
      * Створює опис проєкту на основі шляху до його файлу бази даних.
      *
      * @param databasePath шлях до файлу бази даних проєкту.
-     * @return опис проєкту з нормалізованим шляхом і часом останньої зміни.
+     * @return опис проєкту з нормалізованим шляхом і часом зміни, якщо його вдалося прочитати.
      * @throws IllegalArgumentException якщо шлях не задано або він не має батьківського каталогу.
      */
     @Override
@@ -256,16 +292,21 @@ public final class FileSystemProjectCatalogRepository implements ProjectCatalogR
     }
 
     /**
-     * Повертає час останньої зміни файла.
+     * Повертає час останньої зміни файла або реєструє помилку й повертає відсутнє значення.
      *
      * @param path шлях до файла.
-     * @return час останньої зміни файла або початок епохи, якщо час прочитати не вдалося.
+     * @return час останньої зміни файла або {@code null}, якщо метадані прочитати не вдалося.
      */
-    private static Instant lastModified(Path path) {
+    private Instant lastModified(Path path) {
         try {
-            return Files.getLastModifiedTime(path).toInstant();
+            return lastModifiedTimeReader.read(path).toInstant();
         } catch (IOException exception) {
-            return Instant.EPOCH;
+            LOGGER.log(
+                    Level.WARNING,
+                    "Не вдалося прочитати час останньої зміни файла проєкту " + path,
+                    exception
+            );
+            return null;
         }
     }
 }

@@ -59,6 +59,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 
 - `DemoMapFactoryTest` — створення демонстраційної карти.
 - `EditorStateTest` — режими редактора, вибір об'єктів і скидання стану.
+- `EditorStateCameraValidationTest` — відхилення некоректних значень камери конструктором і сетерами зі збереженням попереднього стану.
 - `InitialProjectInitializerTest` — початкове наповнення лише порожнього тимчасового проєкту; збережені та вже заповнені проєкти не змінюються.
 - `NeuronMapApplicationServiceTest` — надання служб і передавання операцій відповідним компонентам.
 
@@ -98,6 +99,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 
 ### `model`
 
+- `CameraStateTest` — допустимий діапазон масштабу та відхилення нечислових, нескінченних і позадіапазонних значень камери.
 - `NeuronMapModelTest` — цілісність карти, напрямлені зв'язки, унікальність і видалення.
 - `NeuronPresentationDirectionTest` — напрямок візуального представлення нейрона.
 - `NeuronPresentationTest` — положення, обертання й напрямок представлення.
@@ -110,6 +112,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 ### `persistence/project`
 
 - `FileSystemProjectCatalogRepositoryTest` — каталог проєктів у файловій системі, перейменування та помилки файлових операцій.
+- `FileSystemProjectCatalogMetadataTest` — збереження проєкту в каталозі з відсутньою датою та діагностика помилки читання часу файла.
 - `ProjectDirectoryWatcherTest` — виявлення змін каталогу та безпечне завершення спостереження.
 
 ### `persistence/settings`
@@ -121,6 +124,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 
 - `DefaultMapRepositoryFactoryTest` — вибір репозиторію для типу проєкту.
 - `NeuronDirectionPersistenceTest` — збереження напрямку нейрона.
+- `SqliteCameraStateValidationTest` — відновлення типової камери та журналювання відсутніх, нечислових, нескінченних і позадіапазонних значень.
 - `SqliteMapRepositoryFailureTest` — помилки репозиторію SQLite.
 - `SqliteMapRepositoryTest` — збереження та читання карти.
 - `SqliteNeuronSchemaContractTest` — контракт схеми даних нейрона.
@@ -130,6 +134,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 ### `persistence/window`
 
 - `WindowStateStoreTest` — збереження геометрії вікна й обробка некоректних значень.
+- `WindowStateStoreDiagnosticsTest` — діагностика некоректних escape-послідовностей і чисел зі збереженням безпечного fallback; відсутність файла не створює попередження.
 
 ### `service`
 
@@ -161,6 +166,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 ### `util`
 
 - `CameraWorldCenterTest` — перетворення центра видимої області в координати карти.
+- `GeometryUtilsNonFiniteZoomTest` — відхилення `NaN` та нескінченностей і обмеження скінченного масштабу.
 - `GeometryUtilsTest` — обмеження масштабу.
 - `NeuronRotationMathTest` — обчислення кутів обертання.
 - `NumberDisplayFormatterTest` — компактний формат числа, допуск для цілих значень і незалежність від системної локалі.

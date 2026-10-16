@@ -1,5 +1,6 @@
 package com.example.neuronmap.util;
 
+import com.example.neuronmap.model.CameraState;
 import javafx.geometry.Point2D;
 
 /**
@@ -7,44 +8,35 @@ import javafx.geometry.Point2D;
  */
 public final class GeometryUtils {
 
-    private static final double MIN_ZOOM = 0.25;
-    private static final double MAX_ZOOM = 3.5;
-
     private GeometryUtils() {
     }
 
     /**
-     * Обмежує коефіцієнт масштабування підтримуваним діапазоном.
+     * Обмежує скінченний коефіцієнт масштабування діапазоном, визначеним контрактом стану камери.
+     * Некоректні нечислові та нескінченні значення не нормалізуються, а відхиляються.
      *
      * @param zoom коефіцієнт масштабування.
+     * @return масштаб у межах допустимого діапазону.
+     * @throws IllegalArgumentException якщо значення не є скінченним.
      */
     public static double clampZoom(double zoom) {
-        return Math.max(
-                MIN_ZOOM,
-                Math.min(MAX_ZOOM, zoom)
-        );
+        if (!Double.isFinite(zoom)) {
+            throw new IllegalArgumentException("zoom must be finite");
+        }
+        return Math.max(CameraState.MIN_ZOOM, Math.min(CameraState.MAX_ZOOM, zoom));
     }
 
     /**
      * Повертає одиничний вектор, перпендикулярний до заданого напрямку.
      *
      * @param direction вектор напрямку, для якого обчислюють перпендикуляр.
-     *
-     * @return одиничний вектор, перпендикулярний до заданого напрямку.
+     * @return одиничний вектор, перпендикулярний до заданого напрямку, або стандартний вектор для нульового напрямку.
      */
-    public static Point2D perpendicularUnitVector(
-            Point2D direction
-    ) {
+    public static Point2D perpendicularUnitVector(Point2D direction) {
         double length = direction.magnitude();
-
         if (length == 0.0) {
-
             return new Point2D(0, 1);
         }
-
-        return new Point2D(
-                -direction.getY() / length,
-                direction.getX() / length
-        );
+        return new Point2D(-direction.getY() / length, direction.getX() / length);
     }
 }
