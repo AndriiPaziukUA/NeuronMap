@@ -2,15 +2,18 @@ package com.example.neuronmap.app;
 
 import com.example.neuronmap.application.NeuronMapApplicationService;
 import com.example.neuronmap.config.AppConfig;
+import com.example.neuronmap.coordinator.MapEditorCoordinator;
 import com.example.neuronmap.i18n.LocalizationService;
-import com.example.neuronmap.persistence.settings.GlobalSettingsStore;
 import com.example.neuronmap.persistence.MapRepositoryFactory;
 import com.example.neuronmap.persistence.project.ProjectStorageDirectoryResolver;
+import com.example.neuronmap.persistence.settings.GlobalSettingsStore;
 import com.example.neuronmap.service.ProjectCatalogService;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
 
@@ -19,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє контракт фасаду редактора на рівні застосунку та відсутність у ньому відповідальності за файлову інфраструктуру.
+ * Перевіряє контракт фасаду редактора та межу між життєвим циклом і внутрішнім складанням компонентів.
  */
 final class NeuronMapEditorTest {
 
@@ -72,5 +75,24 @@ final class NeuronMapEditorTest {
     @Test
     void belongsToApplicationPackage() {
         assertEquals("com.example.neuronmap.app", NeuronMapEditor.class.getPackageName());
+    }
+
+    /**
+     * Перевіряє, що складання графа редактора залишається внутрішнім механізмом пакета координаторів.
+     *
+     * @throws ClassNotFoundException якщо внутрішню фабрику вилучено або перейменовано без актуалізації контракту.
+     */
+    @Test
+    void keepsComponentFactoryInternalAndLifecycleApiStable() throws ClassNotFoundException {
+        Class<?> factory = Class.forName("com.example.neuronmap.coordinator.MapEditorComponentFactory");
+        assertFalse(Modifier.isPublic(factory.getModifiers()));
+
+        List<String> publicCoordinatorMethods = Arrays.stream(MapEditorCoordinator.class.getDeclaredMethods())
+                .filter(method -> Modifier.isPublic(method.getModifiers()))
+                .map(Method::getName)
+                .sorted()
+                .toList();
+
+        assertEquals(List.of("centerInitialView", "createScene", "shutdown"), publicCoordinatorMethods);
     }
 }

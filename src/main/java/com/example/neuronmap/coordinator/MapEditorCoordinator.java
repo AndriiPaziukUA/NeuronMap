@@ -9,7 +9,6 @@ import com.example.neuronmap.controller.ConnectionController;
 import com.example.neuronmap.controller.EditorKeyboardController;
 import com.example.neuronmap.controller.MainMenuController;
 import com.example.neuronmap.controller.NeuronInteractionController;
-import com.example.neuronmap.controller.PulseAnimationController;
 import com.example.neuronmap.controller.SelectionController;
 import com.example.neuronmap.controller.SimulationController;
 import com.example.neuronmap.i18n.LocalizationService;
@@ -22,18 +21,13 @@ import com.example.neuronmap.service.ConnectionService;
 import com.example.neuronmap.service.GroupService;
 import com.example.neuronmap.service.HistoryService;
 import com.example.neuronmap.service.MapService;
-import com.example.neuronmap.service.NeuronClipboardService;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.service.ProjectCatalogService;
-import com.example.neuronmap.simulation.SimulationService;
 import com.example.neuronmap.view.connection.ConnectionView;
-import com.example.neuronmap.view.support.ImmediateTooltipManager;
 import com.example.neuronmap.view.editor.MainView;
-import com.example.neuronmap.view.editor.NeuronLayerOrderManager;
-import com.example.neuronmap.view.neuron.NeuronMenuView;
 import com.example.neuronmap.view.neuron.NeuronView;
 import com.example.neuronmap.view.neuron.RotationHandleView;
-import com.example.neuronmap.view.simulation.SimulationStepPresenter;
+import com.example.neuronmap.view.support.ImmediateTooltipManager;
 import javafx.scene.Scene;
 import javafx.scene.input.MouseEvent;
 
@@ -42,20 +36,20 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Складає компоненти редактора та координує маршрутизацію дій між його підсистемами.
+ * Узгоджує сценарії редактора, що охоплюють кілька підсистем, і керує життєвим циклом його сцени.
+ *
+ * <p>Створення циклічно пов'язаного графа контролерів делеговано {@link MapEditorComponentFactory};
+ * цей клас зберігає відповідальність за сценарії проєкту, команди редактора, збереження та завершення.</p>
  */
 public final class MapEditorCoordinator {
 
     private final MapService mapService;
     private final NeuronService neuronService;
-    private final ConnectionService connectionService;
-    private final GroupService groupService;
     private final HistoryService historyService;
     private final EditorSaveCoordinator editorSaveCoordinator;
     private final ProjectCatalogService projectCatalog;
     private final ProjectWorkflowCoordinator projectWorkflowCoordinator;
     private final EditorProjectSessionCoordinator editorProjectSessionCoordinator;
-    private final LocalizationService localization;
     private final EditorState state;
     private final MainView view;
     private final double minSimulationTickMillis;
@@ -70,14 +64,10 @@ public final class MapEditorCoordinator {
     private final SimulationController simulationController;
     private final SimulationSpeedCoordinator simulationSpeedCoordinator;
     private final ConnectionController connectionController;
-    private final SelectionController selectionController;
     private final NeuronInteractionController neuronController;
     private final CameraController cameraController;
-    private final NeuronLayerOrderManager layerOrderController;
-    private final NeuronMenuView neuronMenuView;
     private final MapPresentationCoordinator presentation;
     private final MapInteractionCoordinator interaction;
-    private final EditorHistoryCoordinator historyCoordinator;
     private final EditorKeyboardController keyboardController;
     private final MainMenuController mainMenuController;
     private final ProjectDirectoryWatcher projectDirectoryWatcher;
@@ -87,7 +77,7 @@ public final class MapEditorCoordinator {
     private Scene scene;
 
     /**
-     * Створює координатор редактора з переданими службами та дією завершення роботи.
+     * Створює координатор редактора, ініціалізує стан карти й передає складання графа компонентів фабриці.
      *
      * @param application прикладна служба, яка надає доступ до служб карти й збереження.
      * @param config завантажена конфігурація застосунку.
@@ -107,13 +97,12 @@ public final class MapEditorCoordinator {
         Objects.requireNonNull(application, "application");
         Objects.requireNonNull(config, "config");
 
-        this.localization = Objects.requireNonNull(localization, "localization");
         this.projectCatalog = Objects.requireNonNull(projectCatalog, "projectCatalog");
         Objects.requireNonNull(mapRepositoryFactory, "mapRepositoryFactory");
         this.mapService = application.map();
         this.neuronService = application.neurons();
-        this.connectionService = application.connections();
-        this.groupService = application.groups();
+        ConnectionService connectionService = application.connections();
+        GroupService groupService = application.groups();
         this.currentProject = this.projectCatalog.descriptorForDatabasePath(
                 mapService.databasePath()
         );
@@ -148,18 +137,6 @@ public final class MapEditorCoordinator {
                 localization
         );
 
-        layerOrderController = new NeuronLayerOrderManager(
-                neuronViews,
-                connectionViews,
-                () -> neuronService.model().connections()
-        );
-
-        neuronMenuView = new NeuronMenuView(
-                state::selectedNeuronForMenu,
-                this::toggleNeuronDirection,
-                localization
-        );
-
         mapService.load();
         InitialProjectInitializer initialProjectInitializer = new InitialProjectInitializer(application);
         if (initialProjectInitializer.initializeIfRequired(currentProject)) {
@@ -169,138 +146,40 @@ public final class MapEditorCoordinator {
         historyService.initialize();
         historyInitialized = true;
 
-        SimulationStepPresenter stepPresenter = new SimulationStepPresenter(
-                view.workspace(),
-                neuronViews,
-                this::refreshNeuronVisuals,
-                new PulseAnimationController(view.workspace())
+        MapEditorComponentFactory.Components components = MapEditorComponentFactory.create(
+                new MapEditorComponentFactory.Inputs(
+                        config,
+                        localization,
+                        mapService,
+                        neuronService,
+                        connectionService,
+                        groupService,
+                        historyService,
+                        state,
+                        view,
+                        neuronViews,
+                        connectionViews,
+                        rotationHandles,
+                        simulationTickMillis,
+                        new MapEditorComponentFactory.Actions(
+                                this::saveNow,
+                                this::updateStatus,
+                                this::refreshMapPresentation,
+                                this::refreshNeuronVisuals,
+                                this::applySimulationSpeed,
+                                this::refreshCurrentProjectAfterSpeedChange,
+                                this::toggleNeuronDirection
+                        )
+                )
         );
-        simulationController = new SimulationController(
-                neuronService,
-                new SimulationService(),
-                stepPresenter,
-                this::saveNow,
-                this::updateStatus,
-                view.toolbar()::setSimulationPaused,
-                view.toolbar()::setSimulationControlsVisible,
-                simulationTickMillis,
-                config.simulation().minTickMillis(),
-                config.simulation().maxTickMillis(),
-                localization
-        );
-        simulationSpeedCoordinator = new SimulationSpeedCoordinator(
-                mapService,
-                this::applySimulationSpeed,
-                this::refreshCurrentProjectAfterSpeedChange,
-                this::updateStatus,
-                localization,
-                minSimulationTickMillis,
-                maxSimulationTickMillis
-        );
-
-        connectionController = new ConnectionController(
-                connectionService,
-                state,
-                view.workspace(),
-                neuronViews,
-                this::refreshMapPresentation,
-                this::saveNow,
-                this::updateStatus,
-                localization
-        );
-
-        selectionController = new SelectionController(
-                groupService,
-                state,
-                this::refreshNeuronVisuals,
-                this::saveNow,
-                this::updateStatus,
-                localization
-        );
-
-        NeuronClipboardService clipboardService = new NeuronClipboardService(
-                neuronService,
-                groupService
-        );
-        neuronController = new NeuronInteractionController(
-                neuronService,
-                groupService,
-                selectionController,
-                clipboardService,
-                state,
-                view.workspace(),
-                neuronViews,
-                rotationHandles,
-                connectionController,
-                simulationController,
-                this::saveNow,
-                this::refreshMapPresentation,
-                this::updateStatus,
-                neuronMenuView,
-                localization
-        );
-
-        presentation = new MapPresentationCoordinator(
-                neuronService,
-                view.workspace(),
-                neuronViews,
-                connectionViews,
-                rotationHandles,
-                neuronController,
-                connectionController,
-                layerOrderController
-        );
-
-        interaction = new MapInteractionCoordinator(
-                neuronService,
-                state,
-                view.workspace(),
-                selectionController,
-                connectionController,
-                neuronController,
-                simulationController,
-                presentation,
-                this::saveNow,
-                this::updateStatus,
-                localization
-        );
-        interaction.configureToolbarButtons(
-                view.toolbar().addExcitatoryButton(),
-                view.toolbar().addInhibitoryButton()
-        );
-
-        historyCoordinator = new EditorHistoryCoordinator(
-                historyService,
-                simulationController,
-                connectionController,
-                neuronController,
-                state,
-                view.workspace(),
-                interaction::dispose,
-                presentation,
-                this::saveNow,
-                this::updateStatus,
-                localization
-        );
-        keyboardController = new EditorKeyboardController(
-                historyCoordinator::undo,
-                historyCoordinator::redo,
-                neuronController::deleteSelectedNeurons,
-                interaction::cancelInteractions
-        );
-
-        cameraController = new CameraController(
-                state,
-                view.workspace(),
-                presentation::refreshScreenSpaceOverlays,
-                this::saveNow,
-                state::isSpecialModeActive,
-                neuronController::isInteractiveTarget,
-                this::updateStatus,
-                point -> view.toolbar().setCameraCoordinates(point.getX(), point.getY()),
-                config.camera().zoomFactor(),
-                localization
-        );
+        simulationController = components.simulationController();
+        simulationSpeedCoordinator = components.simulationSpeedCoordinator();
+        connectionController = components.connectionController();
+        neuronController = components.neuronController();
+        cameraController = components.cameraController();
+        presentation = components.presentation();
+        interaction = components.interaction();
+        keyboardController = components.keyboardController();
 
         editorProjectSessionCoordinator = new EditorProjectSessionCoordinator(
                 mapService,
@@ -354,7 +233,7 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Створює набір зовнішніх дій, через які координатор сесії керує контролерами й поданнями редактора.
+     * Створює набір дій, через які координатор сесії керує контролерами й поданнями редактора.
      *
      * @return адаптер дій поточної редакторської сесії.
      */
@@ -456,6 +335,7 @@ public final class MapEditorCoordinator {
      *
      * @param width ширина видимої області.
      * @param height висота видимої області.
+     * @return створена сцена редактора.
      */
     public Scene createScene(double width, double height) {
         scene = view.createScene(width, height);
