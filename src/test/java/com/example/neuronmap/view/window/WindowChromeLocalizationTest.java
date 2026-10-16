@@ -1,4 +1,4 @@
-package com.example.neuronmap.windowing;
+package com.example.neuronmap.view.window;
 
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.i18n.SupportedLanguage;
@@ -9,7 +9,7 @@ import java.util.Locale;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/** Перевіряє локалізацію кнопок власного заголовка через централізовану службу застосунку. */
+/** Перевіряє локалізацію власного заголовка через централізовану службу застосунку. */
 final class WindowChromeLocalizationTest {
 
     private static final String BUNDLE_BASE_NAME = "i18n.windowChrome";
@@ -25,7 +25,7 @@ final class WindowChromeLocalizationTest {
         assertEquals("Close", localization.textFrom(BUNDLE_BASE_NAME, "close"));
     }
 
-    /** Перевіряє, що тематичний набір використовує активну локаль після її перемикання. */
+    /** Перевіряє, що заголовок отримує переклади активної локалі та попереднього перегляду мови. */
     @Test
     void followsActiveLocaleWhenLanguageChanges() {
         LocalizationService localization = new LocalizationService(Locale.ENGLISH);
@@ -39,7 +39,7 @@ final class WindowChromeLocalizationTest {
         assertEquals("Восстановить", localization.textFrom(BUNDLE_BASE_NAME, "restore"));
     }
 
-    /** Перевіряє резервний результат для відсутнього ключа та перевірку імені ресурсного набору. */
+    /** Перевіряє поведінку для відсутнього ключа та валідацію імені ресурсного набору. */
     @Test
     void handlesMissingKeysAndInvalidBundleNames() {
         LocalizationService localization = new LocalizationService(Locale.ENGLISH);

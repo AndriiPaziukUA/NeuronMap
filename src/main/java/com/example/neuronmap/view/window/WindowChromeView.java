@@ -1,18 +1,12 @@
 package com.example.neuronmap.view.window;
 
 import com.example.neuronmap.i18n.LocalizationService;
-import com.example.neuronmap.window.WindowChrome;
-import com.example.neuronmap.window.WindowHitTestCalculator;
 import javafx.beans.value.ChangeListener;
-import javafx.event.EventHandler;
-import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.input.MouseButton;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HeaderBar;
 import javafx.scene.layout.HeaderButtonType;
@@ -26,72 +20,51 @@ import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
-import javafx.stage.WindowEvent;
 
 import java.net.URL;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /**
- * Відображає стилізовану смугу заголовка поверх наявного вмісту редактора.
- * Подання реалізує нейтральний контракт геометрії та дій, не залежачи від платформних адаптерів.
+ * Відображає локалізований заголовок редактора всередині системної {@link HeaderBar} JavaFX.
+ * Переміщення вікна, зміна його розміру та семантика кнопок делегуються JavaFX і операційній системі.
  */
-public final class WindowChromeView extends BorderPane implements WindowChrome {
+public final class WindowChromeView extends BorderPane {
 
     /** Висота смуги заголовка в логічних пікселях. */
     public static final double TITLE_BAR_HEIGHT = 36.0;
 
     private static final String LABELS_BUNDLE = "i18n.windowChrome";
-    private static final String NATIVE_HOVER_STYLE_CLASS = "native-hover";
-    private static final String NATIVE_PRESSED_STYLE_CLASS = "native-pressed";
 
     private final Stage stage;
     private final LocalizationService localization;
     private final HBox titleBar = new HBox();
     private final Label titleLabel = new Label();
+    private final Region spacer = new Region();
     private final Button minimizeButton = createButton("window-control-minimize", createMinimizeIcon());
     private final Button maximizeButton = createButton("window-control-maximize", createMaximizeIcon(false));
     private final Button closeButton = createButton("window-control-close", createCloseIcon());
-    private final AtomicReference<WindowHitTestCalculator.Layout> hitTestLayout = new AtomicReference<>();
-    private final Runnable closeAction;
-    private final Runnable minimizeAction;
-    private final Runnable toggleMaximizedAction;
     private final Consumer<Locale> localeChangeListener = ignored -> refreshControlLabels();
-    private final ChangeListener<Boolean> maximizedListener = (observable, wasMaximized, isMaximized) -> refreshWindowState();
-    private final ChangeListener<Boolean> fullScreenListener = (observable, wasFullScreen, isFullScreen) -> refreshWindowState();
-    private final EventHandler<WindowEvent> hiddenHandler = event -> dispose();
-    private final EventHandler<MouseEvent> extendedCloseReleaseHandler = this::handleExtendedCloseRelease;
-    private double resizeBorderX = WindowHitTestCalculator.DEFAULT_RESIZE_BORDER;
-    private double resizeBorderY = WindowHitTestCalculator.DEFAULT_RESIZE_BORDER;
+    private final ChangeListener<Boolean> maximizedListener =
+            (observable, wasMaximized, isMaximized) -> refreshWindowState();
+    private final ChangeListener<Boolean> fullScreenListener =
+            (observable, wasFullScreen, isFullScreen) -> refreshWindowState();
+
     private boolean maximized;
     private boolean disposed;
     private boolean extendedHeaderBarInstalled;
 
     /**
-     * Створює смугу заголовка та кнопки, які делегують команди контролеру головного вікна.
-     * Доступні назви кнопок оновлюються разом з активною локаллю застосунку.
+     * Створює заголовок і підписує його на зміни назви, локалі та стану системного вікна.
      *
      * @param stage головне вікно, властивості якого відображає подання.
      * @param localization спільна служба локалізації застосунку.
-     * @param closeAction команда закриття через спільний життєвий цикл застосунку.
-     * @param minimizeAction команда згортання вікна.
-     * @param toggleMaximizedAction команда перемикання максимізації та відновлення.
      * @throws NullPointerException якщо будь-який аргумент не задано.
      */
-    public WindowChromeView(
-            Stage stage,
-            LocalizationService localization,
-            Runnable closeAction,
-            Runnable minimizeAction,
-            Runnable toggleMaximizedAction
-    ) {
+    public WindowChromeView(Stage stage, LocalizationService localization) {
         this.stage = Objects.requireNonNull(stage, "stage");
         this.localization = Objects.requireNonNull(localization, "localization");
-        this.closeAction = Objects.requireNonNull(closeAction, "closeAction");
-        this.minimizeAction = Objects.requireNonNull(minimizeAction, "minimizeAction");
-        this.toggleMaximizedAction = Objects.requireNonNull(toggleMaximizedAction, "toggleMaximizedAction");
 
         getStyleClass().add("window-chrome-root");
         titleBar.getStyleClass().add("window-title-bar");
@@ -103,29 +76,24 @@ public final class WindowChromeView extends BorderPane implements WindowChrome {
 
         titleLabel.getStyleClass().add("window-title");
         titleLabel.textProperty().bind(stage.titleProperty());
-        Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         titleBar.getChildren().addAll(titleLabel, spacer, minimizeButton, maximizeButton, closeButton);
         setTop(titleBar);
 
-        minimizeButton.setOnAction(event -> this.minimizeAction.run());
-        maximizeButton.setOnAction(event -> this.toggleMaximizedAction.run());
-        closeButton.setOnAction(event -> this.closeAction.run());
         stage.maximizedProperty().addListener(maximizedListener);
         stage.fullScreenProperty().addListener(fullScreenListener);
-        stage.addEventHandler(WindowEvent.WINDOW_HIDDEN, hiddenHandler);
         localization.addListener(localeChangeListener);
         maximized = stage.isMaximized() || stage.isFullScreen();
         refreshControlLabels();
     }
 
     /**
-     * Встановлює вміст редактора під заголовком і додає окрему таблицю стилів власного оформлення до сцени.
+     * Встановлює вміст редактора під заголовком і додає таблицю стилів до сцени.
      * Виконується після створення сцени й до показу Stage.
      *
      * @param scene сцена з уже створеним редактором.
-     * @throws IllegalStateException якщо ресурс стилів відсутній.
      * @throws NullPointerException якщо сцену не задано.
+     * @throws IllegalStateException якщо ресурс стилів відсутній.
      */
     public void installInto(Scene scene) {
         Objects.requireNonNull(scene, "scene");
@@ -135,19 +103,20 @@ public final class WindowChromeView extends BorderPane implements WindowChrome {
         }
         setCenter(editorContent);
         scene.setRoot(this);
+
         URL stylesheet = getClass().getResource("/window-chrome.css");
         if (stylesheet == null) {
             throw new IllegalStateException("window-chrome.css is missing");
         }
-        if (!scene.getStylesheets().contains(stylesheet.toExternalForm())) {
-            scene.getStylesheets().add(stylesheet.toExternalForm());
+        String stylesheetUrl = stylesheet.toExternalForm();
+        if (!scene.getStylesheets().contains(stylesheetUrl)) {
+            scene.getStylesheets().add(stylesheetUrl);
         }
-        refreshHitTestLayout();
     }
 
     /**
-     * Передає керування системною смугою заголовка API JavaFX, не змінюючи корінь сцени редактора.
-     * JavaFX визначає системні операції за семантичними типами кнопок і маршрутизує системний hit-testing.
+     * Передає системну взаємодію заголовка API JavaFX та задає семантичні ролі трьом кнопкам.
+     * Інтерактивні кнопки явно виключено з успадкованої перетягуваної області.
      *
      * @throws IllegalStateException якщо Stage не використовує {@link StageStyle#EXTENDED} або операцію вже виконано.
      */
@@ -169,6 +138,9 @@ public final class WindowChromeView extends BorderPane implements WindowChrome {
         HeaderBar.setButtonType(maximizeButton, HeaderButtonType.MAXIMIZE);
         HeaderBar.setButtonType(closeButton, HeaderButtonType.CLOSE);
         HeaderBar.setDragType(titleBar, HeaderDragType.DRAGGABLE_SUBTREE);
+        HeaderBar.setDragType(minimizeButton, HeaderDragType.NONE);
+        HeaderBar.setDragType(maximizeButton, HeaderDragType.NONE);
+        HeaderBar.setDragType(closeButton, HeaderDragType.NONE);
 
         titleBar.setPadding(new Insets(3.0, 0.0, 3.0, 12.0));
         titleBar.setMaxWidth(Double.MAX_VALUE);
@@ -176,31 +148,13 @@ public final class WindowChromeView extends BorderPane implements WindowChrome {
         headerBar.setCenter(titleBar);
         setTop(headerBar);
 
-        // Системні ролі мінімізують саморобну поведінку кнопок; закриття проходить через спільний lifecycle.
-        minimizeButton.setOnAction(null);
-        maximizeButton.setOnAction(null);
-        closeButton.setOnAction(null);
-        closeButton.addEventFilter(MouseEvent.MOUSE_RELEASED, extendedCloseReleaseHandler);
+        // Стандартні дії кнопок визначаються їхніми системними ролями HeaderButtonType.
         extendedHeaderBarInstalled = true;
         requestLayout();
-        refreshHitTestLayout();
     }
 
     /**
-     * Зберігає спільний шлях завершення застосунку, не дозволяючи HeaderBar закрити Stage напряму.
-     *
-     * @param event подія відпускання кнопки миші на кнопці закриття.
-     */
-    private void handleExtendedCloseRelease(MouseEvent event) {
-        boolean activateClose = event.getButton() == MouseButton.PRIMARY && closeButton.isArmed();
-        event.consume();
-        if (activateClose) {
-            closeAction.run();
-        }
-    }
-
-    /**
-     * Звільняє слухачі локалі та стану вікна, коли головне вікно закрито.
+     * Звільняє слухачі локалі та стану вікна й від'єднує прив'язку назви заголовка.
      * Повторний виклик безпечний.
      */
     public void dispose() {
@@ -208,138 +162,10 @@ public final class WindowChromeView extends BorderPane implements WindowChrome {
             return;
         }
         disposed = true;
-        if (extendedHeaderBarInstalled) {
-            closeButton.removeEventFilter(MouseEvent.MOUSE_RELEASED, extendedCloseReleaseHandler);
-        }
         localization.removeListener(localeChangeListener);
         stage.maximizedProperty().removeListener(maximizedListener);
         stage.fullScreenProperty().removeListener(fullScreenListener);
-        stage.removeEventHandler(WindowEvent.WINDOW_HIDDEN, hiddenHandler);
         titleLabel.textProperty().unbind();
-        hitTestLayout.set(null);
-    }
-
-    /**
-     * Повертає контейнер смуги заголовка для подань або засобів автоматизації, яким потрібен доступ до її вузлів.
-     * Платформні адаптери натомість використовують спільний контракт {@link WindowChrome}.
-     *
-     * @return контейнер смуги заголовка.
-     */
-    public HBox titleBar() {
-        return titleBar;
-    }
-
-    /**
-     * Перевіряє, чи є вузол або один із його предків однією з кнопок заголовка.
-     *
-     * @param node вузол, який перевіряється.
-     * @return {@code true}, якщо вузол належить кнопці заголовка.
-     */
-    public boolean isCaptionButtonNode(Node node) {
-        Node current = node;
-        while (current != null && current != titleBar) {
-            if (current == minimizeButton || current == maximizeButton || current == closeButton) {
-                return true;
-            }
-            current = current.getParent();
-        }
-        return false;
-    }
-
-    /**
-     * Застосовує виміряні системні відступи resize для резервного платформного адаптера.
-     * У режимі {@link StageStyle#EXTENDED} ці відступи не резервують внутрішню смугу.
-     *
-     * @param horizontalBorder горизонтальна товщина зон resize у логічних пікселях.
-     * @param verticalBorder вертикальна товщина зон resize у логічних пікселях.
-     * @throws IllegalArgumentException якщо будь-який відступ не є скінченним додатним числом.
-     */
-    @Override
-    public void setNativeResizeBorders(double horizontalBorder, double verticalBorder) {
-        if (!Double.isFinite(horizontalBorder) || horizontalBorder <= 0.0
-                || !Double.isFinite(verticalBorder) || verticalBorder <= 0.0) {
-            throw new IllegalArgumentException("native resize borders must be finite and positive");
-        }
-        resizeBorderX = horizontalBorder;
-        resizeBorderY = verticalBorder;
-        if (!extendedHeaderBarInstalled) {
-            titleBar.setPadding(new Insets(3.0, Math.max(6.0, horizontalBorder), 3.0, 12.0));
-        }
-        requestLayout();
-        refreshHitTestLayout();
-    }
-
-    /**
-     * Повертає останній незмінний знімок розташування кнопок і меж вікна для резервного платформного callback-а.
-     *
-     * @return знімок геометрії або {@code null}, доки JavaFX не виконає перше компонування.
-     */
-    @Override
-    public WindowHitTestCalculator.Layout hitTestLayout() {
-        return hitTestLayout.get();
-    }
-
-    /**
-     * Виконує команду кнопки після нативного кліку в резервному платформному режимі.
-     *
-     * @param target кнопка, на якій завершився клік.
-     */
-    @Override
-    public void performNativeButtonAction(WindowHitTestCalculator.HitTarget target) {
-        if (target == WindowHitTestCalculator.HitTarget.MINIMIZE_BUTTON) {
-            minimizeAction.run();
-        } else if (target == WindowHitTestCalculator.HitTarget.MAXIMIZE_BUTTON) {
-            toggleMaximizedAction.run();
-        } else if (target == WindowHitTestCalculator.HitTarget.CLOSE_BUTTON) {
-            closeAction.run();
-        }
-    }
-
-    /** Перемикає максимізацію після подвійного клацання по вільній області заголовка в резервному режимі. */
-    @Override
-    public void performNativeCaptionDoubleClick() {
-        toggleMaximizedAction.run();
-    }
-
-    /**
-     * Перемикає нативний стан наведення конкретної кнопки через звичайний CSS-клас.
-     *
-     * @param target область, над якою перебуває курсор.
-     */
-    @Override
-    public void setNativeHoveredControl(WindowHitTestCalculator.HitTarget target) {
-        updateNativeButtonState(target, false);
-    }
-
-    /**
-     * Перемикає нативний стан натискання конкретної кнопки заголовка через звичайний CSS-клас.
-     *
-     * @param target область кнопки, яку натискають, або {@code null}, якщо натискання завершено.
-     */
-    @Override
-    public void setNativePressedControl(WindowHitTestCalculator.HitTarget target) {
-        updateNativeButtonState(target, true);
-    }
-
-    /** Після компонування оновлює знімок геометрії, який читає резервний платформний callback. */
-    @Override
-    protected void layoutChildren() {
-        super.layoutChildren();
-        refreshHitTestLayout();
-    }
-
-    /** Узгоджує вигляд кнопки максимізації з максимізацією або повноекранним режимом вікна. */
-    private void refreshWindowState() {
-        maximized = stage.isMaximized() || stage.isFullScreen();
-        updateMaximizeIcon();
-        refreshHitTestLayout();
-    }
-
-    /** Оновлює графічний значок кнопки відповідно до фактичного стану Stage. */
-    private void updateMaximizeIcon() {
-        maximizeButton.setGraphic(createMaximizeIcon(maximized));
-        String labelKey = maximized ? "restore" : "maximize";
-        maximizeButton.setAccessibleText(localization.textFrom(LABELS_BUNDLE, labelKey));
     }
 
     /** Оновлює доступні назви кнопок відповідно до активної локалі. */
@@ -349,70 +175,25 @@ public final class WindowChromeView extends BorderPane implements WindowChrome {
         updateMaximizeIcon();
     }
 
+    /** Узгоджує значок і доступну назву кнопки максимізації зі станом Stage. */
+    private void refreshWindowState() {
+        maximized = stage.isMaximized() || stage.isFullScreen();
+        updateMaximizeIcon();
+    }
+
+    /** Оновлює графічний значок і доступну назву кнопки максимізації або відновлення. */
+    private void updateMaximizeIcon() {
+        maximizeButton.setGraphic(createMaximizeIcon(maximized));
+        String labelKey = maximized ? "restore" : "maximize";
+        maximizeButton.setAccessibleText(localization.textFrom(LABELS_BUNDLE, labelKey));
+    }
+
     /** Застосовує локалізовану доступну назву кнопки для допоміжних технологій. */
     private static void setControlLabel(Button button, String label) {
         button.setAccessibleText(label);
     }
 
-    /** Перераховує межі кнопок і публікує актуальний незмінний знімок для резервного адаптера. */
-    private void refreshHitTestLayout() {
-        if (disposed || getScene() == null || getWidth() <= 0.0 || getHeight() <= 0.0
-                || minimizeButton.getScene() == null || maximizeButton.getScene() == null
-                || closeButton.getScene() == null) {
-            return;
-        }
-        hitTestLayout.set(new WindowHitTestCalculator.Layout(
-                getWidth(),
-                getHeight(),
-                titleBar.getHeight(),
-                resizeBorderX,
-                resizeBorderY,
-                maximized,
-                buttonRectangle(minimizeButton),
-                buttonRectangle(maximizeButton),
-                buttonRectangle(closeButton)
-        ));
-    }
-
-    /**
-     * Перетворює межі кнопки на координати відносно кореня власного вікна.
-     *
-     * @param button кнопка, межі якої потрібно перетворити.
-     * @return прямокутник кнопки в координатах сцени.
-     */
-    private WindowHitTestCalculator.Rectangle buttonRectangle(Button button) {
-        Bounds sceneBounds = button.localToScene(button.getBoundsInLocal());
-        Bounds rootBounds = sceneToLocal(sceneBounds);
-        return new WindowHitTestCalculator.Rectangle(
-                rootBounds.getMinX(), rootBounds.getMinY(), rootBounds.getMaxX(), rootBounds.getMaxY());
-    }
-
-    /** Оновлює стилі наведення або натискання на кнопках без визначення власних CSS-псевдокласів. */
-    private void updateNativeButtonState(WindowHitTestCalculator.HitTarget target, boolean pressed) {
-        updateButtonState(minimizeButton, target == WindowHitTestCalculator.HitTarget.MINIMIZE_BUTTON, pressed);
-        updateButtonState(maximizeButton, target == WindowHitTestCalculator.HitTarget.MAXIMIZE_BUTTON, pressed);
-        updateButtonState(closeButton, target == WindowHitTestCalculator.HitTarget.CLOSE_BUTTON, pressed);
-    }
-
-    /**
-     * Додає або прибирає звичайний CSS-клас, який не потребує оголошення псевдокласу для IDE.
-     *
-     * @param button кнопка, стилі якої оновлюються.
-     * @param active {@code true}, якщо відповідний стан активний.
-     * @param pressed {@code true} для стану натискання; {@code false} для стану наведення.
-     */
-    private void updateButtonState(Button button, boolean active, boolean pressed) {
-        String styleClass = pressed ? NATIVE_PRESSED_STYLE_CLASS : NATIVE_HOVER_STYLE_CLASS;
-        if (active) {
-            if (!button.getStyleClass().contains(styleClass)) {
-                button.getStyleClass().add(styleClass);
-            }
-        } else {
-            button.getStyleClass().remove(styleClass);
-        }
-    }
-
-    /** Створює кнопку заголовка з векторним значком і класом стилю. */
+    /** Створює кнопку заголовка з векторним значком і класами стилю. */
     private static Button createButton(String styleClass, Node graphic) {
         Button button = new Button();
         button.setGraphic(graphic);
@@ -429,7 +210,7 @@ public final class WindowChromeView extends BorderPane implements WindowChrome {
         return iconCanvas(line);
     }
 
-    /** Створює значок максимізації або відновлення з прямокутників у стилі Windows. */
+    /** Створює значок максимізації або відновлення з прямокутників. */
     private static Node createMaximizeIcon(boolean restore) {
         Rectangle front = new Rectangle(3.0, restore ? 5.0 : 3.0, 10.0, 10.0);
         front.setFill(Color.TRANSPARENT);
@@ -445,7 +226,7 @@ public final class WindowChromeView extends BorderPane implements WindowChrome {
         return iconCanvas(back, front);
     }
 
-    /** Створює великий хрестик із двох діагональних ліній замість текстового символу. */
+    /** Створює значок закриття із двох діагональних ліній. */
     private static Node createCloseIcon() {
         Line first = new Line(3.0, 3.0, 13.0, 13.0);
         Line second = new Line(3.0, 13.0, 13.0, 3.0);
