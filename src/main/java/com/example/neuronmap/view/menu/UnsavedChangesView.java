@@ -130,6 +130,15 @@ public final class UnsavedChangesView extends StackPane {
         return noButton;
     }
 
+    /**
+     * Повертає кнопку «Так» для перевірки сценарію підтвердження.
+     *
+     * @return кнопка збереження змін у діалозі.
+     */
+    Button saveButtonForTest() {
+        return yesButton;
+    }
+
     /** Повертає максимальну висоту картки для тестів адаптивного компонування. */
     double cardMaxHeightForTest() {
         return card.getMaxHeight();

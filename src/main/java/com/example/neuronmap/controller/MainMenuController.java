@@ -16,7 +16,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/** Керує навігацією меню, незбереженими змінами, операціями проєктів і сеансом налаштувань. */
+/** Керує навігацією меню, сценаріями незбережених змін, операціями проєктів і сеансом налаштувань. */
 public final class MainMenuController {
 
     private final MainMenuView view;
@@ -32,6 +32,7 @@ public final class MainMenuController {
 
     private final javafx.event.EventHandler<KeyEvent> keyHandler = this::handleKeyPressed;
     private boolean installed;
+    private boolean savingPendingProjectChanges;
 
     /**
      * Створює контролер і пов'язує дії подання з операціями застосунку та єдиною сесією налаштувань.
@@ -67,12 +68,6 @@ public final class MainMenuController {
                 localization::previewLanguage,
                 ignored -> localization.persistCurrentLanguage()
         );
-        view.setLanguageActions(
-                this::previewLanguage,
-                this::confirmSettings,
-                this::discardSettingsPreview,
-                settingsEditSession::hasChanges
-        );
         this.projectsSupplier = Objects.requireNonNull(projectsSupplier, "projectsSupplier");
         this.openProjectAction = Objects.requireNonNull(openProjectAction, "openProjectAction");
         this.renameProjectAction = Objects.requireNonNull(renameProjectAction, "renameProjectAction");
@@ -80,6 +75,12 @@ public final class MainMenuController {
         this.pauseForMenuAction = Objects.requireNonNull(pauseForMenuAction, "pauseForMenuAction");
         this.resumeAfterMenuAction = Objects.requireNonNull(resumeAfterMenuAction, "resumeAfterMenuAction");
 
+        view.setLanguageActions(
+                this::previewLanguage,
+                this::saveSettings,
+                settingsEditSession::hasChanges
+        );
+        view.setProjectRenameCommittedAction(this::handleProjectRenameCommitted);
         view.setActions(new MainMenuView.Actions(
                 () -> requestLeave(() -> {
                     newProjectAction.run();
@@ -163,7 +164,7 @@ public final class MainMenuController {
      */
     public void refreshProjects() {
         Runnable refresh = () -> {
-            if (!view.isLoadPage() || view.hasUnsavedChanges()) {
+            if (!view.isLoadPage() || hasUnsavedChanges()) {
                 return;
             }
             view.showLoadPage(projectsSupplier.get());
@@ -181,18 +182,43 @@ public final class MainMenuController {
         return view.isMenuVisible();
     }
 
-    /** Вилучає обробник клавіатури, скасовує незбережені зміни й звільняє ресурси подання. */
+    /**
+     * Вилучає обробник клавіатури, відхиляє незбережені зміни й звільняє ресурси подання.
+     * Очищення виконується і в разі помилки відкату налаштувань.
+     *
+     * @param scene сцена, з якої потрібно вилучити обробник; {@code null} дозволено.
+     */
     public void dispose(Scene scene) {
         if (scene != null && installed) {
             scene.removeEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
         }
         installed = false;
-        view.discardUnsavedChanges();
-        settingsEditSession.rollback();
-        if (view.isMenuVisible()) {
-            view.hide();
+        RuntimeException failure = null;
+        try {
+            discardUnsavedChanges();
+        } catch (RuntimeException exception) {
+            failure = exception;
         }
-        view.dispose();
+        try {
+            settingsEditSession.rollback();
+        } catch (RuntimeException exception) {
+            failure = combineFailures(failure, exception);
+        }
+        try {
+            if (view.isMenuVisible()) {
+                view.hide();
+            }
+        } catch (RuntimeException exception) {
+            failure = combineFailures(failure, exception);
+        }
+        try {
+            view.dispose();
+        } catch (RuntimeException exception) {
+            failure = combineFailures(failure, exception);
+        }
+        if (failure != null) {
+            throw failure;
+        }
     }
 
     /** Починає спільну сесію редагування та відкриває сторінку налаштувань. */
@@ -218,13 +244,82 @@ public final class MainMenuController {
     }
 
     /** Підтверджує та постійно зберігає всі змінені налаштування активної сесії. */
-    private void confirmSettings() {
+    private void saveSettings() {
+        if (!view.isSettingsPage()) {
+            return;
+        }
         settingsEditSession.commit();
     }
 
-    /** Відновлює початкові значення всіх налаштувань без постійного збереження. */
-    private void discardSettingsPreview() {
-        settingsEditSession.rollback();
+    /**
+     * Підтверджує всі незбережені зміни як єдину дію меню.
+     * Коміти назв проєктів пригнічують проміжне оновлення списку до завершення пакетної операції.
+     */
+    private void saveUnsavedChanges() {
+        boolean wasSaving = savingPendingProjectChanges;
+        RuntimeException failure = null;
+        savingPendingProjectChanges = true;
+        try {
+            view.savePendingProjectChanges();
+            if (settingsEditSession.isActive() && settingsEditSession.hasChanges()) {
+                settingsEditSession.commit();
+            }
+        } catch (RuntimeException exception) {
+            failure = exception;
+        } finally {
+            savingPendingProjectChanges = wasSaving;
+            try {
+                view.refreshSettingsState();
+            } catch (RuntimeException exception) {
+                failure = combineFailures(failure, exception);
+            }
+        }
+        if (failure != null) {
+            throw failure;
+        }
+    }
+
+    /**
+     * Відхиляє всі незбережені зміни, намагаючись виконати відкат налаштувань навіть після помилки подання.
+     */
+    private void discardUnsavedChanges() {
+        RuntimeException failure = null;
+        try {
+            view.discardPendingProjectChanges();
+        } catch (RuntimeException exception) {
+            failure = exception;
+        }
+        try {
+            if (settingsEditSession.isActive()) {
+                settingsEditSession.rollback();
+            }
+        } catch (RuntimeException exception) {
+            failure = combineFailures(failure, exception);
+        }
+        try {
+            view.refreshSettingsState();
+        } catch (RuntimeException exception) {
+            failure = combineFailures(failure, exception);
+        }
+        if (failure != null) {
+            throw failure;
+        }
+    }
+
+    /** Додає другу помилку як suppressed, не приховуючи першопричину операції. */
+    private static RuntimeException combineFailures(RuntimeException primary, RuntimeException secondary) {
+        if (primary == null) {
+            return secondary;
+        }
+        if (primary != secondary) {
+            primary.addSuppressed(secondary);
+        }
+        return primary;
+    }
+
+    /** Перевіряє загальний стан незбережених змін, незалежно від поточної сторінки меню. */
+    private boolean hasUnsavedChanges() {
+        return settingsEditSession.hasChanges() || view.hasUnsavedProjectChanges();
     }
 
     /** Відкриває вибраний проєкт і після цього закриває меню. */
@@ -238,6 +333,13 @@ public final class MainMenuController {
     /** Передає перейменування проєкту до відповідної операції каталогу. */
     private ProjectDescriptor handleRenameProject(ProjectDescriptor project, String name) {
         return renameProjectAction.apply(project, name);
+    }
+
+    /** Оновлює список після перейменування, якщо воно не є частиною пакетного збереження. */
+    private void handleProjectRenameCommitted() {
+        if (!savingPendingProjectChanges && view.isLoadPage()) {
+            view.showLoadPage(projectsSupplier.get());
+        }
     }
 
     /** Видаляє проєкт і оновлює список, якщо меню лишається відкритим. */
@@ -264,17 +366,21 @@ public final class MainMenuController {
 
     /** Виконує дію відразу або відкриває підтвердження незбережених змін. */
     private void requestLeave(Runnable action) {
-        if (!view.hasUnsavedChanges()) {
+        if (!hasUnsavedChanges()) {
             action.run();
             return;
         }
         view.confirmUnsavedChanges(
                 () -> {
-                    view.saveUnsavedChanges();
+                    saveUnsavedChanges();
+                    if (hasUnsavedChanges()) {
+                        requestLeave(action);
+                        return;
+                    }
                     action.run();
                 },
                 () -> {
-                    view.discardUnsavedChanges();
+                    discardUnsavedChanges();
                     action.run();
                 }
         );

@@ -25,8 +25,8 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 /**
- * Компонує спеціалізовані сторінки меню, спільну панель і діалог незбережених змін.
- * Відображення сторінок доручене окремим компонентам, а операції над проєктами та мовою передаються через callback-и.
+ * Компонує сторінки меню, відображає стан та передає події користувача через callback-и.
+ * Послідовністю збереження й відхилення незбережених змін керує {@code MainMenuController}.
  */
 public final class MainMenuView extends StackPane {
 
@@ -110,12 +110,11 @@ public final class MainMenuView extends StackPane {
             ignored -> { }, (ignored, ignored2) -> null, ignored -> { }, () -> { }
     );
     private Page page = Page.MAIN;
-    private boolean savingPendingChanges;
     private Consumer<Boolean> visibilityChanged = ignored -> { };
     private Consumer<SupportedLanguage> previewLanguageAction = ignored -> { };
     private Runnable commitSettingsAction = () -> { };
-    private Runnable rollbackSettingsAction = () -> { };
-    private BooleanSupplier hasUnsavedSettings;
+    private BooleanSupplier hasUnsavedSettings = () -> false;
+    private Runnable projectRenameCommittedAction = () -> { };
 
     /**
      * Створює контейнер меню, його сторінки та спільний діалог незбережених змін.
@@ -188,7 +187,7 @@ public final class MainMenuView extends StackPane {
             event.consume();
         });
         saveSettingsButton.setOnAction(event -> {
-            saveSettings();
+            handleSaveSettingsRequested();
             event.consume();
         });
     }
@@ -227,26 +226,31 @@ public final class MainMenuView extends StackPane {
     }
 
     /**
-     * Передає обробку мови й перевірку незбереженого стану спільній сесії редагування налаштувань.
-     * Подання лише передає події через callback-и, а джерелом істини для стану змін є контролер.
+     * Передає вибір мови, підтвердження налаштувань і перевірку їхнього стану контролеру.
      *
      * @param previewLanguageAction дія попереднього перегляду вибраної мови.
-     * @param confirmLanguageAction дія підтвердження й збереження всіх змінених налаштувань.
-     * @param discardLanguageAction дія відновлення початкових значень усіх налаштувань.
+     * @param confirmLanguageAction дія підтвердження всіх змінених налаштувань.
      * @param hasUnsavedLanguageChanges перевірка наявності змін у спільній сесії налаштувань.
      */
     public void setLanguageActions(
             Consumer<SupportedLanguage> previewLanguageAction,
             Runnable confirmLanguageAction,
-            Runnable discardLanguageAction,
             BooleanSupplier hasUnsavedLanguageChanges
     ) {
         this.previewLanguageAction = Objects.requireNonNull(previewLanguageAction, "previewLanguageAction");
         this.commitSettingsAction = Objects.requireNonNull(confirmLanguageAction, "confirmLanguageAction");
-        this.rollbackSettingsAction = Objects.requireNonNull(discardLanguageAction, "discardLanguageAction");
         this.hasUnsavedSettings = Objects.requireNonNull(
                 hasUnsavedLanguageChanges, "hasUnsavedLanguageChanges");
         languageSettingsView.setLanguageSelectedAction(this::handleLanguageSelected);
+    }
+
+    /**
+     * Передає контролеру повідомлення про завершене перейменування рядка.
+     *
+     * @param action дія, яка оновлює список після автономного підтвердження назви.
+     */
+    public void setProjectRenameCommittedAction(Runnable action) {
+        projectRenameCommittedAction = Objects.requireNonNull(action, "action");
     }
 
     /** Перевіряє, чи відображається накладка меню. */
@@ -273,10 +277,24 @@ public final class MainMenuView extends StackPane {
         visibilityChanged.accept(false);
     }
 
-    /** Перевіряє наявність незбережених змін налаштувань або назви проєкту. */
+    /** Повертає відображуваний стан незбережених змін налаштувань або введеної назви проєкту. */
     public boolean hasUnsavedChanges() {
-        return settingsHaveUnsavedChanges()
-                || projectListView.rows().stream().anyMatch(SavedProjectRowView::hasUnsavedChanges);
+        return settingsHaveUnsavedChanges() || projectListView.hasUnsavedChanges();
+    }
+
+    /** Перевіряє наявність незбережених змін назви у поточному списку проєктів. */
+    public boolean hasUnsavedProjectChanges() {
+        return projectListView.hasUnsavedChanges();
+    }
+
+    /** Передає список проєктів запит підтвердження введених назв; перебіг сценарію визначає контролер. */
+    public void savePendingProjectChanges() {
+        projectListView.savePendingChanges();
+    }
+
+    /** Передає списку проєктів запит відхилити введені назви. */
+    public void discardPendingProjectChanges() {
+        projectListView.discardPendingChanges();
     }
 
     /** Перевіряє, чи відображається діалог незбережених змін. */
@@ -292,33 +310,6 @@ public final class MainMenuView extends StackPane {
     /** Вибирає в активному діалозі відхилення змін і продовження дії. */
     public void discardAndContinueUnsavedChanges() {
         unsavedChangesView.discardAndContinue();
-    }
-
-    /** Зберігає незавершене перейменування проєктів і підтверджує зміну налаштувань через контролер. */
-    public void saveUnsavedChanges() {
-        savingPendingChanges = true;
-        try {
-            for (SavedProjectRowView row : projectListView.rows()) {
-                row.savePendingChange();
-            }
-            if (settingsHaveUnsavedChanges()) {
-                saveSettings();
-            }
-        } finally {
-            savingPendingChanges = false;
-        }
-    }
-
-    /** Відхиляє незавершені зміни та передає скасування налаштувань контролеру. */
-    public void discardUnsavedChanges() {
-        for (SavedProjectRowView row : projectListView.rows()) {
-            row.discardPendingChange();
-        }
-        if (settingsHaveUnsavedChanges()) {
-            rollbackSettingsAction.run();
-        }
-        unsavedChangesView.hide();
-        updateSaveButtonVisibility();
     }
 
     /** Показує головну сторінку без кнопки повернення. */
@@ -342,7 +333,7 @@ public final class MainMenuView extends StackPane {
                 actions.openProject(),
                 actions.renameProject(),
                 actions.deleteProject(),
-                this::handleRenameCommitted);
+                projectRenameCommittedAction);
         VBox.setVgrow(projectListView, Priority.ALWAYS);
         updatePageTitle();
         content.getChildren().setAll(projectListView);
@@ -413,6 +404,15 @@ public final class MainMenuView extends StackPane {
      */
     Button discardChangesButtonForTest() {
         return unsavedChangesView.discardButtonForTest();
+    }
+
+    /**
+     * Повертає кнопку підтвердження змін для тестування сценарію збереження.
+     *
+     * @return кнопка «Так» у діалозі незбережених змін.
+     */
+    Button saveChangesButtonForTest() {
+        return unsavedChangesView.saveButtonForTest();
     }
 
     /**
@@ -493,13 +493,12 @@ public final class MainMenuView extends StackPane {
         localization.removeListener(localizationListener);
     }
 
-    /** Підтверджує зміни налаштувань через контролер та оновлює індикатор незбережених змін. */
-    public void saveSettings() {
-        if (!isSettingsPage()) {
-            return;
+    /** Передає запит збереження налаштувань контролеру та оновлює відображений стан. */
+    private void handleSaveSettingsRequested() {
+        if (isSettingsPage()) {
+            commitSettingsAction.run();
+            updateSaveButtonVisibility();
         }
-        commitSettingsAction.run();
-        updateSaveButtonVisibility();
     }
 
     /** Передає вибрану мову контролеру та оновлює стан кнопки збереження. */
@@ -508,16 +507,9 @@ public final class MainMenuView extends StackPane {
         updateSaveButtonVisibility();
     }
 
-    /** Перевіряє наявність незбережених налаштувань в активній сесії на сторінці налаштувань. */
+    /** Перевіряє наявність незбережених налаштувань для відображення стану поточної сторінки. */
     private boolean settingsHaveUnsavedChanges() {
         return page == Page.SETTINGS && hasUnsavedSettings.getAsBoolean();
-    }
-
-    /** Оновлює список після перейменування поза пакетним збереженням змін. */
-    private void handleRenameCommitted() {
-        if (!savingPendingChanges && isLoadPage()) {
-            actions.load().run();
-        }
     }
 
     /** Перевстановлює вміст панелі відповідно до поточної сторінки. */

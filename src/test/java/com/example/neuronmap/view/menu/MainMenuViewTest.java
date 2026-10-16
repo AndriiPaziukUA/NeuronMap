@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -32,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє навігацію меню, адаптивне компонування, збереження та скасування налаштувань і локалізовані написи. */
+/** Перевіряє композицію меню, адаптивне компонування та передачу дій через callback-и. */
 final class MainMenuViewTest {
 
     private static final String LANGUAGE_KEY = "language";
@@ -105,13 +106,11 @@ final class MainMenuViewTest {
         LocalizationService localization = new LocalizationService(
                 new GlobalSettingsLanguagePreferenceStore(store)
         );
-        SupportedLanguage originalLanguage = localization.language();
         runOnFxThread(() -> {
             MainMenuView view = new MainMenuView(localization, ignored -> { });
             view.setLanguageActions(
                     localization::previewLanguage,
                     localization::persistCurrentLanguage,
-                    () -> localization.previewLanguage(originalLanguage),
                     localization::hasUnconfirmedLanguagePreview
             );
             view.showSettingsPage();
@@ -155,33 +154,32 @@ final class MainMenuViewTest {
         });
     }
 
-    /** Перевіряє, що подання передає попередній перегляд і скасування мови через задані callback-и. */
+    /** Перевіряє, що кнопка збереження лише передає підтвердження та не змінює стан самостійно. */
     @Test
-    void settingsLanguagePreviewAndDiscardUseCallbacks() throws Exception {
+    void settingsSaveButtonDelegatesConfirmationToCallback() throws Exception {
         runOnFxThread(() -> {
             LocalizationService localization = new LocalizationService(Locale.ENGLISH);
+            AtomicInteger confirmationCalls = new AtomicInteger();
             MainMenuView view = new MainMenuView(localization, ignored -> { });
             view.setLanguageActions(
                     localization::previewLanguage,
-                    () -> { },
-                    () -> localization.previewLanguage(SupportedLanguage.ENGLISH),
+                    confirmationCalls::incrementAndGet,
                     localization::hasUnconfirmedLanguagePreview
             );
             view.showSettingsPage();
 
             chooseLanguage(view.languageSelectorForTest(), SupportedLanguage.RUSSIAN);
-            assertEquals(SupportedLanguage.RUSSIAN, localization.language());
             assertTrue(view.hasUnsavedChanges());
+            view.saveSettingsButtonForTest().fire();
 
-            view.discardUnsavedChanges();
-            assertEquals(SupportedLanguage.ENGLISH, localization.language());
-            assertFalse(view.hasUnsavedChanges());
-            assertFalse(view.saveSettingsButtonForTest().isVisible());
+            assertEquals(1, confirmationCalls.get());
+            assertEquals(SupportedLanguage.RUSSIAN, localization.language());
+            assertTrue(view.hasUnsavedChanges(), "Подання не має самостійно вважати зміни підтвердженими");
             view.dispose();
         });
     }
 
-    /** Перевіряє, що перейменування проєкту лишається незбереженою зміною до підтвердження. */
+    /** Перевіряє, що незавершене перейменування зберігається через переданий callback. */
     @Test
     void renamingProjectCreatesPendingChangeUntilCommitted() throws Exception {
         runOnFxThread(() -> {
@@ -218,7 +216,7 @@ final class MainMenuViewTest {
             row.renameFieldForTest().setText("Renamed");
             assertTrue(view.hasUnsavedChanges());
 
-            view.saveUnsavedChanges();
+            view.savePendingProjectChanges();
             assertFalse(view.hasUnsavedChanges());
             assertEquals("Renamed", renamed.get().name());
             assertEquals("Renamed", row.project().name());
@@ -228,11 +226,7 @@ final class MainMenuViewTest {
         });
     }
 
-    /**
-     * Перевіряє положення курсора після першого відкриття режиму редагування та повторного показу списку проєктів.
-     *
-     * @throws Exception якщо дія JavaFX не виконується в межах заданого часу.
-     */
+    /** Перевіряє положення курсора після першого відкриття режиму редагування та повторного показу списку. */
     @Test
     void renameCaretPositionIsAtEndAfterFirstShowAndReopeningProjectList() throws Exception {
         AtomicReference<MainMenuView> menuReference = new AtomicReference<>();
@@ -274,7 +268,7 @@ final class MainMenuViewTest {
         }, 4);
     }
 
-    /** Перевіряє доступність режиму редагування через стабільний API TextField і ширину компонента. */
+    /** Перевіряє доступність режиму редагування через API TextField і ширину компонента. */
     private static void assertRenameCaretPositionAtEnd(SavedProjectRowView row) {
         assertNotNull(row);
         Scene scene = row.getScene();
@@ -372,7 +366,7 @@ final class MainMenuViewTest {
         });
     }
 
-    /** Перевіряє бажану висоту вікна підтвердження та центрування тексту запитання. */
+    /** Перевіряє бажану висоту діалогу підтвердження та центрування тексту запитання. */
     @Test
     void unsavedChangesDialogKeepsPreferredHeightAndCenteredQuestion() throws Exception {
         runOnFxThread(() -> {

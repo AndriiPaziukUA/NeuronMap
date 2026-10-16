@@ -10,8 +10,8 @@ import javafx.scene.layout.VBox;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.function.Consumer;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
 /** Відображає список збережених проєктів і керує життєвим циклом його рядків. */
 public final class ProjectListView extends VBox {
@@ -39,17 +39,8 @@ public final class ProjectListView extends VBox {
     }
 
     /**
-     * Формує прокручуваний список і передає всі операції над проєктами заданим callback-ам.
-     *
-     * @param projects описи проєктів; {@code null} означає порожній список.
-     * @param openAction дія відкриття вибраного проєкту.
-     * @param renameAction дія перейменування з поверненням оновленого опису.
-     * @param deleteAction дія видалення проєкту.
-     * @param renameCommitted callback після підтвердженого перейменування.
-     */
-    /**
      * Формує список проєктів без окремого callback-а завершення перейменування.
-     * Цей варіант зручний для автономного використання сторінки, де після перейменування не потрібне оновлення батьківського контейнера.
+     * Цей варіант призначений для автономного використання сторінки.
      *
      * @param projects описи проєктів; {@code null} означає порожній список.
      * @param openAction дія відкриття вибраного проєкту.
@@ -65,6 +56,15 @@ public final class ProjectListView extends VBox {
         showProjects(projects, openAction, renameAction, deleteAction, () -> { });
     }
 
+    /**
+     * Формує прокручуваний список і передає всі операції над проєктами заданим callback-ам.
+     *
+     * @param projects описи проєктів; {@code null} означає порожній список.
+     * @param openAction дія відкриття вибраного проєкту.
+     * @param renameAction дія перейменування з поверненням оновленого опису.
+     * @param deleteAction дія видалення проєкту.
+     * @param renameCommitted callback після підтвердженого перейменування.
+     */
     public void showProjects(
             List<ProjectDescriptor> projects,
             Consumer<ProjectDescriptor> openAction,
@@ -108,6 +108,29 @@ public final class ProjectListView extends VBox {
         emptyProjectsLabel.setText(localization.text("menu.no_saved_projects"));
     }
 
+    /**
+     * Перевіряє, чи мають рядки списку введені, але ще не підтверджені назви.
+     *
+     * @return {@code true}, якщо хоча б один рядок має незбережену зміну назви.
+     */
+    public boolean hasUnsavedChanges() {
+        return projectRows.stream().anyMatch(SavedProjectRowView::hasUnsavedChanges);
+    }
+
+    /** Підтверджує незавершені зміни назв у порядку відображення рядків. */
+    public void savePendingChanges() {
+        for (SavedProjectRowView row : projectRows) {
+            row.savePendingChange();
+        }
+    }
+
+    /** Відхиляє незавершені зміни назв у всіх рядках списку. */
+    public void discardPendingChanges() {
+        for (SavedProjectRowView row : projectRows) {
+            row.discardPendingChange();
+        }
+    }
+
     /** Звільняє слухачів рядків і прибирає вміст сторінки перед переходом до іншої сторінки. */
     public void clear() {
         clearRows();
@@ -128,11 +151,6 @@ public final class ProjectListView extends VBox {
      */
     public ScrollPane scrollPaneForTest() {
         return scrollPane;
-    }
-
-    /** Повертає поточні рядки, щоб контейнер меню міг координувати незбережені зміни. */
-    List<SavedProjectRowView> rows() {
-        return projectRows;
     }
 
     /**
