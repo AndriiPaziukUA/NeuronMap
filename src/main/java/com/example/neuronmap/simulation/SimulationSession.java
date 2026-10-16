@@ -21,7 +21,7 @@ public final class SimulationSession {
     private final Set<String> pendingManualStarts =
             new LinkedHashSet<>();
 
-    private BigInteger tick = BigInteger.ZERO;
+    private SimulationTick tick = new SimulationTick();
     private boolean finished;
 
     /**
@@ -44,7 +44,6 @@ public final class SimulationSession {
             String sourceNeuronId
     ) {
         if (model == null) {
-
             throw new IllegalArgumentException("model must not be null");
         }
 
@@ -53,12 +52,13 @@ public final class SimulationSession {
         return session;
     }
 
-/**
- * Додає наявний нейрон до черги запуску на наступному такті; повторне додавання не створює дубліката.
- *
- * @param sourceNeuronId ідентифікатор початкового нейрона.
- */
-public boolean queueManualStart(String sourceNeuronId) {
+    /**
+     * Додає наявний нейрон до черги запуску на наступному такті; повторне додавання не створює дубліката.
+     *
+     * @param sourceNeuronId ідентифікатор початкового нейрона.
+     * @return {@code true}, якщо нейрон прийнято до черги; інакше {@code false}.
+     */
+    public boolean queueManualStart(String sourceNeuronId) {
         if (sourceNeuronId == null || sourceNeuronId.isBlank()) {
             return false;
         }
@@ -73,9 +73,9 @@ public boolean queueManualStart(String sourceNeuronId) {
     }
 
     /**
-     * Повертає true, якщо сеанс не має подальшої роботи.
+     * Повертає {@code true}, якщо сеанс не має подальшої роботи.
      *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
+     * @return {@code true}, якщо симуляцію завершено; інакше {@code false}.
      */
     public boolean isFinished() {
         return finished;
@@ -87,21 +87,23 @@ public boolean queueManualStart(String sourceNeuronId) {
      * @return номер наступного глобального такту симуляції.
      */
     public BigInteger tick() {
-        return tick;
+        return tick.value();
     }
 
-/**
- * Перевіряє, чи залишилися вхідні сигнали або ручні запуски для наступного такту.
- *
- * @return {@code true}, якщо умову виконано; інакше {@code false}.
- */
-public boolean hasPendingWork() {
+    /**
+     * Перевіряє, чи залишилися вхідні сигнали або ручні запуски для наступного такту.
+     *
+     * @return {@code true}, якщо є очікувана робота; інакше {@code false}.
+     */
+    public boolean hasPendingWork() {
         return !pendingSignals.isEmpty()
                 || !pendingManualStarts.isEmpty();
     }
 
     /**
      * Обробляє один такт: визначає активовані нейрони й накопичує вихідні сигнали для наступного такту. Повертає null, якщо робота завершилася.
+     *
+     * @return результат обробленого такту або {@code null}, якщо подальшої роботи немає.
      */
     public SimulationStep nextStep() {
         if (finished || !hasPendingWork()) {
@@ -149,13 +151,13 @@ public boolean hasPendingWork() {
         }
 
         SimulationStep step = new SimulationStep(
-                tick,
+                tick.value(),
                 inputSums,
                 activatedNeuronIds,
                 nextSignals
         );
 
-        tick = tick.add(BigInteger.ONE);
+        tick = tick.next();
 
         if (nextSignals.isEmpty()) {
             finished = true;

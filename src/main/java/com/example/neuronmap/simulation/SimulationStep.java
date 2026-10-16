@@ -22,25 +22,8 @@ public record SimulationStep(
 ) {
 
     /**
-     * Створює результат такту з номером такту, вхідними сумами сигналів і активованими нейронами; сигнали наступного такту залишає порожніми.
-     *
-     * @param tick номер такту симуляції.
-     * @param inputSums суми вхідних сигналів для нейронів на поточному такті.
-     * @param activatedNeuronIds ідентифікатори нейронів, активованих у поточному такті.
+     * Створює результат такту з незмінними знімками отриманих і запланованих сигналів та активованих нейронів.
      */
-    public SimulationStep(
-            BigInteger tick,
-            Map<String, Integer> inputSums,
-            Set<String> activatedNeuronIds
-    ) {
-        this(
-                tick,
-                inputSums,
-                activatedNeuronIds,
-                Map.of()
-        );
-    }
-
     public SimulationStep {
         inputSums = Collections.unmodifiableMap(
                 new LinkedHashMap<>(inputSums)

@@ -111,15 +111,6 @@ public final class MainMenuHomeView extends VBox {
         );
     }
 
-    /**
-     * Повертає підписи головних кнопок через API, яким користуються тести сторінок меню.
-     *
-     * @return підписи кнопок у відображуваному порядку.
-     */
-    public List<String> buttonTexts() {
-        return buttonTextsForTest();
-    }
-
     /** Прибирає callback-и й від'єднує слухача локалізації після завершення життєвого циклу. */
     public void dispose() {
         continueButton.setOnAction(null);

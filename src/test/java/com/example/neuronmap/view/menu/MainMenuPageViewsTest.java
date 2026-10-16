@@ -4,6 +4,7 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.i18n.SupportedLanguage;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
+import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,7 @@ final class MainMenuPageViewsTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
     }
 
-    /** Перевіряє написи, дії та звільнення обробників головної сторінки. */
+    /** Перевіряє локалізовані написи, callback-и кнопок і звільнення обробників головної сторінки. */
     @Test
     void homeViewDisplaysLocalizedButtonsAndAcceptsActions() throws Exception {
         runOnFxThread(() -> {
@@ -50,8 +51,20 @@ final class MainMenuPageViewsTest {
 
             assertEquals(List.of(
                     "Продовжити", "Новий проєкт", "Завантажити", "Налаштування", "Вихід"
-            ), view.buttonTexts());
-            assertEquals(5, view.getChildren().size());
+            ), view.buttonTextsForTest());
+
+            List<Button> buttons = view.getChildren().stream()
+                    .map(Button.class::cast)
+                    .toList();
+            List<String> expectedActions = List.of(
+                    "continue", "new-project", "load", "settings", "exit"
+            );
+            assertEquals(expectedActions.size(), buttons.size());
+            for (int index = 0; index < buttons.size(); index++) {
+                buttons.get(index).fire();
+                assertEquals(expectedActions.get(index), invoked.get());
+            }
+
             view.dispose();
         });
     }
