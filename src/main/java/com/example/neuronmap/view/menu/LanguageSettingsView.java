@@ -89,11 +89,11 @@ public final class LanguageSettingsView extends VBox {
     }
 
     /**
-     * Надає компонент вибору мови тестам сценаріїв налаштування.
+     * Надає компонент вибору мови UI-тестам у цьому пакеті.
      *
      * @return комбінований список підтримуваних мов.
      */
-    public ComboBox<SupportedLanguage> languageSelectorForTest() {
+    ComboBox<SupportedLanguage> languageSelectorForTest() {
         return languageSelector;
     }
 

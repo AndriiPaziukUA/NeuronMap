@@ -12,12 +12,12 @@ public final class NeuronPresentation {
     private boolean directionReversed;
 
     /**
-     * Створює екземпляр NeuronPresentation та зберігає передані залежності, потрібні для його роботи.
+     * Створює подання нейрона з початковими координатами, кутом і звичайним напрямком портів.
      *
-     * @param neuron нейрон моделі.
-     * @param x координата X.
-     * @param y координата Y.
-     * @param rotationDegrees кут обертання в градусах.
+     * @param neuron нейрон моделі, який представляє цей об’єкт.
+     * @param x початкова горизонтальна координата на карті.
+     * @param y початкова вертикальна координата на карті.
+     * @param rotationDegrees початковий кут обертання в градусах.
      */
     public NeuronPresentation(
             Neuron neuron,
@@ -35,13 +35,14 @@ public final class NeuronPresentation {
     }
 
     /**
-     * Створює екземпляр NeuronPresentation та зберігає передані залежності, потрібні для його роботи.
+     * Створює подання нейрона з усіма параметрами початкового візуального стану.
      *
-     * @param neuron нейрон моделі.
-     * @param x координата X.
-     * @param y координата Y.
-     * @param rotationDegrees кут обертання в градусах.
-     * @param directionReversed ознака розвернутого напрямку.
+     * @param neuron нейрон моделі, який представляє цей об’єкт.
+     * @param x початкова горизонтальна координата на карті.
+     * @param y початкова вертикальна координата на карті.
+     * @param rotationDegrees початковий кут обертання в градусах.
+     * @param directionReversed {@code true}, якщо напрямок вхідного й вихідного портів розвернуто.
+     * @throws IllegalArgumentException якщо нейрон не задано.
      */
     public NeuronPresentation(
             Neuron neuron,
@@ -67,7 +68,7 @@ public final class NeuronPresentation {
     /**
      * Повертає нейрон, візуальне подання якого описує цей об’єкт.
      *
-     * @return нейрон, візуальне подання якого описує цей об’єкт.
+     * @return пов’язаний нейрон моделі.
      */
     public Neuron neuron() {
         return neuron;
@@ -76,7 +77,7 @@ public final class NeuronPresentation {
     /**
      * Повертає горизонтальну координату нейрона на карті.
      *
-     * @return горизонтальну координату нейрона на карті.
+     * @return координата X.
      */
     public double x() {
         return x;
@@ -85,7 +86,7 @@ public final class NeuronPresentation {
     /**
      * Повертає вертикальну координату нейрона на карті.
      *
-     * @return вертикальну координату нейрона на карті.
+     * @return координата Y.
      */
     public double y() {
         return y;
@@ -94,7 +95,7 @@ public final class NeuronPresentation {
     /**
      * Повертає кут обертання нейрона в градусах.
      *
-     * @return кут обертання нейрона в градусах.
+     * @return поточний кут обертання в градусах.
      */
     public double rotationDegrees() {
         return rotationDegrees;
@@ -103,36 +104,30 @@ public final class NeuronPresentation {
     /**
      * Повертає ознаку того, що вхідний і вихідний порти нейрона розвернуті.
      *
-     * @return ознаку того, що вхідний і вихідний порти нейрона розвернуті.
+     * @return {@code true}, якщо напрямок портів розвернуто; інакше {@code false}.
      */
     public boolean directionReversed() {
         return directionReversed;
     }
 
     /**
-     * Установлює координати подання нейрона.
+     * Установлює координати подання нейрона на карті.
      *
-     * @param x координата X.
-     * @param y координата Y.
+     * @param x нова горизонтальна координата.
+     * @param y нова вертикальна координата.
      */
-    public void setPosition(
-            double x,
-            double y
-    ) {
+    public void setPosition(double x, double y) {
         this.x = x;
         this.y = y;
     }
 
     /**
-     * Зміщує подання нейрона на заданий вектор.
+     * Зміщує подання нейрона на заданий вектор у координатах карти.
      *
-     * @param dx значення «dx», яке використовується в цьому методі.
-     * @param dy значення «dy», яке використовується в цьому методі.
+     * @param dx горизонтальна складова зміщення; додатне значення переміщує нейрон праворуч.
+     * @param dy вертикальна складова зміщення; додатне значення переміщує нейрон униз.
      */
-    public void moveBy(
-            double dx,
-            double dy
-    ) {
+    public void moveBy(double dx, double dy) {
         x += dx;
         y += dy;
     }
@@ -140,28 +135,22 @@ public final class NeuronPresentation {
     /**
      * Установлює кут обертання подання в градусах.
      *
-     * @param rotationDegrees кут обертання в градусах.
+     * @param rotationDegrees новий кут обертання в градусах.
      */
-    public void setRotationDegrees(
-            double rotationDegrees
-    ) {
+    public void setRotationDegrees(double rotationDegrees) {
         this.rotationDegrees = rotationDegrees;
     }
 
     /**
      * Установлює, чи має нейрон розвернутий напрямок сигналу.
      *
-     * @param directionReversed ознака розвернутого напрямку.
+     * @param directionReversed {@code true}, щоб розвернути вхідний і вихідний порти; інакше {@code false}.
      */
-    public void setDirectionReversed(
-            boolean directionReversed
-    ) {
+    public void setDirectionReversed(boolean directionReversed) {
         this.directionReversed = directionReversed;
     }
 
-    /**
-     * Перемикає звичайний і розвернутий напрямки сигналу.
-     */
+    /** Міняє місцями звичайний і розвернутий напрямки сигналу. */
     public void toggleDirection() {
         directionReversed = !directionReversed;
     }

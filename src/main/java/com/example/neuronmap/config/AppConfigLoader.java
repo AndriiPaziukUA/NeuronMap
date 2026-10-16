@@ -13,11 +13,15 @@ public final class AppConfigLoader {
 
     public static final String RESOURCE = "/app-config.xml";
 
+    /** Не дозволяє створювати екземпляри утиліти завантаження конфігурації. */
     private AppConfigLoader() {
     }
 
     /**
      * Завантажує конфігурацію з вбудованого ресурсу застосунку.
+     *
+     * @return перевірена типізована конфігурація застосунку.
+     * @throws IllegalStateException якщо ресурс відсутній або його неможливо прочитати чи розібрати.
      */
     public static AppConfig load() {
         InputStream input = AppConfigLoader.class.getResourceAsStream(RESOURCE);
@@ -38,9 +42,12 @@ public final class AppConfigLoader {
     }
 
     /**
-     * Розбирає XML-потік і створює типізований об’єкт конфігурації.
+     * Розбирає XML-потік, перевіряє структуру документа й створює типізовану конфігурацію.
      *
-     * @param input потік XML-конфігурації, який потрібно розібрати.
+     * @param input відкритий потік XML-конфігурації; метод не закриває потік, бо його власник визначає життєвий цикл.
+     * @return конфігурація з параметрами вікна, камери та симуляції.
+     * @throws IllegalArgumentException якщо потік не задано або структура/значення конфігурації некоректні.
+     * @throws Exception якщо XML-парсер не може прочитати документ або застосувати захисні налаштування.
      */
     static AppConfig parse(InputStream input) throws Exception {
         if (input == null) {
@@ -87,10 +94,12 @@ public final class AppConfigLoader {
     }
 
     /**
-     * Знаходить дочірній XML-елемент із заданою назвою.
+     * Знаходить безпосередній дочірній XML-елемент за назвою.
      *
-     * @param parent батьківський XML-елемент або вузол, у якому виконується пошук.
-     * @param name назва, яку потрібно перевірити або зберегти.
+     * @param parent батьківський елемент, серед безпосередніх дочірніх вузлів якого шукають секцію.
+     * @param name точна назва обов’язкового дочірнього елемента.
+     * @return знайдений дочірній елемент.
+     * @throws IllegalArgumentException якщо дочірній елемент із заданою назвою відсутній.
      */
     private static Element child(Element parent, String name) {
         for (int index = 0; index < parent.getChildNodes().getLength(); index++) {
@@ -104,10 +113,12 @@ public final class AppConfigLoader {
     }
 
     /**
-     * Читає обов’язковий атрибут XML-елемента та відхиляє порожнє значення.
+     * Читає непорожнє обов’язкове значення атрибута XML-елемента.
      *
-     * @param element XML-елемент, атрибут або вузол, який потрібно перевірити.
-     * @param name назва, яку потрібно перевірити або зберегти.
+     * @param element XML-елемент, у якому перевіряють атрибут.
+     * @param name назва обов’язкового атрибута.
+     * @return значення атрибута без додаткового перетворення.
+     * @throws IllegalArgumentException якщо атрибут відсутній або містить лише пробіли.
      */
     private static String required(Element element, String name) {
         String value = element.getAttribute(name);
@@ -120,10 +131,12 @@ public final class AppConfigLoader {
     }
 
     /**
-     * Читає обов’язковий атрибут і перетворює його на число.
+     * Читає обов’язковий атрибут XML-елемента та перетворює його на число подвійної точності.
      *
-     * @param element XML-елемент, атрибут або вузол, який потрібно перевірити.
-     * @param name назва, яку потрібно перевірити або зберегти.
+     * @param element XML-елемент, у якому міститься числовий атрибут.
+     * @param name назва атрибута, значення якого потрібно перетворити.
+     * @return числове значення атрибута.
+     * @throws IllegalArgumentException якщо атрибут відсутній, порожній або не є числом.
      */
     private static double number(Element element, String name) {
         String value = required(element, name);

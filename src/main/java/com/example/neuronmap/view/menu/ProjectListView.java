@@ -145,20 +145,20 @@ public final class ProjectListView extends VBox {
     }
 
     /**
-     * Повертає поточний прокручуваний список для перевірок адаптивного компонування.
+     * Повертає поточний прокручуваний список для перевірок адаптивного компонування в цьому пакеті.
      *
      * @return поточний список або {@code null}, якщо сторінку ще не побудовано.
      */
-    public ScrollPane scrollPaneForTest() {
+    ScrollPane scrollPaneForTest() {
         return scrollPane;
     }
 
     /**
-     * Повертає незмінний знімок рядків проєктів для тестів користувацьких сценаріїв.
+     * Повертає незмінний знімок рядків проєктів для тестів користувацьких сценаріїв у цьому пакеті.
      *
-     * @return поточні рядки проєктів.
+     * @return незмінний список поточних рядків проєктів.
      */
-    public List<SavedProjectRowView> rowsForTest() {
+    List<SavedProjectRowView> rowsForTest() {
         return List.copyOf(projectRows);
     }
 

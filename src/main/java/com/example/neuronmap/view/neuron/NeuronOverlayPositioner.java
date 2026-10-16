@@ -19,9 +19,10 @@ public final class NeuronOverlayPositioner {
     private final WorkspaceView workspace;
 
     /**
-     * Створює екземпляр NeuronOverlayPositioner та зберігає передані залежності, потрібні для його роботи.
+     * Створює позиціонер накладок, прив’язаний до полотна редактора.
      *
-     * @param workspace полотно редактора.
+     * @param workspace полотно, яке надає шар накладок для меню й ручки обертання.
+     * @throws IllegalArgumentException якщо полотно не задано.
      */
     public NeuronOverlayPositioner(WorkspaceView workspace) {
         if (workspace == null) {
@@ -33,14 +34,14 @@ public final class NeuronOverlayPositioner {
         this.workspace = workspace;
     }
 
-/**
- * Обчислює положення контекстного меню й ручки обертання відносно видимого прямокутника нейрона.
- *
- * @param neuronView візуальне подання нейрона.
- * @param menu контекстне меню або сторінка меню.
- * @param handle ручка обертання нейрона.
- */
-public void position(
+    /**
+     * Розміщує видиме меню та ручку обертання відносно поточного геометричного стану нейрона.
+     *
+     * @param neuronView візуальне подання нейрона, для якого позиціонуються накладки.
+     * @param menu контекстне меню; якщо воно відсутнє або приховане, його положення не змінюється.
+     * @param handle ручка обертання; якщо вона відсутня або прихована, її положення не змінюється.
+     */
+    public void position(
             NeuronView neuronView,
             VBox menu,
             RotationHandleView handle
@@ -77,14 +78,14 @@ public void position(
         }
     }
 
-/**
- * Перетворює геометрію нейрона в координати батьківського вузла та розміщує поруч ручку обертання.
- *
- * @param neuronView візуальне подання нейрона.
- * @param handle ручка обертання нейрона.
- * @param coordinateSpace вузол JavaFX, відносно якого обчислюються координати.
- */
-public static void positionRotationHandleInParent(
+    /**
+     * Розміщує ручку обертання в заданій системі координат JavaFX.
+     *
+     * @param neuronView візуальне подання нейрона, біля якого розташовується ручка.
+     * @param handle ручка обертання, яку потрібно перемістити.
+     * @param coordinateSpace вузол, локальні координати якого використовує батьківський контейнер ручки.
+     */
+    public static void positionRotationHandleInParent(
             NeuronView neuronView,
             RotationHandleView handle,
             Node coordinateSpace
@@ -104,15 +105,15 @@ public static void positionRotationHandleInParent(
         handle.setVisualRotation(neuronView.getRotate());
     }
 
-/**
- * Повертає центр меж нейрона в координатах переданого вузла JavaFX.
- *
- * @param neuronView візуальне подання нейрона.
- * @param coordinateSpace вузол JavaFX, відносно якого обчислюються координати.
- *
- * @return центр меж нейрона в координатах переданого вузла JavaFX.
- */
-public Point2D rectangleCenterIn(
+    /**
+     * Обчислює центр прямокутника нейрона в локальній системі координат заданого вузла.
+     *
+     * @param neuronView візуальне подання, геометричний центр якого потрібно знайти.
+     * @param coordinateSpace вузол JavaFX, відносно якого повертаються координати.
+     * @return центр меж нейрона в локальних координатах {@code coordinateSpace}.
+     * @throws IllegalArgumentException якщо подання нейрона або вузол системи координат не задано.
+     */
+    public Point2D rectangleCenterIn(
             NeuronView neuronView,
             Node coordinateSpace
     ) {
@@ -137,13 +138,15 @@ public Point2D rectangleCenterIn(
         );
     }
 
-/**
- * Обробляє подію «center in parent» і передає її до відповідної операції редактора.
- *
- * @param neuronView візуальне подання нейрона.
- * @param coordinateSpace вузол JavaFX, відносно якого обчислюються координати.
- */
-public Point2D handleCenterInParent(
+    /**
+     * Обчислює центр ручки обертання в локальній системі координат заданого батьківського вузла.
+     *
+     * @param neuronView візуальне подання нейрона, для якого визначається положення ручки.
+     * @param coordinateSpace вузол JavaFX, локальні координати якого потрібні результату.
+     * @return центр ручки обертання в локальних координатах {@code coordinateSpace}.
+     * @throws IllegalArgumentException якщо подання нейрона або вузол системи координат не задано.
+     */
+    public Point2D handleCenterInParent(
             NeuronView neuronView,
             Node coordinateSpace
     ) {
@@ -165,14 +168,16 @@ public Point2D handleCenterInParent(
         );
     }
 
-/**
- * Обчислює точку на заданій відстані вздовж нормалі до напрямку між двома точками.
- *
- * @param anchor опорна точка, відносно якої розраховують положення.
- * @param directionPoint значення «direction point», яке використовується в цьому методі.
- * @param distance значення «distance», яке використовується в цьому методі.
- */
-static Point2D offsetAlongNormal(
+    /**
+     * Обчислює точку, зміщену від опори вздовж напрямку від неї до другої точки.
+     *
+     * @param anchor опорна точка, від якої відраховується зміщення.
+     * @param directionPoint друга точка, що задає напрямок зміщення від опори.
+     * @param distance невід’ємна скінченна відстань від опорної точки до результату.
+     * @return точка на заданій відстані від {@code anchor} у напрямку {@code directionPoint}.
+     * @throws IllegalArgumentException якщо точку не задано, відстань некоректна або точки збігаються.
+     */
+    static Point2D offsetAlongNormal(
             Point2D anchor,
             Point2D directionPoint,
             double distance
@@ -214,13 +219,12 @@ static Point2D offsetAlongNormal(
     }
 
     /**
-     * Обробляє подію «center in scene» і передає її до відповідної операції редактора.
+     * Визначає центр ручки обертання в координатах сцени з урахуванням повороту й рамки виділення нейрона.
      *
-     * @param neuronView візуальне подання нейрона.
+     * @param neuronView візуальне подання, до якого належить ручка обертання.
+     * @return центр ручки обертання в координатах сцени.
      */
-    private static Point2D handleCenterInScene(
-            NeuronView neuronView
-    ) {
+    private static Point2D handleCenterInScene(NeuronView neuronView) {
         Point2D bottomCenter = neuronView.localToScene(
                 NeuronView.WIDTH / 2.0,
                 NeuronView.HEIGHT
@@ -250,12 +254,13 @@ static Point2D offsetAlongNormal(
     }
 
     /**
-     * Перетворює локальну точку нейрона в координати переданого батьківського вузла JavaFX.
+     * Перетворює локальну точку подання нейрона на координати переданого вузла JavaFX.
      *
-     * @param neuronView візуальне подання нейрона.
-     * @param localX значення «local x», яке використовується в цьому методі.
-     * @param localY значення «local y», яке використовується в цьому методі.
-     * @param coordinateSpace вузол JavaFX, відносно якого обчислюються координати.
+     * @param neuronView подання, у локальному просторі якого задано точку.
+     * @param localX горизонтальна координата точки в локальному просторі нейрона.
+     * @param localY вертикальна координата точки в локальному просторі нейрона.
+     * @param coordinateSpace вузол, у локальному просторі якого потрібен результат.
+     * @return та сама геометрична точка в локальних координатах {@code coordinateSpace}.
      */
     private Point2D toParent(
             NeuronView neuronView,
@@ -271,11 +276,11 @@ static Point2D offsetAlongNormal(
     }
 
     /**
-     * Розміщує контекстне меню поруч із нейроном з урахуванням центра та верхньої межі його подання.
+     * Розміщує контекстне меню над верхньою межею нейрона з урахуванням відстані між ними.
      *
-     * @param menu контекстне меню або сторінка меню.
-     * @param rectangleCenter значення «rectangle center», яке використовується в цьому методі.
-     * @param rectangleTopY значення «rectangle top y», яке використовується в цьому методі.
+     * @param menu контекстне меню, розміри якого визначають потрібне положення.
+     * @param rectangleCenter центр прямокутника нейрона в системі координат шару накладок.
+     * @param rectangleTopY найменша вертикальна координата меж нейрона в тому самому просторі.
      */
     private void positionMenu(
             VBox menu,
@@ -304,17 +309,13 @@ static Point2D offsetAlongNormal(
     }
 
     /**
-     * Повертає вертикальну координату верхнього краю нейрона в системі координат батьківського вузла.
+     * Знаходить верхню координату обмежувального прямокутника нейрона в просторі шару накладок.
      *
-     * @param neuronView візуальне подання нейрона.
-     * @param overlay значення «overlay», яке використовується в цьому методі.
-     *
-     * @return вертикальну координату верхнього краю нейрона в системі координат батьківського вузла.
+     * @param neuronView подання нейрона, чотири кути якого потрібно перетворити.
+     * @param overlay контейнер накладок, у локальній системі координат якого виконується розрахунок.
+     * @return найменша вертикальна координата серед чотирьох перетворених кутів прямокутника.
      */
-    private double rectangleTopYInParent(
-            NeuronView neuronView,
-            Pane overlay
-    ) {
+    private double rectangleTopYInParent(NeuronView neuronView, Pane overlay) {
         double topLeft = toParent(
                 neuronView,
                 0.0,

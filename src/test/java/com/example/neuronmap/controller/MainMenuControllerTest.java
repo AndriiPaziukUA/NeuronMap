@@ -6,6 +6,7 @@ import com.example.neuronmap.persistence.settings.GlobalSettingsLanguagePreferen
 import com.example.neuronmap.persistence.settings.GlobalSettingsStore;
 import com.example.neuronmap.settings.SettingsEditSession;
 import com.example.neuronmap.view.menu.MainMenuView;
+import com.example.neuronmap.view.menu.MainMenuViewTestAccess;
 import javafx.application.Platform;
 import javafx.event.Event;
 import javafx.scene.Scene;
@@ -120,11 +121,11 @@ final class MainMenuControllerTest {
             assertTrue(view.hasUnsavedChanges());
             assertEquals(SupportedLanguage.UKRAINIAN, localization.language());
 
-            view.saveSettingsButtonForTest().fire();
+            MainMenuViewTestAccess.fireSaveSettings(view);
 
             assertEquals("uk", store.load("language"));
             assertFalse(view.hasUnsavedChanges());
-            assertFalse(view.saveSettingsButtonForTest().isVisible());
+            assertFalse(MainMenuViewTestAccess.isSaveSettingsVisible(view));
             controller.dispose(null);
         });
     }
@@ -153,11 +154,11 @@ final class MainMenuControllerTest {
             view.showSettingsPage();
 
             controller.previewSetting(themeSetting, "dark");
-            assertTrue(view.saveSettingsButtonForTest().isVisible());
+            assertTrue(MainMenuViewTestAccess.isSaveSettingsVisible(view));
             controller.previewSetting(themeSetting, "light");
-            assertFalse(view.saveSettingsButtonForTest().isVisible());
+            assertFalse(MainMenuViewTestAccess.isSaveSettingsVisible(view));
             controller.previewSetting(themeSetting, "dark");
-            assertTrue(view.saveSettingsButtonForTest().isVisible());
+            assertTrue(MainMenuViewTestAccess.isSaveSettingsVisible(view));
             chooseLanguage(view, SupportedLanguage.UKRAINIAN);
 
             assertEquals("dark", activeTheme.get());
@@ -166,7 +167,7 @@ final class MainMenuControllerTest {
             assertEquals("light", persistedTheme.get());
             assertTrue(view.hasUnsavedChanges());
 
-            view.backButtonForTest().fire();
+            MainMenuViewTestAccess.fireBack(view);
             assertTrue(view.isConfirmingUnsavedChanges());
             assertTrue(view.isSettingsPage());
 
@@ -208,14 +209,14 @@ final class MainMenuControllerTest {
 
             controller.previewSetting(themeSetting, "dark");
             chooseLanguage(view, SupportedLanguage.UKRAINIAN);
-            view.saveSettingsButtonForTest().fire();
+            MainMenuViewTestAccess.fireSaveSettings(view);
 
             assertEquals(SupportedLanguage.UKRAINIAN, localization.language());
             assertEquals("uk", store.load("language"));
             assertEquals("dark", activeTheme.get());
             assertEquals("dark", persistedTheme.get());
             assertFalse(view.hasUnsavedChanges());
-            assertFalse(view.saveSettingsButtonForTest().isVisible());
+            assertFalse(MainMenuViewTestAccess.isSaveSettingsVisible(view));
             controller.dispose(null);
         });
     }
@@ -241,9 +242,7 @@ final class MainMenuControllerTest {
 
     /** Вибирає мову так, як це відбулося б під час дії користувача у ComboBox. */
     private static void chooseLanguage(MainMenuView view, SupportedLanguage language) {
-        view.languageSelectorForTest().setValue(language);
-        view.languageSelectorForTest().getOnAction().handle(
-                new javafx.event.ActionEvent(view.languageSelectorForTest(), null));
+        MainMenuViewTestAccess.chooseLanguage(view, language);
     }
 
     /** Передає подію Escape через фільтри подій сцени. */

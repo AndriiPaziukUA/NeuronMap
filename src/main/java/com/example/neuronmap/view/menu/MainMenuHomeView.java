@@ -37,7 +37,7 @@ public final class MainMenuHomeView extends VBox {
     }
 
     /**
-     * Створює головну сторінку та одразу під'єднує п'ять дій, як це потрібно ізольованим тестам і повторному використанню.
+     * Створює головну сторінку та одразу під'єднує п'ять дій для ізольованого використання.
      *
      * @param localization служба перекладів написів головної сторінки.
      * @param continueAction дія продовження роботи.
@@ -82,11 +82,11 @@ public final class MainMenuHomeView extends VBox {
     }
 
     /**
-     * Повертає кнопку налаштувань для перевірки сценаріїв навігації без доступу до внутрішньої структури подання.
+     * Повертає кнопку налаштувань для тестування навігації всередині пакета подань меню.
      *
      * @return кнопка переходу до сторінки налаштувань.
      */
-    public Button settingsButtonForTest() {
+    Button settingsButtonForTest() {
         return settingsButton;
     }
 
@@ -100,11 +100,11 @@ public final class MainMenuHomeView extends VBox {
     }
 
     /**
-     * Повертає підписи кнопок у порядку їх відображення для регресійних тестів.
+     * Повертає підписи кнопок у порядку їх відображення для регресійних тестів у цьому пакеті.
      *
      * @return незмінний список підписів кнопок головної сторінки.
      */
-    public List<String> buttonTextsForTest() {
+    List<String> buttonTextsForTest() {
         return List.of(
                 continueButton.getText(), newProjectButton.getText(), loadButton.getText(),
                 settingsButton.getText(), exitButton.getText()

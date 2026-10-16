@@ -71,7 +71,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 
 - `ConnectionCreationControllerTest` — сценарії створення зв'язків і керування їхнім прев'ю.
 - `EditorKeyboardControllerTest` — маршрутизація гарячих клавіш і завершення реєстрації обробників.
-- `MainMenuControllerTest` — навігація меню та життєвий цикл попереднього перегляду, підтвердження й відкату налаштувань.
+- `MainMenuControllerTest` — навігація меню та життєвий цикл попереднього перегляду, підтвердження й відкату налаштувань; для міжпакетної UI-інспекції використовує тестовий адаптер `MainMenuViewTestAccess` у пакеті `view/menu`.
 - `NeuronDeletionControllerTest` — видалення нейронів через контролер взаємодії.
 - `NeuronInteractionControllerMouseButtonTest` — поведінка взаємодії залежно від кнопки миші.
 - `NeuronMenuControllerDirectionTest` — вибір напрямку нейрона через його меню.
@@ -186,6 +186,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 - `MainMenuPageViewsTest` — поведінка окремих подань сторінок головного меню.
 - `MainMenuPagesCompositionTest` — компонування сторінок у контейнері меню.
 - `MainMenuViewTest` — навігація, адаптивне компонування, незбережені зміни та поведінка сторінок меню.
+- `PackagePrivateTestAccessorsTest` — перевірка package-private доступу до допоміжних методів інспекції подань меню без розширення публічного API. `MainMenuViewTestAccess` — тестовий адаптер для контрольованої інспекції JavaFX-вузлів з інших тестових пакетів.
 - `MainMenuUnsavedChangesWorkflowTest` — координація збереження й відхилення перейменувань та налаштувань під час навігації й закриття меню, зокрема відновлення після помилки збереження.
 
 ### `view/neuron`

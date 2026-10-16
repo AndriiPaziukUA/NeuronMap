@@ -398,13 +398,21 @@ public final class MainMenuView extends StackPane {
         return page == Page.SETTINGS;
     }
 
-    /** Повертає підписи кнопок головної сторінки для регресійних тестів. */
-    public List<String> mainButtonTextsForTest() {
+    /**
+     * Повертає підписи кнопок головної сторінки для регресійних тестів у цьому пакеті.
+     *
+     * @return незмінений список поточних підписів кнопок головної сторінки.
+     */
+    List<String> mainButtonTextsForTest() {
         return homeView.buttonTextsForTest();
     }
 
-    /** Надає вибір мови для тестів інтерфейсу. */
-    public javafx.scene.control.ComboBox<SupportedLanguage> languageSelectorForTest() {
+    /**
+     * Надає комбінований список вибору мови для UI-тестів у цьому пакеті.
+     *
+     * @return компонент вибору підтримуваної мови.
+     */
+    javafx.scene.control.ComboBox<SupportedLanguage> languageSelectorForTest() {
         return languageSettingsView.languageSelectorForTest();
     }
 
@@ -472,18 +480,30 @@ public final class MainMenuView extends StackPane {
         updateSaveButtonVisibility();
     }
 
-    /** Надає кнопку повернення для тестів інтерфейсу. */
-    public Button backButtonForTest() {
+    /**
+     * Надає кнопку повернення для UI-тестів у цьому пакеті.
+     *
+     * @return кнопку переходу на попередню сторінку меню.
+     */
+    Button backButtonForTest() {
         return backButton;
     }
 
-    /** Надає кнопку збереження налаштувань для тестів інтерфейсу. */
-    public Button saveSettingsButtonForTest() {
+    /**
+     * Надає кнопку підтвердження налаштувань для UI-тестів у цьому пакеті.
+     *
+     * @return кнопку збереження змінених налаштувань.
+     */
+    Button saveSettingsButtonForTest() {
         return saveSettingsButton;
     }
 
-    /** Повертає заголовок поточної сторінки для регресійних тестів. */
-    public String pageTitleForTest() {
+    /**
+     * Повертає заголовок поточної сторінки для регресійних тестів у цьому пакеті.
+     *
+     * @return текст заголовка поточної сторінки.
+     */
+    String pageTitleForTest() {
         return titleLabel.getText();
     }
 
