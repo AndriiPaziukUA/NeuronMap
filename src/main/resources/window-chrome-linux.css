@@ -1,0 +1,29 @@
+/* Налаштування керувальних кнопок для типових настільних середовищ Linux. */
+.window-chrome-linux .window-title-bar,
+.window-chrome-linux .window-title-bar-host {
+    -fx-background-color: #25272b;
+}
+
+.window-chrome-linux .window-title {
+    -fx-font-weight: 500;
+}
+
+.window-chrome-linux .window-control-button {
+    -fx-min-width: 40px;
+    -fx-pref-width: 40px;
+    -fx-max-width: 40px;
+    -fx-min-height: 30px;
+    -fx-pref-height: 30px;
+    -fx-max-height: 30px;
+    -fx-background-radius: 4px;
+}
+
+.window-chrome-linux .window-control-button:hover {
+    -fx-background-color: #454950;
+    -fx-text-fill: #ffffff;
+}
+
+.window-chrome-linux .window-control-button:hover .window-icon-stroke,
+.window-chrome-linux .window-control-button:hover .window-icon-outline {
+    -fx-stroke: #ffffff;
+}

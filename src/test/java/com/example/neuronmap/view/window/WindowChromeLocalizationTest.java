@@ -7,9 +7,11 @@ import org.junit.jupiter.api.Test;
 import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє локалізацію власного заголовка через централізовану службу застосунку. */
+/** Перевіряє локалізацію заголовка та вибір платформного стилю для різних операційних систем. */
 final class WindowChromeLocalizationTest {
 
     private static final String BUNDLE_BASE_NAME = "i18n.windowChrome";
@@ -47,5 +49,35 @@ final class WindowChromeLocalizationTest {
         assertEquals("unknown.label", localization.textFrom(BUNDLE_BASE_NAME, "unknown.label"));
         assertEquals("", localization.textFrom(BUNDLE_BASE_NAME, " "));
         assertThrows(IllegalArgumentException.class, () -> localization.textFrom(" ", "minimize"));
+    }
+
+    /** Перевіряє окремий стиль macOS та традиційне розташування кнопок ліворуч. */
+    @Test
+    void selectsMacOsPlatformStyle() {
+        assertEquals(WindowChromePlatformStyle.MACOS, WindowChromePlatformStyle.forOperatingSystem("Mac OS X"));
+        assertEquals(WindowChromePlatformStyle.MACOS, WindowChromePlatformStyle.forOperatingSystem("Darwin"));
+        assertTrue(WindowChromePlatformStyle.MACOS.controlsOnLeadingEdge());
+        assertEquals("window-chrome-macos", WindowChromePlatformStyle.MACOS.rootStyleClass());
+        assertEquals("/window-chrome-macos.css", WindowChromePlatformStyle.MACOS.stylesheetResource().orElseThrow());
+    }
+
+    /** Перевіряє стилі Windows та Linux із кнопками керування праворуч. */
+    @Test
+    void selectsWindowsAndLinuxPlatformStyles() {
+        assertEquals(WindowChromePlatformStyle.WINDOWS, WindowChromePlatformStyle.forOperatingSystem("Windows 11"));
+        assertEquals(WindowChromePlatformStyle.LINUX, WindowChromePlatformStyle.forOperatingSystem("Linux"));
+        assertFalse(WindowChromePlatformStyle.WINDOWS.controlsOnLeadingEdge());
+        assertFalse(WindowChromePlatformStyle.LINUX.controlsOnLeadingEdge());
+        assertTrue(WindowChromePlatformStyle.WINDOWS.stylesheetResource().isEmpty());
+        assertEquals("/window-chrome-linux.css", WindowChromePlatformStyle.LINUX.stylesheetResource().orElseThrow());
+    }
+
+    /** Перевіряє стандартне компонування для невідомої ОС та відхилення відсутньої назви. */
+    @Test
+    void usesDefaultStyleForUnknownOperatingSystem() {
+        assertEquals(WindowChromePlatformStyle.OTHER, WindowChromePlatformStyle.forOperatingSystem("FreeBSD"));
+        assertEquals(WindowChromePlatformStyle.OTHER, WindowChromePlatformStyle.forOperatingSystem(""));
+        assertTrue(WindowChromePlatformStyle.OTHER.stylesheetResource().isEmpty());
+        assertThrows(NullPointerException.class, () -> WindowChromePlatformStyle.forOperatingSystem(null));
     }
 }

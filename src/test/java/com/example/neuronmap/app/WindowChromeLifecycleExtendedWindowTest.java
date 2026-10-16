@@ -5,6 +5,8 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.persistence.window.WindowStateStore;
 import com.example.neuronmap.view.window.WindowChromeView;
 import javafx.application.Platform;
+import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -12,7 +14,6 @@ import javafx.scene.layout.HeaderBar;
 import javafx.scene.layout.HeaderButtonType;
 import javafx.scene.layout.HeaderDragType;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -30,11 +31,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє єдиний механізм оформлення вікна через розширений заголовок JavaFX. */
+/** Перевіряє єдиний механізм оформлення вікна через розширений заголовок JavaFX на різних ОС. */
 final class WindowChromeLifecycleExtendedWindowTest {
 
     @TempDir
@@ -60,12 +61,13 @@ final class WindowChromeLifecycleExtendedWindowTest {
         }
     }
 
-    /** Перевіряє стиль Stage, семантичні кнопки та недоступність перетягування кнопок заголовка. */
+    /** Перевіряє стиль Stage, семантичні кнопки та виключення кнопок із перетягуваної області. */
     @Test
     void configuresExtendedHeaderWithOneNativeWindowMechanism() throws Exception {
         runOnFxThread(() -> {
             Stage stage = new Stage();
-            Scene scene = new Scene(new StackPane(), 640.0, 480.0);
+            StackPane editorRoot = new StackPane();
+            Scene scene = new Scene(editorRoot, 640.0, 480.0);
             AtomicInteger editorShutdownCalls = new AtomicInteger();
             MainWindowController controller = createController(stage, true);
 
@@ -76,11 +78,13 @@ final class WindowChromeLifecycleExtendedWindowTest {
             HeaderBar headerBar = assertInstanceOf(HeaderBar.class, chromeView.getTop());
             assertEquals(0.0, HeaderBar.getSystemButtonHeight(stage));
             HBox titleBar = assertInstanceOf(HBox.class, headerBar.getCenter());
-            Label titleLabel = assertInstanceOf(Label.class, titleBar.getChildren().get(0));
-            Region spacer = assertInstanceOf(Region.class, titleBar.getChildren().get(1));
-            Button minimizeButton = assertInstanceOf(Button.class, titleBar.getChildren().get(2));
-            Button maximizeButton = assertInstanceOf(Button.class, titleBar.getChildren().get(3));
-            Button closeButton = assertInstanceOf(Button.class, titleBar.getChildren().get(4));
+            Label titleLabel = assertInstanceOf(Label.class, findByStyleClass(titleBar, "window-title"));
+            Button minimizeButton = assertInstanceOf(Button.class,
+                    findByStyleClass(titleBar, "window-control-minimize"));
+            Button maximizeButton = assertInstanceOf(Button.class,
+                    findByStyleClass(titleBar, "window-control-maximize"));
+            Button closeButton = assertInstanceOf(Button.class,
+                    findByStyleClass(titleBar, "window-control-close"));
 
             assertEquals(HeaderDragType.DRAGGABLE_SUBTREE, HeaderBar.getDragType(titleBar));
             assertEquals(HeaderDragType.NONE, HeaderBar.getDragType(minimizeButton));
@@ -93,10 +97,11 @@ final class WindowChromeLifecycleExtendedWindowTest {
             assertNull(maximizeButton.getOnAction());
             assertNull(closeButton.getOnAction());
             assertNotNull(titleLabel.getText());
-            assertTrue(spacer.isManaged());
 
             controller.close();
             assertEquals(1, editorShutdownCalls.get());
+            assertSame(editorRoot, scene.getRoot());
+            assertTrue(scene.getStylesheets().isEmpty());
         });
     }
 
@@ -158,6 +163,22 @@ final class WindowChromeLifecycleExtendedWindowTest {
     /** Повертає узгоджені налаштування для ізольованого тестового вікна. */
     private static AppConfig.Window windowConfig() {
         return new AppConfig.Window("NeuronMap test", 640.0, 480.0, "window-state.properties");
+    }
+
+    /** Знаходить вузол у дереві JavaFX за CSS-класом, не покладаючись на порядок дітей. */
+    private static Node findByStyleClass(Node root, String styleClass) {
+        if (root.getStyleClass().contains(styleClass)) {
+            return root;
+        }
+        if (root instanceof Parent parent) {
+            for (Node child : parent.getChildrenUnmodifiable()) {
+                Node match = findByStyleClass(child, styleClass);
+                if (match != null) {
+                    return match;
+                }
+            }
+        }
+        return null;
     }
 
     /** Виконує дію на JavaFX Application Thread і передає її помилки тестовому потоку. */

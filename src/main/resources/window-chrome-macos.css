@@ -1,0 +1,51 @@
+/* macOS розміщує три системні команди ліворуч і показує їх у вигляді traffic lights. */
+.window-chrome-macos .window-title-bar,
+.window-chrome-macos .window-title-bar-host {
+    -fx-background-color: #25272b;
+}
+
+.window-chrome-macos .window-title {
+    -fx-padding: 0;
+    -fx-font-weight: 500;
+}
+
+.window-chrome-macos .window-control-group {
+    -fx-spacing: 7px;
+    -fx-padding: 0 6px;
+}
+
+.window-chrome-macos .window-control-button {
+    -fx-min-width: 13px;
+    -fx-pref-width: 13px;
+    -fx-max-width: 13px;
+    -fx-min-height: 13px;
+    -fx-pref-height: 13px;
+    -fx-max-height: 13px;
+    -fx-padding: 0;
+    -fx-background-radius: 7px;
+    -fx-border-radius: 7px;
+    -fx-border-width: 0;
+}
+
+.window-chrome-macos .window-control-close {
+    -fx-background-color: #ff5f57;
+}
+
+.window-chrome-macos .window-control-minimize {
+    -fx-background-color: #febc2e;
+}
+
+.window-chrome-macos .window-control-maximize {
+    -fx-background-color: #28c840;
+}
+
+.window-chrome-macos .window-control-button .window-icon-stroke,
+.window-chrome-macos .window-control-button .window-icon-outline {
+    -fx-opacity: 0;
+}
+
+.window-chrome-macos .window-control-button:hover .window-icon-stroke,
+.window-chrome-macos .window-control-button:hover .window-icon-outline {
+    -fx-opacity: 1;
+    -fx-stroke: #303238;
+}

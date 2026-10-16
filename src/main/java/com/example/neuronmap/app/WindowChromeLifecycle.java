@@ -14,7 +14,7 @@ import java.util.logging.Logger;
 
 /**
  * Володіє єдиним життєвим циклом оформлення головного вікна на базі API JavaFX.
- * Для роботи обов'язково потрібні {@link StageStyle#EXTENDED} і {@code HeaderBar}; інших шляхів немає.
+ * Візуальні платформні відмінності делеговано {@link WindowChromeView} і його платформному опису.
  */
 final class WindowChromeLifecycle {
 
@@ -49,7 +49,7 @@ final class WindowChromeLifecycle {
 
     /**
      * Налаштовує єдиний механізм оформлення до показу Stage.
-     * Якщо JavaFX не підтримує розширений заголовок, метод явно завершується помилкою без fallback.
+     * Якщо JavaFX не підтримує розширений заголовок, метод завершується явною помилкою без fallback.
      *
      * @param scene сцена редактора, корінь якої отримає заголовок.
      * @throws NullPointerException якщо сцену не задано.
@@ -70,9 +70,9 @@ final class WindowChromeLifecycle {
         try {
             stage.initStyle(StageStyle.EXTENDED);
             view = new WindowChromeView(stage, localization);
+            windowChromeView = view;
             view.installInto(scene);
             view.installExtendedHeaderBar();
-            windowChromeView = view;
             stage.addEventHandler(WindowEvent.WINDOW_HIDDEN, hiddenHandler);
             hiddenHandlerRegistered = true;
             configured = true;
@@ -80,39 +80,51 @@ final class WindowChromeLifecycle {
             if (view != null) {
                 try {
                     view.dispose();
-                } catch (RuntimeException | LinkageError cleanupFailure) {
-                    Throwable originalFailure = configurationFailure;
-                    Throwable cleanupProblem = cleanupFailure;
-
-                    if (originalFailure != cleanupProblem) {
-                        originalFailure.addSuppressed(cleanupProblem);
-                    }
+                    windowChromeView = null;
+                } catch (RuntimeException | Error cleanupFailure) {
+                    addSuppressedFailure(configurationFailure, cleanupFailure);
                 }
             }
-            windowChromeView = null;
             throw configurationFailure;
         }
     }
 
     /**
-     * Звільняє слухачі локалі, стану вікна й обробник приховування.
-     * Повторний виклик безпечний.
+     * Звільняє слухачі локалі, стану вікна та обробник приховування.
+     * Посилання на подання зберігається до успішного очищення, щоб дозволити повторну спробу.
      */
     void dispose() {
         if (hiddenHandlerRegistered) {
-            stage.removeEventHandler(WindowEvent.WINDOW_HIDDEN, hiddenHandler);
-            hiddenHandlerRegistered = false;
+            try {
+                stage.removeEventHandler(WindowEvent.WINDOW_HIDDEN, hiddenHandler);
+                hiddenHandlerRegistered = false;
+            } catch (RuntimeException | Error cleanupFailure) {
+                LOGGER.log(Level.WARNING, "Не вдалося зняти обробник приховування головного вікна", cleanupFailure);
+            }
         }
+
         WindowChromeView viewToDispose = windowChromeView;
-        windowChromeView = null;
         if (viewToDispose == null) {
             return;
         }
         try {
             viewToDispose.dispose();
-        } catch (RuntimeException | LinkageError cleanupFailure) {
+            windowChromeView = null;
+        } catch (RuntimeException | Error cleanupFailure) {
             LOGGER.log(Level.WARNING, "Не вдалося повністю очистити ресурси оформлення головного вікна",
                     cleanupFailure);
+        }
+    }
+
+    /**
+     * Додає помилку очищення до першопричини, не замінюючи помилку конфігурації.
+     *
+     * @param primaryFailure первинна помилка налаштування.
+     * @param cleanupFailure помилка, що виникла під час очищення.
+     */
+    private static void addSuppressedFailure(Throwable primaryFailure, Throwable cleanupFailure) {
+        if (primaryFailure != cleanupFailure) {
+            primaryFailure.addSuppressed(cleanupFailure);
         }
     }
 }

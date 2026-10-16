@@ -15,6 +15,16 @@
     -fx-padding: 0;
 }
 
+.window-title-spacer {
+    -fx-min-width: 0;
+    -fx-padding: 0;
+}
+
+.window-control-group {
+    -fx-spacing: 0;
+    -fx-alignment: center-left;
+}
+
 .window-title {
     -fx-text-fill: #e8eaed;
     -fx-font-size: 13px;
