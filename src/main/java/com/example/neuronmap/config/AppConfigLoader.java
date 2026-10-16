@@ -2,8 +2,11 @@ package com.example.neuronmap.config;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.xml.sax.SAXException;
 
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import java.io.IOException;
 import java.io.InputStream;
 
 /**
@@ -18,24 +21,37 @@ public final class AppConfigLoader {
     }
 
     /**
-     * Завантажує конфігурацію з вбудованого ресурсу застосунку.
+     * Завантажує конфігурацію з вбудованого ресурсу застосунку та розрізняє етапи можливих помилок.
      *
      * @return перевірена типізована конфігурація застосунку.
-     * @throws IllegalStateException якщо ресурс відсутній або його неможливо прочитати чи розібрати.
+     * @throws IllegalStateException якщо ресурс відсутній, не читається, містить некоректний XML або значення.
      */
     public static AppConfig load() {
         InputStream input = AppConfigLoader.class.getResourceAsStream(RESOURCE);
         if (input == null) {
-
             throw new IllegalStateException("Missing application configuration: " + RESOURCE);
         }
 
         try (input) {
             return parse(input);
-        } catch (Exception exception) {
-
+        } catch (ParserConfigurationException exception) {
             throw new IllegalStateException(
-                    "Cannot load application configuration: " + RESOURCE,
+                    "Cannot configure secure XML parser for application configuration: " + RESOURCE,
+                    exception
+            );
+        } catch (SAXException exception) {
+            throw new IllegalStateException(
+                    "Cannot parse application configuration XML: " + RESOURCE,
+                    exception
+            );
+        } catch (IOException exception) {
+            throw new IllegalStateException(
+                    "Cannot read application configuration: " + RESOURCE,
+                    exception
+            );
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalStateException(
+                    "Invalid application configuration structure or values: " + RESOURCE,
                     exception
             );
         }
@@ -43,15 +59,18 @@ public final class AppConfigLoader {
 
     /**
      * Розбирає XML-потік, перевіряє структуру документа й створює типізовану конфігурацію.
+     * XML-парсер не завантажує зовнішні сутності й DTD та не розгортає XInclude.
      *
      * @param input відкритий потік XML-конфігурації; метод не закриває потік, бо його власник визначає життєвий цикл.
      * @return конфігурація з параметрами вікна, камери та симуляції.
      * @throws IllegalArgumentException якщо потік не задано або структура/значення конфігурації некоректні.
-     * @throws Exception якщо XML-парсер не може прочитати документ або застосувати захисні налаштування.
+     * @throws ParserConfigurationException якщо XML-парсер неможливо налаштувати із заданими обмеженнями безпеки.
+     * @throws SAXException якщо XML-документ має синтаксичну помилку або порушує обмеження парсера.
+     * @throws IOException якщо під час читання XML-потоку сталася помилка введення-виведення.
      */
-    static AppConfig parse(InputStream input) throws Exception {
+    static AppConfig parse(InputStream input)
+            throws ParserConfigurationException, SAXException, IOException {
         if (input == null) {
-
             throw new IllegalArgumentException("input must not be null");
         }
 
@@ -67,7 +86,6 @@ public final class AppConfigLoader {
         Element root = document.getDocumentElement();
 
         if (root == null || !"app".equals(root.getTagName())) {
-
             throw new IllegalArgumentException("Root element must be <app>");
         }
 
@@ -143,7 +161,6 @@ public final class AppConfigLoader {
         try {
             return Double.parseDouble(value);
         } catch (NumberFormatException exception) {
-
             throw new IllegalArgumentException(
                     "Attribute '" + name + "' must be numeric",
                     exception

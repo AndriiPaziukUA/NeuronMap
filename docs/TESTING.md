@@ -20,7 +20,7 @@
 
 Якщо Maven установлено окремо, можна виконати `mvn clean test`.
 
-GitHub Actions workflow `.github/workflows/ci.yml` має запускати `clean test` на кожному push до `develop`, у pull request до `develop` і вручну. Матриця перевіряє Windows, Linux (із Xvfb для JavaFX-тестів) та macOS на JDK 25. Коли додаєш або змінюєш цей workflow, перевір перший реальний запуск у вкладці **Actions** репозиторію; локальний запуск не замінює результат CI.
+GitHub Actions workflow `.github/workflows/ci.yml` має запускати `clean test` на кожному push до `develop`, у pull request до `develop` і вручну. Матриця перевіряє Windows, Linux (із Xvfb для JavaFX-тестів) та macOS на JDK 25. Окремий job PMD наразі працює в інформаційному режимі та зберігає звіт базових порушень як артефакт CI, не блокуючи тестову матрицю. Коли додаєш або змінюєш цей workflow, перевір перший реальний запуск у вкладці **Actions** репозиторію; локальний запуск не замінює результат CI.
 
 Окремий клас:
 
@@ -186,6 +186,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 - `MainMenuPageViewsTest` — поведінка окремих подань сторінок головного меню.
 - `MainMenuPagesCompositionTest` — компонування сторінок у контейнері меню.
 - `MainMenuViewTest` — навігація, адаптивне компонування, незбережені зміни та поведінка сторінок меню.
+- `MenuStylesheetResourceTest` — наявність обов'язкового `menu-enhancements.css` у classpath, щоб помилки пакування стилів виявлялися тестами.
 - `PackagePrivateTestAccessorsTest` — перевірка package-private доступу до допоміжних методів інспекції подань меню без розширення публічного API. `MainMenuViewTestAccess` — тестовий адаптер для контрольованої інспекції JavaFX-вузлів з інших тестових пакетів.
 - `MainMenuUnsavedChangesWorkflowTest` — координація збереження й відхилення перейменувань та налаштувань під час навігації й закриття меню, зокрема відновлення після помилки збереження.
 
@@ -211,6 +212,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 ### `view/support`
 
 - `JavaFxNodeLookupTest` — пошук вузлів і предків у дереві JavaFX.
+- `TooltipFactoryTest` — створення підказок, нормалізація відсутнього тексту та застосування спільних часових параметрів показу й приховування.
 
 ### `view/window`
 

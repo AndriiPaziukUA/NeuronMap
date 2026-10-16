@@ -32,6 +32,7 @@ public final class MainMenuView extends StackPane {
 
     private static final double MAX_PANEL_WIDTH = 460.0;
     private static final double MAX_PANEL_HEIGHT = 430.0;
+    private static final String MENU_STYLESHEET_RESOURCE = "/menu-enhancements.css";
 
     /**
      * Зберігає повний набір обов'язкових зворотних викликів навігації меню та операцій над проєктами.
@@ -119,6 +120,7 @@ public final class MainMenuView extends StackPane {
      *
      * @param localization служба локалізації текстів і доступних мов.
      * @param visibilityChanged callback зміни видимості меню; {@code null} дозволено.
+     * @throws IllegalStateException якщо обов'язкова таблиця стилів меню відсутня в classpath.
      */
     public MainMenuView(LocalizationService localization, Consumer<Boolean> visibilityChanged) {
         this.localization = Objects.requireNonNull(localization, "localization");
@@ -136,10 +138,7 @@ public final class MainMenuView extends StackPane {
         setManaged(false);
         setPickOnBounds(true);
         getStyleClass().add("main-menu-overlay");
-        URL menuStyles = getClass().getResource("/menu-enhancements.css");
-        if (menuStyles != null) {
-            getStylesheets().add(menuStyles.toExternalForm());
-        }
+        getStylesheets().add(requireMenuStylesheet().toExternalForm());
 
         configureBackdrop();
         configurePanel();
@@ -148,6 +147,20 @@ public final class MainMenuView extends StackPane {
         localization.addListener(localizationListener);
         refreshTexts();
         showMainPage();
+    }
+
+    /**
+     * Перевіряє наявність обов'язкової таблиці стилів меню, щоб помилка пакування не маскувалася.
+     *
+     * @return URL CSS-ресурсу меню.
+     * @throws IllegalStateException якщо ресурс не включено до classpath застосунку.
+     */
+    private URL requireMenuStylesheet() {
+        URL stylesheet = getClass().getResource(MENU_STYLESHEET_RESOURCE);
+        if (stylesheet == null) {
+            throw new IllegalStateException(MENU_STYLESHEET_RESOURCE + " is missing");
+        }
+        return stylesheet;
     }
 
     /** Встановлює фонову накладку, яка закриває меню за callback-ом контролера. */
