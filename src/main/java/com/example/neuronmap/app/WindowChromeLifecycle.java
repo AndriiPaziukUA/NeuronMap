@@ -90,10 +90,23 @@ final class WindowChromeLifecycle {
     }
 
     /**
-     * Звільняє слухачі локалі, стану вікна та обробник приховування.
-     * Посилання на подання зберігається до успішного очищення, щоб дозволити повторну спробу.
+     * Звільняє слухачі локалі та стану вікна й обробник приховування.
+     * Обробник прибирається лише після успішного очищення подання; у разі помилки ресурси залишаються
+     * доступними для повторної спроби, а помилка реєструється.
      */
     void dispose() {
+        WindowChromeView viewToDispose = windowChromeView;
+        if (viewToDispose != null) {
+            try {
+                viewToDispose.dispose();
+                windowChromeView = null;
+            } catch (RuntimeException | Error cleanupFailure) {
+                LOGGER.log(Level.WARNING, "Не вдалося повністю очистити ресурси оформлення головного вікна",
+                        cleanupFailure);
+                return;
+            }
+        }
+
         if (hiddenHandlerRegistered) {
             try {
                 stage.removeEventHandler(WindowEvent.WINDOW_HIDDEN, hiddenHandler);
@@ -101,18 +114,6 @@ final class WindowChromeLifecycle {
             } catch (RuntimeException | Error cleanupFailure) {
                 LOGGER.log(Level.WARNING, "Не вдалося зняти обробник приховування головного вікна", cleanupFailure);
             }
-        }
-
-        WindowChromeView viewToDispose = windowChromeView;
-        if (viewToDispose == null) {
-            return;
-        }
-        try {
-            viewToDispose.dispose();
-            windowChromeView = null;
-        } catch (RuntimeException | Error cleanupFailure) {
-            LOGGER.log(Level.WARNING, "Не вдалося повністю очистити ресурси оформлення головного вікна",
-                    cleanupFailure);
         }
     }
 

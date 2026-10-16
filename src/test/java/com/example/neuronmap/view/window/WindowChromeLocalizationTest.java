@@ -3,6 +3,7 @@ package com.example.neuronmap.view.window;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.i18n.SupportedLanguage;
 import javafx.application.Platform;
+import javafx.geometry.Bounds;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
@@ -11,7 +12,9 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HeaderBar;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.shape.Line;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import org.junit.jupiter.api.BeforeAll;
@@ -144,8 +147,14 @@ final class WindowChromeLocalizationTest {
             }) {
                 Stage stage = new Stage();
                 stage.initStyle(StageStyle.EXTENDED);
+                if (style == WindowChromePlatformStyle.MACOS) {
+                    stage.setTitle("NeuronMap — " + "Дуже довга назва проєкту ".repeat(12));
+                } else {
+                    stage.setTitle("NeuronMap test");
+                }
                 StackPane editorRoot = new StackPane();
                 Scene scene = new Scene(editorRoot, 800.0, 600.0);
+                stage.setScene(scene);
                 String baseStylesheet = getClass().getResource("/window-chrome.css").toExternalForm();
                 scene.getStylesheets().add(baseStylesheet);
                 WindowChromeView view = new WindowChromeView(
@@ -180,6 +189,38 @@ final class WindowChromeLocalizationTest {
                         assertEquals(close, controls.getChildren().get(0));
                         assertEquals(minimize, controls.getChildren().get(1));
                         assertEquals(maximize, controls.getChildren().get(2));
+
+                        view.resize(scene.getWidth(), scene.getHeight());
+                        applyCssAndLayout(view);
+                        // Повторний прохід враховує обмеження ширини, що реагує на фактичні межі групи кнопок.
+                        applyCssAndLayout(view);
+                        Bounds titleBounds = title.getBoundsInParent();
+                        Bounds controlBounds = controls.getBoundsInParent();
+                        assertTrue(title.getText().length() > 100,
+                                "Сценарій macOS має справді перевіряти довгу назву вікна");
+                        assertEquals(controls.prefWidth(-1.0), controls.getWidth(), 1.0,
+                                "Група кнопок має займати власну ширину, а не весь заголовок");
+                        assertEquals(centeredHeader.getWidth() / 2.0,
+                                titleBounds.getMinX() + titleBounds.getWidth() / 2.0, 1.0,
+                                "Назва має геометрично центруватися у смузі заголовка");
+                        assertTrue(title.getWidth() < title.prefWidth(-1.0),
+                                "Довга назва має обмежуватися доступною шириною");
+                        assertTrue(titleBounds.getMinX() >= controlBounds.getMaxX() + 7.0,
+                                "Назва не має накладатися на групу кнопок ліворуч: title="
+                                        + titleBounds + ", controls=" + controlBounds);
+                        assertTrue(titleBounds.getMaxX() <= centeredHeader.getWidth() - controlBounds.getMaxX() - 7.0,
+                                "Назва має зберігати симетричну вільну область праворуч: title="
+                                        + titleBounds + ", controls=" + controlBounds
+                                        + ", headerWidth=" + centeredHeader.getWidth());
+
+                        Pane fullScreenIcon = assertInstanceOf(Pane.class, maximize.getGraphic());
+                        assertEquals(8, fullScreenIcon.getChildren().size());
+                        assertTrue(fullScreenIcon.getChildren().stream().allMatch(Line.class::isInstance),
+                                "macOS має показувати значок повноекранного режиму, а не значок відновлення");
+                        Pane enterIcon = assertInstanceOf(Pane.class, WindowChromeView.createMacOsFullScreenIcon(false));
+                        Pane exitIcon = assertInstanceOf(Pane.class, WindowChromeView.createMacOsFullScreenIcon(true));
+                        assertEquals(2.0, assertInstanceOf(Line.class, enterIcon.getChildren().get(0)).getStartX());
+                        assertEquals(5.0, assertInstanceOf(Line.class, exitIcon.getChildren().get(0)).getStartX());
                     } else {
                         assertEquals(titleBar.getChildren().get(2), minimize);
                         assertEquals(titleBar.getChildren().get(3), maximize);
@@ -195,6 +236,33 @@ final class WindowChromeLocalizationTest {
                     view.dispose();
                     stage.close();
                 }
+            }
+        });
+    }
+
+    /** Перевіряє, що після dispose подання не можна повторно встановити й залишити сцену частково зміненою. */
+    @Test
+    void rejectsReinstallationAfterDispose() throws Exception {
+        runOnFxThread(() -> {
+            Stage stage = new Stage();
+            stage.initStyle(StageStyle.EXTENDED);
+            StackPane editorRoot = new StackPane();
+            Scene scene = new Scene(editorRoot, 800.0, 600.0);
+            WindowChromeView view = new WindowChromeView(
+                    stage, new LocalizationService(Locale.ENGLISH), WindowChromePlatformStyle.MACOS);
+            try {
+                stage.setScene(scene);
+                view.installInto(scene);
+                view.installExtendedHeaderBar();
+                view.dispose();
+
+                assertThrows(IllegalStateException.class, () -> view.installInto(scene));
+                assertThrows(IllegalStateException.class, view::installExtendedHeaderBar);
+                assertSame(editorRoot, scene.getRoot());
+                assertTrue(scene.getStylesheets().isEmpty());
+            } finally {
+                view.dispose();
+                stage.close();
             }
         });
     }
@@ -225,6 +293,17 @@ final class WindowChromeLocalizationTest {
                 stage.close();
             }
         });
+    }
+
+    /** Застосовує CSS і запускає компонування вузлів дерева, не показуючи тестове вікно. */
+    private static void applyCssAndLayout(Parent root) {
+        root.applyCss();
+        root.layout();
+        for (Node child : root.getChildrenUnmodifiable()) {
+            if (child instanceof Parent parent) {
+                applyCssAndLayout(parent);
+            }
+        }
     }
 
     /** Знаходить вузол за CSS-класом у всьому дереві подання. */

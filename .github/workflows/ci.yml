@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            shell: bash
+            test_command: xvfb-run -a bash ./mvnw --batch-mode clean test
+          - os: windows-latest
+            shell: pwsh
+            test_command: .\mvnw.cmd --batch-mode clean test
+          - os: macos-latest
+            shell: bash
+            test_command: bash ./mvnw --batch-mode clean test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Install virtual display for JavaFX tests
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes xvfb
+
+      - name: Run tests
+        shell: ${{ matrix.shell }}
+        run: ${{ matrix.test_command }}

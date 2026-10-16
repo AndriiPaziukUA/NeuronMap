@@ -31,10 +31,10 @@ NeuronMap — настільний застосунок на JavaFX для ст�
 
 ```bash
 # Запустити застосунок
-./mvnw javafx:run
+bash ./mvnw javafx:run
 
 # Запустити повний набір тестів із очищенням попередніх результатів
-./mvnw clean test
+bash ./mvnw clean test
 ```
 
 Якщо Maven установлено окремо, можна використовувати `mvn javafx:run` та `mvn clean test`. JaCoCo формує звіт покриття в `target/site/jacoco/`, якщо збірка дійшла до відповідного етапу.
@@ -42,10 +42,10 @@ NeuronMap — настільний застосунок на JavaFX для ст�
 Окремий тестовий клас можна запустити командою, наприклад:
 
 ```bash
-./mvnw -Dtest=SettingsEditSessionTest test
+bash ./mvnw -Dtest=SettingsEditSessionTest test
 ```
 
-У Windows заміни `./mvnw` на `.\mvnw.cmd`.
+У Windows використовуйте `.\mvnw.cmd` замість `bash ./mvnw`.
 
 ## Можливості
 

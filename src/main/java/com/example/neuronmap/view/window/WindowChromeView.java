@@ -1,6 +1,7 @@
 package com.example.neuronmap.view.window;
 
 import com.example.neuronmap.i18n.LocalizationService;
+import javafx.beans.binding.Bindings;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -9,6 +10,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HeaderBar;
 import javafx.scene.layout.HeaderButtonType;
@@ -16,8 +18,8 @@ import javafx.scene.layout.HeaderDragType;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
@@ -103,6 +105,8 @@ public final class WindowChromeView extends BorderPane {
         titleBar.setFillHeight(true);
 
         titleLabel.getStyleClass().add("window-title");
+        titleLabel.setMinWidth(0.0);
+        titleLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
         titleLabel.textProperty().bind(stage.titleProperty());
         spacer.getStyleClass().add("window-title-spacer");
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -110,9 +114,21 @@ public final class WindowChromeView extends BorderPane {
         controlGroup.getStyleClass().add("window-control-group");
         if (platformStyle.controlsOnLeadingEdge()) {
             controlGroup.getChildren().addAll(closeButton, minimizeButton, maximizeButton);
+            // Не дозволяємо StackPane розтягувати групу кнопок на всю ширину заголовка.
+            controlGroup.setMaxWidth(Region.USE_PREF_SIZE);
             StackPane centeredHeader = new StackPane(titleLabel, controlGroup);
             centeredHeader.getStyleClass().add("window-title-centered-header");
             centeredHeader.setMaxWidth(Double.MAX_VALUE);
+            titleLabel.maxWidthProperty().bind(Bindings.createDoubleBinding(
+                    () -> Math.max(
+                            0.0,
+                            centeredHeader.getWidth()
+                                    - (2.0 * controlGroup.getBoundsInParent().getMaxX())
+                                    - 16.0
+                    ),
+                    centeredHeader.widthProperty(),
+                    controlGroup.boundsInParentProperty()
+            ));
             StackPane.setAlignment(titleLabel, Pos.CENTER);
             StackPane.setAlignment(controlGroup, Pos.CENTER_LEFT);
             HBox.setHgrow(centeredHeader, Priority.ALWAYS);
@@ -135,13 +151,20 @@ public final class WindowChromeView extends BorderPane {
      *
      * @param scene сцена з уже створеним редактором.
      * @throws NullPointerException якщо сцену не задано.
-     * @throws IllegalStateException якщо обов'язковий ресурс стилів відсутній.
+     * @throws IllegalStateException якщо ресурс стилів відсутній, подання вже встановлено або його очищено.
      */
     public void installInto(Scene scene) {
+        ensureNotDisposed("install into a Scene");
         Objects.requireNonNull(scene, "scene");
         Parent editorContent = scene.getRoot();
+        if (installedScene != null) {
+            if (installedScene == scene && editorContent == this) {
+                return;
+            }
+            throw new IllegalStateException("Window chrome view is already installed");
+        }
         if (editorContent == this) {
-            return;
+            throw new IllegalStateException("Scene already uses this view without an installation record");
         }
 
         URL baseStylesheet = requireStylesheet(BASE_STYLESHEET);
@@ -171,9 +194,11 @@ public final class WindowChromeView extends BorderPane {
      * Передає системну взаємодію заголовка API JavaFX та задає семантичні ролі трьом кнопкам.
      * Інтерактивні кнопки явно виключено з успадкованої перетягуваної області.
      *
-     * @throws IllegalStateException якщо Stage не використовує {@link StageStyle#EXTENDED} або операцію вже виконано.
+     * @throws IllegalStateException якщо подання очищено, Stage не використовує {@link StageStyle#EXTENDED}
+     *                               або операцію вже виконано.
      */
     public void installExtendedHeaderBar() {
+        ensureNotDisposed("install an extended header bar");
         if (stage.getStyle() != StageStyle.EXTENDED) {
             throw new IllegalStateException("Extended header bar requires StageStyle.EXTENDED");
         }
@@ -231,6 +256,18 @@ public final class WindowChromeView extends BorderPane {
             rethrowCleanupFailure(cleanupFailure);
         }
         disposed = true;
+    }
+
+    /**
+     * Забороняє повторне встановлення подання після успішного звільнення його ресурсів.
+     *
+     * @param operation опис операції, яку намагаються виконати.
+     * @throws IllegalStateException якщо подання вже очищено.
+     */
+    private void ensureNotDisposed(String operation) {
+        if (disposed) {
+            throw new IllegalStateException("Cannot " + operation + " on a disposed window chrome view");
+        }
     }
 
     /**
@@ -343,7 +380,10 @@ public final class WindowChromeView extends BorderPane {
 
     /** Оновлює графічний значок і доступну назву кнопки відповідно до платформної семантики вікна. */
     private void updateMaximizeIcon() {
-        maximizeButton.setGraphic(createMaximizeIcon(maximized));
+        Node icon = platformStyle == WindowChromePlatformStyle.MACOS
+                ? createMacOsFullScreenIcon(stage.isFullScreen())
+                : createMaximizeIcon(maximized);
+        maximizeButton.setGraphic(icon);
         String labelKey = platformStyle.maximizeLabelKey(stage.isMaximized(), stage.isFullScreen());
         maximizeButton.setAccessibleText(localization.textFrom(LABELS_BUNDLE, labelKey));
     }
@@ -368,6 +408,42 @@ public final class WindowChromeView extends BorderPane {
         line.getStyleClass().add("window-icon-stroke");
         line.setStrokeWidth(1.2);
         return iconCanvas(line);
+    }
+
+    /**
+     * Створює значок переходу в повноекранний режим або виходу з нього для зеленої кнопки macOS.
+     *
+     * @param fullScreen чи вже перебуває вікно в повноекранному режимі.
+     * @return значок із чотирьох кутів, які спрямовані назовні або всередину.
+     */
+    static Node createMacOsFullScreenIcon(boolean fullScreen) {
+        double nearEdge = fullScreen ? 5.0 : 2.0;
+        double farEdge = fullScreen ? 11.0 : 14.0;
+        double cornerLength = fullScreen ? 2.0 : 3.0;
+
+        Line topLeftHorizontal = new Line(nearEdge, nearEdge, nearEdge + cornerLength, nearEdge);
+        Line topLeftVertical = new Line(nearEdge, nearEdge, nearEdge, nearEdge + cornerLength);
+        Line topRightHorizontal = new Line(farEdge - cornerLength, nearEdge, farEdge, nearEdge);
+        Line topRightVertical = new Line(farEdge, nearEdge, farEdge, nearEdge + cornerLength);
+        Line bottomLeftHorizontal = new Line(nearEdge, farEdge, nearEdge + cornerLength, farEdge);
+        Line bottomLeftVertical = new Line(nearEdge, farEdge - cornerLength, nearEdge, farEdge);
+        Line bottomRightHorizontal = new Line(farEdge - cornerLength, farEdge, farEdge, farEdge);
+        Line bottomRightVertical = new Line(farEdge, farEdge - cornerLength, farEdge, farEdge);
+        for (Line line : new Line[]{
+                topLeftHorizontal, topLeftVertical,
+                topRightHorizontal, topRightVertical,
+                bottomLeftHorizontal, bottomLeftVertical,
+                bottomRightHorizontal, bottomRightVertical
+        }) {
+            line.getStyleClass().add("window-icon-stroke");
+            line.setStrokeWidth(1.2);
+        }
+        return iconCanvas(
+                topLeftHorizontal, topLeftVertical,
+                topRightHorizontal, topRightVertical,
+                bottomLeftHorizontal, bottomLeftVertical,
+                bottomRightHorizontal, bottomRightVertical
+        );
     }
 
     /** Створює значок максимізації або відновлення з прямокутників. */
