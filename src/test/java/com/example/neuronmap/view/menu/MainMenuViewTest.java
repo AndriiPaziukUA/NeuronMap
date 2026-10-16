@@ -9,6 +9,7 @@ import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.geometry.Orientation;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ScrollBar;
 import javafx.scene.control.ScrollPane;
@@ -31,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Перевіряє композицію меню, адаптивне компонування та передачу дій через callback-и. */
@@ -59,6 +61,7 @@ final class MainMenuViewTest {
         runOnFxThread(() -> {
             LocalizationService localization = new LocalizationService(Locale.forLanguageTag("uk"));
             MainMenuView view = new MainMenuView(localization, ignored -> { });
+            configureMenuActions(view);
 
             assertEquals(List.of(
                     "Продовжити",
@@ -95,6 +98,27 @@ final class MainMenuViewTest {
             assertTrue(view.isMenuVisible());
             view.hide();
             assertFalse(view.isMenuVisible());
+            view.dispose();
+        });
+    }
+
+    /** Перевіряє, що меню та його кнопки відхиляють використання до підключення обов'язкових дій. */
+    @Test
+    void menuCannotBeShownOrUsedBeforeRequiredActionsAreConfigured() throws Exception {
+        runOnFxThread(() -> {
+            MainMenuView view = new MainMenuView(new LocalizationService(Locale.ENGLISH), ignored -> { });
+
+            assertThrows(IllegalStateException.class, view::showMenu);
+            assertFalse(view.isMenuVisible(), "Меню має залишатися прихованим після помилки ініціалізації");
+
+            Button settingsButton = view.homePageForTest().settingsButtonForTest();
+            assertThrows(IllegalStateException.class,
+                    () -> settingsButton.getOnAction().handle(new ActionEvent(settingsButton, null)));
+
+            configureMenuActions(view);
+            view.showMenu();
+            assertTrue(view.isMenuVisible());
+            view.hide();
             view.dispose();
         });
     }
@@ -236,6 +260,7 @@ final class MainMenuViewTest {
 
         runOnFxThread(() -> {
             MainMenuView view = new MainMenuView(new LocalizationService(Locale.ENGLISH), ignored -> { });
+            configureMenuActions(view);
             new Scene(view, 1000.0, 700.0);
             view.resize(1000.0, 700.0);
             view.showMenu();
@@ -290,6 +315,7 @@ final class MainMenuViewTest {
         runOnFxThread(() -> {
             LocalizationService localization = new LocalizationService(Locale.ENGLISH);
             MainMenuView view = new MainMenuView(localization, ignored -> { });
+            configureMenuActions(view);
             Scene scene = new Scene(view, 1280.0, 720.0);
             assertNotNull(scene.getRoot());
             view.resize(1280.0, 720.0);
@@ -382,6 +408,21 @@ final class MainMenuViewTest {
             assertTrue(view.cardHeightForTest() < 600.0);
             view.hide();
         });
+    }
+
+    /** Підключає повний набір тестових callback-ів для ізольованого подання меню. */
+    private static void configureMenuActions(MainMenuView view) {
+        view.setActions(new MainMenuView.Actions(
+                () -> { },
+                () -> { },
+                () -> { },
+                () -> { },
+                () -> { },
+                ignored -> { },
+                (project, name) -> project,
+                ignored -> { },
+                () -> { }
+        ));
     }
 
     /** Знаходить вертикальну смугу прокручування, створену JavaFX для ScrollPane. */

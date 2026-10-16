@@ -34,7 +34,8 @@ public final class MainMenuView extends StackPane {
     private static final double MAX_PANEL_HEIGHT = 430.0;
 
     /**
-     * Зберігає зворотні виклики навігації меню та операцій над проєктами.
+     * Зберігає повний набір обов'язкових зворотних викликів навігації меню та операцій над проєктами.
+     * Кожну дію має надати контролер; порожні callback-и не є допустимою заміною інтеграції.
      *
      * @param newProject дія створення проєкту.
      * @param load дія відкриття сторінки збережених проєктів.
@@ -105,10 +106,7 @@ public final class MainMenuView extends StackPane {
     private final UnsavedChangesView unsavedChangesView;
     private final Consumer<java.util.Locale> localizationListener = ignored -> refreshTexts();
 
-    private Actions actions = new Actions(
-            () -> { }, () -> { }, () -> { }, () -> { }, () -> { },
-            ignored -> { }, (ignored, ignored2) -> null, ignored -> { }, () -> { }
-    );
+    private Actions actions;
     private Page page = Page.MAIN;
     private Consumer<Boolean> visibilityChanged = ignored -> { };
     private Consumer<SupportedLanguage> previewLanguageAction = ignored -> { };
@@ -126,6 +124,7 @@ public final class MainMenuView extends StackPane {
         this.localization = Objects.requireNonNull(localization, "localization");
         this.hasUnsavedSettings = this.localization::hasUnconfirmedLanguagePreview;
         this.homeView = new MainMenuHomeView(localization);
+        configureHomePageActions();
         this.projectListView = new ProjectListView(localization);
         this.languageSettingsView = new LanguageSettingsView(localization);
         this.unsavedChangesView = new UnsavedChangesView(localization);
@@ -157,7 +156,7 @@ public final class MainMenuView extends StackPane {
         backdrop.heightProperty().bind(heightProperty());
         backdrop.setFill(Color.rgb(0, 0, 0, 0.5));
         backdrop.setOnMouseClicked(event -> {
-            actions.close().run();
+            requireActions().close().run();
             event.consume();
         });
     }
@@ -183,13 +182,38 @@ public final class MainMenuView extends StackPane {
     /** Підключає спільні кнопки нижньої панелі сторінок. */
     private void configureFooter() {
         backButton.setOnAction(event -> {
-            actions.back().run();
+            requireActions().back().run();
             event.consume();
         });
         saveSettingsButton.setOnAction(event -> {
             handleSaveSettingsRequested();
             event.consume();
         });
+    }
+
+    /** Підключає кнопки головної сторінки до перевіреного набору дій контролера. */
+    private void configureHomePageActions() {
+        homeView.setActions(
+                () -> requireActions().close().run(),
+                () -> requireActions().newProject().run(),
+                () -> requireActions().load().run(),
+                () -> requireActions().settings().run(),
+                () -> requireActions().exit().run()
+        );
+    }
+
+    /**
+     * Повертає налаштовані дії або явно сигналізує про порушення порядку ініціалізації.
+     *
+     * @return повний набір дій меню, переданий контролером.
+     * @throws IllegalStateException якщо контролер ще не підключив обов'язкові дії.
+     */
+    private Actions requireActions() {
+        if (actions == null) {
+            throw new IllegalStateException(
+                    "Дії головного меню не налаштовано. Викличте setActions(...) до показу меню або виконання дій.");
+        }
+        return actions;
     }
 
     /** Розміщує накладку меню, підлаштовуючи висоту сторінок до їхнього вмісту. */
@@ -218,11 +242,15 @@ public final class MainMenuView extends StackPane {
         panel.layout();
     }
 
-    /** Замінює callback-и дій, які використовують сторінки меню. */
+    /**
+     * Підключає повний набір обов'язкових дій після створення контролера меню.
+     * Цей другий крок потрібен через циклічну композицію контролера та його подання.
+     *
+     * @param actions повний набір callback-ів меню.
+     * @throws NullPointerException якщо набір дій не задано.
+     */
     public void setActions(Actions actions) {
         this.actions = Objects.requireNonNull(actions, "actions");
-        homeView.setActions(
-                actions.close(), actions.newProject(), actions.load(), actions.settings(), actions.exit());
     }
 
     /**
@@ -231,6 +259,9 @@ public final class MainMenuView extends StackPane {
      * @param previewLanguageAction дія попереднього перегляду вибраної мови.
      * @param confirmLanguageAction дія підтвердження всіх змінених налаштувань.
      * @param hasUnsavedLanguageChanges перевірка наявності змін у спільній сесії налаштувань.
+     *
+     * <p>Виклик необов'язковий для автономного відображення сторінки: без нього вибір мови
+     * та підтвердження змін не передаються контролеру й не змінюють стан локалізації.</p>
      */
     public void setLanguageActions(
             Consumer<SupportedLanguage> previewLanguageAction,
@@ -247,7 +278,9 @@ public final class MainMenuView extends StackPane {
     /**
      * Передає контролеру повідомлення про завершене перейменування рядка.
      *
-     * @param action дія, яка оновлює список після автономного підтвердження назви.
+     * @param action необов'язкове сповіщення зовнішнього власника списку про підтвердження назви.
+     *               Сам рядок проєкту може завершити локальне перейменування й без цього сповіщення.
+     * @throws NullPointerException якщо callback не задано.
      */
     public void setProjectRenameCommittedAction(Runnable action) {
         projectRenameCommittedAction = Objects.requireNonNull(action, "action");
@@ -258,8 +291,13 @@ public final class MainMenuView extends StackPane {
         return isVisible();
     }
 
-    /** Показує меню та сповіщає власника про відкриття. */
+    /**
+     * Показує меню та сповіщає власника про відкриття.
+     *
+     * @throws IllegalStateException якщо контролер ще не підключив обов'язкові дії меню.
+     */
     public void showMenu() {
+        requireActions();
         setVisible(true);
         setManaged(true);
         visibilityChanged.accept(true);
@@ -330,9 +368,9 @@ public final class MainMenuView extends StackPane {
         page = Page.LOAD;
         projectListView.showProjects(
                 projects,
-                actions.openProject(),
-                actions.renameProject(),
-                actions.deleteProject(),
+                project -> requireActions().openProject().accept(project),
+                (project, name) -> requireActions().renameProject().apply(project, name),
+                project -> requireActions().deleteProject().accept(project),
                 projectRenameCommittedAction);
         VBox.setVgrow(projectListView, Priority.ALWAYS);
         updatePageTitle();
