@@ -107,7 +107,7 @@
                 <configuration>
                     <rulesets>
                         <ruleset>/rulesets/java/quickstart.xml</ruleset>
-                        <ruleset>/rulesets/java/documentation.xml</ruleset>
+                        <ruleset>/category/java/documentation.xml</ruleset>
                     </rulesets>
                     <targetJdk>25</targetJdk>
                     <includeTests>true</includeTests>
