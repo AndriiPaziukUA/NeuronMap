@@ -79,6 +79,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 - `PulseAnimationControllerTest` — керування анімаціями імпульсів.
 - `SimulationControllerSpeedFormattingTest` — формат швидкості в локалізованому повідомленні після зміни швидкості активної симуляції.
 - `SimulationControllerModalPauseTest` — гарантія, що пауза через модальне меню не змінює стан кнопки ручного призупинення симуляції.
+- `SimulationControllerStopSignalsTest` — перевірка, що зупинка сигналів очищує активний runtime-стан та оновлює індикатори без збереження карти.
 
 ### `coordinator`
 
@@ -245,6 +246,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 - `MapPresentationWorkflowLifecycleTest` — перемикання проєкту працює з актуальною сигнатурою `EditorProjectSessionCoordinator`, без постачальника швидкості попереднього проєкту;
 - `UiProcessCoordinatorTest` — вкладена пауза не відновлює таймери й анімації, доки активна остання причина призупинення;
 - `SimulationControllerModalPauseTest` — відкриття меню не підміняє стан кнопки ручної паузи симуляції;
+- `SimulationControllerStopSignalsTest` — кнопка зупинки сигналів не запускає збереження карти й водночас очищує runtime-стан симуляції;
 - `StatusMessageLifecyclePauseTest` — часове життя повідомлення зупиняється при відкритому меню й поновлюється після його закриття.
 
 Запускай `./mvnw clean test` (у Windows — `.\mvnw.cmd clean test`) перед передаванням змін. Не вважай тести успішними, якщо команда фактично не виконувалася.

@@ -232,14 +232,13 @@ public final class SimulationController {
                 || stepPresenter.hasActiveAnimations();
     }
 
-    /** Зупиняє поширення сигналів, скидає незавершену роботу та повідомляє користувача. */
+    /** Зупиняє поширення сигналів, очищує тимчасовий стан симуляції та оновлює індикатори без збереження карти. */
     public void stopSignals() {
         resetRuntime();
         paused = false;
         modalSuspended = false;
         notifyPausedState();
         stepPresenter.refresh();
-        save.run();
         updateSimulationControlsVisibility();
         status.accept(localization.text("status.simulation_stopped"));
     }
