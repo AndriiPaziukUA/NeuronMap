@@ -28,7 +28,8 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 /**
- * Відображає рядок збереженого проєкту та керує його відкриттям, перейменуванням і видаленням.
+ * Відображає рядок збереженого проєкту: окремий клік вибирає його, подвійний — відкриває.
+ * Рядок також керує перейменуванням і видаленням проєкту, не виконуючи операцій сховища самостійно.
  */
 public final class SavedProjectRowView extends HBox {
 
@@ -36,6 +37,8 @@ public final class SavedProjectRowView extends HBox {
     private static final double ICON_BUTTON_SIZE = 36.0;
 
     private final LocalizationService localization;
+    private final Consumer<ProjectDescriptor> openAction;
+    private final Consumer<SavedProjectRowView> selectAction;
     private ProjectDescriptor project;
     private final BiFunction<ProjectDescriptor, String, ProjectDescriptor> renameAction;
     private final Runnable renameCommitted;
@@ -49,13 +52,16 @@ public final class SavedProjectRowView extends HBox {
     private final Button deleteButton = new Button();
     private final Button cancelButton = new Button();
     private final Consumer<Locale> localizationListener = ignored -> refreshTexts();
+    private boolean selected;
 
     /**
-     * Створює рядок проєкту й підключає зворотні виклики доступних операцій.
+     * Створює рядок проєкту зі стандартною поведінкою без зовнішнього менеджера вибору.
+     * Цей конструктор зберігає сумісність із автономним використанням рядка; списки зазвичай
+     * використовують перевантажений конструктор, щоб підтримувати єдиний вибраний пункт.
      *
      * @param project опис проєкту, який показує цей рядок.
      * @param localization служба локалізації підписів, підказок і дат.
-     * @param openAction дія відкриття проєкту.
+     * @param openAction дія відкриття проєкту після подвійного кліку.
      * @param renameAction дія збереження нової назви з поверненням оновленого опису.
      * @param deleteAction дія видалення проєкту.
      * @param renameCommitted дія, що викликається після підтвердження перейменування.
@@ -68,12 +74,36 @@ public final class SavedProjectRowView extends HBox {
             Consumer<ProjectDescriptor> deleteAction,
             Runnable renameCommitted
     ) {
+        this(project, localization, openAction, renameAction, deleteAction, renameCommitted, ignored -> { });
+    }
+
+    /**
+     * Створює рядок проєкту та під'єднує callback-и відкриття, вибору й керування проєктом.
+     *
+     * @param project опис проєкту, який показує цей рядок.
+     * @param localization служба локалізації підписів, підказок і дат.
+     * @param openAction дія відкриття проєкту після подвійного кліку.
+     * @param renameAction дія збереження нової назви з поверненням оновленого опису.
+     * @param deleteAction дія видалення проєкту.
+     * @param renameCommitted дія, що викликається після підтвердження перейменування.
+     * @param selectAction дія вибору рядка; її власник відповідає за скасування попереднього вибору.
+     */
+    public SavedProjectRowView(
+            ProjectDescriptor project,
+            LocalizationService localization,
+            Consumer<ProjectDescriptor> openAction,
+            BiFunction<ProjectDescriptor, String, ProjectDescriptor> renameAction,
+            Consumer<ProjectDescriptor> deleteAction,
+            Runnable renameCommitted,
+            Consumer<SavedProjectRowView> selectAction
+    ) {
         this.project = Objects.requireNonNull(project, "project");
         this.localization = Objects.requireNonNull(localization, "localization");
-        Objects.requireNonNull(openAction, "openAction");
+        this.openAction = Objects.requireNonNull(openAction, "openAction");
         this.renameAction = Objects.requireNonNull(renameAction, "renameAction");
         Objects.requireNonNull(deleteAction, "deleteAction");
         this.renameCommitted = Objects.requireNonNull(renameCommitted, "renameCommitted");
+        this.selectAction = Objects.requireNonNull(selectAction, "selectAction");
 
         getStyleClass().add("saved-project-row");
         setAlignment(Pos.CENTER_LEFT);
@@ -108,10 +138,11 @@ public final class SavedProjectRowView extends HBox {
         );
 
         setOnMouseClicked(event -> {
-            if (!isEditing()
-                    && event.getTarget() != renameButton
-                    && event.getTarget() != deleteButton
-                    && event.getTarget() != cancelButton) {
+            if (isEditing() || isActionTarget(event.getTarget())) {
+                return;
+            }
+            selectAction.accept(this);
+            if (event.getClickCount() == 2) {
                 openAction.accept(this.project);
             }
         });
@@ -239,6 +270,31 @@ public final class SavedProjectRowView extends HBox {
     }
 
     /**
+     * Повертає ознаку постійного вибору рядка у списку.
+     *
+     * @return {@code true}, якщо рядок вибрано останнім кліком.
+     */
+    boolean isSelected() {
+        return selected;
+    }
+
+    /**
+     * Змінює стан вибору й оновлює CSS-клас, не втручаючись у наведення миші.
+     *
+     * @param selected {@code true}, якщо цей рядок має залишатися вибраним.
+     */
+    void setSelected(boolean selected) {
+        this.selected = selected;
+        if (selected) {
+            if (!getStyleClass().contains("selected")) {
+                getStyleClass().add("selected");
+            }
+        } else {
+            getStyleClass().remove("selected");
+        }
+    }
+
+    /**
      * Обчислює ширину, потрібну для повного розміщення всіх керованих дочірніх елементів рядка.
      *
      * <p>Значення враховує природну ширину текстової мітки або кнопок у поточному режимі, а не лише
@@ -261,6 +317,28 @@ public final class SavedProjectRowView extends HBox {
             managedChildren++;
         }
         return Math.max(requiredWidth, prefWidth(-1.0));
+    }
+
+    /**
+     * Визначає, чи належить цільова подія до кнопок або поля редагування рядка.
+     * Підняття події від графічної іконки кнопки не має трактуватися як клік по самому проєкту.
+     *
+     * @param target фактична ціль події миші.
+     * @return {@code true}, якщо подію породив елемент керування рядка.
+     */
+    private boolean isActionTarget(Object target) {
+        if (!(target instanceof Node targetNode)) {
+            return false;
+        }
+        Node current = targetNode;
+        while (current != null && current != this) {
+            if (current == renameButton || current == deleteButton
+                    || current == cancelButton || current == renameField) {
+                return true;
+            }
+            current = current.getParent();
+        }
+        return false;
     }
 
     /** Вмикає режим редагування з новим полем введення та залишає видимими лише потрібні елементи керування. */

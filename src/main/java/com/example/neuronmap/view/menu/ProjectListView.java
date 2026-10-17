@@ -13,7 +13,7 @@ import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
-/** Відображає список збережених проєктів і керує життєвим циклом його рядків. */
+/** Відображає список збережених проєктів і керує життєвим циклом його рядків та вибором одного рядка. */
 public final class ProjectListView extends VBox {
 
     /** Ширина вертикальної смуги прокручування, задана стилями списку меню. */
@@ -24,6 +24,7 @@ public final class ProjectListView extends VBox {
     private final VBox projectRowsBox = new VBox(6.0);
     private final Label emptyProjectsLabel = new Label();
     private List<SavedProjectRowView> projectRows = List.of();
+    private SavedProjectRowView selectedRow;
     private ScrollPane scrollPane;
 
     /**
@@ -46,7 +47,7 @@ public final class ProjectListView extends VBox {
      * Цей варіант призначений для автономного використання сторінки.
      *
      * @param projects описи проєктів; {@code null} означає порожній список.
-     * @param openAction дія відкриття вибраного проєкту.
+     * @param openAction дія відкриття вибраного проєкту після подвійного кліку.
      * @param renameAction дія перейменування з поверненням оновленого опису.
      * @param deleteAction дія видалення проєкту.
      */
@@ -63,7 +64,7 @@ public final class ProjectListView extends VBox {
      * Формує прокручуваний список і передає всі операції над проєктами заданим callback-ам.
      *
      * @param projects описи проєктів; {@code null} означає порожній список.
-     * @param openAction дія відкриття вибраного проєкту.
+     * @param openAction дія відкриття вибраного проєкту після подвійного кліку.
      * @param renameAction дія перейменування з поверненням оновленого опису.
      * @param deleteAction дія видалення проєкту.
      * @param renameCommitted callback після підтвердженого перейменування.
@@ -88,7 +89,13 @@ public final class ProjectListView extends VBox {
         } else {
             projectRows = projects.stream()
                     .map(project -> new SavedProjectRowView(
-                            project, localization, openAction, renameAction, deleteAction, renameCommitted))
+                            project,
+                            localization,
+                            openAction,
+                            renameAction,
+                            deleteAction,
+                            renameCommitted,
+                            this::selectRow))
                     .toList();
             projectRowsBox.getChildren().setAll(projectRows);
         }
@@ -171,7 +178,7 @@ public final class ProjectListView extends VBox {
         scrollPane = null;
     }
 
-    /** Звільняє ресурси всіх рядків і очищує контейнер, що зберігає їхні вузли. */
+    /** Звільняє ресурси рядків і від'єднує слухача локалізації. */
     public void dispose() {
         clear();
         localization.removeListener(localizationListener);
@@ -195,12 +202,32 @@ public final class ProjectListView extends VBox {
         return List.copyOf(projectRows);
     }
 
-    /** Звільняє підписки рядків на локалізацію та очищує список. */
+    /**
+     * Залишає вибраним лише рядок, на який востаннє натиснув користувач.
+     *
+     * @param row рядок, який потрібно вибрати.
+     */
+    private void selectRow(SavedProjectRowView row) {
+        if (!projectRows.contains(row)) {
+            return;
+        }
+        if (selectedRow != null && selectedRow != row) {
+            selectedRow.setSelected(false);
+        }
+        selectedRow = row;
+        selectedRow.setSelected(true);
+    }
+
+    /** Звільняє ресурси рядків і скидає вибір перед побудовою нового вмісту списку. */
     private void clearRows() {
+        if (selectedRow != null) {
+            selectedRow.setSelected(false);
+        }
         for (SavedProjectRowView row : projectRows) {
             row.dispose();
         }
         projectRows = List.of();
+        selectedRow = null;
         projectRowsBox.getChildren().clear();
         if (scrollPane != null) {
             scrollPane.setContent(null);

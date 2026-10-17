@@ -68,6 +68,19 @@
     -fx-background-color: #242a32;
 }
 
+/* A persistent selection remains stronger than hover alone; hover feedback still applies to other rows. */
+.saved-project-row.selected {
+    -fx-background-color: #3b4655;
+    -fx-border-color: #91a9c7;
+    -fx-border-width: 1.4;
+    -fx-effect: dropshadow(gaussian, rgba(145,169,199,0.20), 7, 0.15, 0, 0);
+}
+
+.saved-project-row.selected:hover {
+    -fx-background-color: #46546a;
+    -fx-border-color: #b5c9e2;
+}
+
 /* Icon controls have a compact square hit area while preserving the established button theme. */
 .saved-project-row .saved-project-rename-button,
 .saved-project-row .saved-project-delete-button {
