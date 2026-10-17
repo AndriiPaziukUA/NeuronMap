@@ -9,6 +9,7 @@ import com.example.neuronmap.service.ProjectCatalogService;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -128,7 +129,7 @@ public final class ProjectWorkflowCoordinator {
                     mapRepositoryFactory.createSavedProjectRepository(renamed)
             );
             currentProjectConsumer.accept(renamed);
-            projectCatalog.markLastOpened(renamed);
+            projectCatalog.markLastOpened(Optional.of(renamed));
             return renamed;
         } catch (RuntimeException exception) {
             try {

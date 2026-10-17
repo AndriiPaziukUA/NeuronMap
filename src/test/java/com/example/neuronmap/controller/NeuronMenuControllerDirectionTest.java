@@ -32,16 +32,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Перевіряє бізнес-дію зміни напрямку в контролері меню та узгодження залежних подань і збереження.
- */
+/** Перевіряє зміну напрямку нейрона, узгодження подань і збереження змін через контролер меню. */
 final class NeuronMenuControllerDirectionTest {
 
-    /**
-     * Запускає JavaFX toolkit перед створенням контролерів та графічних вузлів.
-     *
-     * @throws Exception якщо toolkit не запускається у відведений час.
-     */
+    /** Запускає JavaFX toolkit перед створенням контролерів і графічних вузлів. */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -55,59 +49,38 @@ final class NeuronMenuControllerDirectionTest {
         }
     }
 
-    /**
-     * Перевіряє, що успішна зміна напрямку оновлює всі залежні подання, зберігає стан і показує статус.
-     *
-     * @throws Exception якщо виконання перевірки в потоці JavaFX не завершується вчасно.
-     */
+    /** Перевіряє оновлення залежних подань, збереження історії та повідомлення після зміни напрямку. */
     @Test
     void togglingDirectionRefreshesViewsAndSavesChanges() throws Exception {
         runOnFxThread(() -> {
             Fixture fixture = createFixture();
-            NeuronPresentation presentation = fixture.neuronService().presentation(
-                    fixture.neuron().id()
-            );
+            NeuronPresentation presentation = fixture.neuronService()
+                    .presentation(fixture.neuron().id()).orElseThrow();
 
             assertFalse(presentation.directionReversed());
             fixture.controller().toggleDirection(fixture.neuron().id());
-
             assertTrue(presentation.directionReversed());
             assertEquals(1, fixture.visualRefreshes().get());
             assertEquals(1, fixture.connectionRefreshes().get());
             assertEquals(1, fixture.overlayRefreshes().get());
             assertEquals(1, fixture.saves().get());
-            assertEquals(
-                    fixture.localization().text("status.direction_changed"),
-                    fixture.status().get()
-            );
+            assertEquals(fixture.localization().text("status.direction_changed"), fixture.status().get());
             assertTrue(fixture.historyService().canUndo());
             assertTrue(fixture.historyService().undo());
-            assertFalse(
-                    fixture.neuronService()
-                            .presentation(fixture.neuron().id())
-                            .directionReversed()
-            );
+            assertFalse(fixture.neuronService().presentation(fixture.neuron().id())
+                    .orElseThrow().directionReversed());
             assertTrue(fixture.historyService().redo());
-            assertTrue(
-                    fixture.neuronService()
-                            .presentation(fixture.neuron().id())
-                            .directionReversed()
-            );
+            assertTrue(fixture.neuronService().presentation(fixture.neuron().id())
+                    .orElseThrow().directionReversed());
         });
     }
 
-    /**
-     * Перевіряє, що за відсутності нейрона команда не виконує оновлень, не зберігає дані та не змінює статус.
-     *
-     * @throws Exception якщо виконання перевірки в потоці JavaFX не завершується вчасно.
-     */
+    /** Перевіряє, що команда для відсутнього нейрона не викликає оновлення, збереження або показ статусу. */
     @Test
     void missingNeuronDoesNotTriggerRefreshSaveOrStatus() throws Exception {
         runOnFxThread(() -> {
             Fixture fixture = createFixture();
-
             fixture.controller().toggleDirection("missing-neuron");
-
             assertEquals(0, fixture.visualRefreshes().get());
             assertEquals(0, fixture.connectionRefreshes().get());
             assertEquals(0, fixture.overlayRefreshes().get());
@@ -116,11 +89,7 @@ final class NeuronMenuControllerDirectionTest {
         });
     }
 
-    /**
-     * Створює контролер із реальними службами та лічильниками зовнішніх дій для ізольованої перевірки.
-     *
-     * @return об'єкти тестового сценарію та спостережувані результати викликів.
-     */
+    /** Створює контролер з реальними службами та лічильниками зовнішніх дій. */
     private static Fixture createFixture() {
         LocalizationService localization = new LocalizationService(Locale.forLanguageTag("uk"));
         NeuronMapModel model = new NeuronMapModel();
@@ -128,7 +97,7 @@ final class NeuronMenuControllerDirectionTest {
         Neuron neuron = neuronService.create(NeuronType.EXCITATORY, 100.0, 80.0);
         HistoryService historyService = new HistoryService(model);
         historyService.initialize();
-        NeuronView neuronView = new NeuronView(neuronService.presentation(neuron.id()));
+        NeuronView neuronView = new NeuronView(neuronService.presentation(neuron.id()).orElseThrow());
         Map<String, NeuronView> neuronViews = new HashMap<>();
         neuronViews.put(neuron.id(), neuronView);
 
@@ -141,58 +110,21 @@ final class NeuronMenuControllerDirectionTest {
         AtomicReference<String> status = new AtomicReference<>();
 
         ConnectionController connections = new ConnectionController(
-                new ConnectionService(model),
-                state,
-                workspace,
-                neuronViews,
-                () -> { },
-                () -> { },
-                message -> { },
-                localization
-        );
+                new ConnectionService(model), state, workspace, neuronViews,
+                () -> { }, () -> { }, message -> { }, localization);
         SimulationStepPresenter stepPresenter = new SimulationStepPresenter(
-                workspace,
-                neuronViews,
-                () -> { },
-                new PulseAnimationController(workspace)
-        );
+                workspace, neuronViews, () -> { }, new PulseAnimationController(workspace));
         SimulationController simulation = new SimulationController(
-                neuronService,
-                new SimulationService(),
-                stepPresenter,
-                () -> { },
-                message -> { },
-                paused -> { },
-                active -> { },
-                100.0,
-                10.0,
-                1000.0,
-                localization
-        );
+                neuronService, new SimulationService(), stepPresenter,
+                () -> { }, message -> { }, paused -> { }, active -> { },
+                100.0, 10.0, 1000.0, localization);
         NeuronDeletionController deletion = new NeuronDeletionController(
-                neuronService,
-                state,
-                workspace,
-                () -> { },
-                () -> { },
-                () -> { },
-                message -> { },
-                localization
-        );
+                neuronService, state, workspace, () -> { }, () -> { }, () -> { },
+                message -> { }, localization);
         NeuronMenuView menuView = new NeuronMenuView(
-                new VBox(),
-                state::selectedNeuronForMenu,
-                null,
-                localization
-        );
+                new VBox(), state::selectedNeuronForMenu, null, localization);
         NeuronMenuController controller = new NeuronMenuController(
-                neuronService,
-                state,
-                workspace,
-                connections,
-                simulation,
-                deletion,
-                menuView,
+                neuronService, state, workspace, connections, simulation, deletion, menuView,
                 visualRefreshes::incrementAndGet,
                 connectionRefreshes::incrementAndGet,
                 overlayRefreshes::incrementAndGet,
@@ -201,29 +133,13 @@ final class NeuronMenuControllerDirectionTest {
                     historyService.commitSavedState();
                 },
                 status::set,
-                localization
-        );
+                localization);
 
-        return new Fixture(
-                controller,
-                neuronService,
-                historyService,
-                neuron,
-                visualRefreshes,
-                connectionRefreshes,
-                overlayRefreshes,
-                saves,
-                status,
-                localization
-        );
+        return new Fixture(controller, neuronService, historyService, neuron,
+                visualRefreshes, connectionRefreshes, overlayRefreshes, saves, status, localization);
     }
 
-    /**
-     * Виконує дію у потоці JavaFX і повертає винятки до тестового потоку.
-     *
-     * @param action перевірка, яку потрібно виконати.
-     * @throws Exception якщо дія не завершується у відведений час.
-     */
+    /** Виконує дію у потоці JavaFX і передає винятки до тестового потоку. */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];
@@ -244,20 +160,7 @@ final class NeuronMenuControllerDirectionTest {
         }
     }
 
-    /**
-     * Містить створені залежності та лічильники, що дозволяють перевірити побічні ефекти зміни напрямку.
-     *
-     * @param controller контролер меню, для якого виконується команда.
-     * @param neuronService служба й модель, через яку можна перевірити змінений напрямок.
-     * @param historyService історія, що перевіряє скасування й повторення зміни напрямку.
-     * @param neuron нейрон, над яким виконується дія.
-     * @param visualRefreshes кількість оновлень подань нейронів.
-     * @param connectionRefreshes кількість оновлень зв'язків.
-     * @param overlayRefreshes кількість оновлень накладок.
-     * @param saves кількість запитів на збереження.
-     * @param status останнє передане повідомлення статусу.
-     * @param localization служба локалізації очікуваного повідомлення.
-     */
+    /** Зберігає залежності тестового сценарію та спостережувані побічні ефекти. */
     private record Fixture(
             NeuronMenuController controller,
             NeuronService neuronService,

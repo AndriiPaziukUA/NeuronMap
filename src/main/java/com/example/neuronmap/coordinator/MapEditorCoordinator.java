@@ -34,6 +34,7 @@ import javafx.scene.input.MouseEvent;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Узгоджує сценарії редактора, що охоплюють кілька підсистем, і керує життєвим циклом його сцени.
@@ -357,9 +358,7 @@ public final class MapEditorCoordinator {
         cameraController.apply();
     }
 
-    /**
-     * Зупиняє симуляцію, знімає обробники подій, закриває сховище та звільняє ресурси редактора.
-     */
+    /** Зупиняє симуляцію, знімає обробники подій, закриває сховище та звільняє ресурси редактора. */
     public void shutdown() {
         keyboardController.dispose();
         projectDirectoryWatcher.close();
@@ -414,7 +413,7 @@ public final class MapEditorCoordinator {
     /** Оновлює опис активного проєкту після збереження його параметрів швидкості. */
     private void refreshCurrentProjectAfterSpeedChange() {
         currentProject = projectCatalog.descriptorForDatabasePath(mapService.databasePath());
-        projectCatalog.markLastOpened(currentProject);
+        projectCatalog.markLastOpened(Optional.ofNullable(currentProject));
     }
 
     /**
@@ -455,9 +454,7 @@ public final class MapEditorCoordinator {
         presentation.refreshNeurons();
     }
 
-    /**
-     * Зберігає карту, стан камери, метадані активного проєкту та історію змін.
-     */
+    /** Зберігає карту, стан камери, метадані активного проєкту та історію змін. */
     private void saveNow() {
         currentProject = editorSaveCoordinator.save(
                 state,

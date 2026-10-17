@@ -222,7 +222,10 @@ class EditorProjectSessionCoordinatorTest {
                 state,
                 activeProject::set,
                 value -> speed[0] = value,
-                lastOpenedProject::set,
+                lastOpenedProjectState -> lastOpenedProjectState.ifPresentOrElse(
+                        lastOpenedProject::set,
+                        () -> lastOpenedProject.set(null)
+                ),
                 5.0,
                 500.0,
                 50.0,

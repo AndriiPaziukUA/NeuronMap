@@ -9,13 +9,15 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє керування каталогом проєктів, зокрема унікальність назв і операції над метаданими проєктів.
+ * Перевіряє каталог проєктів, зокрема унікальність назв і явне представлення відсутнього останнього проєкту.
  */
 final class ProjectCatalogServiceTest {
 
@@ -68,9 +70,9 @@ final class ProjectCatalogServiceTest {
         Path root = tempDir.resolve("NeuronMap");
         ProjectCatalogService catalog = catalog(root);
         Files.createDirectories(root.resolve("Project"));
-        Files.writeString(root.resolve("Project/project.db"), "1");
+        Files.writeString(root.resolve("Project").resolve("project.db"), "1");
         Files.createDirectories(root.resolve("Project 1"));
-        Files.writeString(root.resolve("Project 1/project.db"), "2");
+        Files.writeString(root.resolve("Project 1").resolve("project.db"), "2");
 
         ProjectDescriptor next = catalog.createTransientProject("Project");
 
@@ -151,7 +153,7 @@ final class ProjectCatalogServiceTest {
         assertEquals("Newer", catalog.listProjects().getFirst().name());
     }
 
-    /** Перевіряє збереження та повторне читання назви останнього відкритого проєкту. */
+    /** Перевіряє збереження та повторне читання останнього відкритого проєкту як Optional. */
     @Test
     void lastOpenedProjectIsStoredOutsideProjectFiles(@TempDir Path tempDir)
             throws Exception {
@@ -165,10 +167,25 @@ final class ProjectCatalogServiceTest {
         Files.writeString(database, "db");
         ProjectDescriptor project = catalog.listProjects().getFirst();
 
-        catalog.markLastOpened(project);
+        catalog.markLastOpened(Optional.of(project));
 
         ProjectCatalogService reloaded = catalog(root, settings);
-        assertEquals("Experiment", reloaded.lastOpenedProject().name());
+        assertEquals("Experiment", reloaded.lastOpenedProject().orElseThrow().name());
+    }
+
+    /** Перевіряє, що невстановлений або застарілий вибір представлено порожнім Optional. */
+    @Test
+    void missingOrStaleLastOpenedProjectReturnsEmptyOptional(@TempDir Path tempDir)
+            throws Exception {
+        Path root = tempDir.resolve("NeuronMap");
+        GlobalSettingsStore settings = new GlobalSettingsStore(root.resolve("settings.properties"));
+        ProjectCatalogService catalog = catalog(root, settings);
+        settings.save("last_project_name", "Missing project");
+        assertTrue(catalog.lastOpenedProject().isEmpty());
+
+        catalog.markLastOpened(Optional.empty());
+        assertTrue(catalog.lastOpenedProject().isEmpty());
+        assertThrows(NullPointerException.class, () -> catalog.markLastOpened(null));
     }
 
     /**

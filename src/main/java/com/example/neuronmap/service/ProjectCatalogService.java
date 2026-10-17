@@ -6,10 +6,10 @@ import com.example.neuronmap.project.ProjectDescriptor;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
-/**
- * Керує правилами каталогу проєктів, не виконуючи файлових операцій безпосередньо.
- */
+/** Керує правилами каталогу проєктів, не виконуючи файлових операцій безпосередньо. */
 public final class ProjectCatalogService {
 
     private final ProjectCatalogRepository repository;
@@ -18,18 +18,16 @@ public final class ProjectCatalogService {
      * Створює службу каталогу з переданим репозиторієм.
      *
      * @param repository репозиторій для доступу до збережених проєктів і метаданих каталогу.
+     * @throws NullPointerException якщо репозиторій не задано.
      */
     public ProjectCatalogService(ProjectCatalogRepository repository) {
-        if (repository == null) {
-            throw new IllegalArgumentException("repository must not be null");
-        }
-        this.repository = repository;
+        this.repository = Objects.requireNonNull(repository, "repository");
     }
 
     /**
      * Повертає збережені проєкти, упорядковані за часом зміни та назвою.
      *
-     * @return незмінний список доступних збережених проєктів.
+     * @return список доступних збережених проєктів.
      */
     public List<ProjectDescriptor> listProjects() {
         return repository.listSavedProjects().stream()
@@ -67,31 +65,26 @@ public final class ProjectCatalogService {
      * @param project опис проєкту, який потрібно перейменувати.
      * @param requestedName запитана нова назва проєкту.
      * @return опис проєкту після перейменування або початковий опис, якщо назва не змінилася.
+     * @throws NullPointerException якщо опис проєкту не задано.
      */
     public ProjectDescriptor rename(ProjectDescriptor project, String requestedName) {
-        if (project == null) {
-            throw new IllegalArgumentException("project must not be null");
-        }
-
+        Objects.requireNonNull(project, "project");
         String normalizedName = normalizeName(requestedName);
         if (project.name().equalsIgnoreCase(normalizedName)) {
             return project;
         }
-
         String uniqueName = findAvailableName(normalizedName, project.id());
         return repository.renameProject(project, uniqueName);
     }
 
     /**
-     * Видаляє проєкт і очищує його назву з налаштування останнього відкритого проєкту, якщо потрібно.
+     * Видаляє проєкт і очищує збережену назву останнього відкритого проєкту, якщо вона збігається.
      *
      * @param project опис проєкту, який потрібно видалити.
+     * @throws NullPointerException якщо опис проєкту не задано.
      */
     public void delete(ProjectDescriptor project) {
-        if (project == null) {
-            return;
-        }
-
+        Objects.requireNonNull(project, "project");
         repository.deleteProjectFiles(project);
         String lastName = repository.loadLastOpenedProjectName();
         if (lastName != null && project.name().equalsIgnoreCase(lastName)) {
@@ -100,28 +93,27 @@ public final class ProjectCatalogService {
     }
 
     /**
-     * Зберігає назву проєкту як останнього відкритого.
+     * Зберігає опис проєкту як останній відкритий або очищує це налаштування для порожнього Optional.
      *
-     * @param project опис проєкту або {@code null}, щоб очистити значення.
+     * @param project опис проєкту або порожній Optional, якщо останній відкритий проєкт потрібно очистити.
+     * @throws NullPointerException якщо замість Optional передано {@code null}.
      */
-    public void markLastOpened(ProjectDescriptor project) {
-        repository.saveLastOpenedProjectName(project == null ? null : project.name());
+    public void markLastOpened(Optional<ProjectDescriptor> project) {
+        Objects.requireNonNull(project, "project");
+        repository.saveLastOpenedProjectName(project.map(ProjectDescriptor::name).orElse(null));
     }
 
     /**
-     * Повертає опис останнього відкритого проєкту, якщо він досі доступний.
+     * Повертає опис останнього відкритого проєкту, якщо його досі можна знайти в каталозі.
      *
-     * @return опис останнього відкритого проєкту або {@code null}, якщо такого проєкту немає.
+     * @return знайдений проєкт або порожній Optional, якщо збереженого вибору немає чи він застарів.
      */
-    public ProjectDescriptor lastOpenedProject() {
-        String lastName = repository.loadLastOpenedProjectName();
-        if (lastName == null || lastName.isBlank()) {
-            return null;
-        }
-        return listProjects().stream()
-                .filter(project -> lastName.equalsIgnoreCase(project.name()))
-                .findFirst()
-                .orElse(null);
+    public Optional<ProjectDescriptor> lastOpenedProject() {
+        return Optional.ofNullable(repository.loadLastOpenedProjectName())
+                .filter(lastName -> !lastName.isBlank())
+                .flatMap(lastName -> listProjects().stream()
+                        .filter(project -> lastName.equalsIgnoreCase(project.name()))
+                        .findFirst());
     }
 
     /**
@@ -156,7 +148,6 @@ public final class ProjectCatalogService {
                 .filter(project -> excludedProjectId == null || !excludedProjectId.equals(project.id()))
                 .map(ProjectDescriptor::name)
                 .toList();
-
         if (!containsIgnoreCase(existingNames, normalized)) {
             return normalized;
         }
@@ -191,7 +182,6 @@ public final class ProjectCatalogService {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("project name must not be blank");
         }
-
         String normalized = name.trim()
                 .replaceAll("[<>:\"/\\\\|?*]", "_")
                 .replaceAll("[. ]+$", "");

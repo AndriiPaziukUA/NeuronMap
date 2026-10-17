@@ -63,8 +63,10 @@ final class NeuronViewDirectionRefreshTest {
                     100.0,
                     80.0
             );
-            NeuronPresentation presentation =
-                    service.presentation(neuron.id());
+            NeuronPresentation presentation = service.presentation(neuron.id())
+                    .orElseThrow(() -> new AssertionError(
+                            "Подання щойно створеного нейрона має існувати."
+                    ));
             NeuronView view = new NeuronView(presentation);
             Circle inputPort = (Circle) view.getChildren().get(3);
 

@@ -8,6 +8,7 @@ import com.example.neuronmap.model.NeuronType;
 
 import java.util.Collection;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Надає операції над нейронами: створення, пошук, видалення, переміщення, обертання,
@@ -49,26 +50,26 @@ public final class NeuronService {
      * Знаходить нейрон за його ідентифікатором.
      *
      * @param neuronId ідентифікатор нейрона.
-     * @return знайдений нейрон або {@code null}, якщо ідентифікатор некоректний чи нейрона немає.
+     * @return знайдений нейрон або порожній результат, якщо ідентифікатор некоректний чи нейрона немає.
      */
-    public Neuron find(String neuronId) {
+    public Optional<Neuron> find(String neuronId) {
         if (neuronId == null || neuronId.isBlank()) {
-            return null;
+            return Optional.empty();
         }
-        return model.neuron(neuronId);
+        return Optional.ofNullable(model.neuron(neuronId));
     }
 
     /**
      * Повертає візуальне подання нейрона за його ідентифікатором.
      *
      * @param neuronId ідентифікатор нейрона.
-     * @return подання нейрона або {@code null}, якщо ідентифікатор некоректний чи нейрон відсутній.
+     * @return подання нейрона або порожній результат, якщо ідентифікатор некоректний чи нейрон відсутній.
      */
-    public NeuronPresentation presentation(String neuronId) {
+    public Optional<NeuronPresentation> presentation(String neuronId) {
         if (neuronId == null || neuronId.isBlank()) {
-            return null;
+            return Optional.empty();
         }
-        return model.presentation(neuronId);
+        return Optional.ofNullable(model.presentation(neuronId));
     }
 
     /**
@@ -87,13 +88,13 @@ public final class NeuronService {
      * Видаляє нейрон і пов'язані з ним дані.
      *
      * @param neuronId ідентифікатор нейрона.
-     * @return видалений нейрон або {@code null}, якщо ідентифікатор некоректний чи нейрона немає.
+     * @return видалений нейрон або порожній результат, якщо ідентифікатор некоректний чи нейрона немає.
      */
-    public Neuron remove(String neuronId) {
+    public Optional<Neuron> remove(String neuronId) {
         if (neuronId == null || neuronId.isBlank()) {
-            return null;
+            return Optional.empty();
         }
-        return model.removeNeuron(neuronId);
+        return Optional.ofNullable(model.removeNeuron(neuronId));
     }
 
     /**
@@ -103,16 +104,14 @@ public final class NeuronService {
      * @return {@code true}, якщо нейрон знайдено й тип змінено; інакше {@code false}.
      */
     public boolean toggleType(String neuronId) {
-        Neuron neuron = find(neuronId);
-        if (neuron == null) {
-            return false;
-        }
-        neuron.setType(
-                neuron.type() == NeuronType.EXCITATORY
-                        ? NeuronType.INHIBITORY
-                        : NeuronType.EXCITATORY
-        );
-        return true;
+        return find(neuronId).map(neuron -> {
+            neuron.setType(
+                    neuron.type() == NeuronType.EXCITATORY
+                            ? NeuronType.INHIBITORY
+                            : NeuronType.EXCITATORY
+            );
+            return true;
+        }).orElse(false);
     }
 
     /**
@@ -122,12 +121,10 @@ public final class NeuronService {
      * @return {@code true}, якщо подання знайдено й напрямок змінено; інакше {@code false}.
      */
     public boolean toggleDirection(String neuronId) {
-        NeuronPresentation presentation = presentation(neuronId);
-        if (presentation == null) {
-            return false;
-        }
-        presentation.toggleDirection();
-        return true;
+        return presentation(neuronId).map(presentation -> {
+            presentation.toggleDirection();
+            return true;
+        }).orElse(false);
     }
 
     /**
@@ -139,12 +136,10 @@ public final class NeuronService {
      * @return {@code true}, якщо подання знайдено й значення застосовано; інакше {@code false}.
      */
     public boolean setDirectionReversed(String neuronId, boolean directionReversed) {
-        NeuronPresentation presentation = presentation(neuronId);
-        if (presentation == null) {
-            return false;
-        }
-        presentation.setDirectionReversed(directionReversed);
-        return true;
+        return presentation(neuronId).map(presentation -> {
+            presentation.setDirectionReversed(directionReversed);
+            return true;
+        }).orElse(false);
     }
 
     /**
@@ -157,12 +152,10 @@ public final class NeuronService {
      */
     public boolean updateSettings(String neuronId, NeuronParameters parameters) {
         Objects.requireNonNull(parameters, "parameters");
-        Neuron neuron = find(neuronId);
-        if (neuron == null) {
-            return false;
-        }
-        neuron.setParameters(parameters);
-        return true;
+        return find(neuronId).map(neuron -> {
+            neuron.setParameters(parameters);
+            return true;
+        }).orElse(false);
     }
 
     /**
@@ -176,12 +169,8 @@ public final class NeuronService {
      * @throws IllegalArgumentException якщо будь-яке з переданих значень не є додатним.
      */
     public boolean updateSettings(String neuronId, int signalStrength, int activationThreshold) {
-        Neuron neuron = find(neuronId);
-        if (neuron == null) {
-            return false;
-        }
-        neuron.setParameters(new NeuronParameters(signalStrength, activationThreshold));
-        return true;
+        NeuronParameters parameters = new NeuronParameters(signalStrength, activationThreshold);
+        return updateSettings(neuronId, parameters);
     }
 
     /**
@@ -193,12 +182,10 @@ public final class NeuronService {
      * @return {@code true}, якщо подання знайдено й переміщено; інакше {@code false}.
      */
     public boolean move(String neuronId, double dx, double dy) {
-        NeuronPresentation presentation = presentation(neuronId);
-        if (presentation == null) {
-            return false;
-        }
-        presentation.moveBy(dx, dy);
-        return true;
+        return presentation(neuronId).map(presentation -> {
+            presentation.moveBy(dx, dy);
+            return true;
+        }).orElse(false);
     }
 
     /**
@@ -209,11 +196,9 @@ public final class NeuronService {
      * @return {@code true}, якщо подання знайдено й кут установлено; інакше {@code false}.
      */
     public boolean setRotation(String neuronId, double degrees) {
-        NeuronPresentation presentation = presentation(neuronId);
-        if (presentation == null) {
-            return false;
-        }
-        presentation.setRotationDegrees(degrees);
-        return true;
+        return presentation(neuronId).map(presentation -> {
+            presentation.setRotationDegrees(degrees);
+            return true;
+        }).orElse(false);
     }
 }

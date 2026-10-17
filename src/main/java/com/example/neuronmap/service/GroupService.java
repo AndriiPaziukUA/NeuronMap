@@ -1,11 +1,12 @@
 package com.example.neuronmap.service;
 
 import com.example.neuronmap.model.NeuronGroup;
-import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.model.NeuronMapModel;
+import com.example.neuronmap.model.NeuronPresentation;
 
 import java.util.LinkedHashSet;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -16,53 +17,51 @@ public final class GroupService {
     private final NeuronMapModel model;
 
     /**
-     * Створює екземпляр GroupService та зберігає передані залежності, потрібні для його роботи.
+     * Створює службу груп для заданої моделі карти.
      *
      * @param model модель карти нейронів.
+     * @throws NullPointerException якщо модель не задано.
      */
     public GroupService(NeuronMapModel model) {
         this.model = Objects.requireNonNull(model, "model");
     }
 
     /**
-     * Створює  з переданих параметрів.
+     * Створює групу з переданих ідентифікаторів нейронів.
      *
      * @param memberIds ідентифікатори нейронів, які мають увійти до групи.
+     * @throws NullPointerException якщо набір ідентифікаторів не задано.
      */
     public void create(Set<String> memberIds) {
-        if (memberIds == null) {
-            return;
-        }
-        model.createGroup(new LinkedHashSet<>(memberIds));
+        model.createGroup(new LinkedHashSet<>(Objects.requireNonNull(memberIds, "memberIds")));
     }
 
     /**
-     * Вилучає вказані нейрони з групи та видаляє групу, якщо після цього вона спорожніла.
+     * Вилучає вказаних нейронів із груп, видаляючи групи, у яких залишилося менше двох учасників.
      *
-     * @param memberIds ідентифікатори нейронів, які мають увійти до групи.
+     * @param memberIds ідентифікатори нейронів, які потрібно вилучити з груп.
+     * @throws NullPointerException якщо набір ідентифікаторів не задано.
      */
     public void ungroup(Set<String> memberIds) {
-        if (memberIds == null) {
-            return;
-        }
-        model.ungroup(new LinkedHashSet<>(memberIds));
+        model.ungroup(new LinkedHashSet<>(Objects.requireNonNull(memberIds, "memberIds")));
     }
 
     /**
-     * Переміщує всі нейрони групи на однакове зміщення, якщо нейрон належить групі.
+     * Переміщує всі нейрони групи на однакове зміщення, якщо вказаний нейрон належить групі.
      *
-     * @param neuronId ідентифікатор нейрона.
-     * @param dx значення «dx», яке використовується в цьому методі.
-     * @param dy значення «dy», яке використовується в цьому методі.
+     * @param neuronId ідентифікатор нейрона, групу якого потрібно перемістити.
+     * @param dx горизонтальна складова зміщення.
+     * @param dy вертикальна складова зміщення.
+     * @return {@code true}, якщо позицію принаймні одного учасника змінено; інакше {@code false}.
      */
     public boolean moveContaining(String neuronId, double dx, double dy) {
-        NeuronGroup group = containing(neuronId);
-        if (group == null) {
+        Optional<NeuronGroup> group = containing(neuronId);
+        if (group.isEmpty()) {
             return false;
         }
 
         boolean changed = false;
-        for (String memberId : group.memberIds()) {
+        for (String memberId : group.orElseThrow().memberIds()) {
             NeuronPresentation presentation = model.presentation(memberId);
             if (presentation == null) {
                 continue;
@@ -77,11 +76,12 @@ public final class GroupService {
      * Знаходить групу, яка містить указаний нейрон.
      *
      * @param neuronId ідентифікатор нейрона.
+     * @return група, що містить нейрон, або порожній результат для некоректного ідентифікатора чи відсутньої групи.
      */
-    public NeuronGroup containing(String neuronId) {
+    public Optional<NeuronGroup> containing(String neuronId) {
         if (neuronId == null || neuronId.isBlank()) {
-            return null;
+            return Optional.empty();
         }
-        return model.groupContaining(neuronId);
+        return Optional.ofNullable(model.groupContaining(neuronId));
     }
 }

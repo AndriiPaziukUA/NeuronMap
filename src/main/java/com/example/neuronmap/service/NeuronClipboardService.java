@@ -28,20 +28,14 @@ public final class NeuronClipboardService {
      *
      * @param neuronService служба операцій над нейронами.
      * @param groupService служба операцій над групами нейронів.
-     * @throws IllegalArgumentException якщо одну з обов'язкових служб не задано.
+     * @throws NullPointerException якщо одну з обов'язкових служб не задано.
      */
     public NeuronClipboardService(
             NeuronService neuronService,
             GroupService groupService
     ) {
-        if (neuronService == null) {
-            throw new IllegalArgumentException("neuronService must not be null");
-        }
-        if (groupService == null) {
-            throw new IllegalArgumentException("groupService must not be null");
-        }
-        this.neuronService = neuronService;
-        this.groupService = groupService;
+        this.neuronService = Objects.requireNonNull(neuronService, "neuronService");
+        this.groupService = Objects.requireNonNull(groupService, "groupService");
     }
 
     /**
@@ -74,9 +68,11 @@ public final class NeuronClipboardService {
      *
      * @param selectedNeuronIds ідентифікатори вибраних нейронів.
      * @return {@code true}, якщо знайдено й скопійовано принаймні один нейрон.
+     * @throws NullPointerException якщо набір ідентифікаторів не задано.
      */
     public boolean copy(Set<String> selectedNeuronIds) {
-        if (selectedNeuronIds == null || selectedNeuronIds.isEmpty()) {
+        Objects.requireNonNull(selectedNeuronIds, "selectedNeuronIds");
+        if (selectedNeuronIds.isEmpty()) {
             clear();
             return false;
         }
@@ -87,9 +83,9 @@ public final class NeuronClipboardService {
 
         if (selectedIds.size() == 1) {
             String neuronId = selectedIds.iterator().next();
-            NeuronGroup group = groupService.containing(neuronId);
-            if (group != null) {
-                idsToCopy = new LinkedHashSet<>(group.memberIds());
+            Optional<NeuronGroup> group = groupService.containing(neuronId);
+            if (group.isPresent()) {
+                idsToCopy = new LinkedHashSet<>(group.orElseThrow().memberIds());
                 grouped = true;
             } else {
                 idsToCopy = new LinkedHashSet<>(selectedIds);
@@ -102,13 +98,10 @@ public final class NeuronClipboardService {
         }
 
         List<NeuronSnapshotSource> sources = idsToCopy.stream()
-                .map(neuronService::find)
-                .filter(Objects::nonNull)
-                .map(neuron -> new NeuronSnapshotSource(
-                        neuron,
-                        neuronService.presentation(neuron.id())
-                ))
-                .filter(source -> source.presentation() != null)
+                .flatMap(id -> neuronService.find(id).stream())
+                .flatMap(neuron -> neuronService.presentation(neuron.id())
+                        .map(presentation -> new NeuronSnapshotSource(neuron, presentation))
+                        .stream())
                 .toList();
 
         if (sources.isEmpty()) {

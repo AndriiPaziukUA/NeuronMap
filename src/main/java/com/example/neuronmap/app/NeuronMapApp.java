@@ -1,20 +1,20 @@
 package com.example.neuronmap.app;
 
 import com.example.neuronmap.application.NeuronMapApplicationService;
-import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.config.AppConfig;
 import com.example.neuronmap.config.AppConfigLoader;
 import com.example.neuronmap.i18n.LanguagePreferenceStore;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.NeuronMapModel;
+import com.example.neuronmap.persistence.MapRepository;
+import com.example.neuronmap.persistence.MapRepositoryFactory;
 import com.example.neuronmap.persistence.project.FileSystemProjectCatalogRepository;
+import com.example.neuronmap.persistence.project.ProjectStorageDirectoryResolver;
 import com.example.neuronmap.persistence.settings.GlobalSettingsLanguagePreferenceStore;
 import com.example.neuronmap.persistence.settings.GlobalSettingsStore;
 import com.example.neuronmap.persistence.sqlite.DefaultMapRepositoryFactory;
-import com.example.neuronmap.persistence.MapRepository;
-import com.example.neuronmap.persistence.MapRepositoryFactory;
-import com.example.neuronmap.persistence.project.ProjectStorageDirectoryResolver;
 import com.example.neuronmap.persistence.window.WindowStateStore;
+import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.service.ProjectCatalogService;
 import javafx.application.Application;
 import javafx.scene.Scene;
@@ -104,10 +104,10 @@ public final class NeuronMapApp extends Application {
 
     /**
      * Визначає проєкт, який редактор має відкрити під час запуску.
-     * Спочатку повертає останній відкритий доступний проєкт, потім — перший проєкт із каталогу,
+     * Спочатку вибирає останній відкритий доступний проєкт, потім — перший у каталозі,
      * а якщо збережених проєктів немає, створює новий тимчасовий проєкт.
      *
-     * @param projectCatalog служба, що надає доступ до каталогу проєктів.
+     * @param projectCatalog служба доступу до каталогу проєктів.
      * @param defaultProjectName локалізована типова назва нового проєкту.
      * @return останній відкритий проєкт, перший доступний збережений проєкт або новий тимчасовий проєкт.
      * @throws NullPointerException якщо службу каталогу не задано.
@@ -122,14 +122,8 @@ public final class NeuronMapApp extends Application {
             throw new IllegalArgumentException("defaultProjectName must not be blank");
         }
 
-        ProjectDescriptor lastOpenedProject = projectCatalog.lastOpenedProject();
-        if (lastOpenedProject != null) {
-            return lastOpenedProject;
-        }
-
-        return projectCatalog.listProjects()
-                .stream()
-                .findFirst()
+        return projectCatalog.lastOpenedProject()
+                .or(() -> projectCatalog.listProjects().stream().findFirst())
                 .orElseGet(() -> projectCatalog.createTransientProject(defaultProjectName));
     }
 

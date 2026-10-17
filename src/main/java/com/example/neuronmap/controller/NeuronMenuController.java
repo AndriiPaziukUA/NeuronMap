@@ -202,21 +202,18 @@ public final class NeuronMenuController {
      * @param neuronId ідентифікатор нейрона, налаштування якого потрібно змінити.
      */
     private void showNeuronSettings(String neuronId) {
-        var neuron = neuronService.find(neuronId);
-        if (neuron == null) {
-            return;
-        }
-
-        NeuronSettingsDialog.show(
-                workspace.node().getScene() == null
-                        ? null
-                        : workspace.node().getScene().getWindow(),
-                neuron,
-                localization
-        ).ifPresent(parameters -> {
-            neuronService.updateSettings(neuronId, parameters);
-            save.run();
-            status.accept(localization.text("neuron.settings.saved"));
-        });
+        neuronService.find(neuronId).ifPresent(neuron ->
+                NeuronSettingsDialog.show(
+                        workspace.node().getScene() == null
+                                ? null
+                                : workspace.node().getScene().getWindow(),
+                        neuron,
+                        localization
+                ).ifPresent(parameters -> {
+                    neuronService.updateSettings(neuronId, parameters);
+                    save.run();
+                    status.accept(localization.text("neuron.settings.saved"));
+                })
+        );
     }
 }

@@ -8,6 +8,7 @@ import com.example.neuronmap.service.MapService;
 import com.example.neuronmap.service.ProjectCatalogService;
 
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Координує збереження карти, стану камери, метаданих активного проєкту та історії змін редактора.
@@ -61,7 +62,7 @@ public final class EditorSaveCoordinator {
             currentProject = projectCatalog.descriptorForDatabasePath(
                     mapService.databasePath()
             );
-            projectCatalog.markLastOpened(currentProject);
+            projectCatalog.markLastOpened(Optional.of(currentProject));
         }
 
         if (historyInitialized) {

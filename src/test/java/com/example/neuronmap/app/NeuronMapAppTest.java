@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -39,7 +40,7 @@ final class NeuronMapAppTest {
         createSavedProject(storageDirectory, "Last opened");
         ProjectCatalogService projectCatalog = createProjectCatalog(storageDirectory);
         ProjectDescriptor savedProject = projectCatalog.listProjects().getFirst();
-        projectCatalog.markLastOpened(savedProject);
+        projectCatalog.markLastOpened(Optional.of(savedProject));
 
         ProjectDescriptor result = NeuronMapApp.resolveInitialProject(
                 projectCatalog,

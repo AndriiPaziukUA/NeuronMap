@@ -53,10 +53,7 @@ public final class NeuronDeletionController {
         this.state = Objects.requireNonNull(state, "state");
         this.workspace = Objects.requireNonNull(workspace, "workspace");
         this.hideMenu = Objects.requireNonNull(hideMenu, "hideMenu");
-        this.refreshPresentation = Objects.requireNonNull(
-                refreshPresentation,
-                "refreshPresentation"
-        );
+        this.refreshPresentation = Objects.requireNonNull(refreshPresentation, "refreshPresentation");
         this.save = Objects.requireNonNull(save, "save");
         this.status = Objects.requireNonNull(status, "status");
         this.localization = Objects.requireNonNull(localization, "localization");
@@ -68,8 +65,7 @@ public final class NeuronDeletionController {
      * @return {@code true}, якщо видалено принаймні один нейрон.
      */
     public boolean deleteSelectedNeurons() {
-        LinkedHashSet<String> selectedIds =
-                new LinkedHashSet<>(state.selectedNeuronIds());
+        LinkedHashSet<String> selectedIds = new LinkedHashSet<>(state.selectedNeuronIds());
 
         if (selectedIds.isEmpty()) {
             String menuId = state.selectedNeuronForMenu();
@@ -78,49 +74,48 @@ public final class NeuronDeletionController {
             }
         }
 
-        selectedIds.removeIf(id -> neuronService.find(id) == null);
+        selectedIds.removeIf(id -> neuronService.find(id).isEmpty());
         if (selectedIds.isEmpty()) {
             return false;
         }
 
-        deleteNeurons(selectedIds);
-        return true;
+        return deleteNeurons(selectedIds);
     }
 
     /**
      * Видаляє один нейрон за його ідентифікатором.
      *
      * @param neuronId ідентифікатор нейрона, який потрібно видалити.
+     * @return {@code true}, якщо нейрон існував і був видалений; інакше {@code false}.
      */
-    public void deleteNeuron(String neuronId) {
-        if (neuronId == null || neuronId.isBlank()) {
-            return;
+    public boolean deleteNeuron(String neuronId) {
+        if (neuronId == null || neuronId.isBlank() || neuronService.find(neuronId).isEmpty()) {
+            return false;
         }
-        deleteNeurons(Set.of(neuronId));
+        return deleteNeurons(Set.of(neuronId));
     }
 
     /**
      * Видаляє наявні нейрони через службу й один раз синхронізує подання після завершення операції.
      *
      * @param neuronIds ідентифікатори нейронів, які потрібно видалити.
+     * @return {@code true}, якщо видалено принаймні один нейрон; інакше {@code false}.
      */
-    private void deleteNeurons(Collection<String> neuronIds) {
+    private boolean deleteNeurons(Collection<String> neuronIds) {
         LinkedHashSet<String> ids = new LinkedHashSet<>(neuronIds);
         boolean changed = false;
-
         hideMenu.run();
         for (String neuronId : ids) {
-            changed |= neuronService.remove(neuronId) != null;
+            changed |= neuronService.remove(neuronId).isPresent();
         }
 
         if (!changed) {
-            return;
+            return false;
         }
 
         state.clearSelection();
         state.resetToIdle();
         workspace.node().setCursor(Cursor.DEFAULT);
-
         refreshPresentation.run();
         save.run();
         status.accept(
@@ -128,5 +123,6 @@ public final class NeuronDeletionController {
                         ? localization.text("status.delete_neuron")
                         : localization.text("status.delete_neurons")
         );
+        return true;
     }
 }

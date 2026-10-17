@@ -13,7 +13,9 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Window;
 
+import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 
 /**
  * Показує діалог редагування параметрів сигналу нейрона й перевіряє введені числа.
@@ -47,16 +49,16 @@ public final class NeuronSettingsDialog {
      * @param owner вікно, над яким показують діалог.
      * @param neuron нейрон, параметри якого редагують.
      * @param localization служба локалізації інтерфейсу.
-     * @return нові параметри, якщо користувач підтвердив зміни; порожній результат для відсутнього нейрона або скасування.
+     * @return нові параметри, якщо користувач підтвердив зміни; порожній результат у разі скасування.
+     * @throws NullPointerException якщо нейрон або службу локалізації не задано.
      */
     public static Optional<NeuronParameters> show(
             Window owner,
             Neuron neuron,
             LocalizationService localization
     ) {
-        if (neuron == null) {
-            return Optional.empty();
-        }
+        Objects.requireNonNull(neuron, "neuron");
+        Objects.requireNonNull(localization, "localization");
 
         Dialog<NeuronParameters> dialog = new Dialog<>();
         dialog.setTitle(localization.text("neuron.settings.title"));
@@ -88,8 +90,8 @@ public final class NeuronSettingsDialog {
 
         Node saveButton = dialog.getDialogPane().lookupButton(saveButtonType);
         Runnable validate = () -> saveButton.setDisable(
-                parsePositive(signalField.getText()) == null
-                        || parsePositive(thresholdField.getText()) == null
+                parsePositive(signalField.getText()).isEmpty()
+                        || parsePositive(thresholdField.getText()).isEmpty()
         );
         signalField.textProperty().addListener((obs, oldValue, newValue) -> validate.run());
         thresholdField.textProperty().addListener((obs, oldValue, newValue) -> validate.run());
@@ -99,31 +101,31 @@ public final class NeuronSettingsDialog {
             if (buttonType != saveButtonType) {
                 return null;
             }
-            Integer signalStrength = parsePositive(signalField.getText());
-            Integer activationThreshold = parsePositive(thresholdField.getText());
-            if (signalStrength == null || activationThreshold == null) {
+            OptionalInt signalStrength = parsePositive(signalField.getText());
+            OptionalInt activationThreshold = parsePositive(thresholdField.getText());
+            if (signalStrength.isEmpty() || activationThreshold.isEmpty()) {
                 return null;
             }
-            return new NeuronParameters(signalStrength, activationThreshold);
+            return new NeuronParameters(signalStrength.getAsInt(), activationThreshold.getAsInt());
         });
         return dialog.showAndWait();
     }
 
     /**
-     * Перетворює введений текст на додатне ціле число або повертає {@code null} для некоректного значення.
+     * Перетворює введений текст на додатне ціле число без використання {@code null} як маркера помилки.
      *
      * @param text текст, введений користувачем.
-     * @return додатне ціле число або {@code null}, якщо значення не можна прийняти.
+     * @return наявне значення, якщо текст містить додатне ціле число; інакше порожній результат.
      */
-    private static Integer parsePositive(String text) {
+    private static OptionalInt parsePositive(String text) {
         if (text == null || text.isBlank()) {
-            return null;
+            return OptionalInt.empty();
         }
         try {
             int value = Integer.parseInt(text.trim());
-            return value > 0 ? value : null;
+            return value > 0 ? OptionalInt.of(value) : OptionalInt.empty();
         } catch (NumberFormatException exception) {
-            return null;
+            return OptionalInt.empty();
         }
     }
 }

@@ -24,8 +24,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Перевіряє поведінку команди видалення без реєстрації дубльованих клавіатурних подій. */
@@ -54,9 +52,8 @@ final class NeuronDeletionControllerTest {
             fixture.state().toggleSelection(second.id());
 
             assertTrue(fixture.controller().deleteSelectedNeurons());
-
-            assertNull(fixture.neurons().find(first.id()));
-            assertNull(fixture.neurons().find(second.id()));
+            assertTrue(fixture.neurons().find(first.id()).isEmpty());
+            assertTrue(fixture.neurons().find(second.id()).isEmpty());
             assertTrue(fixture.state().selectedNeuronIds().isEmpty());
             assertEquals(1, fixture.hideMenuCalls().get());
             assertEquals(1, fixture.refreshCalls().get());
@@ -65,7 +62,7 @@ final class NeuronDeletionControllerTest {
         });
     }
 
-    /** Перевіряє, що за відсутності вибору видаляється нейрон, для якого відкрите контекстне меню. */
+    /** Перевіряє видалення нейрона, на який посилається контекстне меню, коли вибір порожній. */
     @Test
     void deletesNeuronReferencedByContextMenuWhenSelectionIsEmpty() throws Exception {
         runOnFxThread(() -> {
@@ -74,14 +71,13 @@ final class NeuronDeletionControllerTest {
             fixture.state().setSelectedNeuronForMenu(neuron.id());
 
             assertTrue(fixture.controller().deleteSelectedNeurons());
-
-            assertNull(fixture.neurons().find(neuron.id()));
+            assertTrue(fixture.neurons().find(neuron.id()).isEmpty());
             assertEquals(1, fixture.refreshCalls().get());
             assertEquals(1, fixture.saveCalls().get());
         });
     }
 
-    /** Перевіряє, що команда без вибраних або наявних нейронів нічого не видаляє й не зберігає. */
+    /** Перевіряє, що відсутність вибору не запускає видалення, синхронізацію або збереження. */
     @Test
     void doesNothingWhenNothingIsSelected() throws Exception {
         runOnFxThread(() -> {
@@ -89,8 +85,7 @@ final class NeuronDeletionControllerTest {
             Neuron neuron = fixture.neurons().create(NeuronType.EXCITATORY, 10.0, 20.0);
 
             assertFalse(fixture.controller().deleteSelectedNeurons());
-
-            assertNotNull(fixture.neurons().find(neuron.id()));
+            assertTrue(fixture.neurons().find(neuron.id()).isPresent());
             assertEquals(0, fixture.hideMenuCalls().get());
             assertEquals(0, fixture.refreshCalls().get());
             assertEquals(0, fixture.saveCalls().get());
@@ -98,7 +93,7 @@ final class NeuronDeletionControllerTest {
         });
     }
 
-    /** Перевіряє наскрізне видалення вибраного нейрона через єдиний маршрутизатор гарячих клавіш. */
+    /** Перевіряє наскрізне видалення вибраного нейрона через центральний маршрутизатор гарячих клавіш. */
     @Test
     void deletesSelectedNeuronThroughCentralKeyboardRouter() throws Exception {
         runOnFxThread(() -> {
@@ -114,21 +109,11 @@ final class NeuronDeletionControllerTest {
             );
             keyboardController.install(scene);
 
-            Event.fireEvent(
-                    fixture.workspace().node(),
-                    new KeyEvent(
-                            KeyEvent.KEY_PRESSED,
-                            "",
-                            "",
-                            KeyCode.DELETE,
-                            false,
-                            false,
-                            false,
-                            false
-                    )
-            );
+            Event.fireEvent(fixture.workspace().node(), new KeyEvent(
+                    KeyEvent.KEY_PRESSED, "", "", KeyCode.DELETE,
+                    false, false, false, false));
 
-            assertNull(fixture.neurons().find(neuron.id()));
+            assertTrue(fixture.neurons().find(neuron.id()).isEmpty());
             assertEquals(1, fixture.refreshCalls().get());
             assertEquals(1, fixture.saveCalls().get());
             keyboardController.dispose();
@@ -144,24 +129,36 @@ final class NeuronDeletionControllerTest {
             fixture.state().selectOnly(neuron.id());
             Scene scene = new Scene(fixture.workspace().node());
 
-            Event.fireEvent(
-                    fixture.workspace().node(),
-                    new KeyEvent(
-                            KeyEvent.KEY_PRESSED,
-                            "",
-                            "",
-                            KeyCode.DELETE,
-                            false,
-                            false,
-                            false,
-                            false
-                    )
-            );
+            Event.fireEvent(fixture.workspace().node(), new KeyEvent(
+                    KeyEvent.KEY_PRESSED, "", "", KeyCode.DELETE,
+                    false, false, false, false));
 
-            assertNotNull(fixture.neurons().find(neuron.id()));
+            assertTrue(fixture.neurons().find(neuron.id()).isPresent());
             assertEquals(0, fixture.refreshCalls().get());
             assertEquals(0, fixture.saveCalls().get());
             assertEquals(fixture.workspace().node(), scene.getRoot());
+        });
+    }
+
+    /** Перевіряє, що результат видалення повідомляє про фактичну зміну, а відсутній нейрон не спричиняє побічних дій. */
+    @Test
+    void deleteNeuronReportsWhetherAnExistingNeuronWasRemoved() throws Exception {
+        runOnFxThread(() -> {
+            Fixture fixture = createFixture();
+            Neuron neuron = fixture.neurons().create(NeuronType.EXCITATORY, 10.0, 20.0);
+
+            assertFalse(fixture.controller().deleteNeuron(null));
+            assertFalse(fixture.controller().deleteNeuron("missing-neuron"));
+            assertTrue(fixture.neurons().find(neuron.id()).isPresent());
+            assertEquals(0, fixture.hideMenuCalls().get());
+            assertEquals(0, fixture.refreshCalls().get());
+            assertEquals(0, fixture.saveCalls().get());
+
+            assertTrue(fixture.controller().deleteNeuron(neuron.id()));
+            assertTrue(fixture.neurons().find(neuron.id()).isEmpty());
+            assertEquals(1, fixture.hideMenuCalls().get());
+            assertEquals(1, fixture.refreshCalls().get());
+            assertEquals(1, fixture.saveCalls().get());
         });
     }
 
@@ -176,25 +173,11 @@ final class NeuronDeletionControllerTest {
         AtomicInteger saveCalls = new AtomicInteger();
         List<String> statusMessages = new ArrayList<>();
         NeuronDeletionController controller = new NeuronDeletionController(
-                neuronService,
-                state,
-                workspace,
-                hideMenuCalls::incrementAndGet,
-                refreshCalls::incrementAndGet,
-                saveCalls::incrementAndGet,
-                statusMessages::add,
-                new LocalizationService(Locale.ENGLISH)
-        );
-        return new Fixture(
-                controller,
-                neuronService,
-                state,
-                workspace,
-                hideMenuCalls,
-                refreshCalls,
-                saveCalls,
-                statusMessages
-        );
+                neuronService, state, workspace, hideMenuCalls::incrementAndGet,
+                refreshCalls::incrementAndGet, saveCalls::incrementAndGet,
+                statusMessages::add, new LocalizationService(Locale.ENGLISH));
+        return new Fixture(controller, neuronService, state, workspace,
+                hideMenuCalls, refreshCalls, saveCalls, statusMessages);
     }
 
     /** Виконує дію в потоці JavaFX та передає помилку виконання до JUnit-потоку. */
@@ -216,7 +199,7 @@ final class NeuronDeletionControllerTest {
         }
     }
 
-    /** Містить стан і лічильники для ізольованої перевірки команди видалення. */
+    /** Містить стан та лічильники для ізольованої перевірки команди видалення. */
     private record Fixture(
             NeuronDeletionController controller,
             NeuronService neurons,
@@ -226,6 +209,5 @@ final class NeuronDeletionControllerTest {
             AtomicInteger refreshCalls,
             AtomicInteger saveCalls,
             List<String> statusMessages
-    ) {
-    }
+    ) { }
 }

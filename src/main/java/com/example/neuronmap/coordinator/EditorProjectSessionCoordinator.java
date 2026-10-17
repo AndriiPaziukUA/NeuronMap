@@ -9,6 +9,7 @@ import com.example.neuronmap.service.MapService;
 import com.example.neuronmap.simulation.SimulationSpeed;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 
@@ -23,7 +24,7 @@ public final class EditorProjectSessionCoordinator {
     private final EditorState state;
     private final Consumer<ProjectDescriptor> currentProjectConsumer;
     private final DoubleConsumer simulationTickMillisConsumer;
-    private final Consumer<ProjectDescriptor> markLastOpened;
+    private final Consumer<Optional<ProjectDescriptor>> markLastOpened;
     private final double minSimulationTickMillis;
     private final double maxSimulationTickMillis;
     private final double defaultSimulationTickMillis;
@@ -38,11 +39,12 @@ public final class EditorProjectSessionCoordinator {
      * @param state змінний стан камери, вибору та режимів редактора.
      * @param currentProjectConsumer отримувач опису активного проєкту після переходу.
      * @param simulationTickMillisConsumer отримувач нової тривалості такту симуляції.
-     * @param markLastOpened дія оновлення останнього відкритого проєкту; приймає {@code null} для тимчасового проєкту.
+     * @param markLastOpened дія встановлення або очищення останнього відкритого проєкту; порожній Optional очищує значення.
      * @param minSimulationTickMillis мінімальна допустима тривалість такту.
      * @param maxSimulationTickMillis максимальна допустима тривалість такту.
      * @param defaultSimulationTickMillis типова тривалість такту для проєкту без коректного збереженого значення.
      * @param actions операції контролерів і подань, що супроводжують перехід між станами.
+     * @throws NullPointerException якщо обов'язкову залежність не задано.
      */
     public EditorProjectSessionCoordinator(
             MapService mapService,
@@ -50,7 +52,7 @@ public final class EditorProjectSessionCoordinator {
             EditorState state,
             Consumer<ProjectDescriptor> currentProjectConsumer,
             DoubleConsumer simulationTickMillisConsumer,
-            Consumer<ProjectDescriptor> markLastOpened,
+            Consumer<Optional<ProjectDescriptor>> markLastOpened,
             double minSimulationTickMillis,
             double maxSimulationTickMillis,
             double defaultSimulationTickMillis,
@@ -131,10 +133,9 @@ public final class EditorProjectSessionCoordinator {
                 loadExisting,
                 defaultSimulationTickMillis
         );
-        double fallbackSpeed = defaultSimulationTickMillis;
         double speed = resolveInitialSimulationTickMillis(
                 activationState.simulationTickMillis(),
-                fallbackSpeed,
+                defaultSimulationTickMillis,
                 minSimulationTickMillis,
                 maxSimulationTickMillis
         );
@@ -147,7 +148,7 @@ public final class EditorProjectSessionCoordinator {
         historyService.initialize();
         actions.synchronizeViewsWithModel();
         actions.applyCamera();
-        markLastOpened.accept(project.isPersisted() ? project : null);
+        markLastOpened.accept(project.isPersisted() ? Optional.of(project) : Optional.empty());
         modalSimulationWasRunning = false;
         actions.showMainPage();
     }

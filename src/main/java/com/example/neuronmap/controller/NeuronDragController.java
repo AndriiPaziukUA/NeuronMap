@@ -30,19 +30,19 @@ public final class NeuronDragController {
     private final Runnable save;
 
     /**
-     * Створює екземпляр NeuronDragController та зберігає передані залежності, потрібні для його роботи.
+     * Створює контролер перетягування зі службами моделі та діями синхронізації подань.
      *
      * @param neuronService служба операцій над нейронами.
      * @param groupService служба операцій над групами нейронів.
      * @param selectionController контролер вибору нейронів.
-     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param state стан взаємодії редактора.
      * @param workspace полотно редактора.
-     * @param hideMenu callback для приховування контекстного меню.
-     * @param showRotationHandle callback, який показує ручку обертання нейрона.
-     * @param refreshVisuals callback, який оновлює вигляд нейронів.
-     * @param refreshConnections callback, який оновлює геометрію та вигляд зв’язків.
-     * @param refreshOverlayPositions callback, який перераховує положення накладок над полотном.
-     * @param save функція зворотного виклику для відповідної дії.
+     * @param hideMenu дія приховування контекстного меню.
+     * @param showRotationHandle дія показу ручки обертання.
+     * @param refreshVisuals дія оновлення подань нейронів.
+     * @param refreshConnections дія оновлення геометрії зв’язків.
+     * @param refreshOverlayPositions дія оновлення позицій накладок.
+     * @param save дія збереження карти після завершення перетягування.
      */
     public NeuronDragController(
             NeuronService neuronService,
@@ -71,10 +71,10 @@ public final class NeuronDragController {
     }
 
     /**
-     * Обробляє подію «pressed» і передає її до відповідної операції редактора.
+     * Починає обробку натискання миші для вибору та перетягування нейрона.
      *
-     * @param neuronView візуальне подання нейрона.
-     * @param event подія інтерфейсу, яку потрібно обробити.
+     * @param neuronView подання нейрона.
+     * @param event подія миші.
      */
     public void handlePressed(NeuronView neuronView, MouseEvent event) {
         if (event.getButton() == MouseButton.SECONDARY) {
@@ -96,7 +96,7 @@ public final class NeuronDragController {
                 event.isControlDown()
         );
 
-        boolean grouped = groupService.containing(neuronView.model().id()) != null;
+        boolean grouped = groupService.containing(neuronView.model().id()).isPresent();
         neuronView.beginDrag(
                 event.getSceneX(),
                 event.getSceneY(),
@@ -108,10 +108,10 @@ public final class NeuronDragController {
     }
 
     /**
-     * Обробляє подію «dragged» і передає її до відповідної операції редактора.
+     * Переміщує нейрон або його групу та синхронізує залежну геометрію.
      *
-     * @param neuronView візуальне подання нейрона.
-     * @param event подія інтерфейсу, яку потрібно обробити.
+     * @param neuronView подання нейрона, яке перетягують.
+     * @param event подія миші.
      */
     public void handleDragged(NeuronView neuronView, MouseEvent event) {
         if (!neuronView.isDragging()) {
@@ -119,7 +119,6 @@ public final class NeuronDragController {
         }
 
         neuronView.updateDraggedState(event.getSceneX(), event.getSceneY());
-
         double dx = neuronView.dragDeltaX(event.getSceneX()) / state.zoom();
         double dy = neuronView.dragDeltaY(event.getSceneY()) / state.zoom();
         String neuronId = neuronView.model().id();
@@ -137,9 +136,9 @@ public final class NeuronDragController {
     }
 
     /**
-     * Обробляє подію «released» і передає її до відповідної операції редактора.
+     * Завершує перетягування й зберігає змінену карту, якщо положення нейрона змінилося.
      *
-     * @param neuronView візуальне подання нейрона.
+     * @param neuronView подання нейрона, перетягування якого завершується.
      */
     public void handleReleased(NeuronView neuronView) {
         boolean dragged = neuronView.wasDragged();

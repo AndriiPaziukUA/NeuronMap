@@ -50,7 +50,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -175,7 +174,7 @@ final class MapPresentationWorkflowLifecycleTest {
                 );
 
                 assertTrue(historyCoordinator.undo());
-                assertNull(fixture.neuronService.find(added.id()));
+                assertTrue(fixture.neuronService.find(added.id()).isEmpty());
                 assertFalse(fixture.neuronViews.containsKey(added.id()));
                 assertFalse(fixture.rotationHandles.containsKey(added.id()));
                 assertFalse(fixture.workspace.nodeLayer().getChildren().contains(addedView));
@@ -255,7 +254,7 @@ final class MapPresentationWorkflowLifecycleTest {
 
                 assertTrue(nextRepository.loadedModel != fixture.model);
                 assertTrue(activeProject.get() == nextProject);
-                assertNull(fixture.neuronService.find(previousNeuron.id()));
+                assertTrue(fixture.neuronService.find(previousNeuron.id()).isEmpty());
                 assertFalse(fixture.neuronViews.containsKey(previousNeuron.id()));
                 assertFalse(fixture.rotationHandles.containsKey(previousNeuron.id()));
                 assertFalse(fixture.workspace.nodeLayer().getChildren().contains(previousView));

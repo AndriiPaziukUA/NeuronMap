@@ -39,20 +39,13 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Перевіряє, що координатор презентації одноосібно синхронізує подання нейронів і ручок обертання з моделлю.
- */
+/** Перевіряє, що координатор презентації одноосібно синхронізує подання нейронів і ручок обертання з моделлю. */
 final class MapPresentationCoordinatorLifecycleTest {
 
-    /**
-     * Запускає JavaFX перед тестами, що перевіряють реальне дерево графічних вузлів.
-     *
-     * @throws Exception якщо запуск JavaFX не завершився вчасно.
-     */
+    /** Запускає JavaFX перед тестами, що перевіряють реальне дерево графічних вузлів. */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -61,55 +54,36 @@ final class MapPresentationCoordinatorLifecycleTest {
         } catch (IllegalStateException alreadyStarted) {
             latch.countDown();
         }
-
         if (!latch.await(5, TimeUnit.SECONDS)) {
             throw new IllegalStateException("JavaFX startup timed out");
         }
     }
 
-    /**
-     * Перевіряє створення відсутніх подань і повне очищення вузла та ручки після вилучення нейрона з моделі.
-     *
-     * @throws Exception якщо JavaFX-потік не виконав перевірку вчасно.
-     */
+    /** Перевіряє створення відсутніх подань і повне очищення вузла та ручки після видалення нейрона. */
     @Test
     void refreshAllSynchronizesNeuronViewsAndRotationHandles() throws Exception {
         runOnFxThread(() -> {
             Fixture fixture = new Fixture();
             try {
-                Neuron first = fixture.neuronService.create(
-                        NeuronType.EXCITATORY,
-                        80.0,
-                        60.0
-                );
-
+                Neuron first = fixture.neuronService.create(NeuronType.EXCITATORY, 80.0, 60.0);
                 fixture.presentation.refreshAll();
-
                 NeuronView firstView = fixture.neuronViews.get(first.id());
                 RotationHandleView firstHandle = fixture.rotationHandles.get(first.id());
+
                 assertNotNull(firstView);
                 assertNotNull(firstHandle);
-                assertSame(
-                        fixture.neuronService.presentation(first.id()),
-                        firstView.presentation()
-                );
+                assertSame(fixture.neuronService.presentation(first.id()).orElseThrow(), firstView.presentation());
                 assertTrue(fixture.workspace.nodeLayer().getChildren().contains(firstView));
                 assertTrue(fixture.workspace.overlayLayer().getChildren().contains(firstHandle));
 
-                Neuron second = fixture.neuronService.create(
-                        NeuronType.INHIBITORY,
-                        180.0,
-                        90.0
-                );
+                Neuron second = fixture.neuronService.create(NeuronType.INHIBITORY, 180.0, 90.0);
                 fixture.presentation.refreshAll();
-
                 assertEquals(2, fixture.neuronViews.size());
                 assertNotNull(fixture.neuronViews.get(second.id()));
                 assertNotNull(fixture.rotationHandles.get(second.id()));
 
-                assertNotNull(fixture.neuronService.remove(first.id()));
+                assertTrue(fixture.neuronService.remove(first.id()).isPresent());
                 fixture.presentation.refreshAll();
-
                 assertFalse(fixture.neuronViews.containsKey(first.id()));
                 assertFalse(fixture.rotationHandles.containsKey(first.id()));
                 assertFalse(fixture.workspace.nodeLayer().getChildren().contains(firstView));
@@ -122,34 +96,21 @@ final class MapPresentationCoordinatorLifecycleTest {
         });
     }
 
-    /**
-     * Перевіряє, що оновлення вибору змінює вигляд нейрона через координатор, не дублюючи логіку в контролері.
-     *
-     * @throws Exception якщо JavaFX-потік не виконав перевірку вчасно.
-     */
+    /** Перевіряє, що координатор презентації оновлює вигляд нейрона відповідно до стану вибору. */
     @Test
     void presentationCoordinatorOwnsNeuronVisualRefresh() throws Exception {
         runOnFxThread(() -> {
             Fixture fixture = new Fixture();
             try {
-                Neuron neuron = fixture.neuronService.create(
-                        NeuronType.EXCITATORY,
-                        100.0,
-                        80.0
-                );
+                Neuron neuron = fixture.neuronService.create(NeuronType.EXCITATORY, 100.0, 80.0);
                 fixture.presentation.refreshAll();
-
                 NeuronView view = fixture.neuronViews.get(neuron.id());
                 Rectangle body = (Rectangle) view.getChildren().get(0);
                 assertEquals(2.0, body.getStrokeWidth(), 0.0001);
 
                 fixture.state.selectOnly(neuron.id());
                 fixture.neuronController.refreshVisuals();
-                assertEquals(
-                        NeuronView.SELECTED_STROKE_WIDTH,
-                        body.getStrokeWidth(),
-                        0.0001
-                );
+                assertEquals(NeuronView.SELECTED_STROKE_WIDTH, body.getStrokeWidth(), 0.0001);
 
                 fixture.state.clearSelection();
                 fixture.neuronController.refreshVisuals();
@@ -160,11 +121,7 @@ final class MapPresentationCoordinatorLifecycleTest {
         });
     }
 
-    /**
-     * Перевіряє, що додавання нейрона через координатор взаємодії створює подання та ручку обертання.
-     *
-     * @throws Exception якщо JavaFX-потік не виконав перевірку вчасно.
-     */
+    /** Перевіряє створення подання та ручки обертання при додаванні нейрона через координатор взаємодії. */
     @Test
     void addingNeuronCreatesViewAndRotationHandle() throws Exception {
         runOnFxThread(() -> {
@@ -184,7 +141,6 @@ final class MapPresentationCoordinatorLifecycleTest {
             );
             try {
                 interactions.addNeuronAt(NeuronType.INHIBITORY, 150.0, 140.0);
-
                 assertEquals(1, fixture.neuronViews.size());
                 assertEquals(1, fixture.workspace.nodeLayer().getChildren().size());
                 assertEquals(1, fixture.rotationHandles.size());
@@ -196,31 +152,21 @@ final class MapPresentationCoordinatorLifecycleTest {
         });
     }
 
-    /**
-     * Перевіряє, що видалення через контролер запускає єдине оновлення презентації без прямого очищення UI-карт.
-     *
-     * @throws Exception якщо JavaFX-потік не виконав перевірку вчасно.
-     */
+    /** Перевіряє делегування очищення подань координатору після видалення вибраного нейрона. */
     @Test
     void deletingSelectedNeuronDelegatesViewCleanupToPresentationCoordinator() throws Exception {
         runOnFxThread(() -> {
             Fixture fixture = new Fixture();
             try {
-                Neuron neuron = fixture.neuronService.create(
-                        NeuronType.EXCITATORY,
-                        120.0,
-                        120.0
-                );
+                Neuron neuron = fixture.neuronService.create(NeuronType.EXCITATORY, 120.0, 120.0);
                 fixture.presentation.refreshAll();
                 NeuronView existingView = fixture.neuronViews.get(neuron.id());
                 RotationHandleView existingHandle = fixture.rotationHandles.get(neuron.id());
-
                 fixture.refreshCount.set(0);
                 fixture.state.selectOnly(neuron.id());
 
                 assertTrue(fixture.neuronController.deleteSelectedNeurons());
-
-                assertNull(fixture.neuronService.find(neuron.id()));
+                assertTrue(fixture.neuronService.find(neuron.id()).isEmpty());
                 assertFalse(fixture.neuronViews.containsKey(neuron.id()));
                 assertFalse(fixture.rotationHandles.containsKey(neuron.id()));
                 assertFalse(fixture.workspace.nodeLayer().getChildren().contains(existingView));
@@ -232,16 +178,10 @@ final class MapPresentationCoordinatorLifecycleTest {
         });
     }
 
-    /**
-     * Виконує перевірку в JavaFX Application Thread і передає її виняток потоку тестів.
-     *
-     * @param action перевірка, яку потрібно виконати в JavaFX-потоці.
-     * @throws Exception якщо потік JavaFX не відповів вчасно або перевірка завершилася помилкою.
-     */
+    /** Виконує перевірку в JavaFX-потоці та передає винятки до потоку JUnit. */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];
-
         Platform.runLater(() -> {
             try {
                 action.run();
@@ -251,7 +191,6 @@ final class MapPresentationCoordinatorLifecycleTest {
                 latch.countDown();
             }
         });
-
         if (!latch.await(5, TimeUnit.SECONDS)) {
             throw new IllegalStateException("JavaFX test timed out");
         }
@@ -260,11 +199,8 @@ final class MapPresentationCoordinatorLifecycleTest {
         }
     }
 
-    /**
-     * Збирає реальні контролери та подання для перевірки життєвого циклу без запуску головного вікна застосунку.
-     */
+    /** Збирає справжні компоненти редактора для перевірки життєвого циклу подань. */
     private static final class Fixture {
-
         private final NeuronMapModel model = new NeuronMapModel();
         private final NeuronService neuronService = new NeuronService(model);
         private final GroupService groupService = new GroupService(model);
@@ -272,103 +208,42 @@ final class MapPresentationCoordinatorLifecycleTest {
         private final EditorState state = new EditorState(1.0, 0.0, 0.0);
         private final WorkspaceView workspace = new WorkspaceView();
         private final Map<String, NeuronView> neuronViews = new HashMap<>();
-        private final Map<String, ConnectionView> connectionViews =
-                new HashMap<>();
+        private final Map<String, ConnectionView> connectionViews = new HashMap<>();
         private final Map<String, RotationHandleView> rotationHandles = new HashMap<>();
         private final LocalizationService localization = new LocalizationService(Locale.ENGLISH);
         private final AtomicInteger refreshCount = new AtomicInteger();
-        private final AtomicReference<MapPresentationCoordinator> presentationReference =
-                new AtomicReference<>();
+        private final AtomicReference<MapPresentationCoordinator> presentationReference = new AtomicReference<>();
 
         private final SelectionController selectionController = new SelectionController(
-                groupService,
-                state,
-                () -> { },
-                () -> { },
-                ignored -> { },
-                localization
-        );
+                groupService, state, () -> { }, () -> { }, ignored -> { }, localization);
         private final ConnectionController connectionController = new ConnectionController(
-                connectionService,
-                state,
-                workspace,
-                neuronViews,
-                this::refreshPresentation,
-                () -> { },
-                ignored -> { },
-                localization
-        );
+                connectionService, state, workspace, neuronViews, this::refreshPresentation,
+                () -> { }, ignored -> { }, localization);
         private final SimulationController simulationController = new SimulationController(
-                neuronService,
-                new SimulationService(),
-                new SimulationStepPresenter(
-                        workspace,
-                        neuronViews,
-                        () -> { },
-                        new PulseAnimationController(workspace)
-                ),
-                () -> { },
-                ignored -> { },
-                ignored -> { },
-                ignored -> { },
-                100.0,
-                10.0,
-                1_000.0,
-                localization
-        );
-        private final NeuronInteractionController neuronController =
-                new NeuronInteractionController(
-                        neuronService,
-                        groupService,
-                        selectionController,
-                        new NeuronClipboardService(neuronService, groupService),
-                        state,
-                        workspace,
-                        neuronViews,
-                        rotationHandles,
-                        connectionController,
-                        simulationController,
-                        () -> { },
-                        this::refreshPresentation,
-                        ignored -> { },
-                        new NeuronMenuView(
-                                new Pane(),
-                                state::selectedNeuronForMenu,
-                                ignored -> { },
-                                localization
-                        ),
-                        localization
-                );
-        private final MapPresentationCoordinator presentationCoordinator =
-                new MapPresentationCoordinator(
-                        neuronService,
-                        workspace,
-                        neuronViews,
-                        connectionViews,
-                        rotationHandles,
-                        neuronController,
-                        connectionController,
-                        new NeuronLayerOrderManager(
-                                neuronViews,
-                                connectionViews,
-                                model::connections
-                        )
-                );
+                neuronService, new SimulationService(),
+                new SimulationStepPresenter(workspace, neuronViews, () -> { }, new PulseAnimationController(workspace)),
+                () -> { }, ignored -> { }, ignored -> { }, ignored -> { },
+                100.0, 10.0, 1_000.0, localization);
+        private final NeuronInteractionController neuronController = new NeuronInteractionController(
+                neuronService, groupService, selectionController,
+                new NeuronClipboardService(neuronService, groupService), state, workspace,
+                neuronViews, rotationHandles, connectionController, simulationController,
+                () -> { }, this::refreshPresentation, ignored -> { },
+                new NeuronMenuView(new Pane(), state::selectedNeuronForMenu, ignored -> { }, localization),
+                localization);
+        private final MapPresentationCoordinator presentationCoordinator = new MapPresentationCoordinator(
+                neuronService, workspace, neuronViews, connectionViews, rotationHandles,
+                neuronController, connectionController,
+                new NeuronLayerOrderManager(neuronViews, connectionViews, model::connections));
         private final MapPresentationCoordinator presentation = initializePresentationReference();
 
-        /**
-         * Публікує створений координатор, щоб колбеки під час тесту поверталися до реальної презентації.
-         *
-         * @return створений координатор презентації.
-         */
+        /** Публікує створений координатор для callback-ів синхронізації подань. */
         private MapPresentationCoordinator initializePresentationReference() {
             presentationReference.set(presentationCoordinator);
             return presentationCoordinator;
         }
 
-        /**
-         * Оновлює лічильник і передає запит до координатора презентації.
-         */
+        /** Збільшує лічильник оновлень і передає запит реальному координатору презентації. */
         private void refreshPresentation() {
             refreshCount.incrementAndGet();
             MapPresentationCoordinator coordinator = presentationReference.get();
@@ -377,9 +252,7 @@ final class MapPresentationCoordinatorLifecycleTest {
             }
         }
 
-        /**
-         * Завершує створені контролери й зупиняє анімації, щоб не залишати активних ресурсів між тестами.
-         */
+        /** Завершує контролери та зупиняє анімації, щоб не залишати ресурси між тестами. */
         private void dispose() {
             neuronController.dispose();
             simulationController.shutdown();
