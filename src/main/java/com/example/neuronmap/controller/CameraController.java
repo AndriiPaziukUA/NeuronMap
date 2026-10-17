@@ -36,6 +36,8 @@ public final class CameraController {
     private boolean savePaused;
     private double lastMouseX;
     private double lastMouseY;
+    private double panStartX;
+    private double panStartY;
 
     /**
      * Створює контролер камери та налаштовує його залежності.
@@ -107,9 +109,12 @@ public final class CameraController {
         }
         suspended = true;
         if (panning) {
+            boolean cameraMoved = hasPanChanged();
             panning = false;
             workspace.node().setCursor(Cursor.DEFAULT);
-            saveDebounce.playFromStart();
+            if (cameraMoved) {
+                saveDebounce.playFromStart();
+            }
         }
         if (saveDebounce.getStatus() == javafx.animation.Animation.Status.RUNNING) {
             saveDebounce.pause();
@@ -148,33 +153,43 @@ public final class CameraController {
         panning = true;
         lastMouseX = event.getX();
         lastMouseY = event.getY();
+        panStartX = state.panX();
+        panStartY = state.panY();
         workspace.node().setCursor(Cursor.CLOSED_HAND);
         event.consume();
     }
 
-    /** Оновлює зміщення камери під час перетягування полотна. */
+    /** Оновлює зміщення камери лише за фактичної зміни координат вказівника. */
     private void handleDragged(MouseEvent event) {
         if (suspended || !panning) {
             return;
         }
         double deltaX = event.getX() - lastMouseX;
         double deltaY = event.getY() - lastMouseY;
-        state.setPanX(state.panX() + deltaX);
-        state.setPanY(state.panY() + deltaY);
         lastMouseX = event.getX();
         lastMouseY = event.getY();
+        if (deltaX == 0.0 && deltaY == 0.0) {
+            event.consume();
+            return;
+        }
+
+        state.setPanX(state.panX() + deltaX);
+        state.setPanY(state.panY() + deltaY);
         apply();
         event.consume();
     }
 
-    /** Завершує панорамування та планує збереження нового положення камери. */
+    /** Завершує панорамування та планує збереження лише за зміненого кінцевого положення камери. */
     private void handleReleased(MouseEvent event) {
         if (suspended || !panning) {
             return;
         }
+        boolean cameraMoved = hasPanChanged();
         panning = false;
         workspace.node().setCursor(Cursor.DEFAULT);
-        scheduleSave();
+        if (cameraMoved) {
+            scheduleSave();
+        }
     }
 
     /** Змінює масштаб із прив'язкою до позиції курсора та показує локалізоване повідомлення. */
@@ -199,6 +214,12 @@ public final class CameraController {
         scheduleSave();
         status.accept(localization.text("status.scale", formatZoom(newZoom)));
         event.consume();
+    }
+
+    /** Перевіряє, чи змінилися координати камери від початку поточного перетягування. */
+    private boolean hasPanChanged() {
+        return Double.compare(state.panX(), panStartX) != 0
+                || Double.compare(state.panY(), panStartY) != 0;
     }
 
     /** Оновлює координати центра камери після зміни розміру полотна або його трансформації. */

@@ -77,6 +77,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 - `NeuronMenuControllerDirectionTest` — вибір напрямку нейрона через його меню.
 - `NeuronOverlayCoordinateTest` — обчислення координат меню та накладок відносно нейрона.
 - `PulseAnimationControllerTest` — керування анімаціями імпульсів.
+- `CameraControllerPanSaveTest` — перевіряє, що натискання полотна без переміщення не зберігає камеру, а фактичне панорамування планує збереження.
 - `SimulationControllerSpeedFormattingTest` — формат швидкості в локалізованому повідомленні після зміни швидкості активної симуляції.
 - `SimulationControllerModalPauseTest` — гарантія, що пауза через модальне меню не змінює стан кнопки ручного призупинення симуляції.
 - `SimulationControllerStopSignalsTest` — перевірка, що зупинка сигналів очищує активний runtime-стан та оновлює індикатори без збереження карти.
