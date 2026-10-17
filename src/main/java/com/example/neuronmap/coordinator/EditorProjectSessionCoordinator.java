@@ -137,7 +137,10 @@ public final class EditorProjectSessionCoordinator {
     }
 
     /**
-     * Зупиняє тимчасові взаємодії, зберігає поточний проєкт і очищає сесійний стан перед переходом.
+     * Зупиняє тимчасові взаємодії та очищає сесійний стан перед переходом до іншого проєкту.
+     *
+     * <p>Не виконує безумовного повторного запису незміненого проєкту: команди зміни карти зберігають
+     * свої результати самостійно, а відкладене збереження змін камери завершується під час призупинення UI.</p>
      */
     public void prepareForProjectSwitch() {
         actions.stopSimulation();
@@ -145,7 +148,6 @@ public final class EditorProjectSessionCoordinator {
         actions.cancelInteractions();
         actions.hideNeuronMenu();
         actions.cancelPendingCameraSave();
-        actions.saveCurrentProject();
         state.clearSelection();
         state.resetToIdle();
         modalSimulationWasRunning = false;
@@ -233,7 +235,7 @@ public final class EditorProjectSessionCoordinator {
         /** Скасовує відкладене збереження камери перед перемиканням репозиторію. */
         void cancelPendingCameraSave();
 
-        /** Зберігає поточний проєкт до перемикання сховища. */
+        /** Зберігає поточний проєкт до перемикання сховища, якщо це явно потрібно сценарію. */
         void saveCurrentProject();
 
         /** Призупиняє симуляцію для меню та повертає ознаку її попередньої активності. */

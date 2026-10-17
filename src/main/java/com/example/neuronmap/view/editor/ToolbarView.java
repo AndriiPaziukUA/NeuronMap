@@ -23,7 +23,7 @@ import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
 /**
- * Створює панель інструментів і керує кнопками нейронів, групуванням, симуляцією, швидкістю й відображенням координат камери.
+ * Створює панель інструментів і керує кнопками нейронів, групуванням, симуляцією, швидкістю й координатами вказівника.
  */
 public final class ToolbarView {
 
@@ -47,6 +47,7 @@ public final class ToolbarView {
     private final EventHandler<MouseEvent> sceneMousePressedHandler =
             this::handleSceneMousePressed;
     private final Consumer<Locale> localizationListener = ignored -> refreshTexts();
+    private double appliedSpeedMillis;
     private boolean committingSpeed;
 
     /**
@@ -134,6 +135,7 @@ public final class ToolbarView {
         speedField.getStyleClass().add("toolbar-speed-field");
         speedField.setPrefWidth(88.0);
         speedField.setText(NumberDisplayFormatter.format(initialSpeedMillis));
+        appliedSpeedMillis = initialSpeedMillis;
         speedField.setAlignment(Pos.CENTER_LEFT);
         speedField.setStyle("-fx-alignment: CENTER-LEFT;");
         speedField.setTextFormatter(new TextFormatter<>(numericSpeedFilter()));
@@ -255,16 +257,21 @@ public final class ToolbarView {
      * @param millis тривалість такту в мілісекундах.
      */
     public void setSimulationSpeedMillis(double millis) {
+        appliedSpeedMillis = millis;
         speedField.setText(NumberDisplayFormatter.format(millis));
     }
 
     /**
-     * Оновлює координати камери, показані на панелі інструментів.
+     * Установлює координати вказівника, а за відсутності скінченних координат очищує підпис.
      *
-     * @param x координата X.
-     * @param y координата Y.
+     * @param x координата X у світовій системі або {@link Double#NaN}, якщо курсор поза полотном.
+     * @param y координата Y у світовій системі або {@link Double#NaN}, якщо курсор поза полотном.
      */
     public void setCameraCoordinates(double x, double y) {
+        if (!Double.isFinite(x) || !Double.isFinite(y)) {
+            cameraCoordinatesLabel.setText("");
+            return;
+        }
         cameraCoordinatesLabel.setText(
                 "X: " + NumberDisplayFormatter.format(x)
                         + ", Y: " + NumberDisplayFormatter.format(y)
@@ -310,10 +317,26 @@ public final class ToolbarView {
         }
         committingSpeed = true;
         try {
-            speedChanged.accept(speedField.getText());
+            String enteredText = speedField.getText();
+            if (isAppliedSpeed(enteredText)) {
+                speedField.setText(NumberDisplayFormatter.format(appliedSpeedMillis));
+            } else {
+                speedChanged.accept(enteredText);
+            }
             root.requestFocus();
         } finally {
             committingSpeed = false;
+        }
+    }
+
+    /** Перевіряє, чи відповідає введення вже застосованій швидкості без зайвого запису до сховища. */
+    private boolean isAppliedSpeed(String text) {
+        try {
+            double enteredMillis = Double.parseDouble(text);
+            return Double.isFinite(enteredMillis)
+                    && Double.compare(enteredMillis, appliedSpeedMillis) == 0;
+        } catch (NumberFormatException exception) {
+            return false;
         }
     }
 

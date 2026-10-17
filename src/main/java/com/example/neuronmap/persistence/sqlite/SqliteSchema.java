@@ -14,23 +14,33 @@ public final class SqliteSchema {
 
     private static final int CURRENT_VERSION = 4;
 
+    /** Не дозволяє створювати екземпляри утиліти для керування схемою. */
     private SqliteSchema() {
     }
 
     /**
-     * Перевіряє версію схеми та застосовує потрібні міграції бази даних.
+     * Перевіряє версію схеми й застосовує необхідні зміни, не записуючи версію повторно для актуальної бази.
+     * Бази, створені новішою версією застосунку, відхиляються до будь-якої модифікації схеми.
      *
-     * @param connection напрямлений зв’язок між нейронами.
+     * @param connection відкрите з'єднання з базою SQLite.
+     * @throws PersistenceException якщо версія схеми несумісна або підготовка бази не вдалася.
      */
     public static void migrate(Connection connection) {
         try {
+            int versionAtStart = readVersion(connection);
+            if (versionAtStart > CURRENT_VERSION) {
+                throw new SQLException(
+                        "Версія схеми SQLite " + versionAtStart
+                                + " новіша за підтримувану версію " + CURRENT_VERSION + "."
+                );
+            }
+
             createBaseSchema(connection);
             migrateLegacyNeuronLayout(connection);
             ensureNeuronSettingsColumns(connection);
             ensureDirectionColumn(connection);
-            ensureVersion(connection);
+            ensureVersion(connection, versionAtStart);
         } catch (SQLException exception) {
-
             throw new PersistenceException(
                     "Не вдалося підготувати схему SQLite.",
                     exception
@@ -39,9 +49,10 @@ public final class SqliteSchema {
     }
 
     /**
-     * Створює таблиці та індекси базової схеми, якщо вони ще не існують.
+     * Створює таблиці базової схеми лише тоді, коли вони ще не існують.
      *
-     * @param connection напрямлений зв’язок між нейронами.
+     * @param connection відкрите з'єднання з базою SQLite.
+     * @throws SQLException якщо SQLite не може створити таблицю.
      */
     private static void createBaseSchema(Connection connection)
             throws SQLException {
@@ -115,22 +126,15 @@ public final class SqliteSchema {
     }
 
     /**
-     * Переносить дані нейронів зі старого формату таблиці до актуальної схеми.
+     * Переносить координати нейронів зі старої таблиці до таблиці подань і видаляє застарілі стовпці.
      *
-     * @param connection напрямлений зв’язок між нейронами.
+     * @param connection відкрите з'єднання з базою SQLite.
+     * @throws SQLException якщо перенесення або зміна таблиці не вдалися.
      */
     private static void migrateLegacyNeuronLayout(Connection connection)
             throws SQLException {
-        boolean hasX = columnExists(
-                connection,
-                "neurons",
-                "x"
-        );
-        boolean hasY = columnExists(
-                connection,
-                "neurons",
-                "y"
-        );
+        boolean hasX = columnExists(connection, "neurons", "x");
+        boolean hasY = columnExists(connection, "neurons", "y");
 
         if (!hasX && !hasY) {
             return;
@@ -153,14 +157,10 @@ public final class SqliteSchema {
             }
 
             if (hasX) {
-                statement.executeUpdate(
-                        "ALTER TABLE neurons DROP COLUMN x"
-                );
+                statement.executeUpdate("ALTER TABLE neurons DROP COLUMN x");
             }
             if (hasY) {
-                statement.executeUpdate(
-                        "ALTER TABLE neurons DROP COLUMN y"
-                );
+                statement.executeUpdate("ALTER TABLE neurons DROP COLUMN y");
             }
 
             connection.commit();
@@ -173,17 +173,14 @@ public final class SqliteSchema {
     }
 
     /**
-     * Забезпечує виконання передумови «neuron settings columns» перед продовженням операції.
+     * Додає параметри нейронів, яких бракує в старих версіях схеми.
      *
-     * @param connection напрямлений зв’язок між нейронами.
+     * @param connection відкрите з'єднання з базою SQLite.
+     * @throws SQLException якщо перевірка або зміна таблиці не вдалися.
      */
     private static void ensureNeuronSettingsColumns(Connection connection)
             throws SQLException {
-        if (!columnExists(
-                connection,
-                "neurons",
-                "signal_strength"
-        )) {
+        if (!columnExists(connection, "neurons", "signal_strength")) {
             try (Statement statement = connection.createStatement()) {
                 statement.executeUpdate("""
                         ALTER TABLE neurons
@@ -193,11 +190,7 @@ public final class SqliteSchema {
             }
         }
 
-        if (!columnExists(
-                connection,
-                "neurons",
-                "activation_threshold"
-        )) {
+        if (!columnExists(connection, "neurons", "activation_threshold")) {
             try (Statement statement = connection.createStatement()) {
                 statement.executeUpdate("""
                         ALTER TABLE neurons
@@ -209,17 +202,14 @@ public final class SqliteSchema {
     }
 
     /**
-     * Додає стовпець напрямку нейрона, якщо база даних ще не містить його.
+     * Додає стовпець напрямку нейрона, якщо його ще немає в таблиці подань.
      *
-     * @param connection напрямлений зв’язок між нейронами.
+     * @param connection відкрите з'єднання з базою SQLite.
+     * @throws SQLException якщо перевірка або зміна таблиці не вдалися.
      */
     private static void ensureDirectionColumn(Connection connection)
             throws SQLException {
-        if (columnExists(
-                connection,
-                "neuron_presentations",
-                "direction_reversed"
-        )) {
+        if (columnExists(connection, "neuron_presentations", "direction_reversed")) {
             return;
         }
 
@@ -233,11 +223,13 @@ public final class SqliteSchema {
     }
 
     /**
-     * Перевіряє, чи існує в указаній таблиці стовпець із заданою назвою.
+     * Перевіряє наявність стовпця в таблиці без зміни даних.
      *
-     * @param connection напрямлений зв’язок між нейронами.
-     * @param table значення «table», яке використовується в цьому методі.
-     * @param column значення «column», яке використовується в цьому методі.
+     * @param connection відкрите з'єднання з базою SQLite.
+     * @param table назва таблиці, яку потрібно перевірити.
+     * @param column назва стовпця, наявність якого перевіряється.
+     * @return {@code true}, якщо стовпець існує; інакше {@code false}.
+     * @throws SQLException якщо SQLite не може прочитати опис таблиці.
      */
     private static boolean columnExists(
             Connection connection,
@@ -249,9 +241,7 @@ public final class SqliteSchema {
         try (Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery(sql)) {
             while (resultSet.next()) {
-                if (column.equalsIgnoreCase(
-                        resultSet.getString("name")
-                )) {
+                if (column.equalsIgnoreCase(resultSet.getString("name"))) {
                     return true;
                 }
             }
@@ -261,16 +251,37 @@ public final class SqliteSchema {
     }
 
     /**
-     * Забезпечує виконання передумови «version» перед продовженням операції.
+     * Читає записану версію схеми, не змінюючи заголовок бази даних.
      *
-     * @param connection напрямлений зв’язок між нейронами.
+     * @param connection відкрите з'єднання з базою SQLite.
+     * @return номер версії, записаний у {@code PRAGMA user_version}.
+     * @throws SQLException якщо SQLite не повертає значення версії.
      */
-    private static void ensureVersion(Connection connection)
+    private static int readVersion(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery("PRAGMA user_version")) {
+            if (!resultSet.next()) {
+                throw new SQLException("SQLite не повернула значення user_version.");
+            }
+            return resultSet.getInt(1);
+        }
+    }
+
+    /**
+     * Записує версію схеми лише після першого створення або успішного оновлення старішої схеми.
+     *
+     * @param connection відкрите з'єднання з базою SQLite.
+     * @param versionAtStart версія схеми, прочитана до застосування змін.
+     * @throws SQLException якщо SQLite не може записати номер версії.
+     */
+    private static void ensureVersion(Connection connection, int versionAtStart)
             throws SQLException {
+        if (versionAtStart == CURRENT_VERSION) {
+            return;
+        }
+
         try (Statement statement = connection.createStatement()) {
-            statement.execute(
-                    "PRAGMA user_version = " + CURRENT_VERSION
-            );
+            statement.execute("PRAGMA user_version = " + CURRENT_VERSION);
         }
     }
 }
