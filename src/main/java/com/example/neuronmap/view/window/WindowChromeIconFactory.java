@@ -82,11 +82,15 @@ final class WindowChromeIconFactory {
             return iconCanvas(front);
         }
 
-        Rectangle back = new Rectangle(5.0, 3.0, 9.0, 9.0);
-        back.setFill(Color.TRANSPARENT);
-        back.getStyleClass().add("window-icon-outline");
-        back.setStrokeWidth(1.2);
-        return iconCanvas(back, front);
+        Line backTop = new Line(6.0, 2.0, 15.0, 2.0);
+        Line backRight = new Line(15.0, 2.0, 15.0, 11.0);
+
+        for (Line line : new Line[]{backTop, backRight}) {
+            line.getStyleClass().add("window-icon-stroke");
+            line.setStrokeWidth(1.2);
+        }
+
+        return iconCanvas(backTop, backRight, front);
     }
 
     /**
