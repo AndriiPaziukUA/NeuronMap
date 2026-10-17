@@ -4,8 +4,12 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.i18n.SupportedLanguage;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
+import javafx.event.Event;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ComboBoxBase;
+import javafx.scene.layout.StackPane;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -16,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -104,6 +109,69 @@ final class MainMenuPageViewsTest {
             selector.getOnAction().handle(new ActionEvent(selector, null));
             assertEquals(alternative, selectedByCallback.get());
         });
+    }
+
+    /**
+     * Перевіряє підготовку геометрії списку перед першим і повторним показом без відкриття popup-вікна.
+     *
+     * <p>Тест надсилає події {@code onShowing} безпосередньо обробнику комбінованого списку.
+     * Це перевіряє синхронне компонування сцени перед позиціюванням popup, не створюючи
+     * видимого {@code Stage} або окремого системного вікна під час виконання тестів.</p>
+     */
+    @Test
+    void languagePopupGeometryIsPreparedOnFirstAndRepeatedDisplayWithoutShowingWindow() throws Exception {
+        runOnFxThread(() -> {
+            MainMenuView view = new MainMenuView(
+                    new LocalizationService(Locale.forLanguageTag("uk")), ignored -> { });
+            view.setActions(new MainMenuView.Actions(
+                    () -> { }, () -> { }, () -> { }, () -> { }, () -> { },
+                    ignored -> { }, (project, name) -> project, ignored -> { }, () -> { }
+            ));
+            view.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+            StackPane root = new StackPane(view);
+            Scene scene = new Scene(root, 1000.0, 700.0);
+            root.resize(1000.0, 700.0);
+            root.applyCss();
+            root.layout();
+
+            ComboBox<?> selector = view.languageSelectorForTest();
+            try {
+                view.showMainPage();
+                view.showMenu();
+                view.showSettingsPage();
+                assertPopupGeometryPrepared(selector, scene);
+
+                view.hide();
+                view.showMainPage();
+                view.showMenu();
+                view.showSettingsPage();
+                assertPopupGeometryPrepared(selector, scene);
+            } finally {
+                view.hide();
+                view.dispose();
+            }
+        });
+    }
+
+    /**
+     * Викликає лише обробник передпоказу та перевіряє результат компонування сцени без popup-вікна.
+     *
+     * @param selector комбінований список, для якого готується геометрія.
+     * @param scene сцена, що містить меню.
+     */
+    private static void assertPopupGeometryPrepared(ComboBox<?> selector, Scene scene) {
+        assertEquals(scene, selector.getScene(), "Список мов має бути приєднаний до тестової сцени");
+        assertNotNull(selector.getOnShowing(), "Перед показом має бути зареєстрований обробник компонування");
+        assertFalse(selector.isShowing(), "Тест не повинен відкривати справжнє popup-вікно");
+
+        selector.getOnShowing().handle(
+                new Event(selector, selector, ComboBoxBase.ON_SHOWING));
+
+        assertTrue(selector.getWidth() > 0.0, "ComboBox має отримати розраховану ширину перед показом");
+        assertTrue(selector.getHeight() > 0.0, "ComboBox має отримати розраховану висоту перед показом");
+        assertNotNull(selector.localToScene(0.0, selector.getHeight()),
+                "Після компонування ComboBox має мати координати в межах сцени");
+        assertFalse(selector.isShowing(), "Виклик обробника не повинен показувати popup-вікно");
     }
 
     /** Виконує дію в потоці JavaFX і передає помилки назад у потік тесту. */

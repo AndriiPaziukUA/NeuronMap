@@ -3,6 +3,7 @@ package com.example.neuronmap.view.menu;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.i18n.SupportedLanguage;
 import javafx.geometry.Pos;
+import javafx.scene.Parent;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
@@ -51,6 +52,7 @@ public final class LanguageSettingsView extends VBox {
                 return null;
             }
         });
+        languageSelector.setOnShowing(event -> preparePopupGeometry());
         languageSelector.setOnAction(event -> {
             SupportedLanguage selected = languageSelector.getValue();
             if (!updatingSelection && selected != null && selected != localization.language()) {
@@ -97,11 +99,29 @@ public final class LanguageSettingsView extends VBox {
         return languageSelector;
     }
 
-    /** Прибирає обробник вибору перед остаточним звільненням сторінки. */
+    /** Прибирає обробники вибору перед остаточним звільненням сторінки. */
     public void dispose() {
+        languageSelector.setOnShowing(null);
         languageSelector.setOnAction(null);
         languageSelected = ignored -> { };
         localization.removeListener(localizationListener);
+    }
+
+    /**
+     * Оновлює стилі й геометрію сцени перед обчисленням позиції випадаючого списку.
+     *
+     * <p>Меню може повторно ставати видимим після стану {@code managed=false}, а сторінка
+     * налаштувань — замінювати вміст контейнера. JavaFX відкладає компонування таких змін
+     * до наступного pulse, тоді як popup використовує поточні екранні межі комбінованого
+     * списку. Синхронний прохід тут гарантує актуальні координати ще до показу popup.</p>
+     */
+    private void preparePopupGeometry() {
+        if (getScene() == null) {
+            return;
+        }
+        Parent sceneRoot = getScene().getRoot();
+        sceneRoot.applyCss();
+        sceneRoot.layout();
     }
 
     /** Створює комірку списку, яка показує локалізовану назву мови. */
