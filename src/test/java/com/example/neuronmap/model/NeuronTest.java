@@ -16,30 +16,17 @@ import static org.junit.jupiter.api.Assertions.*;
 class NeuronTest {
 
     /**
-     * Перевіряє, що модель Neuron зберігає семантичні параметри, а не координати подання.
+     * Перевіряє, що Neuron зберігає параметри сигналу одним value object, а координати належать поданню.
      */
     @Test
-    void storesOnlySemanticData() {
-        Set<String> instanceFields =
-                Arrays.stream(
-                        Neuron.class.getDeclaredFields()
-                )
-                .filter(field ->
-                        !Modifier.isStatic(
-                                field.getModifiers()
-                        )
-                )
+    void storesOnlySemanticDataAndGroupsSignalParameters() {
+        Set<String> instanceFields = Arrays.stream(Neuron.class.getDeclaredFields())
+                .filter(field -> !Modifier.isStatic(field.getModifiers()))
                 .map(Field::getName)
                 .collect(Collectors.toSet());
 
         assertEquals(
-                Set.of(
-                        "id",
-                        "type",
-                        "activation",
-                        "signalStrength",
-                        "activationThreshold"
-                ),
+                Set.of("id", "type", "activation", "parameters"),
                 instanceFields
         );
     }
@@ -56,7 +43,6 @@ class NeuronTest {
                 5,
                 3
         );
-
         Neuron inhibitory = new Neuron(
                 "i",
                 NeuronType.INHIBITORY,
@@ -69,24 +55,23 @@ class NeuronTest {
         assertEquals(-7, inhibitory.signalWeight());
         assertEquals(5, excitatory.signalStrength());
         assertEquals(3, excitatory.activationThreshold());
+        assertEquals(new NeuronParameters(5, 3), excitatory.parameters());
     }
 
     /**
-     * Перевіряє зміну сили сигналу й порога активації.
+     * Перевіряє зміну сили сигналу й порога активації без втрати іншого параметра.
      */
     @Test
     void allowsUpdatingSignalStrengthAndThreshold() {
-        Neuron neuron = new Neuron(
-                "n1",
-                NeuronType.EXCITATORY,
-                0
-        );
+        Neuron neuron = new Neuron("n1", NeuronType.EXCITATORY, 0);
 
         neuron.setSignalStrength(9);
+        assertEquals(new NeuronParameters(9, 1), neuron.parameters());
         neuron.setActivationThreshold(6);
 
         assertEquals(9, neuron.signalStrength());
         assertEquals(6, neuron.activationThreshold());
+        assertEquals(new NeuronParameters(9, 6), neuron.parameters());
         assertEquals(9, neuron.signalWeight());
     }
 
@@ -95,44 +80,15 @@ class NeuronTest {
      */
     @Test
     void rejectsInvalidConstructionAndParameters() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new Neuron(
-                        "",
-                        NeuronType.EXCITATORY,
-                        0
-                )
-        );
-
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new Neuron(
-                        "n1",
-                        null,
-                        0
-                )
-        );
-
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new Neuron(
-                        "n1",
-                        NeuronType.EXCITATORY,
-                        0,
-                        0,
-                        1
-                )
-        );
-
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new Neuron(
-                        "n1",
-                        NeuronType.EXCITATORY,
-                        0,
-                        1,
-                        0
-                )
-        );
+        assertThrows(IllegalArgumentException.class,
+                () -> new Neuron("", NeuronType.EXCITATORY, 0));
+        assertThrows(IllegalArgumentException.class,
+                () -> new Neuron("n1", null, 0));
+        assertThrows(IllegalArgumentException.class,
+                () -> new Neuron("n1", NeuronType.EXCITATORY, 0, 0, 1));
+        assertThrows(IllegalArgumentException.class,
+                () -> new Neuron("n1", NeuronType.EXCITATORY, 0, 1, 0));
+        assertThrows(IllegalArgumentException.class,
+                () -> new Neuron("n1", NeuronType.EXCITATORY, 0, (NeuronParameters) null));
     }
 }

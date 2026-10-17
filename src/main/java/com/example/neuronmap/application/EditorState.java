@@ -5,15 +5,16 @@ import com.example.neuronmap.model.NeuronType;
 
 import java.util.Collections;
 import java.util.LinkedHashSet;
+import java.util.Objects;
 import java.util.Set;
 
 /**
- * Зберігає стан взаємодії редактора: перевірений стан камери, вибрані нейрони та параметри активного спеціального режиму.
+ * Зберігає стан взаємодії редактора: стан камери, вибрані нейрони та параметри активного спеціального режиму.
  */
 public final class EditorState {
 
     /**
-     * Описує п’ять режимів взаємодії: звичайний стан, додавання нейрона, створення або видалення зв’язку й обертання нейрона.
+     * Описує п'ять режимів взаємодії: звичайний стан, додавання нейрона, створення або видалення зв'язку й обертання нейрона.
      */
     public enum Mode {
         IDLE,
@@ -23,9 +24,7 @@ public final class EditorState {
         ROTATE_NEURON
     }
 
-    private double zoom;
-    private double panX;
-    private double panY;
+    private CameraState cameraState;
 
     private Mode mode = Mode.IDLE;
     private NeuronType pendingNeuronType;
@@ -36,7 +35,7 @@ public final class EditorState {
     private final Set<String> selectedNeuronIds = new LinkedHashSet<>();
 
     /**
-     * Створює стан редактора, перевіряючи значення камери через спільний контракт {@link CameraState}.
+     * Створює стан редактора, перевіряючи початкові значення камери через спільний контракт {@link CameraState}.
      *
      * @param zoom коефіцієнт масштабування в підтримуваному діапазоні.
      * @param panX скінченне горизонтальне зміщення камери.
@@ -44,10 +43,26 @@ public final class EditorState {
      * @throws IllegalArgumentException якщо значення камери не відповідають контракту.
      */
     public EditorState(double zoom, double panX, double panY) {
-        CameraState camera = validatedCameraState(zoom, panX, panY);
-        this.zoom = camera.zoom();
-        this.panX = camera.panX();
-        this.panY = camera.panY();
+        this(new CameraState(zoom, panX, panY));
+    }
+
+    /**
+     * Створює стан редактора з уже перевіреним значенням камери.
+     *
+     * @param cameraState початковий стан камери.
+     * @throws NullPointerException якщо стан камери не задано.
+     */
+    public EditorState(CameraState cameraState) {
+        this.cameraState = Objects.requireNonNull(cameraState, "cameraState");
+    }
+
+    /**
+     * Повертає незмінний знімок поточного стану камери.
+     *
+     * @return масштаб і зміщення камери як єдине значення.
+     */
+    public CameraState cameraState() {
+        return cameraState;
     }
 
     /**
@@ -56,18 +71,17 @@ public final class EditorState {
      * @return поточний коефіцієнт масштабування редактора.
      */
     public double zoom() {
-        return zoom;
+        return cameraState.zoom();
     }
 
     /**
-     * Установлює коефіцієнт масштабування камери, не змінюючи стан у разі некоректного значення.
+     * Установлює коефіцієнт масштабування, не змінюючи стан у разі некоректного значення.
      *
      * @param zoom коефіцієнт масштабування в підтримуваному діапазоні.
      * @throws IllegalArgumentException якщо новий стан камери не відповідає спільному контракту.
      */
     public void setZoom(double zoom) {
-        CameraState camera = validatedCameraState(zoom, panX, panY);
-        this.zoom = camera.zoom();
+        cameraState = new CameraState(zoom, cameraState.panX(), cameraState.panY());
     }
 
     /**
@@ -76,18 +90,17 @@ public final class EditorState {
      * @return горизонтальне зміщення камери.
      */
     public double panX() {
-        return panX;
+        return cameraState.panX();
     }
 
     /**
-     * Установлює горизонтальне зміщення камери, перевіряючи весь новий стан до зміни поля.
+     * Установлює горизонтальне зміщення камери, перевіряючи весь новий стан до зміни.
      *
      * @param panX скінченне горизонтальне зміщення камери.
      * @throws IllegalArgumentException якщо новий стан камери не відповідає спільному контракту.
      */
     public void setPanX(double panX) {
-        CameraState camera = validatedCameraState(zoom, panX, panY);
-        this.panX = camera.panX();
+        cameraState = new CameraState(cameraState.zoom(), panX, cameraState.panY());
     }
 
     /**
@@ -96,18 +109,17 @@ public final class EditorState {
      * @return вертикальне зміщення камери.
      */
     public double panY() {
-        return panY;
+        return cameraState.panY();
     }
 
     /**
-     * Установлює вертикальне зміщення камери, перевіряючи весь новий стан до зміни поля.
+     * Установлює вертикальне зміщення камери, перевіряючи весь новий стан до зміни.
      *
      * @param panY скінченне вертикальне зміщення камери.
      * @throws IllegalArgumentException якщо новий стан камери не відповідає спільному контракту.
      */
     public void setPanY(double panY) {
-        CameraState camera = validatedCameraState(zoom, panX, panY);
-        this.panY = camera.panY();
+        cameraState = new CameraState(cameraState.zoom(), cameraState.panX(), panY);
     }
 
     /**
@@ -138,7 +150,7 @@ public final class EditorState {
     }
 
     /**
-     * Вмикає режим додавання нейрона та запам’ятовує тип майбутнього нейрона.
+     * Вмикає режим додавання нейрона та запам'ятовує тип майбутнього нейрона.
      *
      * @param type тип нейрона або елемента.
      */
@@ -158,9 +170,9 @@ public final class EditorState {
     }
 
     /**
-     * Вмикає створення зв’язку та зберігає ідентифікатор його початкового нейрона.
+     * Вмикає створення зв'язку та зберігає ідентифікатор його початкового нейрона.
      *
-     * @param sourceId ідентифікатор початкового нейрона зв’язку.
+     * @param sourceId ідентифікатор початкового нейрона зв'язку.
      */
     public void enterCreateConnectionMode(String sourceId) {
         clearTransientModes();
@@ -169,16 +181,16 @@ public final class EditorState {
     }
 
     /**
-     * Повертає ідентифікатор початкового нейрона нового зв’язку.
+     * Повертає ідентифікатор початкового нейрона нового зв'язку.
      *
-     * @return ідентифікатор початкового нейрона нового зв’язку.
+     * @return ідентифікатор початкового нейрона нового зв'язку.
      */
     public String connectionSourceId() {
         return connectionSourceId;
     }
 
     /**
-     * Вмикає видалення зв’язку, вибраного від указаного нейрона.
+     * Вмикає видалення зв'язку, вибраного від указаного нейрона.
      *
      * @param neuronId ідентифікатор нейрона.
      */
@@ -189,9 +201,9 @@ public final class EditorState {
     }
 
     /**
-     * Повертає ідентифікатор нейрона, від якого вибирають зв’язок для видалення.
+     * Повертає ідентифікатор нейрона, від якого вибирають зв'язок для видалення.
      *
-     * @return ідентифікатор нейрона для видалення зв’язку.
+     * @return ідентифікатор нейрона для видалення зв'язку.
      */
     public String deleteConnectionNeuronId() {
         return deleteConnectionNeuronId;
@@ -276,18 +288,5 @@ public final class EditorState {
     public void resetToIdle() {
         clearTransientModes();
         selectedNeuronForMenu = null;
-    }
-
-    /**
-     * Перевіряє кандидатний стан камери за спільним контрактом моделі.
-     *
-     * @param zoom масштаб камери.
-     * @param panX горизонтальне зміщення.
-     * @param panY вертикальне зміщення.
-     * @return перевірений стан камери.
-     * @throws IllegalArgumentException якщо будь-яке значення порушує контракт камери.
-     */
-    private static CameraState validatedCameraState(double zoom, double panX, double panY) {
-        return new CameraState(zoom, panX, panY);
     }
 }

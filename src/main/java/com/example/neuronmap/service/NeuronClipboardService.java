@@ -2,12 +2,14 @@ package com.example.neuronmap.service;
 
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronGroup;
+import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.model.NeuronType;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -22,21 +24,20 @@ public final class NeuronClipboardService {
     private ClipboardContent content;
 
     /**
-     * Створює екземпляр NeuronClipboardService та зберігає передані залежності, потрібні для його роботи.
+     * Створює службу копіювання нейронів і зберігає необхідні служби предметної моделі.
      *
      * @param neuronService служба операцій над нейронами.
      * @param groupService служба операцій над групами нейронів.
+     * @throws IllegalArgumentException якщо одну з обов'язкових служб не задано.
      */
     public NeuronClipboardService(
             NeuronService neuronService,
             GroupService groupService
     ) {
         if (neuronService == null) {
-
             throw new IllegalArgumentException("neuronService must not be null");
         }
         if (groupService == null) {
-
             throw new IllegalArgumentException("groupService must not be null");
         }
         this.neuronService = neuronService;
@@ -53,7 +54,7 @@ public final class NeuronClipboardService {
     /**
      * Перевіряє, чи містить буфер дані для вставлення.
      *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
+     * @return {@code true}, якщо буфер містить хоча б один нейрон.
      */
     public boolean hasContent() {
         return content != null && !content.items().isEmpty();
@@ -62,7 +63,7 @@ public final class NeuronClipboardService {
     /**
      * Повертає вміст буфера, якщо копіювання вже виконувалося.
      *
-     * @return вміст буфера, якщо копіювання вже виконувалося.
+     * @return необов'язковий вміст буфера.
      */
     public Optional<ClipboardContent> content() {
         return Optional.ofNullable(content);
@@ -72,6 +73,7 @@ public final class NeuronClipboardService {
      * Створює буферний знімок вибраних нейронів; для групового вибору зберігає групу цілком.
      *
      * @param selectedNeuronIds ідентифікатори вибраних нейронів.
+     * @return {@code true}, якщо знайдено й скопійовано принаймні один нейрон.
      */
     public boolean copy(Set<String> selectedNeuronIds) {
         if (selectedNeuronIds == null || selectedNeuronIds.isEmpty()) {
@@ -79,9 +81,7 @@ public final class NeuronClipboardService {
             return false;
         }
 
-        LinkedHashSet<String> selectedIds =
-                new LinkedHashSet<>(selectedNeuronIds);
-
+        LinkedHashSet<String> selectedIds = new LinkedHashSet<>(selectedNeuronIds);
         boolean grouped = false;
         Set<String> idsToCopy;
 
@@ -103,7 +103,7 @@ public final class NeuronClipboardService {
 
         List<NeuronSnapshotSource> sources = idsToCopy.stream()
                 .map(neuronService::find)
-                .filter(neuron -> neuron != null)
+                .filter(Objects::nonNull)
                 .map(neuron -> new NeuronSnapshotSource(
                         neuron,
                         neuronService.presentation(neuron.id())
@@ -120,7 +120,6 @@ public final class NeuronClipboardService {
         double maxX = Double.NEGATIVE_INFINITY;
         double minY = Double.POSITIVE_INFINITY;
         double maxY = Double.NEGATIVE_INFINITY;
-
         for (NeuronSnapshotSource source : sources) {
             NeuronPresentation presentation = source.presentation();
             minX = Math.min(minX, presentation.x());
@@ -131,17 +130,13 @@ public final class NeuronClipboardService {
 
         double anchorX = (minX + maxX) / 2.0;
         double anchorY = (minY + maxY) / 2.0;
-
-        content = new ClipboardContent(
-                createItems(sources, anchorX, anchorY),
-                grouped
-        );
+        content = new ClipboardContent(createItems(sources, anchorX, anchorY), grouped);
         return true;
     }
 
     /**
      * Створює копії збережених нейронів і розміщує їх відносно заданої опорної точки.
-     * Параметри сигналу, обертання та напрямку змінюються через NeuronService.
+     * Параметри сигналу застосовуються одним value object.
      *
      * @param anchorX горизонтальна координата опорної точки вставлення.
      * @param anchorY вертикальна координата опорної точки вставлення.
@@ -154,25 +149,15 @@ public final class NeuronClipboardService {
 
         LinkedHashSet<String> pastedIds = new LinkedHashSet<>();
         List<Neuron> pastedNeurons = new ArrayList<>(content.items().size());
-
         for (NeuronData item : content.items()) {
             Neuron neuron = neuronService.create(
                     item.type(),
                     anchorX + item.offsetX(),
                     anchorY + item.offsetY()
             );
-
-            neuronService.updateSettings(
-                    neuron.id(),
-                    item.signalStrength(),
-                    item.activationThreshold()
-            );
+            neuronService.updateSettings(neuron.id(), item.parameters());
             neuronService.setRotation(neuron.id(), item.rotationDegrees());
-            neuronService.setDirectionReversed(
-                    neuron.id(),
-                    item.directionReversed()
-            );
-
+            neuronService.setDirectionReversed(neuron.id(), item.directionReversed());
             pastedIds.add(neuron.id());
             pastedNeurons.add(neuron);
         }
@@ -180,30 +165,33 @@ public final class NeuronClipboardService {
         if (content.grouped() && pastedIds.size() >= 2) {
             groupService.create(pastedIds);
         }
-
         return List.copyOf(pastedNeurons);
     }
 
     /**
-     * Містить скопійовані описи нейронів і ознаку, чи треба відновити їх як одну групу.
+     * Містить скопійовані описи нейронів і ознаку відновлення їх як однієї групи.
+     *
      * @param items дані нейронів, які потрібно вставити.
-     * @param grouped true, якщо скопійовані нейрони утворювали одну групу.
+     * @param grouped {@code true}, якщо скопійовані нейрони утворювали одну групу.
      */
-    public record ClipboardContent(
-            List<NeuronData> items,
-            boolean grouped
-    ) {
+    public record ClipboardContent(List<NeuronData> items, boolean grouped) {
+        /**
+         * Створює незмінний вміст буфера копіювання.
+         *
+         * @throws NullPointerException якщо список елементів не задано.
+         */
         public ClipboardContent {
             items = List.copyOf(items);
         }
     }
 
     /**
-     * Створює items з переданих параметрів.
+     * Створює описи нейронів, зберігаючи їх відносне положення відносно опорної точки.
      *
-     * @param sources значення «sources», яке використовується в цьому методі.
-     * @param anchorX горизонтальна координата опорної точки вставлення.
-     * @param anchorY вертикальна координата опорної точки вставлення.
+     * @param sources джерела, що пов'язують нейрони з їхніми поданнями.
+     * @param anchorX горизонтальна координата опорної точки.
+     * @param anchorY вертикальна координата опорної точки.
+     * @return незмінний список даних для буфера обміну.
      */
     private List<NeuronData> createItems(
             List<NeuronSnapshotSource> sources,
@@ -211,53 +199,104 @@ public final class NeuronClipboardService {
             double anchorY
     ) {
         List<NeuronData> items = new ArrayList<>(sources.size());
-
         for (NeuronSnapshotSource source : sources) {
             Neuron neuron = source.neuron();
             NeuronPresentation presentation = source.presentation();
             items.add(new NeuronData(
                     neuron.type(),
-                    neuron.signalStrength(),
-                    neuron.activationThreshold(),
+                    neuron.parameters(),
                     presentation.x() - anchorX,
                     presentation.y() - anchorY,
                     presentation.rotationDegrees(),
                     presentation.directionReversed()
             ));
         }
-
         return List.copyOf(items);
     }
 
     /**
-     * Зберігає параметри нейрона та його положення відносно опорної точки копіювання.
+     * Зберігає параметри нейрона й його положення відносно опорної точки копіювання.
+     *
      * @param type тип нейрона.
-     * @param signalStrength налаштована сила сигналу нейрона.
-     * @param activationThreshold поріг суми сигналів для активації нейрона.
+     * @param parameters налаштування сили сигналу й порога активації.
      * @param offsetX горизонтальне зміщення від опорної точки.
      * @param offsetY вертикальне зміщення від опорної точки.
      * @param rotationDegrees кут обертання нейрона в градусах.
-     * @param directionReversed true, якщо напрямок портів нейрона розвернутий.
+     * @param directionReversed {@code true}, якщо напрямок портів нейрона розвернуто.
      */
     public record NeuronData(
             NeuronType type,
-            int signalStrength,
-            int activationThreshold,
+            NeuronParameters parameters,
             double offsetX,
             double offsetY,
             double rotationDegrees,
             boolean directionReversed
     ) {
+        /**
+         * Перевіряє наявність типу й параметрів для коректного опису нейрона в буфері.
+         *
+         * @throws NullPointerException якщо тип або параметри не задано.
+         */
+        public NeuronData {
+            Objects.requireNonNull(type, "type");
+            Objects.requireNonNull(parameters, "parameters");
+        }
+
+        /**
+         * Створює дані буфера зі старого контракту з окремими значеннями параметрів.
+         *
+         * @param type тип нейрона.
+         * @param signalStrength сила сигналу.
+         * @param activationThreshold поріг активації.
+         * @param offsetX горизонтальне зміщення від опорної точки.
+         * @param offsetY вертикальне зміщення від опорної точки.
+         * @param rotationDegrees кут обертання в градусах.
+         * @param directionReversed {@code true}, якщо напрямок портів розвернуто.
+         */
+        public NeuronData(
+                NeuronType type,
+                int signalStrength,
+                int activationThreshold,
+                double offsetX,
+                double offsetY,
+                double rotationDegrees,
+                boolean directionReversed
+        ) {
+            this(
+                    type,
+                    new NeuronParameters(signalStrength, activationThreshold),
+                    offsetX,
+                    offsetY,
+                    rotationDegrees,
+                    directionReversed
+            );
+        }
+
+        /**
+         * Повертає силу сигналу для сумісності з наявними читачами даних буфера.
+         *
+         * @return сила сигналу нейрона.
+         */
+        public int signalStrength() {
+            return parameters.signalStrength();
+        }
+
+        /**
+         * Повертає поріг активації для сумісності з наявними читачами даних буфера.
+         *
+         * @return поріг активації нейрона.
+         */
+        public int activationThreshold() {
+            return parameters.activationThreshold();
+        }
     }
 
     /**
-     * Пов’язує модель нейрона з його візуальним поданням для копіювання.
+     * Пов'язує модель нейрона з його візуальним поданням на час створення копії.
+     *
      * @param neuron семантичні дані нейрона.
      * @param presentation координати, поворот і напрямок подання цього нейрона.
      */
-    private record NeuronSnapshotSource(
-            Neuron neuron,
-            NeuronPresentation presentation
-    ) {
+    private record NeuronSnapshotSource(Neuron neuron, NeuronPresentation presentation) {
     }
 }

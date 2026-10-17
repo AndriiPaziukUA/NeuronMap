@@ -2,6 +2,7 @@ package com.example.neuronmap.view.neuron;
 
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
+import com.example.neuronmap.model.NeuronParameters;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.ButtonBar;
@@ -15,29 +16,24 @@ import javafx.stage.Window;
 import java.util.Optional;
 
 /**
- * Показує діалог редагування сили сигналу та порога активації нейрона й перевіряє введені числа.
+ * Показує діалог редагування параметрів сигналу нейрона й перевіряє введені числа.
  */
 public final class NeuronSettingsDialog {
 
+    /**
+     * Забороняє створення екземплярів класу, оскільки всі операції діалогу статичні.
+     */
     private NeuronSettingsDialog() {
     }
 
-    public record Values(
-            int signalStrength,
-            int activationThreshold
-    ) {
-    }
-
     /**
-     * Показує діалог редагування параметрів нейрона та повертає нові значення, якщо користувач підтвердив зміни.
+     * Показує діалог редагування параметрів нейрона з типовою українською локалізацією.
      *
      * @param owner вікно, над яким показують діалог.
-     * @param neuron нейрон моделі.
+     * @param neuron нейрон, параметри якого редагують.
+     * @return нові параметри, якщо користувач підтвердив зміни; порожній результат у разі скасування.
      */
-    public static Optional<Values> show(
-            Window owner,
-            Neuron neuron
-    ) {
+    public static Optional<NeuronParameters> show(Window owner, Neuron neuron) {
         return show(
                 owner,
                 neuron,
@@ -46,13 +42,14 @@ public final class NeuronSettingsDialog {
     }
 
     /**
-     * Показує діалог редагування параметрів нейрона та повертає нові значення, якщо користувач підтвердив зміни.
+     * Показує діалог редагування параметрів нейрона та повертає єдине значення параметрів після підтвердження.
      *
      * @param owner вікно, над яким показують діалог.
-     * @param neuron нейрон моделі.
+     * @param neuron нейрон, параметри якого редагують.
      * @param localization служба локалізації інтерфейсу.
+     * @return нові параметри, якщо користувач підтвердив зміни; порожній результат для відсутнього нейрона або скасування.
      */
-    public static Optional<Values> show(
+    public static Optional<NeuronParameters> show(
             Window owner,
             Neuron neuron,
             LocalizationService localization
@@ -61,10 +58,9 @@ public final class NeuronSettingsDialog {
             return Optional.empty();
         }
 
-        Dialog<Values> dialog = new Dialog<>();
+        Dialog<NeuronParameters> dialog = new Dialog<>();
         dialog.setTitle(localization.text("neuron.settings.title"));
         dialog.setHeaderText(localization.text("neuron.settings.header"));
-
         if (owner != null) {
             dialog.initOwner(owner);
         }
@@ -73,19 +69,10 @@ public final class NeuronSettingsDialog {
                 localization.text("neuron.settings.save"),
                 ButtonBar.ButtonData.OK_DONE
         );
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
 
-        dialog.getDialogPane().getButtonTypes().addAll(
-                saveButtonType,
-                ButtonType.CANCEL
-        );
-
-        TextField signalField = new TextField(
-                Integer.toString(neuron.signalStrength())
-        );
-        TextField thresholdField = new TextField(
-                Integer.toString(neuron.activationThreshold())
-        );
-
+        TextField signalField = new TextField(Integer.toString(neuron.signalStrength()));
+        TextField thresholdField = new TextField(Integer.toString(neuron.activationThreshold()));
         signalField.setPromptText(localization.text("neuron.settings.positive_integer"));
         thresholdField.setPromptText(localization.text("neuron.settings.positive_integer"));
 
@@ -93,12 +80,10 @@ public final class NeuronSettingsDialog {
         content.setHgap(10);
         content.setVgap(10);
         content.setPadding(new Insets(12));
-
         content.add(new Label(localization.text("neuron.settings.signal_strength")), 0, 0);
         content.add(signalField, 1, 0);
         content.add(new Label(localization.text("neuron.settings.activation_threshold")), 0, 1);
         content.add(thresholdField, 1, 1);
-
         dialog.getDialogPane().setContent(content);
 
         Node saveButton = dialog.getDialogPane().lookupButton(saveButtonType);
@@ -106,7 +91,6 @@ public final class NeuronSettingsDialog {
                 parsePositive(signalField.getText()) == null
                         || parsePositive(thresholdField.getText()) == null
         );
-
         signalField.textProperty().addListener((obs, oldValue, newValue) -> validate.run());
         thresholdField.textProperty().addListener((obs, oldValue, newValue) -> validate.run());
         validate.run();
@@ -115,23 +99,21 @@ public final class NeuronSettingsDialog {
             if (buttonType != saveButtonType) {
                 return null;
             }
-
             Integer signalStrength = parsePositive(signalField.getText());
             Integer activationThreshold = parsePositive(thresholdField.getText());
             if (signalStrength == null || activationThreshold == null) {
                 return null;
             }
-
-            return new Values(signalStrength, activationThreshold);
+            return new NeuronParameters(signalStrength, activationThreshold);
         });
-
         return dialog.showAndWait();
     }
 
     /**
-     * Перетворює введений текст на додатне ціле число або повертає null для некоректного значення.
+     * Перетворює введений текст на додатне ціле число або повертає {@code null} для некоректного значення.
      *
-     * @param text текст, який потрібно показати або розібрати.
+     * @param text текст, введений користувачем.
+     * @return додатне ціле число або {@code null}, якщо значення не можна прийняти.
      */
     private static Integer parsePositive(String text) {
         if (text == null || text.isBlank()) {

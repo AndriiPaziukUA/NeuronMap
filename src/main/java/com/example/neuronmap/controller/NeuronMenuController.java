@@ -44,12 +44,12 @@ public final class NeuronMenuController {
      * @param neuronService служба операцій над нейронами.
      * @param state поточний стан редактора.
      * @param workspace полотно редактора.
-     * @param connections контролер операцій зі зв’язками.
+     * @param connections контролер операцій зі зв'язками.
      * @param simulation контролер симуляції нейронів.
      * @param deletionController контролер видалення нейронів.
      * @param neuronMenuView подання оформлення кнопок контекстного меню.
      * @param refreshVisuals дія оновлення вигляду нейронів.
-     * @param refreshConnections дія оновлення вигляду зв’язків.
+     * @param refreshConnections дія оновлення вигляду зв'язків.
      * @param refreshOverlays дія оновлення положення накладок.
      * @param save дія збереження поточного стану.
      * @param status дія показу повідомлення в рядку стану.
@@ -117,7 +117,6 @@ public final class NeuronMenuController {
     public void show(NeuronView neuronView) {
         Objects.requireNonNull(neuronView, "neuronView");
         hide();
-
         String neuronId = neuronView.model().id();
         state.setSelectedNeuronForMenu(neuronId);
         activeNeuronId = neuronId;
@@ -142,13 +141,12 @@ public final class NeuronMenuController {
                         () -> deletionController.deleteNeuron(neuronId)
                 )
         );
-
         workspace.overlayLayer().getChildren().add(menu);
         overlayPositioner.position(neuronView, menu, null);
     }
 
     /**
-     * Змінює напрямок нейрона та узгоджує його подання, зв’язки, накладки й збережений стан.
+     * Змінює напрямок нейрона та узгоджує його подання, зв'язки, накладки й збережений стан.
      * Якщо нейрон уже відсутній у моделі, дія завершується без побічних ефектів.
      *
      * @param neuronId ідентифікатор нейрона, напрямок якого потрібно перемкнути.
@@ -157,7 +155,6 @@ public final class NeuronMenuController {
         if (neuronId == null || !neuronService.toggleDirection(neuronId)) {
             return;
         }
-
         refreshViewsAndSave();
         status.accept(localization.text("status.direction_changed"));
     }
@@ -200,7 +197,7 @@ public final class NeuronMenuController {
     }
 
     /**
-     * Відкриває налаштування нейрона та зберігає введені значення після підтвердження.
+     * Відкриває налаштування нейрона та застосовує нові параметри одним узгодженим значенням.
      *
      * @param neuronId ідентифікатор нейрона, налаштування якого потрібно змінити.
      */
@@ -216,12 +213,8 @@ public final class NeuronMenuController {
                         : workspace.node().getScene().getWindow(),
                 neuron,
                 localization
-        ).ifPresent(values -> {
-            neuronService.updateSettings(
-                    neuronId,
-                    values.signalStrength(),
-                    values.activationThreshold()
-            );
+        ).ifPresent(parameters -> {
+            neuronService.updateSettings(neuronId, parameters);
             save.run();
             status.accept(localization.text("neuron.settings.saved"));
         });

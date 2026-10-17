@@ -1,9 +1,11 @@
 package com.example.neuronmap.service.history;
 
 import com.example.neuronmap.model.Connection;
+import com.example.neuronmap.model.MapPosition;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronGroup;
 import com.example.neuronmap.model.NeuronMapModel;
+import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.model.NeuronType;
 
@@ -26,7 +28,7 @@ public final class FieldStateSnapshot {
      *
      * @param neurons знімки станів нейронів.
      * @param presentations знімки візуальних подань нейронів.
-     * @param connections знімки зв’язків між нейронами.
+     * @param connections знімки зв'язків між нейронами.
      * @param groups знімки груп нейронів.
      */
     private FieldStateSnapshot(
@@ -53,48 +55,38 @@ public final class FieldStateSnapshot {
 
         List<NeuronState> neuronStates = new ArrayList<>();
         for (Neuron neuron : model.neurons()) {
-            neuronStates.add(
-                    new NeuronState(
-                            neuron.id(),
-                            neuron.type(),
-                            neuron.signalStrength(),
-                            neuron.activationThreshold()
-                    )
-            );
+            neuronStates.add(new NeuronState(
+                    neuron.id(),
+                    neuron.type(),
+                    neuron.parameters()
+            ));
         }
 
         List<PresentationState> presentationStates = new ArrayList<>();
         for (NeuronPresentation presentation : model.presentations()) {
-            presentationStates.add(
-                    new PresentationState(
-                            presentation.neuron().id(),
-                            presentation.x(),
-                            presentation.y(),
-                            presentation.rotationDegrees(),
-                            presentation.directionReversed()
-                    )
-            );
+            presentationStates.add(new PresentationState(
+                    presentation.neuron().id(),
+                    presentation.position(),
+                    presentation.rotationDegrees(),
+                    presentation.directionReversed()
+            ));
         }
 
         List<ConnectionState> connectionStates = new ArrayList<>();
         for (Connection connection : model.connections()) {
-            connectionStates.add(
-                    new ConnectionState(
-                            connection.id(),
-                            connection.sourceId(),
-                            connection.targetId()
-                    )
-            );
+            connectionStates.add(new ConnectionState(
+                    connection.id(),
+                    connection.sourceId(),
+                    connection.targetId()
+            ));
         }
 
         List<GroupState> groupStates = new ArrayList<>();
         for (NeuronGroup group : model.groups()) {
-            groupStates.add(
-                    new GroupState(
-                            group.id(),
-                            List.copyOf(group.memberIds())
-                    )
-            );
+            groupStates.add(new GroupState(
+                    group.id(),
+                    List.copyOf(group.memberIds())
+            ));
         }
 
         return new FieldStateSnapshot(
@@ -114,7 +106,6 @@ public final class FieldStateSnapshot {
      */
     public void restoreInto(NeuronMapModel model) {
         requireModel(model);
-
         model.clear();
 
         for (NeuronState neuronState : neurons) {
@@ -123,33 +114,20 @@ public final class FieldStateSnapshot {
                     neuronState.type(),
                     0
             );
-            neuron.setSignalStrength(neuronState.signalStrength());
-            neuron.setActivationThreshold(
-                    neuronState.activationThreshold()
-            );
+            neuron.setParameters(neuronState.parameters());
         }
 
         for (PresentationState presentationState : presentations) {
-            NeuronPresentation presentation =
-                    model.presentation(presentationState.neuronId());
-
+            NeuronPresentation presentation = model.presentation(presentationState.neuronId());
             if (presentation == null) {
                 throw new IllegalStateException(
-                        "Missing neuron presentation for "
-                                + presentationState.neuronId()
+                        "Missing neuron presentation for " + presentationState.neuronId()
                 );
             }
 
-            presentation.setPosition(
-                    presentationState.x(),
-                    presentationState.y()
-            );
-            presentation.setRotationDegrees(
-                    presentationState.rotationDegrees()
-            );
-            presentation.setDirectionReversed(
-                    presentationState.directionReversed()
-            );
+            presentation.setPosition(presentationState.position());
+            presentation.setRotationDegrees(presentationState.rotationDegrees());
+            presentation.setDirectionReversed(presentationState.directionReversed());
         }
 
         for (ConnectionState connectionState : connections) {
@@ -161,10 +139,7 @@ public final class FieldStateSnapshot {
         }
 
         for (GroupState groupState : groups) {
-            model.addGroup(
-                    groupState.id(),
-                    groupState.memberIds()
-            );
+            model.addGroup(groupState.id(), groupState.memberIds());
         }
     }
 
@@ -178,9 +153,9 @@ public final class FieldStateSnapshot {
     }
 
     /**
-     * Повертає незмінний список станів зв’язків зі знімка.
+     * Повертає незмінний список станів зв'язків зі знімка.
      *
-     * @return список станів зв’язків.
+     * @return список станів зв'язків.
      */
     public List<ConnectionState> connections() {
         return connections;
@@ -198,7 +173,7 @@ public final class FieldStateSnapshot {
     /**
      * Порівнює знімки за всіма даними карти, що зберігаються в історії.
      *
-     * @param other об’єкт для порівняння з поточним знімком.
+     * @param other об'єкт для порівняння з поточним знімком.
      * @return {@code true}, якщо знімки містять однакові дані; інакше {@code false}.
      */
     @Override
@@ -206,11 +181,9 @@ public final class FieldStateSnapshot {
         if (this == other) {
             return true;
         }
-
         if (!(other instanceof FieldStateSnapshot that)) {
             return false;
         }
-
         return neurons.equals(that.neurons)
                 && presentations.equals(that.presentations)
                 && connections.equals(that.connections)
@@ -224,18 +197,13 @@ public final class FieldStateSnapshot {
      */
     @Override
     public int hashCode() {
-        return Objects.hash(
-                neurons,
-                presentations,
-                connections,
-                groups
-        );
+        return Objects.hash(neurons, presentations, connections, groups);
     }
 
     /**
-     * Перевіряє, що посилання на модель карти не дорівнює {@code null}.
+     * Перевіряє, що модель карти задано.
      *
-     * @param model модель для перевірки.
+     * @param model модель карти для перевірки.
      * @throws IllegalArgumentException якщо модель не задано.
      */
     private static void requireModel(NeuronMapModel model) {
@@ -245,51 +213,128 @@ public final class FieldStateSnapshot {
     }
 
     /**
-     * Зберігає знімок основних параметрів нейрона.
+     * Зберігає параметри нейрона, потрібні для відновлення збереженого стану.
      *
      * @param id ідентифікатор нейрона.
      * @param type тип нейрона.
-     * @param signalStrength сила сигналу.
-     * @param activationThreshold поріг активації.
+     * @param parameters сила сигналу та поріг активації.
      */
-    public record NeuronState(
-            String id,
-            NeuronType type,
-            int signalStrength,
-            int activationThreshold
-    ) {
+    public record NeuronState(String id, NeuronType type, NeuronParameters parameters) {
+        /**
+         * Перевіряє, що знімок містить параметри нейрона.
+         *
+         * @throws NullPointerException якщо тип або параметри не задано.
+         */
+        public NeuronState {
+            Objects.requireNonNull(type, "type");
+            Objects.requireNonNull(parameters, "parameters");
+        }
+
+        /**
+         * Створює знімок із попереднього контракту з окремими значеннями налаштувань.
+         *
+         * @param id ідентифікатор нейрона.
+         * @param type тип нейрона.
+         * @param signalStrength сила сигналу.
+         * @param activationThreshold поріг активації.
+         */
+        public NeuronState(
+                String id,
+                NeuronType type,
+                int signalStrength,
+                int activationThreshold
+        ) {
+            this(id, type, new NeuronParameters(signalStrength, activationThreshold));
+        }
+
+        /**
+         * Повертає силу сигналу нейрона.
+         *
+         * @return сила сигналу.
+         */
+        public int signalStrength() {
+            return parameters.signalStrength();
+        }
+
+        /**
+         * Повертає поріг активації нейрона.
+         *
+         * @return поріг активації.
+         */
+        public int activationThreshold() {
+            return parameters.activationThreshold();
+        }
     }
 
     /**
-     * Зберігає стан візуального подання нейрона.
+     * Зберігає стан візуального подання нейрона разом із його позицією як єдиним значенням.
      *
      * @param neuronId ідентифікатор нейрона.
-     * @param x горизонтальна координата.
-     * @param y вертикальна координата.
+     * @param position позиція нейрона на карті.
      * @param rotationDegrees кут обертання у градусах.
      * @param directionReversed ознака зворотного напрямку.
      */
     public record PresentationState(
             String neuronId,
-            double x,
-            double y,
+            MapPosition position,
             double rotationDegrees,
             boolean directionReversed
     ) {
+        /**
+         * Перевіряє, що знімок містить позицію нейрона.
+         *
+         * @throws NullPointerException якщо позицію не задано.
+         */
+        public PresentationState {
+            Objects.requireNonNull(position, "position");
+        }
+
+        /**
+         * Створює знімок зі старого контракту, у якому координати передавалися окремо.
+         *
+         * @param neuronId ідентифікатор нейрона.
+         * @param x горизонтальна координата.
+         * @param y вертикальна координата.
+         * @param rotationDegrees кут обертання в градусах.
+         * @param directionReversed ознака зворотного напрямку.
+         */
+        public PresentationState(
+                String neuronId,
+                double x,
+                double y,
+                double rotationDegrees,
+                boolean directionReversed
+        ) {
+            this(neuronId, new MapPosition(x, y), rotationDegrees, directionReversed);
+        }
+
+        /**
+         * Повертає горизонтальну координату для сумісності з наявними читачами знімка.
+         *
+         * @return координата X.
+         */
+        public double x() {
+            return position.x();
+        }
+
+        /**
+         * Повертає вертикальну координату для сумісності з наявними читачами знімка.
+         *
+         * @return координата Y.
+         */
+        public double y() {
+            return position.y();
+        }
     }
 
     /**
-     * Зберігає ідентифікатори зв’язку та його початкового й кінцевого нейронів.
+     * Зберігає ідентифікатори зв'язку та його початкового й кінцевого нейронів.
      *
-     * @param id ідентифікатор зв’язку.
+     * @param id ідентифікатор зв'язку.
      * @param sourceId ідентифікатор початкового нейрона.
      * @param targetId ідентифікатор кінцевого нейрона.
      */
-    public record ConnectionState(
-            String id,
-            String sourceId,
-            String targetId
-    ) {
+    public record ConnectionState(String id, String sourceId, String targetId) {
     }
 
     /**
@@ -298,15 +343,11 @@ public final class FieldStateSnapshot {
      * @param id ідентифікатор групи.
      * @param memberIds ідентифікатори нейронів у групі.
      */
-    public record GroupState(
-            String id,
-            List<String> memberIds
-    ) {
+    public record GroupState(String id, List<String> memberIds) {
         /**
          * Створює стан групи з незмінним переліком учасників.
          *
-         * @param id ідентифікатор групи.
-         * @param memberIds ідентифікатори нейронів у групі.
+         * @throws NullPointerException якщо список учасників не задано.
          */
         public GroupState {
             memberIds = List.copyOf(memberIds);
