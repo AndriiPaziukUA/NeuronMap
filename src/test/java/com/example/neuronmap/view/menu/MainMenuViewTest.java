@@ -87,7 +87,7 @@ final class MainMenuViewTest {
             assertNull(view.backButtonForTest().getParent(),
                     "Кнопка повернення має бути вилучена після повернення з налаштувань");
             assertTrue(view.menuPanelForTest().isFocusTraversable());
-            assertEquals(460.0, view.panelMaxWidthForTest());
+            assertEquals(920.0, view.panelMaxWidthForTest());
             assertEquals(430.0, view.panelMaxHeightForTest());
             view.resize(1280.0, 720.0);
             view.layout();
@@ -98,6 +98,90 @@ final class MainMenuViewTest {
             assertTrue(view.isMenuVisible());
             view.hide();
             assertFalse(view.isMenuVisible());
+            view.dispose();
+        });
+    }
+
+    /** Перевіряє, що панель розширюється до природної ширини довгої назви без стискання тексту. */
+    @Test
+    void savedProjectPanelFitsLongProjectNames() throws Exception {
+        runOnFxThread(() -> {
+            MainMenuView view = new MainMenuView(new LocalizationService(Locale.ENGLISH), ignored -> { });
+            configureMenuActions(view);
+            String longProjectName =
+                    "A deliberately long saved project title that should remain fully visible in the project list";
+            List<ProjectDescriptor> projects = java.util.stream.IntStream.range(0, 30)
+                    .mapToObj(index -> new ProjectDescriptor(
+                            "wide-project-id-" + index,
+                            index == 0 ? longProjectName : "Saved project " + index,
+                            Path.of("wide-project-" + index + ".db"),
+                            Instant.now()))
+                    .toList();
+            new Scene(view, 1400.0, 800.0);
+            view.resize(1400.0, 800.0);
+            view.showMenu();
+            view.showLoadPage(projects);
+            view.applyCss();
+            view.layout();
+
+            ScrollPane scrollPane = view.projectScrollPaneForTest();
+            assertNotNull(scrollPane);
+            scrollPane.applyCss();
+            scrollPane.layout();
+            ScrollBar verticalScrollBar = verticalScrollBarForTest(scrollPane);
+            assertNotNull(verticalScrollBar, "JavaFX має створити вертикальну смугу прокручування для довгого списку");
+            assertTrue(verticalScrollBar.isVisible(), "Довгий список має резервувати ширину видимої смуги прокручування");
+            if (scrollPane.getContent() instanceof javafx.scene.Parent content) {
+                content.layout();
+            }
+            SavedProjectRowView row = view.projectRowsForTest().get(0);
+            row.applyCss();
+            row.layout();
+
+            assertTrue(view.panelWidthForTest() > 460.0,
+                    "Панель має розширюватися понад стару межу для довгої назви проєкту");
+            assertTrue(view.panelWidthForTest() <= 920.0,
+                    "Ширина панелі не має перевищувати нову максимальну межу");
+            assertTrue(row.nameLabelForTest().getWidth() >= row.nameLabelForTest().prefWidth(-1.0) - 1.0,
+                    "Ширина мітки назви має вміщувати весь текст без стискання навіть зі смугою прокручування");
+            assertTrue(row.deleteButtonForTest().getLayoutX() + row.deleteButtonForTest().getWidth()
+                            <= row.getWidth() + 0.5,
+                    "Кнопка видалення має залишатися всередині рядка після перерахунку ширини");
+            view.dispose();
+        });
+    }
+
+    /** Перевіряє, що підписи кнопок збереження й скасування не стискаються під час перейменування. */
+    @Test
+    void renameButtonsKeepTheirFullPreferredWidth() throws Exception {
+        runOnFxThread(() -> {
+            MainMenuView view = new MainMenuView(new LocalizationService(Locale.forLanguageTag("uk")), ignored -> { });
+            configureMenuActions(view);
+            new Scene(view, 1000.0, 700.0);
+            view.resize(1000.0, 700.0);
+            view.showMenu();
+            view.showLoadPage(List.of(new ProjectDescriptor(
+                    "rename-width-project", "Project", Path.of("rename-width-project.db"), Instant.now())));
+            view.applyCss();
+            view.layout();
+
+            SavedProjectRowView row = view.projectRowsForTest().get(0);
+            double widthBeforeEditing = view.panelWidthForTest();
+            row.beginRenameForTest();
+            view.applyCss();
+            view.layout();
+            row.layout();
+
+            assertTrue(view.panelWidthForTest() >= widthBeforeEditing,
+                    "Панель має враховувати природну ширину кнопок після переходу до редагування");
+            assertTrue(row.renameButtonForTest().getWidth()
+                            >= row.renameButtonForTest().prefWidth(-1.0) - 1.0,
+                    "Підпис кнопки збереження має відображатися повністю");
+            assertTrue(row.cancelButtonForTest().getWidth()
+                            >= row.cancelButtonForTest().prefWidth(-1.0) - 1.0,
+                    "Підпис кнопки скасування має відображатися повністю");
+            assertTrue(row.getWidth() >= row.preferredWidthForLayout() - 1.0,
+                    "Ширина рядка має враховувати всі активні елементи редагування");
             view.dispose();
         });
     }
@@ -388,7 +472,7 @@ final class MainMenuViewTest {
             scrollPane.layout();
             ScrollBar scrollBar = verticalScrollBarForTest(scrollPane);
             assertNotNull(scrollBar, "JavaFX має створити вертикальну смугу прокручування для довгого списку");
-            assertTrue(scrollBar.isVisible(), "Вертикальна смуга має бути видимою для довгого списку проєктів");
+            assertTrue(scrollBar.isVisible(), "Смуга прокручування має бути видимою для довгого списку проєктів");
             scrollBar.setValue(scrollBar.getMax());
             assertEquals(scrollBar.getMax(), scrollPane.getVvalue(), 0.05,
                     "Переміщення смуги має оновлювати позицію прокручування");

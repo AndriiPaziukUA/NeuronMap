@@ -30,7 +30,7 @@ import java.util.function.Consumer;
  */
 public final class MainMenuView extends StackPane {
 
-    private static final double MAX_PANEL_WIDTH = 460.0;
+    private static final double MAX_PANEL_WIDTH = 920.0;
     private static final double MAX_PANEL_HEIGHT = 430.0;
     private static final String MENU_STYLESHEET_RESOURCE = "/menu-enhancements.css";
 
@@ -233,7 +233,7 @@ public final class MainMenuView extends StackPane {
         return actions;
     }
 
-    /** Розміщує накладку меню, підлаштовуючи висоту сторінок до їхнього вмісту. */
+    /** Розміщує накладку меню, підлаштовуючи розмір панелі до вмісту поточної сторінки. */
     @Override
     protected void layoutChildren() {
         super.layoutChildren();
@@ -244,6 +244,12 @@ public final class MainMenuView extends StackPane {
         double availableWidth = Math.max(0.0, getWidth() - 32.0);
         double availableHeight = Math.max(0.0, getHeight() - 32.0);
         double preferredWidth = Math.max(panel.minWidth(-1.0), panel.prefWidth(-1.0));
+        if (page == Page.LOAD) {
+            double panelHorizontalInsets = panel.getInsets().getLeft() + panel.getInsets().getRight();
+            preferredWidth = Math.max(
+                    preferredWidth,
+                    projectListView.preferredWidthForLayout() + panelHorizontalInsets);
+        }
         double panelWidth = Math.min(availableWidth, Math.min(MAX_PANEL_WIDTH, preferredWidth));
         double preferredHeight = Math.max(panel.minHeight(panelWidth), panel.prefHeight(panelWidth));
         double panelHeight = page == Page.LOAD

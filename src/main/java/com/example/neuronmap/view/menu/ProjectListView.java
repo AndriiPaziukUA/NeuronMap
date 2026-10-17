@@ -16,6 +16,9 @@ import java.util.function.Consumer;
 /** Відображає список збережених проєктів і керує життєвим циклом його рядків. */
 public final class ProjectListView extends VBox {
 
+    /** Ширина вертикальної смуги прокручування, задана стилями списку меню. */
+    private static final double VERTICAL_SCROLL_BAR_WIDTH = 9.0;
+
     private final LocalizationService localization;
     private final Consumer<Locale> localizationListener = ignored -> refreshTexts();
     private final VBox projectRowsBox = new VBox(6.0);
@@ -106,6 +109,36 @@ public final class ProjectListView extends VBox {
     /** Оновлює локалізований напис для випадку, коли немає збережених проєктів. */
     public void refreshTexts() {
         emptyProjectsLabel.setText(localization.text("menu.no_saved_projects"));
+    }
+
+    /**
+     * Обчислює ширину списку з урахуванням повної бажаної ширини рядків, а не лише ширини viewport.
+     *
+     * <p>ScrollPane із ввімкненим {@code fitToWidth} може стискати свій вміст до ширини viewport.
+     * Для початкового розміщення меню тому враховується природна ширина рядків разом із додатковою
+     * шириною, яку потребує сам ScrollPane.</p>
+     *
+     * @return бажана ширина сторінки списку до застосування зовнішнього обмеження вікна.
+     */
+    double preferredWidthForLayout() {
+        double preferredWidth = prefWidth(-1.0);
+        if (scrollPane == null || projectRows.isEmpty()) {
+            return preferredWidth;
+        }
+
+        double widestRow = projectRows.stream()
+                .mapToDouble(SavedProjectRowView::preferredWidthForLayout)
+                .max()
+                .orElse(0.0);
+        double rowsHorizontalInsets = projectRowsBox.getInsets().getLeft()
+                + projectRowsBox.getInsets().getRight();
+        double rowsWidth = Math.max(projectRowsBox.prefWidth(-1.0), widestRow + rowsHorizontalInsets);
+        double scrollPaneHorizontalInsets = scrollPane.getInsets().getLeft()
+                + scrollPane.getInsets().getRight();
+
+        // Смуга резервується також до моменту появи skin-а: довгий список не має стискати його рядки.
+        double requiredScrollPaneWidth = rowsWidth + scrollPaneHorizontalInsets + VERTICAL_SCROLL_BAR_WIDTH;
+        return Math.max(preferredWidth, Math.max(scrollPane.prefWidth(-1.0), requiredScrollPaneWidth));
     }
 
     /**

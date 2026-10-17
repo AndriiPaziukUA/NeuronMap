@@ -238,6 +238,31 @@ public final class SavedProjectRowView extends HBox {
         return cancelButton;
     }
 
+    /**
+     * Обчислює ширину, потрібну для повного розміщення всіх керованих дочірніх елементів рядка.
+     *
+     * <p>Значення враховує природну ширину текстової мітки або кнопок у поточному режимі, а не лише
+     * ширину рядка, яку {@code ScrollPane} міг отримати після стискання до viewport.</p>
+     *
+     * @return мінімальна бажана ширина рядка для поточного стану інтерфейсу.
+     */
+    double preferredWidthForLayout() {
+        Insets insets = getInsets();
+        double requiredWidth = insets.getLeft() + insets.getRight();
+        int managedChildren = 0;
+        for (Node child : getChildren()) {
+            if (!child.isManaged()) {
+                continue;
+            }
+            if (managedChildren > 0) {
+                requiredWidth += getSpacing();
+            }
+            requiredWidth += Math.max(child.minWidth(-1.0), child.prefWidth(-1.0));
+            managedChildren++;
+        }
+        return Math.max(requiredWidth, prefWidth(-1.0));
+    }
+
     /** Вмикає режим редагування з новим полем введення та залишає видимими лише потрібні елементи керування. */
     private void beginRename() {
         int nameIndex = getChildren().indexOf(nameLabel);
@@ -381,10 +406,10 @@ public final class SavedProjectRowView extends HBox {
         node.setVisible(visible);
     }
 
-    /** Налаштовує спільний стиль кнопки та ширину, потрібну для її звичайного тексту. */
+    /** Налаштовує спільний стиль кнопки та її повну природну ширину для читабельного підпису. */
     private void configureButton(Button button) {
         button.getStyleClass().add("menu-small-button");
-        button.setMinWidth(70.0);
+        button.setMinWidth(Region.USE_PREF_SIZE);
     }
 
     /** Налаштовує компактну кнопку з графічним значком замість видимого підпису. */
@@ -439,9 +464,12 @@ public final class SavedProjectRowView extends HBox {
         renameButton.setAccessibleText(editing ? saveText : renameText);
         renameButton.setTooltip(editing ? null : new Tooltip(renameText));
         if (editing) {
-            renameButton.setMinWidth(70.0);
+            renameButton.setMinWidth(Region.USE_PREF_SIZE);
             renameButton.setPrefWidth(Region.USE_COMPUTED_SIZE);
             renameButton.setMaxWidth(Region.USE_PREF_SIZE);
+            cancelButton.setMinWidth(Region.USE_PREF_SIZE);
+            cancelButton.setPrefWidth(Region.USE_COMPUTED_SIZE);
+            cancelButton.setMaxWidth(Region.USE_PREF_SIZE);
         } else {
             renameButton.setMinWidth(ICON_BUTTON_SIZE);
             renameButton.setPrefWidth(ICON_BUTTON_SIZE);
