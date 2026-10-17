@@ -73,6 +73,7 @@ public final class MapEditorCoordinator {
     private final MainMenuController mainMenuController;
     private final ProjectDirectoryWatcher projectDirectoryWatcher;
     private ImmediateTooltipManager tooltipManager;
+    private UiProcessCoordinator.Registration tooltipRegistration;
     private ProjectDescriptor currentProject;
     private boolean historyInitialized;
     private Scene scene;
@@ -97,36 +98,25 @@ public final class MapEditorCoordinator {
     ) {
         Objects.requireNonNull(application, "application");
         Objects.requireNonNull(config, "config");
-
         this.projectCatalog = Objects.requireNonNull(projectCatalog, "projectCatalog");
         Objects.requireNonNull(mapRepositoryFactory, "mapRepositoryFactory");
-        this.mapService = application.map();
-        this.neuronService = application.neurons();
+        mapService = application.map();
+        neuronService = application.neurons();
         ConnectionService connectionService = application.connections();
         GroupService groupService = application.groups();
-        this.currentProject = this.projectCatalog.descriptorForDatabasePath(
-                mapService.databasePath()
-        );
+        currentProject = this.projectCatalog.descriptorForDatabasePath(mapService.databasePath());
 
-        this.historyService = new HistoryService(neuronService.model());
-        this.editorSaveCoordinator = new EditorSaveCoordinator(
-                mapService,
-                projectCatalog,
-                historyService
-        );
-        this.minSimulationTickMillis = config.simulation().minTickMillis();
-        this.maxSimulationTickMillis = config.simulation().maxTickMillis();
-        this.defaultSimulationTickMillis = config.simulation().defaultTickMillis();
-        this.simulationTickMillis = EditorProjectSessionCoordinator.resolveInitialSimulationTickMillis(
+        historyService = new HistoryService(neuronService.model());
+        editorSaveCoordinator = new EditorSaveCoordinator(mapService, projectCatalog, historyService);
+        minSimulationTickMillis = config.simulation().minTickMillis();
+        maxSimulationTickMillis = config.simulation().maxTickMillis();
+        defaultSimulationTickMillis = config.simulation().defaultTickMillis();
+        simulationTickMillis = EditorProjectSessionCoordinator.resolveInitialSimulationTickMillis(
                 mapService.loadSimulationTickMillis(config.simulation().defaultTickMillis()),
-                config.simulation().defaultTickMillis(),
-                minSimulationTickMillis,
-                maxSimulationTickMillis
-        );
+                config.simulation().defaultTickMillis(), minSimulationTickMillis, maxSimulationTickMillis);
 
         CameraState camera = mapService.loadCameraState();
         state = new EditorState(camera.zoom(), camera.panX(), camera.panY());
-
         view = new MainView(
                 this::beginAddNeuronMode,
                 this::groupSelection,
@@ -194,6 +184,16 @@ public final class MapEditorCoordinator {
                 defaultSimulationTickMillis,
                 createEditorProjectSessionActions()
         );
+        editorProjectSessionCoordinator.registerUiProcess(
+                "status-message",
+                view::pauseStatusMessageLifecycle,
+                view::resumeStatusMessageLifecycle
+        );
+        editorProjectSessionCoordinator.registerUiProcess(
+                "camera-save-debounce",
+                cameraController::pausePendingSave,
+                cameraController::resumePendingSave
+        );
 
         projectWorkflowCoordinator = new ProjectWorkflowCoordinator(
                 projectCatalog,
@@ -234,7 +234,7 @@ public final class MapEditorCoordinator {
     }
 
     /**
-     * Створює набір дій, через які координатор сесії керує контролерами й поданнями редактора.
+     * Створює дії, через які координатор сесії керує контролерами й поданнями редактора.
      *
      * @return адаптер дій поточної редакторської сесії.
      */
@@ -300,11 +300,7 @@ public final class MapEditorCoordinator {
                 connectionController.resumeAnimations();
             }
 
-            /**
-             * Оновлює швидкість у контролері симуляції та панелі інструментів.
-             *
-             * @param millis нова тривалість такту симуляції в мілісекундах.
-             */
+            /** Оновлює швидкість у контролері симуляції та панелі інструментів. */
             @Override
             public void updateSimulationSpeed(double millis) {
                 simulationController.setTickDurationMillis(millis);
@@ -331,35 +327,30 @@ public final class MapEditorCoordinator {
         };
     }
 
-    /**
-     * Створює сцену редактора та налаштовує її основні компоненти.
-     *
-     * @param width ширина видимої області.
-     * @param height висота видимої області.
-     * @return створена сцена редактора.
-     */
+    /** Створює сцену редактора, встановлює обробники клавіш, меню та централізоване керування підказками. */
     public Scene createScene(double width, double height) {
         scene = view.createScene(width, height);
         keyboardController.install(scene);
-
-        scene.addEventFilter(
-                MouseEvent.MOUSE_PRESSED,
-                presentation::bringClickedNeuronToFront
-        );
+        scene.addEventFilter(MouseEvent.MOUSE_PRESSED, presentation::bringClickedNeuronToFront);
         mainMenuController.install(scene);
         tooltipManager = ImmediateTooltipManager.install(scene);
+        tooltipRegistration = editorProjectSessionCoordinator.registerUiProcess(
+                "immediate-tooltips", tooltipManager::pause, tooltipManager::resume);
         return scene;
     }
 
-    /**
-     * Розміщує камеру так, щоб початковий вигляд карти був центрований у вікні.
-     */
+    /** Розміщує камеру так, щоб початковий вигляд карти був центрований у вікні. */
     public void centerInitialView() {
         cameraController.apply();
     }
 
-    /** Зупиняє симуляцію, знімає обробники подій, закриває сховище та звільняє ресурси редактора. */
+    /** Зупиняє процеси редактора, знімає обробники подій і звільняє ресурси. */
     public void shutdown() {
+        editorProjectSessionCoordinator.disposeUiProcesses();
+        if (tooltipRegistration != null) {
+            tooltipRegistration.close();
+            tooltipRegistration = null;
+        }
         keyboardController.dispose();
         projectDirectoryWatcher.close();
         mainMenuController.dispose(scene);
@@ -378,7 +369,7 @@ public final class MapEditorCoordinator {
         mapService.close();
     }
 
-    /** Перемикає симуляцію між виконанням і паузою. */
+    /** Перемикає симуляцію між виконанням і ручною паузою. */
     private void toggleSimulationPause() {
         simulationController.pauseOrResume();
         view.toolbar().setSimulationPaused(simulationController.isPaused());
@@ -390,20 +381,12 @@ public final class MapEditorCoordinator {
         view.toolbar().setSimulationPaused(false);
     }
 
-    /**
-     * Передає зміну швидкості координатору, який перевіряє значення та зберігає його в активному проєкті.
-     *
-     * @param text значення тривалості такту, вибране користувачем.
-     */
+    /** Передає швидкість координатору, який перевіряє значення та зберігає його в активному проєкті. */
     private void changeSimulationSpeed(String text) {
         simulationSpeedCoordinator.changeSpeed(text);
     }
 
-    /**
-     * Застосовує збережену швидкість до активної симуляції, стану редактора та панелі інструментів.
-     *
-     * @param millis тривалість такту симуляції в мілісекундах.
-     */
+    /** Застосовує швидкість до симуляції, стану редактора та панелі інструментів. */
     private void applySimulationSpeed(double millis) {
         simulationController.setTickDurationMillis(millis);
         simulationTickMillis = millis;
@@ -416,11 +399,7 @@ public final class MapEditorCoordinator {
         projectCatalog.markLastOpened(Optional.ofNullable(currentProject));
     }
 
-    /**
-     * Починає режим додавання нейрона та готує стан взаємодії.
-     *
-     * @param type тип нейрона або елемента.
-     */
+    /** Починає режим додавання нейрона та готує стан взаємодії. */
     private void beginAddNeuronMode(NeuronType type) {
         interaction.beginAddNeuronMode(type);
     }
@@ -435,11 +414,7 @@ public final class MapEditorCoordinator {
         interaction.ungroupSelection();
     }
 
-    /**
-     * Передає зміну напрямку відповідальному контролеру контекстного меню нейрона.
-     *
-     * @param neuronId ідентифікатор нейрона.
-     */
+    /** Передає зміну напрямку відповідальному контролеру контекстного меню нейрона. */
     private void toggleNeuronDirection(String neuronId) {
         neuronController.toggleNeuronDirection(neuronId);
     }
@@ -454,20 +429,12 @@ public final class MapEditorCoordinator {
         presentation.refreshNeurons();
     }
 
-    /** Зберігає карту, стан камери, метадані активного проєкту та історію змін. */
+    /** Зберігає карту, камеру, метадані активного проєкту та історію змін. */
     private void saveNow() {
-        currentProject = editorSaveCoordinator.save(
-                state,
-                currentProject,
-                historyInitialized
-        );
+        currentProject = editorSaveCoordinator.save(state, currentProject, historyInitialized);
     }
 
-    /**
-     * Передає текст повідомлення до рядка стану інтерфейсу.
-     *
-     * @param text текст повідомлення, яке потрібно показати.
-     */
+    /** Передає текст повідомлення до рядка стану інтерфейсу. */
     private void updateStatus(String text) {
         view.setStatus(text);
     }

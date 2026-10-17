@@ -13,9 +13,7 @@ import javafx.scene.layout.StackPane;
 import java.net.URL;
 import java.util.function.Consumer;
 
-/**
- * Збирає робочу область редактора, панель інструментів, рядок стану та накладку головного меню в одну сцену.
- */
+/** Збирає робочу область редактора, панель інструментів, рядок стану та накладку головного меню в одну сцену. */
 public final class MainView {
 
     private final StackPane root = new StackPane();
@@ -23,8 +21,7 @@ public final class MainView {
     private final ToolbarView toolbar;
     private final WorkspaceView workspace = new WorkspaceView();
     private final StatusBarView statusBar = new StatusBarView();
-    private final StatusMessagePresenter statusMessagePresenter =
-            new StatusMessagePresenter(statusBar);
+    private final StatusMessagePresenter statusMessagePresenter = new StatusMessagePresenter(statusBar);
     private final MainMenuView mainMenu;
 
     /**
@@ -65,8 +62,8 @@ public final class MainView {
     }
 
     /**
-     * Зберігає сумісність із наявними викликами старого конструктора, які передавали дію для вилученої кнопки.
-     * Переданий callback навмисно не використовується, оскільки кнопки виходу з режиму видалення більше немає.
+     * Зберігає сумісність зі старими викликами конструктора, що передавали callback вилученої кнопки.
+     * Переданий callback не використовується, оскільки кнопки виходу з режиму видалення більше немає.
      *
      * @param addNeuron дія додавання нейрона вибраного типу.
      * @param group дія групування поточного вибору.
@@ -101,13 +98,7 @@ public final class MainView {
         );
     }
 
-    /**
-     * Створює сцену JavaFX і додає основну таблицю стилів.
-     *
-     * @param width початкова ширина сцени.
-     * @param height початкова висота сцени.
-     * @return налаштована сцена редактора.
-     */
+    /** Створює сцену JavaFX та додає основну таблицю стилів. */
     public Scene createScene(double width, double height) {
         Scene scene = new Scene(root, width, height);
         URL css = getClass().getResource("/app.css");
@@ -119,54 +110,42 @@ public final class MainView {
         return scene;
     }
 
-    /**
-     * Звільняє ресурси подання повідомлень перед завершенням роботи редактора.
-     */
+    /** Призупиняє таймери й анімацію повідомлення рядка стану, не змінюючи його видимий текст. */
+    public void pauseStatusMessageLifecycle() {
+        statusMessagePresenter.pause();
+    }
+
+    /** Відновлює життєвий цикл повідомлення рядка стану після зняття паузи редактора. */
+    public void resumeStatusMessageLifecycle() {
+        statusMessagePresenter.resume();
+    }
+
+    /** Звільняє ресурси подання повідомлень перед завершенням роботи редактора. */
     public void dispose() {
         statusMessagePresenter.dispose();
     }
 
-    /**
-     * Повертає кореневий вузол інтерфейсу.
-     *
-     * @return кореневий вузол інтерфейсу.
-     */
+    /** Повертає кореневий вузол інтерфейсу. */
     public StackPane node() {
         return root;
     }
 
-    /**
-     * Повертає робочу область редактора.
-     *
-     * @return подання робочої області.
-     */
+    /** Повертає робочу область редактора. */
     public WorkspaceView workspace() {
         return workspace;
     }
 
-    /**
-     * Повертає панель інструментів.
-     *
-     * @return подання панелі інструментів.
-     */
+    /** Повертає панель інструментів. */
     public ToolbarView toolbar() {
         return toolbar;
     }
 
-    /**
-     * Повертає накладку головного меню.
-     *
-     * @return подання головного меню.
-     */
+    /** Повертає накладку головного меню. */
     public MainMenuView mainMenu() {
         return mainMenu;
     }
 
-    /**
-     * Передає текст до рядка стану та запускає життєвий цикл його повідомлення.
-     *
-     * @param text текст повідомлення, яке потрібно показати.
-     */
+    /** Передає текст до рядка стану та запускає життєвий цикл повідомлення. */
     public void setStatus(String text) {
         statusMessagePresenter.show(text);
     }
@@ -177,10 +156,10 @@ public final class MainView {
         content.setEffect(visible ? new GaussianBlur(7.0) : null);
     }
 
-    /** Розміщує панель інструментів, робочу область і рядок стану в межах доступного простору. */
+    /** Розміщує панель інструментів, область перегляду й рядок стану без зміни порядку графічних шарів. */
     private static final class RootPane extends Pane {
 
-        /** Розміщує панель інструментів, область перегляду та рядок стану без зміни їхнього порядку шарів. */
+        /** Розміщує панель інструментів, робочу область і рядок стану в межах доступного простору. */
         @Override
         protected void layoutChildren() {
             double width = getWidth();

@@ -78,10 +78,12 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 - `NeuronOverlayCoordinateTest` — обчислення координат меню та накладок відносно нейрона.
 - `PulseAnimationControllerTest` — керування анімаціями імпульсів.
 - `SimulationControllerSpeedFormattingTest` — формат швидкості в локалізованому повідомленні після зміни швидкості активної симуляції.
+- `SimulationControllerModalPauseTest` — гарантія, що пауза через модальне меню не змінює стан кнопки ручного призупинення симуляції.
 
 ### `coordinator`
 
 - `EditorProjectSessionCoordinatorTest` — зупинка й відновлення редакторської сесії, перемикання проєктів, камера та швидкість симуляції.
+- `UiProcessCoordinatorTest` — вкладені причини призупинення, порядок паузи й відновлення, ідемпотентність повторних команд та керування реєстраціями процесів.
 - `EditorSaveCoordinatorTest` — узгоджене збереження стану редактора.
 - `MapPresentationCoordinatorLifecycleTest` — створення, оновлення та очищення графічних подань карти й ручок обертання.
 - `MapPresentationWorkflowLifecycleTest` — синхронізація реального дерева JavaFX після вставлення, undo/redo та перемикання проєктів.
@@ -208,6 +210,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 ### `view/status`
 
 - `StatusMessagePresenterTest` — прив'язка повідомлень до конкретного рядка стану та звільнення його ресурсів.
+- `StatusMessageLifecyclePauseTest` — збереження видимості повідомлення та призупинення його таймера, поки меню відкрите.
 
 ### `view/support`
 
@@ -239,6 +242,9 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 - `SimulationControllerSpeedFormattingTest` — локалізоване повідомлення про зміну швидкості використовує спільний формат числового значення;
 - `EditorProjectSessionCoordinatorTest` — відсутнє або некоректне значення швидкості нового проєкту замінюється типовим значенням конфігурації, а не успадковується від попереднього проєкту;
 - `MainMenuViewTest` — використовується єдиний контракт callback-ів налаштування мови;
-- `MapPresentationWorkflowLifecycleTest` — перемикання проєкту працює з актуальною сигнатурою `EditorProjectSessionCoordinator`, без постачальника швидкості попереднього проєкту.
+- `MapPresentationWorkflowLifecycleTest` — перемикання проєкту працює з актуальною сигнатурою `EditorProjectSessionCoordinator`, без постачальника швидкості попереднього проєкту;
+- `UiProcessCoordinatorTest` — вкладена пауза не відновлює таймери й анімації, доки активна остання причина призупинення;
+- `SimulationControllerModalPauseTest` — відкриття меню не підміняє стан кнопки ручної паузи симуляції;
+- `StatusMessageLifecyclePauseTest` — часове життя повідомлення зупиняється при відкритому меню й поновлюється після його закриття.
 
 Запускай `./mvnw clean test` (у Windows — `.\mvnw.cmd clean test`) перед передаванням змін. Не вважай тести успішними, якщо команда фактично не виконувалася.

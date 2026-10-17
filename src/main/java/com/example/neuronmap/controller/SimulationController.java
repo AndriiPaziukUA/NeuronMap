@@ -19,9 +19,7 @@ import java.math.BigInteger;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-/**
- * Керує життєвим циклом симуляції, її паузою, швидкістю, обробкою тактів і повідомленням інтерфейсу про стан виконання.
- */
+/** Керує життєвим циклом симуляції, таймерами, ручною паузою та передаванням стану симуляції до інтерфейсу. */
 public final class SimulationController {
 
     private final NeuronService neuronService;
@@ -44,18 +42,18 @@ public final class SimulationController {
     private boolean modalSuspended;
 
     /**
-     * Створює екземпляр SimulationController та зберігає передані залежності, потрібні для його роботи.
+     * Створює контролер симуляції з українською локаллю за замовчуванням.
      *
      * @param neuronService служба операцій над нейронами.
      * @param simulationService служба створення сеансів симуляції.
-     * @param stepPresenter компонент, що відображає результат такту симуляції.
-     * @param save функція зворотного виклику для відповідної дії.
-     * @param status callback для показу повідомлення в рядку стану.
-     * @param pausedStateConsumer callback, що отримує новий стан паузи.
-     * @param simulationActivityConsumer callback, що отримує ознаку активності симуляції.
-     * @param initialTickMillis початкова тривалість такту симуляції в мілісекундах.
-     * @param minTickMillis мінімально допустима тривалість такту.
-     * @param maxTickMillis максимально допустима тривалість такту.
+     * @param stepPresenter компонент відображення результату такту.
+     * @param save дія збереження стану.
+     * @param status дія показу повідомлень.
+     * @param pausedStateConsumer отримувач стану ручної паузи для панелі інструментів.
+     * @param simulationActivityConsumer отримувач ознаки активності симуляції.
+     * @param initialTickMillis початкова тривалість такту в мілісекундах.
+     * @param minTickMillis мінімальна допустима тривалість такту.
+     * @param maxTickMillis максимальна допустима тривалість такту.
      */
     public SimulationController(
             NeuronService neuronService,
@@ -85,18 +83,18 @@ public final class SimulationController {
     }
 
     /**
-     * Створює екземпляр SimulationController та зберігає передані залежності, потрібні для його роботи.
+     * Створює контролер симуляції зі спільною службою локалізації та перевіреними часовими параметрами.
      *
      * @param neuronService служба операцій над нейронами.
      * @param simulationService служба створення сеансів симуляції.
-     * @param stepPresenter компонент, що відображає результат такту симуляції.
-     * @param save функція зворотного виклику для відповідної дії.
-     * @param status callback для показу повідомлення в рядку стану.
-     * @param pausedStateConsumer callback, що отримує новий стан паузи.
-     * @param simulationActivityConsumer callback, що отримує ознаку активності симуляції.
-     * @param initialTickMillis початкова тривалість такту симуляції в мілісекундах.
-     * @param minTickMillis мінімально допустима тривалість такту.
-     * @param maxTickMillis максимально допустима тривалість такту.
+     * @param stepPresenter компонент відображення результату такту.
+     * @param save дія збереження стану.
+     * @param status дія показу повідомлень.
+     * @param pausedStateConsumer отримувач стану ручної паузи для панелі інструментів.
+     * @param simulationActivityConsumer отримувач ознаки активності симуляції.
+     * @param initialTickMillis початкова тривалість такту в мілісекундах.
+     * @param minTickMillis мінімальна допустима тривалість такту.
+     * @param maxTickMillis максимальна допустима тривалість такту.
      * @param localization служба локалізації інтерфейсу.
      */
     public SimulationController(
@@ -114,28 +112,24 @@ public final class SimulationController {
     ) {
         this.neuronService = Objects.requireNonNull(neuronService, "neuronService");
         this.simulationService = Objects.requireNonNull(simulationService, "simulationService");
-        this.runtimeState = new SimulationRuntimeState(neuronService.model());
+        runtimeState = new SimulationRuntimeState(neuronService.model());
         this.stepPresenter = Objects.requireNonNull(stepPresenter, "stepPresenter");
         this.save = Objects.requireNonNull(save, "save");
         this.status = Objects.requireNonNull(status, "status");
         this.pausedStateConsumer = Objects.requireNonNull(pausedStateConsumer, "pausedStateConsumer");
-        this.simulationActivityConsumer = Objects.requireNonNull(simulationActivityConsumer, "simulationActivityConsumer");
+        this.simulationActivityConsumer = Objects.requireNonNull(
+                simulationActivityConsumer, "simulationActivityConsumer");
         this.localization = Objects.requireNonNull(localization, "localization");
         this.minTickMillis = minTickMillis;
         this.maxTickMillis = maxTickMillis;
-        this.tickMillis = SimulationSpeed.requireMillis(
-                initialTickMillis,
-                minTickMillis,
-                maxTickMillis
-        );
-        this.finishDelay = new PauseTransition(Duration.millis(tickMillis));
+        tickMillis = SimulationSpeed.requireMillis(initialTickMillis, minTickMillis, maxTickMillis);
+        finishDelay = new PauseTransition(Duration.millis(tickMillis));
 
         finishDelay.setOnFinished(event -> {
             if (session != null && session.hasPendingWork()) {
                 startTimelineIfNeeded();
                 return;
             }
-
             runtimeState.clear();
             stepPresenter.clearRuntime();
             session = null;
@@ -150,17 +144,13 @@ public final class SimulationController {
         pausedStateConsumer.accept(false);
     }
 
-    /**
-     * Додає ручний запуск указаного нейрона до сеансу симуляції та запускає обробку тактів за потреби.
-     *
-     * @param sourceNeuronId ідентифікатор початкового нейрона.
-     */
+    /** Додає ручний запуск нейрона до симуляції та за потреби запускає обробку тактів. */
     public void emitPulse(String sourceNeuronId) {
+        if (modalSuspended) {
+            return;
+        }
         if (session == null) {
-            session = simulationService.start(
-                    neuronService.model(),
-                    sourceNeuronId
-            );
+            session = simulationService.start(neuronService.model(), sourceNeuronId);
             if (session == null) {
                 return;
             }
@@ -168,19 +158,15 @@ public final class SimulationController {
             modalSuspended = false;
             notifyPausedState();
             finishDelay.stop();
-
             updateSimulationControlsVisibility();
             processNextStep();
-
             if (session == null) {
                 updateSimulationControlsVisibility();
                 return;
             }
-
             if (!session.isFinished()) {
                 startTimelineIfNeeded();
             }
-
             updateSimulationControlsVisibility();
             return;
         }
@@ -189,19 +175,15 @@ public final class SimulationController {
             return;
         }
         finishDelay.stop();
-
         if (!paused) {
             startTimelineIfNeeded();
         }
-
         updateSimulationControlsVisibility();
     }
 
-    /**
-     * Перемикає симуляцію між призупиненим станом і виконанням.
-     */
+    /** Перемикає симуляцію між ручною паузою та виконанням. */
     public void pauseOrResume() {
-        if (!hasActiveSimulation()) {
+        if (modalSuspended || !hasActiveSimulation()) {
             return;
         }
         if (paused) {
@@ -212,47 +194,37 @@ public final class SimulationController {
     }
 
     /**
-     * Призупиняє симуляцію для показу модального вікна та повідомляє, чи потрібно буде її відновити.
+     * Призупиняє симуляцію для модального інтерфейсу, не змінюючи індикатор ручної паузи на панелі інструментів.
+     *
+     * @return {@code true}, якщо симуляція виконувалася й була призупинена цим викликом.
      */
     public boolean pauseForModal() {
-        if (!hasActiveSimulation() || paused) {
-            modalSuspended = false;
+        if (!hasActiveSimulation() || paused || modalSuspended) {
             return false;
         }
-
         modalSuspended = true;
-        pauseInternal();
+        pauseInternal(false);
         return true;
     }
 
-    /**
-     * Відновлює симуляцію після закриття модального вікна, якщо вона була активною до показу діалогу.
-     */
+    /** Відновлює симуляцію після модального інтерфейсу, не змінюючи індикатор ручної паузи. */
     public void resumeFromModal() {
         if (!modalSuspended) {
             return;
         }
         modalSuspended = false;
-        if (!hasActiveSimulation()) {
+        if (!hasActiveSimulation() || paused) {
             return;
         }
-        resumeInternal();
+        resumeInternal(false);
     }
 
-    /**
-     * Повертає ознаку призупинення симуляції.
-     *
-     * @return {@code true}, якщо симуляцію призупинено; інакше {@code false}.
-     */
+    /** Повертає, чи симуляція перебуває в ручній паузі. */
     public boolean isPaused() {
         return paused;
     }
 
-    /**
-     * Перевіряє, чи є активна симуляція в поточному стані.
-     *
-     * @return {@code true}, якщо є активний сеанс, таймер або анімація; інакше {@code false}.
-     */
+    /** Перевіряє наявність активного сеансу, таймера або анімації симуляції. */
     public boolean hasActiveSimulation() {
         return session != null
                 || timeline != null
@@ -260,9 +232,7 @@ public final class SimulationController {
                 || stepPresenter.hasActiveAnimations();
     }
 
-    /**
-     * Зупиняє поширення сигналів і скидає незавершену роботу симуляції.
-     */
+    /** Зупиняє поширення сигналів, скидає незавершену роботу та повідомляє користувача. */
     public void stopSignals() {
         resetRuntime();
         paused = false;
@@ -274,45 +244,26 @@ public final class SimulationController {
         status.accept(localization.text("status.simulation_stopped"));
     }
 
-    /**
-     * Установлює тривалість одного такту симуляції в мілісекундах.
-     *
-     * @param millis тривалість такту в мілісекундах.
-     */
+    /** Перевіряє та застосовує тривалість одного такту симуляції в мілісекундах. */
     public void setTickDurationMillis(double millis) {
-        tickMillis = SimulationSpeed.requireMillis(
-                millis,
-                minTickMillis,
-                maxTickMillis
-        );
-
+        tickMillis = SimulationSpeed.requireMillis(millis, minTickMillis, maxTickMillis);
         if (timeline == null) {
             finishDelay.setDuration(Duration.millis(tickMillis));
             return;
         }
 
-        boolean wasPaused = paused;
+        boolean shouldRemainPaused = paused || modalSuspended;
         timeline.stop();
         createTimeline();
-
-        if (wasPaused) {
-            timeline.pause();
-        } else {
+        if (!shouldRemainPaused) {
             timeline.play();
         }
-
         finishDelay.setDuration(Duration.millis(tickMillis));
-        status.accept(
-                localization.text(
-                        "status.speed_changed",
-                        NumberDisplayFormatter.format(tickMillis)
-                )
-        );
+        status.accept(localization.text(
+                "status.speed_changed", NumberDisplayFormatter.format(tickMillis)));
     }
 
-    /**
-     * Зупиняє симуляцію та очищує пов’язаний активний стан.
-     */
+    /** Зупиняє симуляцію та очищує пов'язаний активний стан. */
     public void stop() {
         resetRuntime();
         paused = false;
@@ -322,9 +273,7 @@ public final class SimulationController {
         updateSimulationControlsVisibility();
     }
 
-    /**
-     * Зупиняє таймери й анімацію та звільняє ресурси симуляції.
-     */
+    /** Зупиняє таймери й анімацію та звільняє ресурси симуляції. */
     public void shutdown() {
         resetRuntime();
         paused = false;
@@ -333,22 +282,20 @@ public final class SimulationController {
         updateSimulationControlsVisibility();
     }
 
-    /**
-     * Призупиняє виконання симуляції, не скидаючи її поточний стан.
-     */
+    /** Призупиняє симуляцію вручну й повідомляє користувача про зміну її стану. */
     private void pause() {
         if (!hasActiveSimulation()) {
             return;
         }
-        pauseInternal();
+        pauseInternal(true);
         status.accept(localization.text("status.simulation_paused"));
     }
 
-    /**
-     * Призупиняє внутрішню часову шкалу симуляції без повторного перемикання зовнішнього стану паузи.
-     */
-    private void pauseInternal() {
-        paused = true;
+    /** Призупиняє таймери симуляції та візуальні імпульси, окремо керуючи ручним індикатором паузи. */
+    private void pauseInternal(boolean notifyManualPauseState) {
+        if (notifyManualPauseState) {
+            paused = true;
+        }
         if (timeline != null) {
             timeline.pause();
         }
@@ -356,81 +303,66 @@ public final class SimulationController {
             finishDelay.pause();
         }
         stepPresenter.pauseAnimations();
-        notifyPausedState();
+        if (notifyManualPauseState) {
+            notifyPausedState();
+        }
         updateSimulationControlsVisibility();
     }
 
-    /**
-     * Відновлює виконання симуляції з поточного сеансу, якщо залишилася запланована робота.
-     */
+    /** Відновлює симуляцію після ручної паузи й повідомляє користувача. */
     private void resume() {
-        resumeInternal();
+        resumeInternal(true);
         status.accept(localization.text("status.simulation_resumed"));
     }
 
-    /**
-     * Запускає внутрішню часову шкалу симуляції, якщо сеанс має наступний такт для обробки.
-     */
-    private void resumeInternal() {
-        paused = false;
+    /** Відновлює таймери симуляції та імпульсні анімації з поточного стану. */
+    private void resumeInternal(boolean notifyManualPauseState) {
+        if (notifyManualPauseState) {
+            paused = false;
+        }
         startTimelineIfNeeded();
         if (finishDelay.getStatus() == Animation.Status.PAUSED) {
             finishDelay.play();
         }
         stepPresenter.resumeAnimations();
-        notifyPausedState();
+        if (notifyManualPauseState) {
+            notifyPausedState();
+        }
         updateSimulationControlsVisibility();
     }
 
-    /**
-     * Обчислює наступний такт сеансу, передає його результат поданню й планує продовження симуляції.
-     */
+    /** Обчислює наступний такт, передає результат поданню та визначає, чи потрібно завершити симуляцію. */
     private void processNextStep() {
         if (session == null) {
             return;
         }
-
         SimulationStep step = session.nextStep();
         if (step == null) {
             finishSimulation();
             return;
         }
-
         runtimeState.apply(step);
         stepPresenter.apply(step);
-
-        status.accept(
-                localization.text(
-                        "status.tick",
-                        step.tick().add(BigInteger.ONE)
-                )
-        );
-
+        status.accept(localization.text("status.tick", step.tick().add(BigInteger.ONE)));
         if (session.isFinished()) {
             finishSimulation();
         }
     }
 
-    /**
-     * Завершує симуляцію, оновлює індикатори стану й зберігає потрібні параметри.
-     */
+    /** Завершує симуляцію, оновлює індикатори та зберігає потрібні параметри. */
     private void finishSimulation() {
         if (timeline != null) {
             timeline.stop();
             timeline = null;
         }
-
         if (finishDelay.getDuration().toMillis() != tickMillis) {
             finishDelay.setDuration(Duration.millis(tickMillis));
         }
-
         finishDelay.playFromStart();
         updateSimulationControlsVisibility();
     }
 
-    /**
-     * Скидає поточний сеанс, таймер і тимчасові сигнали симуляції.
-     */
+    /** Скидає поточний сеанс, таймер і тимчасові сигнали симуляції. */
     private void resetRuntime() {
         if (timeline != null) {
             timeline.stop();
@@ -442,46 +374,31 @@ public final class SimulationController {
         stepPresenter.clearRuntime();
     }
 
-    /**
-     * Створює часову шкалу для обробки тактів симуляції.
-     */
+    /** Створює часову шкалу, яка обробляє наступні такти симуляції. */
     private void createTimeline() {
-        timeline = new Timeline(
-                new KeyFrame(
-                        Duration.millis(tickMillis),
-                        event -> processNextStep()
-                )
-        );
+        timeline = new Timeline(new KeyFrame(Duration.millis(tickMillis), event -> processNextStep()));
         timeline.setCycleCount(Timeline.INDEFINITE);
     }
 
-    /**
-     * Запускає часову шкалу лише тоді, коли симуляція має роботу й таймер ще не виконується.
-     */
+    /** Запускає часову шкалу лише тоді, коли сеанс має роботу та ще не виконується. */
     private void startTimelineIfNeeded() {
-        if (session == null || paused || !session.hasPendingWork()) {
+        if (session == null || paused || modalSuspended || !session.hasPendingWork()) {
             return;
         }
-
         if (timeline == null) {
             createTimeline();
         }
-
         if (timeline.getStatus() != Animation.Status.RUNNING) {
             timeline.play();
         }
     }
 
-    /**
-     * Передає поточний стан паузи зареєстрованому споживачу стану інтерфейсу.
-     */
+    /** Передає ручний стан паузи зареєстрованому споживачу панелі інструментів. */
     private void notifyPausedState() {
         pausedStateConsumer.accept(paused);
     }
 
-    /**
-     * Показує або приховує елементи керування симуляцією відповідно до її поточного стану.
-     */
+    /** Показує або приховує елементи керування відповідно до активності симуляції. */
     private void updateSimulationControlsVisibility() {
         simulationActivityConsumer.accept(hasActiveSimulation());
     }

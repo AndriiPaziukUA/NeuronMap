@@ -1,11 +1,6 @@
 package com.example.neuronmap.view.status;
 
-/**
- * Керує показом короткочасних повідомлень безпосередньо в рядку стану редактора.
- *
- * <p>Презентер отримує конкретне подання рядка стану й не шукає графічні вузли
- * у сцені, тому сторонні мітки не можуть випадково отримати його обробники подій.</p>
- */
+/** Керує показом короткочасних повідомлень у рядку стану редактора. */
 public final class StatusMessagePresenter {
 
     private final StatusBarView statusBar;
@@ -13,7 +8,7 @@ public final class StatusMessagePresenter {
     private boolean disposed;
 
     /**
-     * Створює презентер, прив’язаний до конкретного рядка стану та його області наведення.
+     * Створює презентер, прив'язаний до конкретного рядка стану та його області наведення.
      *
      * @param statusBar подання рядка стану, в якому потрібно показувати повідомлення.
      * @throws IllegalArgumentException якщо подання рядка стану не передано.
@@ -22,44 +17,48 @@ public final class StatusMessagePresenter {
         if (statusBar == null) {
             throw new IllegalArgumentException("statusBar must not be null");
         }
-
         this.statusBar = statusBar;
-        this.lifecycle = new StatusMessageLifecycle(
-                statusBar.node(),
-                statusBar.messageLabel()
-        );
+        lifecycle = new StatusMessageLifecycle(statusBar.node(), statusBar.messageLabel());
     }
 
-    /**
-     * Показує повідомлення в рядку стану та запускає його життєвий цикл.
-     *
-     * @param message текст повідомлення; {@code null} трактується як порожній текст.
-     */
+    /** Показує повідомлення й запускає його життєвий цикл, якщо презентер не завершив роботу. */
     public void show(String message) {
         if (disposed) {
             return;
         }
-
         String normalized = message == null ? "" : message;
         statusBar.setText(normalized);
-
         if (normalized.isBlank()) {
             lifecycle.clear();
             return;
         }
-
         lifecycle.show(normalized);
     }
 
-    /**
-     * Зупиняє анімації й таймери та від’єднує обробники наведення.
-     * Повторні виклики безпечні.
-     */
+    /** Призупиняє таймер і згасання повідомлення на час модального стану редактора. */
+    public void pause() {
+        if (!disposed) {
+            lifecycle.pause();
+        }
+    }
+
+    /** Відновлює таймер повідомлення після зняття всіх причин призупинення редактора. */
+    public void resume() {
+        if (!disposed) {
+            lifecycle.resume();
+        }
+    }
+
+    /** Повертає, чи призупинено таймери повідомлення. */
+    public boolean isPaused() {
+        return !disposed && lifecycle.isSuspended();
+    }
+
+    /** Зупиняє анімації й таймери та від'єднує обробники наведення; повторні виклики безпечні. */
     public void dispose() {
         if (disposed) {
             return;
         }
-
         disposed = true;
         lifecycle.dispose();
     }

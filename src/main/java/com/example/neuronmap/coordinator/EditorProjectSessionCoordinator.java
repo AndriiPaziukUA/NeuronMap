@@ -14,10 +14,12 @@ import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 
 /**
- * Керує життєвим циклом редакторської сесії під час переходу між проєктами та показу меню.
- * Координатор відновлює стан карти й подань, але делегує конкретні дії контролерам і поданням через контракт дій.
+ * Керує життєвим циклом редакторської сесії, переходами між проєктами й призупиненням UI на час модального меню.
+ * Координатор відновлює стан карти, а спільне керування часовими процесами делегує {@link UiProcessCoordinator}.
  */
 public final class EditorProjectSessionCoordinator {
+
+    private static final String MAIN_MENU_SUSPENSION = "main-menu";
 
     private final MapService mapService;
     private final HistoryService historyService;
@@ -29,17 +31,18 @@ public final class EditorProjectSessionCoordinator {
     private final double maxSimulationTickMillis;
     private final double defaultSimulationTickMillis;
     private final SessionActions actions;
+    private final UiProcessCoordinator uiProcesses = new UiProcessCoordinator();
     private boolean modalSimulationWasRunning;
 
     /**
-     * Створює координатор сесії з доступом до моделі, стану редактора та потрібних зовнішніх дій.
+     * Створює координатор сесії, реєструє симуляцію та анімації зв'язків у спільному центрі паузи.
      *
      * @param mapService служба активної карти й репозиторію.
      * @param historyService служба історії змін редактора.
      * @param state змінний стан камери, вибору та режимів редактора.
      * @param currentProjectConsumer отримувач опису активного проєкту після переходу.
      * @param simulationTickMillisConsumer отримувач нової тривалості такту симуляції.
-     * @param markLastOpened дія встановлення або очищення останнього відкритого проєкту; порожній Optional очищує значення.
+     * @param markLastOpened дія встановлення або очищення останнього відкритого проєкту.
      * @param minSimulationTickMillis мінімальна допустима тривалість такту.
      * @param maxSimulationTickMillis максимальна допустима тривалість такту.
      * @param defaultSimulationTickMillis типова тривалість такту для проєкту без коректного збереженого значення.
@@ -63,33 +66,74 @@ public final class EditorProjectSessionCoordinator {
         this.state = Objects.requireNonNull(state, "state");
         this.currentProjectConsumer = Objects.requireNonNull(currentProjectConsumer, "currentProjectConsumer");
         this.simulationTickMillisConsumer = Objects.requireNonNull(
-                simulationTickMillisConsumer,
-                "simulationTickMillisConsumer"
-        );
+                simulationTickMillisConsumer, "simulationTickMillisConsumer");
         this.markLastOpened = Objects.requireNonNull(markLastOpened, "markLastOpened");
         this.minSimulationTickMillis = minSimulationTickMillis;
         this.maxSimulationTickMillis = maxSimulationTickMillis;
         this.defaultSimulationTickMillis = defaultSimulationTickMillis;
         this.actions = Objects.requireNonNull(actions, "actions");
+
+        uiProcesses.register(
+                "simulation",
+                () -> modalSimulationWasRunning = this.actions.pauseSimulationForModal(),
+                () -> {
+                    if (modalSimulationWasRunning) {
+                        modalSimulationWasRunning = false;
+                        this.actions.resumeSimulationFromModal();
+                    }
+                }
+        );
+        uiProcesses.register(
+                "connection-animations",
+                this.actions::pauseConnectionAnimations,
+                this.actions::resumeConnectionAnimations
+        );
     }
 
-    /**
-     * Призупиняє анімації та симуляцію на час відкритого меню, зберігаючи ознаку потреби відновлення.
-     */
+    /** Призупиняє всі зареєстровані UI-процеси на час відкритого головного меню. */
     public void pauseForMenu() {
-        modalSimulationWasRunning = actions.pauseSimulationForModal();
-        actions.pauseConnectionAnimations();
+        uiProcesses.suspend(MAIN_MENU_SUSPENSION);
+    }
+
+    /** Відновлює UI-процеси після закриття меню, коли не залишилося інших причин паузи. */
+    public void resumeAfterMenu() {
+        uiProcesses.resume(MAIN_MENU_SUSPENSION);
     }
 
     /**
-     * Відновлює анімації та поновлює симуляцію лише тоді, коли вона виконувалася перед відкриттям меню.
+     * Реєструє додатковий процес UI у спільному центрі призупинення редактора.
+     *
+     * @param id унікальний ідентифікатор процесу.
+     * @param pause дія зупинки процесу зі збереженням його стану.
+     * @param resume дія відновлення процесу після зняття всіх причин паузи.
+     * @return дескриптор реєстрації, який від'єднує процес під час закриття.
      */
-    public void resumeAfterMenu() {
-        actions.resumeConnectionAnimations();
-        if (modalSimulationWasRunning) {
-            modalSimulationWasRunning = false;
-            actions.resumeSimulationFromModal();
-        }
+    public UiProcessCoordinator.Registration registerUiProcess(
+            String id,
+            Runnable pause,
+            Runnable resume
+    ) {
+        return uiProcesses.register(id, pause, resume);
+    }
+
+    /**
+     * Призупиняє всі зареєстровані UI-процеси з іменованої причини.
+     * Повторна причина не призупиняє процеси повторно.
+     *
+     * @param reason ідентифікатор причини призупинення.
+     */
+    public void suspendUiProcesses(String reason) {
+        uiProcesses.suspend(reason);
+    }
+
+    /** Знімає причину призупинення UI-процесів і відновлює їх лише після зняття останньої причини. */
+    public void resumeUiProcesses(String reason) {
+        uiProcesses.resume(reason);
+    }
+
+    /** Завершує центр паузи під час вимкнення редактора, не запускаючи зупинені процеси повторно. */
+    public void disposeUiProcesses() {
+        uiProcesses.dispose();
     }
 
     /**
@@ -102,7 +146,6 @@ public final class EditorProjectSessionCoordinator {
         actions.hideNeuronMenu();
         actions.cancelPendingCameraSave();
         actions.saveCurrentProject();
-
         state.clearSelection();
         state.resetToIdle();
         modalSimulationWasRunning = false;
@@ -111,8 +154,7 @@ public final class EditorProjectSessionCoordinator {
     /**
      * Підключає репозиторій проєкту й відновлює модель, камеру, швидкість, історію та подання редактора.
      * Завантаження карти, камери й швидкості виконує {@link MapService} до зміни активного стану сесії.
-     * Якщо у вибраного проєкту немає коректної збереженої швидкості, використовує типове значення конфігурації,
-     * а не швидкість попереднього проєкту.
+     * Якщо у вибраного проєкту немає коректної збереженої швидкості, використовує типове значення конфігурації.
      *
      * @param project опис проєкту, який потрібно активувати.
      * @param repository репозиторій даних вибраного проєкту.
@@ -120,25 +162,14 @@ public final class EditorProjectSessionCoordinator {
      * @throws NullPointerException якщо опис проєкту або репозиторій не передано.
      * @throws RuntimeException якщо підготовка репозиторію завершується помилкою.
      */
-    public void activateProject(
-            ProjectDescriptor project,
-            MapRepository repository,
-            boolean loadExisting
-    ) {
+    public void activateProject(ProjectDescriptor project, MapRepository repository, boolean loadExisting) {
         Objects.requireNonNull(project, "project");
         Objects.requireNonNull(repository, "repository");
-
         MapService.ProjectActivationState activationState = mapService.activateRepository(
-                repository,
-                loadExisting,
-                defaultSimulationTickMillis
-        );
+                repository, loadExisting, defaultSimulationTickMillis);
         double speed = resolveInitialSimulationTickMillis(
-                activationState.simulationTickMillis(),
-                defaultSimulationTickMillis,
-                minSimulationTickMillis,
-                maxSimulationTickMillis
-        );
+                activationState.simulationTickMillis(), defaultSimulationTickMillis,
+                minSimulationTickMillis, maxSimulationTickMillis);
 
         currentProjectConsumer.accept(project);
         simulationTickMillisConsumer.accept(speed);
@@ -155,7 +186,6 @@ public final class EditorProjectSessionCoordinator {
 
     /**
      * Перевіряє збережену тривалість такту й повертає резервне значення, якщо вона поза дозволеним діапазоном.
-     * Метод спільно використовується під час первинного складання редактора та активації наступного проєкту.
      *
      * @param persistedMillis значення, прочитане зі знімка стану проєкту.
      * @param fallbackMillis коректна тривалість, яку слід використати за відсутності допустимого значення.
@@ -176,11 +206,7 @@ public final class EditorProjectSessionCoordinator {
         }
     }
 
-    /**
-     * Відновлює камеру та прибирає вибір і тимчасові режими, які не повинні переходити між проєктами.
-     *
-     * @param camera стан камери, завантажений службою карти або створений за замовчуванням.
-     */
+    /** Відновлює камеру й очищає вибір та тимчасові режими, які не повинні переходити між проєктами. */
     private void restoreCameraAndSelection(CameraState camera) {
         state.setZoom(camera.zoom());
         state.setPanX(camera.panX());
@@ -189,15 +215,13 @@ public final class EditorProjectSessionCoordinator {
         state.resetToIdle();
     }
 
-    /**
-     * Визначає зовнішні дії, які координатор виконує під час перемикання проєкту та роботи меню.
-     */
+    /** Визначає зовнішні дії для переходу між проєктами та керування станом редактора. */
     public interface SessionActions {
 
         /** Зупиняє виконання симуляції перед очищенням редакторської сесії. */
         void stopSimulation();
 
-        /** Прибирає візуальні позначки режиму видалення зв’язків. */
+        /** Прибирає візуальні позначки режиму видалення зв'язків. */
         void clearConnectionHighlights();
 
         /** Скасовує незавершені взаємодії з картою. */
@@ -206,28 +230,28 @@ public final class EditorProjectSessionCoordinator {
         /** Приховує контекстне меню нейрона, якщо воно відкрите. */
         void hideNeuronMenu();
 
-        /** Скасовує відкладене збереження камери, щоб воно не перезаписало стан іншого проєкту. */
+        /** Скасовує відкладене збереження камери перед перемиканням репозиторію. */
         void cancelPendingCameraSave();
 
-        /** Зберігає поточний проєкт до перемикання репозиторію. */
+        /** Зберігає поточний проєкт до перемикання сховища. */
         void saveCurrentProject();
 
         /** Призупиняє симуляцію для меню та повертає ознаку її попередньої активності. */
         boolean pauseSimulationForModal();
 
-        /** Відновлює симуляцію, що була призупинена саме для модального меню. */
+        /** Відновлює симуляцію, яку було призупинено саме для модального меню. */
         void resumeSimulationFromModal();
 
-        /** Призупиняє анімації зв’язків на час відкритого меню. */
+        /** Призупиняє анімації зв'язків на час відкритого меню. */
         void pauseConnectionAnimations();
 
-        /** Відновлює анімації зв’язків після закриття меню. */
+        /** Відновлює анімації зв'язків після закриття меню. */
         void resumeConnectionAnimations();
 
         /**
-         * Застосовує швидкість симуляції до контролера та панелі інструментів.
+         * Застосовує швидкість симуляції до контролера й панелі інструментів.
          *
-         * @param millis нова тривалість такту симуляції в мілісекундах.
+         * @param millis тривалість такту симуляції в мілісекундах.
          */
         void updateSimulationSpeed(double millis);
 
@@ -237,7 +261,7 @@ public final class EditorProjectSessionCoordinator {
         /** Застосовує відновлені координати камери до робочої області. */
         void applyCamera();
 
-        /** Повертає подання головного меню на початкову сторінку після переходу. */
+        /** Повертає меню на початкову сторінку після переходу між проєктами. */
         void showMainPage();
     }
 }
