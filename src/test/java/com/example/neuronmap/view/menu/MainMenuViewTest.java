@@ -102,6 +102,53 @@ final class MainMenuViewTest {
         });
     }
 
+    /**
+     * Перевіряє, що зміна розміру відкритої накладки не змінює її бажані розміри
+     * та що панель меню залишається в центрі після збільшення й зменшення вікна.
+     */
+    @Test
+    void menuOverlayPreferredSizeDoesNotGrowWithItsLastWindowSize() throws Exception {
+        runOnFxThread(() -> {
+            MainMenuView view = new MainMenuView(new LocalizationService(Locale.ENGLISH), ignored -> { });
+            configureMenuActions(view);
+            new Scene(view, 800.0, 600.0);
+            view.showMenu();
+
+            view.resize(800.0, 600.0);
+            view.applyCss();
+            view.layout();
+            double preferredWidth = view.prefWidth(-1.0);
+            double preferredHeight = view.prefHeight(preferredWidth);
+
+            view.resize(1600.0, 900.0);
+            view.layout();
+            assertEquals(preferredWidth, view.prefWidth(-1.0), 0.5,
+                    "Збільшення вікна не має записувати його ширину в бажаний розмір накладки");
+            assertEquals(preferredHeight, view.prefHeight(preferredWidth), 0.5,
+                    "Збільшення вікна не має записувати його висоту в бажаний розмір накладки");
+
+            view.resize(640.0, 480.0);
+            view.layout();
+            assertEquals(640.0, view.getWidth(), 0.5);
+            assertEquals(480.0, view.getHeight(), 0.5);
+            assertEquals(preferredWidth, view.prefWidth(-1.0), 0.5,
+                    "Після зменшення вікна бажаний розмір накладки має залишатися стабільним");
+            assertEquals(preferredHeight, view.prefHeight(preferredWidth), 0.5,
+                    "Після зменшення вікна бажана висота накладки має залишатися стабільною");
+            assertTrue(view.panelWidthForTest() <= 608.0,
+                    "Панель має враховувати відступи вікна після зменшення");
+            assertTrue(view.panelHeightForTest() <= 448.0,
+                    "Висота панелі має враховувати відступи вікна після зменшення");
+            assertEquals((view.getWidth() - view.panelWidthForTest()) / 2.0,
+                    view.menuPanelForTest().getLayoutX(), 0.5,
+                    "Панель має бути повторно відцентрована за актуальною шириною");
+            assertEquals((view.getHeight() - view.panelHeightForTest()) / 2.0,
+                    view.menuPanelForTest().getLayoutY(), 0.5,
+                    "Панель має бути повторно відцентрована за актуальною висотою");
+            view.dispose();
+        });
+    }
+
     /** Перевіряє, що меню та його кнопки відхиляють використання до підключення обов'язкових дій. */
     @Test
     void menuCannotBeShownOrUsedBeforeRequiredActionsAreConfigured() throws Exception {

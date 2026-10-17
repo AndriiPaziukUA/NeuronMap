@@ -163,8 +163,12 @@ public final class MainMenuView extends StackPane {
         return stylesheet;
     }
 
-    /** Встановлює фонову накладку, яка закриває меню за callback-ом контролера. */
+    /**
+     * Налаштовує фон, який закриває меню за callback-ом контролера, не впливаючи на бажаний розмір накладки.
+     * Геометрію фону визначає розмір самої накладки, а не розрахунок її розмірів за дочірніми вузлами.
+     */
     private void configureBackdrop() {
+        backdrop.setManaged(false);
         backdrop.widthProperty().bind(widthProperty());
         backdrop.heightProperty().bind(heightProperty());
         backdrop.setFill(Color.rgb(0, 0, 0, 0.5));
