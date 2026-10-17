@@ -11,9 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Перевіряє геометрію та властивості векторних значків, незалежно від життєвого циклу вікна.
- */
+/** Перевіряє геометрію та властивості векторних значків, незалежно від життєвого циклу вікна. */
 final class WindowChromeIconFactoryTest {
 
     /**
@@ -34,7 +32,8 @@ final class WindowChromeIconFactoryTest {
     }
 
     /**
-     * Перевіряє, що значок максимізації відрізняється від значка відновлення кількістю прямокутників.
+     * Перевіряє структуру значків максимізації та відновлення з однієї передньої рамки
+     * й двох ліній задньої рамки для відновлення вікна.
      */
     @Test
     void distinguishesMaximizeAndRestoreIcons() {
@@ -44,13 +43,24 @@ final class WindowChromeIconFactoryTest {
         assertCanvasProperties(maximize);
         assertCanvasProperties(restore);
         assertEquals(1, maximize.getChildren().size());
-        assertEquals(2, restore.getChildren().size());
+        assertEquals(3, restore.getChildren().size());
 
         Rectangle maximizeRectangle = assertInstanceOf(Rectangle.class, maximize.getChildren().getFirst());
-        Rectangle backRectangle = assertInstanceOf(Rectangle.class, restore.getChildren().getFirst());
-        Rectangle frontRectangle = assertInstanceOf(Rectangle.class, restore.getChildren().get(1));
+        Line backTop = assertInstanceOf(Line.class, restore.getChildren().getFirst());
+        Line backRight = assertInstanceOf(Line.class, restore.getChildren().get(1));
+        Rectangle frontRectangle = assertInstanceOf(Rectangle.class, restore.getChildren().get(2));
+
         assertEquals(Color.TRANSPARENT, maximizeRectangle.getFill());
-        assertEquals(Color.TRANSPARENT, backRectangle.getFill());
+        assertEquals(6.0, backTop.getStartX());
+        assertEquals(2.0, backTop.getStartY());
+        assertEquals(15.0, backTop.getEndX());
+        assertEquals(2.0, backTop.getEndY());
+        assertEquals(15.0, backRight.getStartX());
+        assertEquals(2.0, backRight.getStartY());
+        assertEquals(15.0, backRight.getEndX());
+        assertEquals(11.0, backRight.getEndY());
+        assertTrue(backTop.getStyleClass().contains("window-icon-stroke"));
+        assertTrue(backRight.getStyleClass().contains("window-icon-stroke"));
         assertEquals(Color.TRANSPARENT, frontRectangle.getFill());
         assertTrue(frontRectangle.getStyleClass().contains("window-icon-outline"));
     }

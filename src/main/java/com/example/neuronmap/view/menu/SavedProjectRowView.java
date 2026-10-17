@@ -1,10 +1,11 @@
 package com.example.neuronmap.view.menu;
 
-import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.i18n.LocalizationService;
+import com.example.neuronmap.project.ProjectDescriptor;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -13,6 +14,10 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.shape.SVGPath;
+import javafx.scene.shape.StrokeLineCap;
+import javafx.scene.shape.StrokeLineJoin;
 
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -28,6 +33,7 @@ import java.util.function.Consumer;
 public final class SavedProjectRowView extends HBox {
 
     private static final double MODIFIED_DATE_WIDTH = 92.0;
+    private static final double ICON_BUTTON_SIZE = 36.0;
 
     private final LocalizationService localization;
     private ProjectDescriptor project;
@@ -36,6 +42,8 @@ public final class SavedProjectRowView extends HBox {
 
     private final Label modifiedLabel = new Label();
     private final Label nameLabel = new Label();
+    private final SVGPath renameIcon = createRenameIcon();
+    private final Region deleteIcon = createDeleteIcon();
     private TextField renameField;
     private final Button renameButton = new Button();
     private final Button deleteButton = new Button();
@@ -62,7 +70,9 @@ public final class SavedProjectRowView extends HBox {
     ) {
         this.project = Objects.requireNonNull(project, "project");
         this.localization = Objects.requireNonNull(localization, "localization");
+        Objects.requireNonNull(openAction, "openAction");
         this.renameAction = Objects.requireNonNull(renameAction, "renameAction");
+        Objects.requireNonNull(deleteAction, "deleteAction");
         this.renameCommitted = Objects.requireNonNull(renameCommitted, "renameCommitted");
 
         getStyleClass().add("saved-project-row");
@@ -84,6 +94,8 @@ public final class SavedProjectRowView extends HBox {
         configureButton(renameButton);
         configureButton(deleteButton);
         configureButton(cancelButton);
+        configureIconButton(renameButton, "saved-project-rename-button", renameIcon);
+        configureIconButton(deleteButton, "saved-project-delete-button", deleteIcon);
         cancelButton.setManaged(false);
         cancelButton.setVisible(false);
 
@@ -364,32 +376,86 @@ public final class SavedProjectRowView extends HBox {
      * @param node елемент, стан якого потрібно змінити.
      * @param visible ознака видимості та участі в компонуванні.
      */
-    private static void setManagedAndVisible(javafx.scene.Node node, boolean visible) {
+    private static void setManagedAndVisible(Node node, boolean visible) {
         node.setManaged(visible);
         node.setVisible(visible);
     }
 
-    /** Налаштовує спільний стиль і розміри кнопок дій над проєктом. */
+    /** Налаштовує спільний стиль кнопки та ширину, потрібну для її звичайного тексту. */
     private void configureButton(Button button) {
         button.getStyleClass().add("menu-small-button");
         button.setMinWidth(70.0);
     }
 
-    /** Оновлює назву, дату зміни, підписи дій і підказки відповідно до активної мови. */
+    /** Налаштовує компактну кнопку з графічним значком замість видимого підпису. */
+    private void configureIconButton(Button button, String styleClass, Node graphic) {
+        button.getStyleClass().add(styleClass);
+        button.setText("");
+        button.setGraphic(graphic);
+        button.setMinWidth(ICON_BUTTON_SIZE);
+        button.setPrefWidth(ICON_BUTTON_SIZE);
+        button.setMaxWidth(ICON_BUTTON_SIZE);
+        button.setMinHeight(30.0);
+        button.setPrefHeight(30.0);
+        button.setMaxHeight(30.0);
+    }
+
+    /** Створює контурний значок олівця, типовий для дії редагування назви. */
+    private static SVGPath createRenameIcon() {
+        SVGPath icon = new SVGPath();
+        icon.setContent("M12 20h9 M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z");
+        icon.getStyleClass().add("saved-project-icon");
+        icon.setFill(javafx.scene.paint.Color.TRANSPARENT);
+        icon.setStrokeLineCap(StrokeLineCap.ROUND);
+        icon.setStrokeLineJoin(StrokeLineJoin.ROUND);
+        icon.setStrokeWidth(2.2);
+        icon.setMouseTransparent(true);
+        return icon;
+    }
+
+    /** Створює невеликий прямокутний значок у вигляді товстого горизонтального дефіса. */
+    private static Region createDeleteIcon() {
+        Region icon = new Region();
+        icon.getStyleClass().add("saved-project-delete-icon");
+        icon.setMouseTransparent(true);
+        return icon;
+    }
+
+    /** Оновлює назву, дату, доступні назви кнопок і підказки відповідно до активної мови та стану рядка. */
     private void refreshTexts() {
         nameLabel.setText(project.name());
         modifiedLabel.setText(formatModified(project.modifiedAt(), localization.locale()));
-        renameButton.setText(
-                isEditing()
-                        ? localization.text("menu.rename.save")
-                        : localization.text("menu.rename")
-        );
-        deleteButton.setText(localization.text("menu.delete"));
-        cancelButton.setText(localization.text("menu.rename.cancel"));
 
-        renameButton.setTooltip(new Tooltip(localization.text("menu.rename_hint")));
-        deleteButton.setTooltip(new Tooltip(localization.text("menu.delete_hint")));
-        cancelButton.setTooltip(new Tooltip(localization.text("menu.rename.cancel")));
+        boolean editing = isEditing();
+        String renameText = localization.text("menu.rename");
+        String deleteText = localization.text("menu.delete");
+        String saveText = localization.text("menu.rename.save");
+        String cancelText = localization.text("menu.rename.cancel");
+
+        renameButton.getStyleClass().removeAll("saved-project-rename-button", "saved-project-save-button");
+        renameButton.getStyleClass().add(editing ? "saved-project-save-button" : "saved-project-rename-button");
+        renameButton.setText(editing ? saveText : "");
+        renameButton.setGraphic(editing ? null : renameIcon);
+        renameButton.setAccessibleText(editing ? saveText : renameText);
+        renameButton.setTooltip(editing ? null : new Tooltip(renameText));
+        if (editing) {
+            renameButton.setMinWidth(70.0);
+            renameButton.setPrefWidth(Region.USE_COMPUTED_SIZE);
+            renameButton.setMaxWidth(Region.USE_PREF_SIZE);
+        } else {
+            renameButton.setMinWidth(ICON_BUTTON_SIZE);
+            renameButton.setPrefWidth(ICON_BUTTON_SIZE);
+            renameButton.setMaxWidth(ICON_BUTTON_SIZE);
+        }
+
+        deleteButton.setText("");
+        deleteButton.setGraphic(deleteIcon);
+        deleteButton.setAccessibleText(deleteText);
+        deleteButton.setTooltip(new Tooltip(deleteText));
+
+        cancelButton.setText(cancelText);
+        cancelButton.setAccessibleText(cancelText);
+        cancelButton.setTooltip(null);
     }
 
     /** Форматує час зміни відповідно до локалі інтерфейсу та системного часового поясу. */

@@ -68,6 +68,47 @@
     -fx-background-color: #242a32;
 }
 
+/* Icon controls have a compact square hit area while preserving the established button theme. */
+.saved-project-row .saved-project-rename-button,
+.saved-project-row .saved-project-delete-button {
+    -fx-padding: 3px;
+    -fx-alignment: center;
+}
+
+.saved-project-row .saved-project-icon {
+    -fx-fill: transparent;
+    -fx-stroke: #edf0f3;
+    -fx-stroke-width: 2.2;
+}
+
+.saved-project-row .saved-project-delete-icon {
+    -fx-background-color: #edf0f3;
+    -fx-background-radius: 2px;
+    -fx-min-width: 14px;
+    -fx-pref-width: 14px;
+    -fx-max-width: 14px;
+    -fx-min-height: 4px;
+    -fx-pref-height: 4px;
+    -fx-max-height: 4px;
+}
+
+/* Deletion is deliberately signalled with a red hover state. */
+.saved-project-row .saved-project-delete-button:hover {
+    -fx-background-color: #642c30;
+    -fx-border-color: #d95660;
+}
+
+.saved-project-row .saved-project-delete-button:hover .saved-project-delete-icon {
+    -fx-background-color: #ff6873;
+}
+
+/* The same control becomes a text button while editing and signals saving in green. */
+.saved-project-row .saved-project-save-button:hover {
+    -fx-background-color: #245b3a;
+    -fx-border-color: #47ad70;
+    -fx-text-fill: #e5ffed;
+}
+
 /* Hover feedback remains responsive even when a menu control previously held focus. */
 .main-menu-button:focused:hover {
     -fx-background-color: #373d46;
