@@ -27,6 +27,7 @@ import com.example.neuronmap.view.neuron.NeuronView;
 import com.example.neuronmap.view.neuron.RotationHandleView;
 import com.example.neuronmap.view.simulation.SimulationStepPresenter;
 import com.example.neuronmap.view.editor.WorkspaceView;
+import com.example.neuronmap.view.menu.MainMenuView;
 import javafx.application.Platform;
 import javafx.event.Event;
 import javafx.scene.Scene;
@@ -35,6 +36,7 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -366,6 +368,10 @@ final class MapPresentationWorkflowLifecycleTest {
         private final Map<String, ConnectionView> connectionViews = new HashMap<>();
         private final Map<String, RotationHandleView> rotationHandles = new HashMap<>();
         private final LocalizationService localization = new LocalizationService(Locale.ENGLISH);
+        private final StackPane settingsOverlayHost = new StackPane();
+        private final MainMenuView mainMenu = new MainMenuView(localization, ignored -> { });
+        private final NeuronSettingsOverlayCoordinator settingsOverlayCoordinator =
+                new NeuronSettingsOverlayCoordinator(settingsOverlayHost, mainMenu, localization);
         private final AtomicReference<MapPresentationCoordinator> presentationReference =
                 new AtomicReference<>();
         private final SelectionController selectionController = new SelectionController(
@@ -425,7 +431,7 @@ final class MapPresentationWorkflowLifecycleTest {
                         localization
                 ),
                 localization,
-                new NeuronSettingsOverlayCoordinator(workspace, localization)
+                settingsOverlayCoordinator
         );
         private final MapPresentationCoordinator presentationCoordinator = new MapPresentationCoordinator(
                 neuronService,
@@ -470,6 +476,7 @@ final class MapPresentationWorkflowLifecycleTest {
             neuronController.dispose();
             simulationController.shutdown();
             connectionController.clearDeleteHighlights();
+            mainMenu.dispose();
         }
     }
 

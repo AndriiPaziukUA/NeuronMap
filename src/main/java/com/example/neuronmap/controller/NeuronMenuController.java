@@ -9,7 +9,6 @@ import com.example.neuronmap.view.neuron.NeuronContextMenuView;
 import com.example.neuronmap.view.neuron.NeuronMenuView;
 import com.example.neuronmap.view.neuron.NeuronOverlayPositioner;
 import com.example.neuronmap.view.neuron.NeuronView;
-
 import javafx.scene.layout.VBox;
 
 import java.util.Objects;
@@ -198,7 +197,8 @@ public final class NeuronMenuController {
         disposed = true;
     }
 
-    /** Забороняє використання контролера після звільнення його ресурсів.
+    /**
+     * Забороняє використання контролера після звільнення його ресурсів.
      *
      * @throws IllegalStateException якщо контролер остаточно звільнено.
      */
@@ -225,17 +225,20 @@ public final class NeuronMenuController {
 
     /**
      * Відкриває накладку налаштувань і застосовує параметри після підтвердження.
-     * Координацією контейнера, видимості та слухачів займається спеціалізований координатор накладки.
+     * Спочатку прибирає контекстне меню, щоб воно не залишалося під модальною накладкою.
      *
      * @param neuronId ідентифікатор нейрона, налаштування якого потрібно змінити.
      */
     private void showNeuronSettings(String neuronId) {
         ensureNotDisposed();
-        neuronService.find(neuronId).ifPresent(neuron -> settingsOverlayCoordinator.show(neuron, parameters -> {
-            if (neuronService.updateSettings(neuronId, parameters)) {
-                save.run();
-                status.accept(localization.text("neuron.settings.saved"));
-            }
-        }));
+        neuronService.find(neuronId).ifPresent(neuron -> {
+            hide();
+            settingsOverlayCoordinator.show(neuron, parameters -> {
+                if (neuronService.updateSettings(neuronId, parameters)) {
+                    save.run();
+                    status.accept(localization.text("neuron.settings.saved"));
+                }
+            });
+        });
     }
 }

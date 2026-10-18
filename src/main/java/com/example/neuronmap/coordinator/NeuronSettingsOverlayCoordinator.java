@@ -4,12 +4,8 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.view.menu.MainMenuView;
-import com.example.neuronmap.view.editor.WorkspaceView;
 import com.example.neuronmap.view.neuron.NeuronSettingsView;
-
 import javafx.beans.value.ChangeListener;
-import javafx.scene.Node;
-import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.layout.StackPane;
 
@@ -21,7 +17,6 @@ public final class NeuronSettingsOverlayCoordinator {
 
     private final StackPane overlayHost;
     private final MainMenuView mainMenu;
-    private final WorkspaceView legacyWorkspace;
     private final LocalizationService localization;
     private final ChangeListener<Boolean> settingsVisibilityListener =
             (observable, wasVisible, isVisible) -> {
@@ -35,11 +30,11 @@ public final class NeuronSettingsOverlayCoordinator {
     private boolean disposed;
 
     /**
-     * Створює координатор із явно переданими власником інтерфейсу контейнером і головним меню.
-     * Координатор не обходить дерево JavaFX і не залежить від внутрішньої структури батьківських вузлів.
+     * Створює координатор з явними залежностями контейнера накладок і головного меню.
+     * Координатор не шукає елементи в дереві JavaFX та не залежить від структури предків.
      *
      * @param overlayHost контейнер, до якого додаються модальні накладки редактора.
-     * @param mainMenu подання головного меню, видимість якого визначає пріоритет модальної накладки.
+     * @param mainMenu подання головного меню, видимість якого визначає пріоритет накладки.
      * @param localization спільна служба локалізації застосунку.
      * @throws NullPointerException якщо обов'язкову залежність не задано.
      */
@@ -50,23 +45,6 @@ public final class NeuronSettingsOverlayCoordinator {
     ) {
         this.overlayHost = Objects.requireNonNull(overlayHost, "overlayHost");
         this.mainMenu = Objects.requireNonNull(mainMenu, "mainMenu");
-        this.legacyWorkspace = null;
-        this.localization = Objects.requireNonNull(localization, "localization");
-    }
-
-    /**
-     * Сумісний конструктор для наявних ізольованих компонентів та старих тестових фікстур.
-     * Новий код застосунку має передавати контейнер і головне меню явно через основний конструктор.
-     *
-     * @param workspace робоча область редактора.
-     * @param localization служба локалізації.
-     * @deprecated Використовуйте конструктор з явними {@link StackPane} та {@link MainMenuView}.
-     */
-    @Deprecated
-    public NeuronSettingsOverlayCoordinator(WorkspaceView workspace, LocalizationService localization) {
-        this.overlayHost = null;
-        this.mainMenu = null;
-        this.legacyWorkspace = Objects.requireNonNull(workspace, "workspace");
         this.localization = Objects.requireNonNull(localization, "localization");
     }
 
@@ -82,14 +60,8 @@ public final class NeuronSettingsOverlayCoordinator {
         ensureNotDisposed();
         Objects.requireNonNull(neuron, "neuron");
         Objects.requireNonNull(onSave, "onSave");
-        StackPane activeOverlayHost = overlayHost;
-        MainMenuView activeMainMenu = mainMenu;
-        if (legacyWorkspace != null) {
-            activeOverlayHost = resolveLegacyOverlayHost(legacyWorkspace.node());
-            activeMainMenu = findMainMenu(activeOverlayHost);
-        }
-        Scene scene = activeOverlayHost.getScene();
-        if (scene == null || (activeMainMenu != null && activeMainMenu.isMenuVisible())) {
+        Scene scene = overlayHost.getScene();
+        if (scene == null || mainMenu.isMenuVisible()) {
             hide();
             return;
         }
@@ -99,8 +71,8 @@ public final class NeuronSettingsOverlayCoordinator {
             settingsView = new NeuronSettingsView(localization);
             settingsView.visibleProperty().addListener(settingsVisibilityListener);
         }
-        watchMainMenuVisibility(activeMainMenu);
-        settingsView.showIn(activeOverlayHost, neuron, onSave);
+        watchMainMenuVisibility();
+        settingsView.showIn(overlayHost, neuron, onSave);
     }
 
     /** Приховує накладку без збереження введених параметрів і завершує тимчасове спостереження меню. */
@@ -125,66 +97,31 @@ public final class NeuronSettingsOverlayCoordinator {
         disposed = true;
     }
 
-    /**
-     * Перевіряє, чи координатор ще може показувати накладку.
-     *
-     * @throws IllegalStateException якщо координатор остаточно звільнено.
-     */
+    /** Перевіряє, чи координатор ще може показувати накладку. */
     private void ensureNotDisposed() {
         if (disposed) {
             throw new IllegalStateException("Neuron settings overlay coordinator is disposed");
         }
     }
 
-    /** Підписується на передане меню; старий сумісний конструктор може працювати без нього. */
-    private void watchMainMenuVisibility(MainMenuView activeMainMenu) {
-        if (activeMainMenu == null || mainMenuVisibilityListener != null) {
+    /** Підписується на головне меню лише на час показу накладки. */
+    private void watchMainMenuVisibility() {
+        if (mainMenuVisibilityListener != null) {
             return;
         }
-        watchedMainMenu = activeMainMenu;
         mainMenuVisibilityListener = (observable, wasVisible, isVisible) -> {
             if (Boolean.TRUE.equals(isVisible)) {
                 hide();
             }
         };
-        activeMainMenu.visibleProperty().addListener(mainMenuVisibilityListener);
+        mainMenu.visibleProperty().addListener(mainMenuVisibilityListener);
     }
-
-    private MainMenuView findMainMenu(StackPane host) {
-        return host.getChildren().stream()
-                .filter(MainMenuView.class::isInstance)
-                .map(MainMenuView.class::cast)
-                .findFirst()
-                .orElse(null);
-    }
-
-    /** Резервний пошук лише для сумісного старого конструктора. */
-    private static StackPane resolveLegacyOverlayHost(Node editorContent) {
-        Parent ancestor = editorContent.getParent();
-        StackPane fallback = null;
-        while (ancestor != null) {
-            if (ancestor instanceof StackPane stackPane) {
-                fallback = stackPane;
-                if (stackPane.getChildren().stream().anyMatch(MainMenuView.class::isInstance)) {
-                    return stackPane;
-                }
-            }
-            ancestor = ancestor.getParent();
-        }
-        if (fallback == null) {
-            throw new IllegalStateException("Не вдалося знайти контейнер StackPane для накладки налаштувань");
-        }
-        return fallback;
-    }
-
-    private MainMenuView watchedMainMenu;
 
     /** Знімає слухач головного меню, завершуючи тимчасову координацію модального стану. */
     private void stopWatchingMainMenu() {
-        if (watchedMainMenu != null && mainMenuVisibilityListener != null) {
-            watchedMainMenu.visibleProperty().removeListener(mainMenuVisibilityListener);
+        if (mainMenuVisibilityListener != null) {
+            mainMenu.visibleProperty().removeListener(mainMenuVisibilityListener);
         }
-        watchedMainMenu = null;
         mainMenuVisibilityListener = null;
     }
 }

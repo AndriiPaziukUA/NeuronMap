@@ -15,17 +15,19 @@ import com.example.neuronmap.testsupport.JavaFxTestSupport;
 import com.example.neuronmap.view.connection.ConnectionView;
 import com.example.neuronmap.view.editor.NeuronLayerOrderManager;
 import com.example.neuronmap.view.editor.WorkspaceView;
+import com.example.neuronmap.view.menu.MainMenuView;
 import com.example.neuronmap.view.neuron.NeuronMenuView;
+import com.example.neuronmap.view.neuron.NeuronSettingsView;
 import com.example.neuronmap.view.neuron.NeuronView;
 import com.example.neuronmap.view.neuron.RotationHandleView;
 import com.example.neuronmap.view.simulation.SimulationStepPresenter;
-
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Pane;
-
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -47,6 +49,7 @@ final class NeuronInteractionControllerMouseButtonTest {
             click(fixture.neuronView(), MouseButton.PRIMARY);
             assertTrue(fixture.handle().isVisible());
             assertFalse(hasVisibleMenu(fixture.workspace()));
+            dispose(fixture);
         });
     }
 
@@ -55,18 +58,56 @@ final class NeuronInteractionControllerMouseButtonTest {
     void rightClickShowsMenuAndHidesRotationHandle() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
             Fixture fixture = fixture();
-
             click(fixture.neuronView(), MouseButton.PRIMARY);
             assertTrue(fixture.handle().isVisible());
-
             click(fixture.neuronView(), MouseButton.SECONDARY);
-
             assertTrue(hasVisibleMenu(fixture.workspace()));
             assertFalse(fixture.handle().isVisible());
+            dispose(fixture);
         });
     }
 
-    /** Створює контролери редактора з явним координатором модальної накладки та власником синхронізації подань. */
+    /** Перевіряє, що відкриття налаштувань прибирає контекстне меню та не повертає його після закриття накладки. */
+    @Test
+    void openingSettingsClosesContextMenuAndDoesNotRestoreItAfterCancel() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            Fixture fixture = fixture();
+            click(fixture.neuronView(), MouseButton.SECONDARY);
+            assertTrue(hasVisibleMenu(fixture.workspace()));
+
+            VBox contextMenu = fixture.workspace().overlayLayer().getChildren().stream()
+                    .filter(VBox.class::isInstance)
+                    .map(VBox.class::cast)
+                    .filter(VBox::isVisible)
+                    .findFirst()
+                    .orElseThrow();
+            HBox buttons = (HBox) contextMenu.getChildren().getFirst();
+            Button settingsButton = buttons.getChildren().stream()
+                    .filter(Button.class::isInstance)
+                    .map(Button.class::cast)
+                    .filter(button -> button.getTooltip() != null
+                            && fixture.localization().text("neuron.menu.settings")
+                            .equals(button.getTooltip().getText()))
+                    .findFirst()
+                    .orElseThrow();
+
+            settingsButton.fire();
+
+            assertFalse(hasVisibleMenu(fixture.workspace()),
+                    "Контекстне меню потрібно прибрати перед показом модальної накладки");
+            NeuronSettingsView settingsView = fixture.overlayHost().getChildren().stream()
+                    .filter(NeuronSettingsView.class::isInstance)
+                    .map(NeuronSettingsView.class::cast)
+                    .findFirst()
+                    .orElseThrow();
+            settingsView.hide();
+            assertFalse(hasVisibleMenu(fixture.workspace()),
+                    "Закриття налаштувань не повинно відновлювати старе контекстне меню");
+            dispose(fixture);
+        });
+    }
+
+    /** Створює контролери редактора з явним контейнером накладок і власником синхронізації подань. */
     private static Fixture fixture() {
         NeuronMapModel model = new NeuronMapModel();
         var neuron = model.createNeuron(NeuronType.EXCITATORY, 100.0, 80.0);
@@ -86,7 +127,6 @@ final class NeuronInteractionControllerMouseButtonTest {
                 () -> { },
                 ignored -> { }
         );
-
         SimulationStepPresenter stepPresenter = new SimulationStepPresenter(
                 workspace,
                 neuronViews,
@@ -105,7 +145,6 @@ final class NeuronInteractionControllerMouseButtonTest {
                 50.0,
                 5000.0
         );
-
         ConnectionController connections = new ConnectionController(
                 connectionService,
                 state,
@@ -124,6 +163,11 @@ final class NeuronInteractionControllerMouseButtonTest {
                 ignored -> { },
                 localization
         );
+        MainMenuView mainMenu = new MainMenuView(localization, ignored -> { });
+        StackPane overlayHost = new StackPane(workspace.node(), mainMenu);
+        Scene scene = new Scene(overlayHost, 1000.0, 700.0);
+        NeuronSettingsOverlayCoordinator settingsCoordinator =
+                new NeuronSettingsOverlayCoordinator(overlayHost, mainMenu, localization);
 
         NeuronInteractionController controller = new NeuronInteractionController(
                 neuronService,
@@ -141,9 +185,8 @@ final class NeuronInteractionControllerMouseButtonTest {
                 ignored -> { },
                 neuronMenuView,
                 localization,
-                new NeuronSettingsOverlayCoordinator(workspace, localization)
+                settingsCoordinator
         );
-
         new MapPresentationCoordinator(
                 neuronService,
                 workspace,
@@ -155,16 +198,19 @@ final class NeuronInteractionControllerMouseButtonTest {
                 new NeuronLayerOrderManager(neuronViews, connectionViews, model::connections)
         );
 
-        Pane root = new Pane(workspace.node());
-        Scene scene = new Scene(root, 1000.0, 700.0);
         scene.getRoot().applyCss();
-        root.layout();
+        scene.getRoot().layout();
         controller.loadViews();
-
         NeuronView neuronView = neuronViews.get(neuron.id());
         assertNotNull(neuronView);
+        return new Fixture(controller, workspace, neuronView, rotationHandles.get(neuron.id()),
+                overlayHost, mainMenu, localization);
+    }
 
-        return new Fixture(controller, workspace, neuronView, rotationHandles.get(neuron.id()), scene);
+    /** Звільняє контролер і ресурси головного меню після тестового сценарію. */
+    private static void dispose(Fixture fixture) {
+        fixture.controller().dispose();
+        fixture.mainMenu().dispose();
     }
 
     /** Викликає події натискання, відпускання та клацання миші для зазначеного подання нейрона. */
@@ -175,30 +221,16 @@ final class NeuronInteractionControllerMouseButtonTest {
     }
 
     /** Надсилає подію миші до подання нейрона. */
-    private static void fire(
-            NeuronView neuronView,
-            javafx.event.EventType<MouseEvent> type,
-            MouseButton button
-    ) {
+    private static void fire(NeuronView neuronView, javafx.event.EventType<MouseEvent> type, MouseButton button) {
         MouseEvent event = new MouseEvent(
                 type,
-                10.0,
-                10.0,
-                10.0,
-                10.0,
-                button,
-                1,
-                false,
-                false,
-                false,
-                false,
+                10.0, 10.0, 10.0, 10.0,
+                button, 1,
+                false, false, false, false,
                 button == MouseButton.PRIMARY,
                 false,
                 button == MouseButton.SECONDARY,
-                false,
-                false,
-                false,
-                null
+                false, false, false, null
         );
         javafx.event.Event.fireEvent(neuronView, event);
     }
@@ -206,16 +238,17 @@ final class NeuronInteractionControllerMouseButtonTest {
     /** Перевіряє, чи містить полотно видиме контекстне меню. */
     private static boolean hasVisibleMenu(WorkspaceView workspace) {
         return workspace.overlayLayer().getChildren().stream()
-                .anyMatch(node -> node instanceof javafx.scene.layout.VBox && node.isVisible());
+                .anyMatch(node -> node instanceof VBox && node.isVisible());
     }
 
-    /** Зберігає залежності тестового редактора та вузли, на яких перевіряється взаємодія миші. */
+    /** Зберігає залежності тестового редактора та вузли для перевірок взаємодії. */
     private record Fixture(
             NeuronInteractionController controller,
             WorkspaceView workspace,
             NeuronView neuronView,
             RotationHandleView handle,
-            Scene scene
-    ) {
-    }
+            StackPane overlayHost,
+            MainMenuView mainMenu,
+            LocalizationService localization
+    ) { }
 }

@@ -13,12 +13,12 @@ import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.simulation.SimulationService;
 import com.example.neuronmap.testsupport.JavaFxTestSupport;
 import com.example.neuronmap.view.editor.WorkspaceView;
+import com.example.neuronmap.view.menu.MainMenuView;
 import com.example.neuronmap.view.neuron.NeuronMenuView;
 import com.example.neuronmap.view.neuron.NeuronView;
 import com.example.neuronmap.view.simulation.SimulationStepPresenter;
-
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -58,6 +58,7 @@ final class NeuronMenuControllerDirectionTest {
             assertTrue(fixture.historyService().redo());
             assertTrue(fixture.neuronService().presentation(fixture.neuron().id())
                     .orElseThrow().directionReversed());
+            dispose(fixture);
         });
     }
 
@@ -72,10 +73,11 @@ final class NeuronMenuControllerDirectionTest {
             assertEquals(0, fixture.overlayRefreshes().get());
             assertEquals(0, fixture.saves().get());
             assertNull(fixture.status().get());
+            dispose(fixture);
         });
     }
 
-    /** Створює контролер із реальними службами, явним координатором накладки та лічильниками побічних ефектів. */
+    /** Створює контролер із явним контейнером накладок і лічильниками побічних ефектів. */
     private static Fixture createFixture() {
         LocalizationService localization = new LocalizationService(Locale.forLanguageTag("uk"));
         NeuronMapModel model = new NeuronMapModel();
@@ -109,6 +111,10 @@ final class NeuronMenuControllerDirectionTest {
                 message -> { }, localization);
         NeuronMenuView menuView = new NeuronMenuView(
                 new VBox(), state::selectedNeuronForMenu, null, localization);
+        MainMenuView mainMenu = new MainMenuView(localization, ignored -> { });
+        StackPane overlayHost = new StackPane(workspace.node(), mainMenu);
+        NeuronSettingsOverlayCoordinator settingsCoordinator =
+                new NeuronSettingsOverlayCoordinator(overlayHost, mainMenu, localization);
         NeuronMenuController controller = new NeuronMenuController(
                 neuronService, state, workspace, connections, simulation, deletion, menuView,
                 visualRefreshes::incrementAndGet,
@@ -120,10 +126,16 @@ final class NeuronMenuControllerDirectionTest {
                 },
                 status::set,
                 localization,
-                new NeuronSettingsOverlayCoordinator(workspace, localization));
+                settingsCoordinator);
 
         return new Fixture(controller, neuronService, historyService, neuron,
-                visualRefreshes, connectionRefreshes, overlayRefreshes, saves, status, localization);
+                visualRefreshes, connectionRefreshes, overlayRefreshes, saves, status, localization, mainMenu);
+    }
+
+    /** Звільняє ресурси контролера накладки та подання головного меню. */
+    private static void dispose(Fixture fixture) {
+        fixture.controller().dispose();
+        fixture.mainMenu().dispose();
     }
 
     /** Зберігає залежності тестового сценарію та спостережувані побічні ефекти. */
@@ -137,6 +149,7 @@ final class NeuronMenuControllerDirectionTest {
             AtomicInteger overlayRefreshes,
             AtomicInteger saves,
             AtomicReference<String> status,
-            LocalizationService localization
+            LocalizationService localization,
+            MainMenuView mainMenu
     ) { }
 }
