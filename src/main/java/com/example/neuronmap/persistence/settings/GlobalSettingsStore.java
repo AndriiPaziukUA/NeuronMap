@@ -1,13 +1,12 @@
 package com.example.neuronmap.persistence.settings;
 
+import com.example.neuronmap.persistence.AtomicPropertiesWriter;
 import com.example.neuronmap.persistence.PersistenceException;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.Properties;
 
 /**
@@ -20,7 +19,7 @@ public final class GlobalSettingsStore {
     /**
      * Створює екземпляр GlobalSettingsStore та зберігає передані залежності, потрібні для його роботи.
      *
-     * @param path шлях до файлу або каталогу.
+     * @param path шлях до файла глобальних налаштувань.
      */
     public GlobalSettingsStore(Path path) {
         if (path == null) {
@@ -60,6 +59,8 @@ public final class GlobalSettingsStore {
 
     /**
      * Зчитує файл глобальних налаштувань у об’єкт Properties.
+     *
+     * @return прочитані властивості або порожній набір, якщо файл ще не існує.
      */
     private Properties loadProperties() {
         Properties properties = new Properties();
@@ -71,7 +72,6 @@ public final class GlobalSettingsStore {
             properties.load(input);
             return properties;
         } catch (IOException exception) {
-
             throw new PersistenceException(
                     "Не вдалося прочитати глобальні налаштування.",
                     exception
@@ -80,38 +80,14 @@ public final class GlobalSettingsStore {
     }
 
     /**
-     * Записує переданий набір властивостей у файл налаштувань.
+     * Передає запис властивостей спільному механізму атомарної заміни файла.
      *
      * @param properties набір властивостей, який потрібно записати у файл.
      */
     private void writeProperties(Properties properties) {
         try {
-            Path parent = path.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
-            }
-
-            Path temp = path.resolveSibling(path.getFileName() + ".tmp");
-            try (OutputStream output = Files.newOutputStream(temp)) {
-                properties.store(output, "NeuronMap global settings");
-            }
-
-            try {
-                Files.move(
-                        temp,
-                        path,
-                        StandardCopyOption.REPLACE_EXISTING,
-                        StandardCopyOption.ATOMIC_MOVE
-                );
-            } catch (java.nio.file.AtomicMoveNotSupportedException exception) {
-                Files.move(
-                        temp,
-                        path,
-                        StandardCopyOption.REPLACE_EXISTING
-                );
-            }
+            AtomicPropertiesWriter.write(path, properties, "NeuronMap global settings");
         } catch (IOException exception) {
-
             throw new PersistenceException(
                     "Не вдалося зберегти глобальні налаштування.",
                     exception

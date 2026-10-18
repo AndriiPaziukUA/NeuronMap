@@ -1,8 +1,9 @@
 package com.example.neuronmap.persistence.window;
 
+import com.example.neuronmap.persistence.AtomicPropertiesWriter;
+
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
@@ -83,8 +84,9 @@ public final class WindowStateStore {
     }
 
     /**
-     * Записує коректну геометрію вікна у файл стану. Помилку запису реєструє в журналі, оскільки вона не повинна
-     * перешкоджати закриттю вікна та звільненню інших ресурсів застосунку.
+     * Атомарно записує коректну геометрію вікна через тимчасовий файл. Помилку запису реєструє в журналі,
+     * оскільки вона не повинна перешкоджати закриттю вікна та звільненню інших ресурсів застосунку.
+     * Попередній файл залишається незмінним, якщо серіалізація тимчасового файла завершується помилкою.
      *
      * @param state стан геометрії вікна, який потрібно зберегти.
      * @throws IllegalArgumentException якщо стан не задано.
@@ -97,21 +99,14 @@ public final class WindowStateStore {
             return;
         }
 
-        Path parent = file.getParent();
+        Properties properties = new Properties();
+        properties.setProperty(WIDTH, Double.toString(state.width()));
+        properties.setProperty(HEIGHT, Double.toString(state.height()));
+        properties.setProperty(X, Double.toString(state.x()));
+        properties.setProperty(Y, Double.toString(state.y()));
+
         try {
-            if (parent != null) {
-                Files.createDirectories(parent);
-            }
-
-            Properties properties = new Properties();
-            properties.setProperty(WIDTH, Double.toString(state.width()));
-            properties.setProperty(HEIGHT, Double.toString(state.height()));
-            properties.setProperty(X, Double.toString(state.x()));
-            properties.setProperty(Y, Double.toString(state.y()));
-
-            try (OutputStream output = Files.newOutputStream(file)) {
-                properties.store(output, "NeuronMap window geometry");
-            }
+            AtomicPropertiesWriter.write(file, properties, "NeuronMap window geometry");
         } catch (IOException exception) {
             LOGGER.log(
                     Level.WARNING,
