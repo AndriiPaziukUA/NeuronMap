@@ -99,7 +99,7 @@ NeuronMap організовано навколо окремих відпові�
 - `view/neuron` — `NeuronView`, контекстне меню, внутрішня модальна накладка налаштувань нейрона, геометрія та ручка обертання;
 - `view/simulation` — `PulseAnimationView`, `PulseAnimator` і `SimulationStepPresenter`, що показують результати симуляції та анімації;
 - `view/status` — `StatusBarView`, `StatusMessagePresenter` і `StatusMessageLifecycle`, що відображають повідомлення й керують їхнім життєвим циклом;
-- `view/support` — `ImmediateTooltipManager`, `TooltipFactory`, `JavaFxNodeLookup`, `EditorKeyboardShortcutBoundary`, `ContentSizedButtonPair` і `UiTiming`, спільні допоміжні засоби JavaFX.
+- `view/support` — `ImmediateTooltipManager`, `TooltipFactory`, `JavaFxNodeLookup`, `EditorKeyboardShortcutBoundary`, `SceneKeyboardModality`, `ContentSizedButtonPair` і `UiTiming`, спільні допоміжні засоби JavaFX.
 
 `ContentSizedButtonPair` узгоджує лише природні розміри пари кнопок після застосування їхніх CSS-стилів. Він не визначає кольори, класи або таблиці стилів; кожне подання зберігає повну незалежність власного оформлення.
 
@@ -112,7 +112,7 @@ NeuronMap організовано навколо окремих відпові�
 Координатори організовують послідовність взаємодії кількох підсистем, не підміняючи їхню відповідальність.
 
 - `MapEditorCoordinator` є точкою складання залежностей редактора та передає дії компонентам редактора.
-- `NeuronSettingsOverlayCoordinator` керує показом і приховуванням внутрішньої модальної накладки налаштувань нейрона, вибором її контейнера в дереві JavaFX та тимчасовим слухачем видимості головного меню. `MapEditorComponentFactory` створює координатор і передає його через `NeuronInteractionController` до `NeuronMenuController`; контролер меню передає нейрон і callback збереження, але не створює власної копії координатора в основному графі редактора. Під час завершення редактора `NeuronMenuController.dispose()` звільняє ресурси координатора, а `hide()` лише приховує накладку та дозволяє повторне відкриття.
+- `NeuronSettingsOverlayCoordinator` отримує контейнер накладок (`MainView.node()`) і `MainMenuView` явно від `MapEditorComponentFactory`. Координатор керує показом/приховуванням накладки та тимчасовим слухачем видимості переданого меню; він не обходить дерево JavaFX для виявлення контейнера чи меню. `NeuronMenuController` передає координатору нейрон і callback збереження, але не визначає структуру головної сцени. Під час завершення редактора `NeuronMenuController.dispose()` звільняє ресурси координатора, а `hide()` лише приховує накладку та дозволяє повторне відкриття.
 - `MapPresentationCoordinator` є єдиним власником синхронізації графічних подань карти з моделлю: створює та прибирає `NeuronView`, `ConnectionView`, `GroupView` і ручки обертання, а також оновлює залежну геометрію й стан відображення.
 - `MapInteractionCoordinator` координує режими взаємодії з полотном та передає запити на синхронізацію координатору презентації.
 - `EditorHistoryCoordinator` пов'язує `undo`/`redo` зі скиданням тимчасових станів і синхронізацією подань.

@@ -40,13 +40,17 @@ GitHub Actions workflow `.github/workflows/ci.yml` має запускати `cl
 ./mvnw -Dtest=NeuronServiceTest,SimulationSessionTest test
 ```
 
-У Windows використовуйте `.\mvnw.cmd` замість `./mvnw`. Maven Compiler налаштований на JDK 25. Проєкт використовує JavaFX 27; JavaFX-тести запускають toolkit і виконують перевірки графічних вузлів у JavaFX Application Thread, тому для них має бути доступне середовище з потрібними JavaFX native-залежностями.
+У Windows використовуйте `.\mvnw.cmd` замість `./mvnw`. Maven Compiler налаштований на JDK 25. Проєкт використовує JavaFX 27; JavaFX-тести запускають toolkit і виконують перевірки графічних вузлів у JavaFX Application Thread. Допоміжний `JavaFxTestSupport` централізує запуск toolkit, синхронне виконання дій у JavaFX-потоці та передавання помилок у JUnit. Для цих тестів має бути доступне середовище з потрібними JavaFX native-залежностями.
 
 JaCoCo налаштований формувати звіт у `target/site/jacoco/` на фазі `test`, якщо збірка дійшла до цього етапу.
 
 ## Каталог тестів
 
 Наведений перелік зіставлено з тестовими файлами в гілці `develop`. Описи вказують на основні сценарії кожного класу, а не на вичерпний список окремих методів усередині нього.
+
+### `testsupport`
+
+- `JavaFxTestSupport` — одноразовий запуск JavaFX toolkit, синхронне виконання дій у JavaFX Application Thread і передавання помилок до JUnit.
 
 ### `app`
 
@@ -75,7 +79,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 - `NeuronDeletionControllerTest` — видалення нейронів через контролер взаємодії.
 - `NeuronInteractionControllerMouseButtonTest` — поведінка взаємодії залежно від кнопки миші.
 - `NeuronMenuControllerDirectionTest` — вибір напрямку нейрона через його меню.
-- `NeuronMenuControllerOverlayHostTest` — вибір контейнера накладки в ієрархії із зовнішніми обгортками та пріоритет контейнера, який безпосередньо містить головне меню.
+- `NeuronMenuControllerOverlayHostTest` — перевірка, що координатор використовує явно переданий контейнер накладки та не визначає його обходом дерева JavaFX.
 - `NeuronOverlayCoordinateTest` — обчислення координат меню та накладок відносно нейрона.
 - `PulseAnimationControllerTest` — керування анімаціями імпульсів.
 - `CameraControllerPanSaveTest` — перевіряє, що натискання полотна без переміщення не зберігає камеру, а фактичне панорамування планує збереження.
@@ -86,7 +90,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 ### `coordinator`
 
 - `EditorProjectSessionCoordinatorTest` — зупинка й відновлення редакторської сесії, перемикання проєктів, камера та швидкість симуляції.
-- `NeuronSettingsOverlayCoordinatorTest` — закриття модальної накладки налаштувань при відкритті головного меню й очищення її активного модального стану.
+- `NeuronSettingsOverlayCoordinatorTest` — закриття модальної накладки налаштувань при відкритті переданого головного меню, ідемпотентність звільнення координатора та заборона повторного показу після `dispose()`.
 - `UiProcessCoordinatorTest` — вкладені причини призупинення, порядок паузи й відновлення, ідемпотентність повторних команд та керування реєстраціями процесів.
 - `EditorSaveCoordinatorTest` — узгоджене збереження стану редактора.
 - `MapPresentationCoordinatorLifecycleTest` — створення, оновлення та очищення графічних подань карти й ручок обертання.

@@ -170,7 +170,8 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         disposed = true;
     }
 
-    /** Перевіряє, що подання не було остаточно звільнене.
+    /**
+     * Перевіряє, що подання не було остаточно звільнене.
      *
      * @throws IllegalStateException якщо подання вже остаточно звільнено.
      */
@@ -496,8 +497,8 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
             return;
         }
 
-        // Handle Escape at the scene-filter phase even when focus is inside a TextField.
-        // A control may consume the key before it reaches this overlay's bubbling handler.
+        // Обробляємо Escape на рівні фільтра сцени, навіть якщо фокус перебуває в TextField.
+        // Контрол може поглинути клавішу до того, як подія дійде до обробника накладки.
         boolean escapePressed = event.getEventType() == KeyEvent.KEY_PRESSED
                 && event.getCode() == KeyCode.ESCAPE;
         if (escapePressed) {
@@ -506,8 +507,8 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
             return;
         }
 
-        // Keyboard input inside the overlay remains available to its own controls;
-        // only background targets are blocked by the modal scene filter.
+        // Клавіатурне введення всередині накладки залишається доступним її елементам керування.
+        // За межами накладки фільтр блокує події, спрямовані на фон редактора.
         if (EditorKeyboardShortcutBoundary.blocksShortcutsFor(event.getTarget())) {
             return;
         }

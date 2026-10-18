@@ -9,30 +9,45 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Tracks active modal keyboard boundaries for a scene, including events targeted outside the modal node.
+ * Зберігає активні межі клавіатурної модальності для кожної сцени JavaFX.
  *
- * <p>Node ancestry alone cannot identify an event targeted at the editor background while a modal overlay is
- * active. Global scene-level shortcuts can consult this registry before handling such an event.</p>
+ * <p>Перевірка лише предків вузла не виявляє подій, спрямованих на фон редактора поза модальною накладкою.
+ * Глобальні обробники команд використовують цей реєстр, щоб не виконувати команди за відкритим вікном.</p>
  */
 public final class SceneKeyboardModality {
 
     private static final Object REGISTRY_KEY = SceneKeyboardModality.class;
 
+    /** Забороняє створення екземплярів утиліти зі статичними операціями. */
     private SceneKeyboardModality() {
     }
 
-    /** Registers a visible modal boundary with its owning scene. */
+    /**
+     * Реєструє активну межу клавіатурної модальності в указаній сцені.
+     * Повторна реєстрація того самого вузла не створює дубліката.
+     *
+     * @param scene сцена, до якої належить модальна накладка.
+     * @param boundary вузол, що реалізує контракт межі гарячих клавіш.
+     * @throws NullPointerException якщо сцену або вузол не задано.
+     * @throws IllegalArgumentException якщо вузол не реалізує {@link EditorKeyboardShortcutBoundary}.
+     */
     public static void register(Scene scene, Node boundary) {
         Objects.requireNonNull(scene, "scene");
         Objects.requireNonNull(boundary, "boundary");
         if (!(boundary instanceof EditorKeyboardShortcutBoundary)) {
-            throw new IllegalArgumentException("Modal boundary must implement EditorKeyboardShortcutBoundary");
+            throw new IllegalArgumentException("Модальна межа має реалізовувати EditorKeyboardShortcutBoundary");
         }
         Registry registry = registryFor(scene, true);
         registry.boundaries.add(boundary);
     }
 
-    /** Removes a modal boundary from its scene; repeated removal is safe. */
+    /**
+     * Знімає реєстрацію межі клавіатурної модальності; повторне зняття безпечне.
+     * Якщо активних меж більше немає, прибирає реєстр зі властивостей сцени.
+     *
+     * @param scene сцена, з якої потрібно прибрати межу; {@code null} дозволено.
+     * @param boundary вузол модальної накладки; {@code null} дозволено.
+     */
     public static void unregister(Scene scene, Node boundary) {
         if (scene == null || boundary == null) {
             return;
@@ -48,9 +63,11 @@ public final class SceneKeyboardModality {
     }
 
     /**
-     * Returns whether a scene has an active modal boundary for an event targeted at {@code target}.
-     * This is intentionally scene-scoped rather than ancestry-scoped: events outside the modal must also be
-     * prevented from triggering application-wide shortcuts.
+     * Перевіряє, чи має сцена активну межу модальності для клавіатурної події.
+     * Перевірка навмисно враховує всю сцену, щоб блокувати події, спрямовані поза накладкою.
+     *
+     * @param target ціль події JavaFX.
+     * @return {@code true}, якщо в сцені цілі є активна межа, що блокує глобальні команди.
      */
     public static boolean hasActiveBoundaryFor(Object target) {
         if (!(target instanceof Node node) || node.getScene() == null) {
@@ -66,13 +83,21 @@ public final class SceneKeyboardModality {
                 .anyMatch(EditorKeyboardShortcutBoundary::blocksEditorShortcuts);
     }
 
+    /**
+     * Отримує наявний реєстр сцени або створює його за потреби.
+     *
+     * @param scene сцена, для якої потрібен реєстр.
+     * @param create {@code true}, якщо реєстр потрібно створити за відсутності.
+     * @return реєстр сцени або {@code null}, якщо він відсутній і створення заборонене.
+     * @throws IllegalStateException якщо ключ реєстру сцени зайнятий об'єктом іншого типу.
+     */
     private static Registry registryFor(Scene scene, boolean create) {
         Object stored = scene.getProperties().get(REGISTRY_KEY);
         if (stored instanceof Registry registry) {
             return registry;
         }
         if (stored != null) {
-            throw new IllegalStateException("Unexpected value stored for scene keyboard modality");
+            throw new IllegalStateException("За ключем реєстру клавіатурної модальності збережено об'єкт іншого типу");
         }
         if (!create) {
             return null;
@@ -82,7 +107,13 @@ public final class SceneKeyboardModality {
         return registry;
     }
 
+    /** Утримує активні межі модальності конкретної сцени за ідентичністю вузлів. */
     private static final class Registry {
+
         private final Set<Node> boundaries = Collections.newSetFromMap(new IdentityHashMap<>());
+
+        /** Створює порожній реєстр для однієї сцени. */
+        private Registry() {
+        }
     }
 }

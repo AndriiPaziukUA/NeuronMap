@@ -74,7 +74,8 @@ final class MapEditorComponentFactory {
                 inputs.localization()
         );
         NeuronSettingsOverlayCoordinator settingsOverlayCoordinator = new NeuronSettingsOverlayCoordinator(
-                inputs.view().workspace(),
+                inputs.view().node(),
+                inputs.view().mainMenu(),
                 inputs.localization()
         );
 
@@ -378,15 +379,15 @@ final class MapEditorComponentFactory {
     /**
      * Повний набір компонентів, створених фабрикою та переданих координатору життєвого циклу редактора.
      *
-     * @param simulationController контролер виконання симуляції.
-     * @param simulationSpeedCoordinator координатор зміни швидкості.
+     * @param simulationController контролер симуляції.
+     * @param simulationSpeedCoordinator координатор швидкості симуляції.
      * @param connectionController контролер зв'язків.
      * @param selectionController контролер вибору.
      * @param neuronController контролер взаємодії з нейронами.
      * @param cameraController контролер камери.
      * @param presentation координатор синхронізації подань.
      * @param interaction координатор взаємодії з полотном.
-     * @param keyboardController контролер клавіатурних команд.
+     * @param keyboardController маршрутизатор гарячих клавіш.
      */
     record Components(
             SimulationController simulationController,
