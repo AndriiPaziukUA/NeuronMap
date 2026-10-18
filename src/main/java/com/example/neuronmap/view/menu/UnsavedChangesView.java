@@ -1,6 +1,8 @@
 package com.example.neuronmap.view.menu;
 
 import com.example.neuronmap.i18n.LocalizationService;
+import com.example.neuronmap.view.support.ContentSizedButtonPair;
+
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -106,7 +108,7 @@ public final class UnsavedChangesView extends StackPane {
         setVisible(true);
         applyCss();
         card.applyCss();
-        sizeButtonsToLargestContent();
+        ContentSizedButtonPair.sizeToLargestContent(yesButton, noButton);
         requestFocus();
     }
 
@@ -134,7 +136,7 @@ public final class UnsavedChangesView extends StackPane {
         yesButton.setText(localization.text("common.yes"));
         noButton.setText(localization.text("common.no"));
         if (isShowing() && getScene() != null) {
-            sizeButtonsToLargestContent();
+            ContentSizedButtonPair.sizeToLargestContent(yesButton, noButton);
         }
     }
 
@@ -179,34 +181,6 @@ public final class UnsavedChangesView extends StackPane {
     /** Повертає правило максимальної ширини картки. */
     double cardMaxWidthForTest() {
         return card.getMaxWidth();
-    }
-
-    /** Вимірює кнопки за текстом і вирівнює їх за найбільшим природним розміром. */
-    private void sizeButtonsToLargestContent() {
-        resetButtonDimensions(yesButton);
-        resetButtonDimensions(noButton);
-        yesButton.applyCss();
-        noButton.applyCss();
-
-        double width = Math.max(yesButton.prefWidth(-1.0), noButton.prefWidth(-1.0));
-        double height = Math.max(yesButton.prefHeight(width), noButton.prefHeight(width));
-        applyButtonDimensions(yesButton, width, height);
-        applyButtonDimensions(noButton, width, height);
-    }
-
-    /** Скидає розміри кнопки перед вимірюванням її природного розміру. */
-    private static void resetButtonDimensions(Button button) {
-        button.setMinSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
-        button.setPrefSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
-        button.setMaxSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
-    }
-
-    /** Призначає обом кнопкам виміряні розміри найбільшої кнопки пари. */
-    private static void applyButtonDimensions(Button button, double width, double height) {
-        // Мінімальний розмір відповідає найбільшому підпису; preferred/max не мають фіксованих значень.
-        button.setMinSize(width, height);
-        button.setPrefSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
-        button.setMaxSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
     }
 
     /** Ховає діалог перед виконанням збереженої дії. */

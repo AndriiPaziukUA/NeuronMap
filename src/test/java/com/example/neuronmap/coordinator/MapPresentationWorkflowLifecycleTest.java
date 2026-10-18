@@ -424,7 +424,8 @@ final class MapPresentationWorkflowLifecycleTest {
                         ignored -> { },
                         localization
                 ),
-                localization
+                localization,
+                new NeuronSettingsOverlayCoordinator(workspace, localization)
         );
         private final MapPresentationCoordinator presentationCoordinator = new MapPresentationCoordinator(
                 neuronService,

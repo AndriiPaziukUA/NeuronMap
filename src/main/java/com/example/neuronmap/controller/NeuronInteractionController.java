@@ -1,15 +1,17 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
+import com.example.neuronmap.coordinator.NeuronSettingsOverlayCoordinator;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.service.GroupService;
 import com.example.neuronmap.service.NeuronClipboardService;
 import com.example.neuronmap.service.NeuronService;
-import com.example.neuronmap.view.support.JavaFxNodeLookup;
+import com.example.neuronmap.view.editor.WorkspaceView;
 import com.example.neuronmap.view.neuron.NeuronMenuView;
 import com.example.neuronmap.view.neuron.NeuronView;
 import com.example.neuronmap.view.neuron.RotationHandleView;
-import com.example.neuronmap.view.editor.WorkspaceView;
+import com.example.neuronmap.view.support.JavaFxNodeLookup;
+
 import javafx.scene.control.Control;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
@@ -38,60 +40,7 @@ public final class NeuronInteractionController {
     private Runnable relatedViewRefresher;
 
     /**
-     * Створює контролер взаємодії з типовою українською локалізацією.
-     *
-     * @param neuronService служба операцій над нейронами.
-     * @param groupService служба операцій над групами нейронів.
-     * @param selectionController контролер вибору нейронів.
-     * @param clipboardService служба копіювання та вставлення нейронів.
-     * @param state стан редактора.
-     * @param workspace полотно редактора.
-     * @param neuronViews спільна мапа візуальних подань нейронів.
-     * @param rotationHandles спільна мапа ручок обертання.
-     * @param connections контролер роботи зі зв'язками.
-     * @param simulation контролер симуляції.
-     * @param save дія збереження поточного стану.
-     * @param refreshPresentation дія повної синхронізації після зміни складу моделі.
-     * @param status дія показу повідомлення стану.
-     * @param neuronMenuView подання оформлення кнопок контекстного меню.
-     */
-    public NeuronInteractionController(
-            NeuronService neuronService,
-            GroupService groupService,
-            SelectionController selectionController,
-            NeuronClipboardService clipboardService,
-            EditorState state,
-            WorkspaceView workspace,
-            Map<String, NeuronView> neuronViews,
-            Map<String, RotationHandleView> rotationHandles,
-            ConnectionController connections,
-            SimulationController simulation,
-            Runnable save,
-            Runnable refreshPresentation,
-            Consumer<String> status,
-            NeuronMenuView neuronMenuView
-    ) {
-        this(
-                neuronService,
-                groupService,
-                selectionController,
-                clipboardService,
-                state,
-                workspace,
-                neuronViews,
-                rotationHandles,
-                connections,
-                simulation,
-                save,
-                refreshPresentation,
-                status,
-                neuronMenuView,
-                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
-        );
-    }
-
-    /**
-     * Створює контролер і підлеглі обробники кліків, перетягування, вибору, буфера обміну та видалення.
+     * Створює контролер взаємодії з переданими службами, поданнями та координатором налаштувань.
      *
      * @param neuronService служба операцій над нейронами.
      * @param groupService служба операцій над групами нейронів.
@@ -108,6 +57,8 @@ public final class NeuronInteractionController {
      * @param status дія показу повідомлення стану.
      * @param neuronMenuView подання оформлення кнопок контекстного меню.
      * @param localization спільна служба локалізації.
+     * @param settingsOverlayCoordinator координатор життєвого циклу накладки налаштувань.
+     * @throws NullPointerException якщо обов'язкову залежність не задано.
      */
     public NeuronInteractionController(
             NeuronService neuronService,
@@ -124,7 +75,8 @@ public final class NeuronInteractionController {
             Runnable refreshPresentation,
             Consumer<String> status,
             NeuronMenuView neuronMenuView,
-            LocalizationService localization
+            LocalizationService localization,
+            NeuronSettingsOverlayCoordinator settingsOverlayCoordinator
     ) {
         Objects.requireNonNull(neuronService, "neuronService");
         Objects.requireNonNull(groupService, "groupService");
@@ -138,6 +90,7 @@ public final class NeuronInteractionController {
                 localization,
                 "localization"
         );
+        Objects.requireNonNull(settingsOverlayCoordinator, "settingsOverlayCoordinator");
 
         this.clipboardController = new NeuronClipboardController(
                 clipboardService,
@@ -174,7 +127,8 @@ public final class NeuronInteractionController {
                 this::refreshOverlayPositions,
                 save,
                 status,
-                sharedLocalization
+                sharedLocalization,
+                settingsOverlayCoordinator
         );
 
         this.rotationController = new NeuronRotationController(
@@ -238,9 +192,7 @@ public final class NeuronInteractionController {
         );
     }
 
-    /**
-     * Забезпечує початкову синхронізацію подань через їхнього єдиного власника.
-     */
+    /** Забезпечує початкову синхронізацію подань через їхнього єдиного власника. */
     public void loadViews() {
         if (neuronViewSynchronizer == null) {
             throw new IllegalStateException(
@@ -298,9 +250,7 @@ public final class NeuronInteractionController {
         ) != null;
     }
 
-    /**
-     * Передає підлеглим контролерам запит на оновлення лише подань зв'язків.
-     */
+    /** Передає підлеглим контролерам запит на оновлення лише подань зв'язків. */
     private void refreshRelatedViews() {
         if (relatedViewRefresher == null) {
             throw new IllegalStateException(
@@ -320,9 +270,7 @@ public final class NeuronInteractionController {
         return neuronId != null && state.selectedNeuronIds().contains(neuronId);
     }
 
-    /**
-     * Передає запит на оновлення вигляду нейронів координатору презентації.
-     */
+    /** Передає запит на оновлення вигляду нейронів координатору презентації. */
     public void refreshVisuals() {
         if (neuronVisualRefresher == null) {
             throw new IllegalStateException(
@@ -332,9 +280,7 @@ public final class NeuronInteractionController {
         neuronVisualRefresher.run();
     }
 
-    /**
-     * Передає координатору презентації запит на узгодження положень візуальних накладок.
-     */
+    /** Передає координатору презентації запит на узгодження положень візуальних накладок. */
     public void refreshOverlayPositions() {
         if (overlayPositionRefresher == null) {
             throw new IllegalStateException(
@@ -358,9 +304,7 @@ public final class NeuronInteractionController {
         }
     }
 
-    /**
-     * Передає спеціалізованому контролеру ручок обертання запит на оновлення їхнього положення.
-     */
+    /** Передає спеціалізованому контролеру ручок обертання запит на оновлення їхнього положення. */
     public void refreshRotationHandlePosition() {
         rotationController.refreshPosition();
     }
@@ -375,18 +319,12 @@ public final class NeuronInteractionController {
         menuController.show(neuronView);
     }
 
-    /**
-     * Передає запит на зміну напрямку нейрона контролеру контекстного меню.
-     *
-     * @param neuronId ідентифікатор нейрона, напрямок якого потрібно перемкнути.
-     */
+    /** Передає запит на зміну напрямку нейрона контролеру контекстного меню. */
     public void toggleNeuronDirection(String neuronId) {
         menuController.toggleDirection(neuronId);
     }
 
-    /**
-     * Приховує контекстне меню нейрона.
-     */
+    /** Приховує контекстне меню нейрона. */
     public void hideMenu() {
         menuController.hide();
         rotationController.hideAll();
@@ -401,12 +339,11 @@ public final class NeuronInteractionController {
         return deletionController.deleteSelectedNeurons();
     }
 
-    /**
-     * Від'єднує обробники й очищає ресурси, створені контролером взаємодії.
-     */
+    /** Від'єднує обробники й очищає ресурси, створені контролером взаємодії. */
     public void dispose() {
         clipboardController.clear();
-        hideMenu();
+        menuController.dispose();
+        rotationController.hideAll();
     }
 
     /**

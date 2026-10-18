@@ -1,6 +1,7 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
+import com.example.neuronmap.coordinator.NeuronSettingsOverlayCoordinator;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronMapModel;
@@ -10,20 +11,19 @@ import com.example.neuronmap.service.ConnectionService;
 import com.example.neuronmap.service.HistoryService;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.simulation.SimulationService;
+import com.example.neuronmap.testsupport.JavaFxTestSupport;
+import com.example.neuronmap.view.editor.WorkspaceView;
 import com.example.neuronmap.view.neuron.NeuronMenuView;
 import com.example.neuronmap.view.neuron.NeuronView;
 import com.example.neuronmap.view.simulation.SimulationStepPresenter;
-import com.example.neuronmap.view.editor.WorkspaceView;
-import javafx.application.Platform;
+
 import javafx.scene.layout.VBox;
-import org.junit.jupiter.api.BeforeAll;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -35,24 +35,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Перевіряє зміну напрямку нейрона, узгодження подань і збереження змін через контролер меню. */
 final class NeuronMenuControllerDirectionTest {
 
-    /** Запускає JavaFX toolkit перед створенням контролерів і графічних вузлів. */
-    @BeforeAll
-    static void startJavaFx() throws Exception {
-        CountDownLatch latch = new CountDownLatch(1);
-        try {
-            Platform.startup(latch::countDown);
-        } catch (IllegalStateException alreadyStarted) {
-            latch.countDown();
-        }
-        if (!latch.await(5, TimeUnit.SECONDS)) {
-            throw new IllegalStateException("JavaFX startup timed out");
-        }
-    }
-
     /** Перевіряє оновлення залежних подань, збереження історії та повідомлення після зміни напрямку. */
     @Test
     void togglingDirectionRefreshesViewsAndSavesChanges() throws Exception {
-        runOnFxThread(() -> {
+        JavaFxTestSupport.runAndWait(() -> {
             Fixture fixture = createFixture();
             NeuronPresentation presentation = fixture.neuronService()
                     .presentation(fixture.neuron().id()).orElseThrow();
@@ -78,7 +64,7 @@ final class NeuronMenuControllerDirectionTest {
     /** Перевіряє, що команда для відсутнього нейрона не викликає оновлення, збереження або показ статусу. */
     @Test
     void missingNeuronDoesNotTriggerRefreshSaveOrStatus() throws Exception {
-        runOnFxThread(() -> {
+        JavaFxTestSupport.runAndWait(() -> {
             Fixture fixture = createFixture();
             fixture.controller().toggleDirection("missing-neuron");
             assertEquals(0, fixture.visualRefreshes().get());
@@ -89,7 +75,7 @@ final class NeuronMenuControllerDirectionTest {
         });
     }
 
-    /** Створює контролер з реальними службами та лічильниками зовнішніх дій. */
+    /** Створює контролер із реальними службами, явним координатором накладки та лічильниками побічних ефектів. */
     private static Fixture createFixture() {
         LocalizationService localization = new LocalizationService(Locale.forLanguageTag("uk"));
         NeuronMapModel model = new NeuronMapModel();
@@ -133,31 +119,11 @@ final class NeuronMenuControllerDirectionTest {
                     historyService.commitSavedState();
                 },
                 status::set,
-                localization);
+                localization,
+                new NeuronSettingsOverlayCoordinator(workspace, localization));
 
         return new Fixture(controller, neuronService, historyService, neuron,
                 visualRefreshes, connectionRefreshes, overlayRefreshes, saves, status, localization);
-    }
-
-    /** Виконує дію у потоці JavaFX і передає винятки до тестового потоку. */
-    private static void runOnFxThread(Runnable action) throws Exception {
-        CountDownLatch latch = new CountDownLatch(1);
-        Throwable[] failure = new Throwable[1];
-        Platform.runLater(() -> {
-            try {
-                action.run();
-            } catch (Throwable throwable) {
-                failure[0] = throwable;
-            } finally {
-                latch.countDown();
-            }
-        });
-        if (!latch.await(5, TimeUnit.SECONDS)) {
-            throw new IllegalStateException("JavaFX test timed out");
-        }
-        if (failure[0] != null) {
-            throw new AssertionError("JavaFX test failed", failure[0]);
-        }
     }
 
     /** Зберігає залежності тестового сценарію та спостережувані побічні ефекти. */

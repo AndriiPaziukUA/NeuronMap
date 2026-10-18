@@ -39,9 +39,7 @@ import java.util.function.DoubleConsumer;
  */
 final class MapEditorComponentFactory {
 
-    /**
-     * Забороняє створення екземплярів без стану складання залежностей.
-     */
+    /** Забороняє створення екземплярів без стану складання залежностей. */
     private MapEditorComponentFactory() {
     }
 
@@ -53,7 +51,6 @@ final class MapEditorComponentFactory {
      */
     static Components create(Inputs inputs) {
         Objects.requireNonNull(inputs, "inputs");
-
         BaseComponents base = createBaseComponents(inputs);
         InteractionComponents interaction = createInteractionComponents(inputs, base);
         return createRemainingComponents(inputs, base, interaction);
@@ -74,6 +71,10 @@ final class MapEditorComponentFactory {
         NeuronMenuView neuronMenuView = new NeuronMenuView(
                 inputs.state()::selectedNeuronForMenu,
                 inputs.actions().toggleNeuronDirection(),
+                inputs.localization()
+        );
+        NeuronSettingsOverlayCoordinator settingsOverlayCoordinator = new NeuronSettingsOverlayCoordinator(
+                inputs.view().workspace(),
                 inputs.localization()
         );
 
@@ -144,7 +145,8 @@ final class MapEditorComponentFactory {
                 inputs.actions().refreshMapPresentation(),
                 inputs.actions().updateStatus(),
                 neuronMenuView,
-                inputs.localization()
+                inputs.localization(),
+                settingsOverlayCoordinator
         );
 
         return new BaseComponents(
@@ -165,10 +167,7 @@ final class MapEditorComponentFactory {
      * @param base компоненти контролерів, створені на попередньому кроці.
      * @return координатори подань і взаємодії, пов'язані з контролерами редактора.
      */
-    private static InteractionComponents createInteractionComponents(
-            Inputs inputs,
-            BaseComponents base
-    ) {
+    private static InteractionComponents createInteractionComponents(Inputs inputs, BaseComponents base) {
         MapPresentationCoordinator presentation = new MapPresentationCoordinator(
                 inputs.neuronService(),
                 inputs.view().workspace(),
@@ -197,7 +196,6 @@ final class MapEditorComponentFactory {
                 inputs.view().toolbar().addExcitatoryButton(),
                 inputs.view().toolbar().addInhibitoryButton()
         );
-
         return new InteractionComponents(presentation, interaction);
     }
 
@@ -293,9 +291,7 @@ final class MapEditorComponentFactory {
             double simulationTickMillis,
             Actions actions
     ) {
-        /**
-         * Перевіряє повноту контексту до початку побічних ефектів складання.
-         */
+        /** Перевіряє повноту контексту до початку побічних ефектів складання. */
         Inputs {
             Objects.requireNonNull(config, "config");
             Objects.requireNonNull(localization, "localization");
@@ -333,9 +329,7 @@ final class MapEditorComponentFactory {
             Runnable refreshCurrentProjectAfterSpeedChange,
             Consumer<String> toggleNeuronDirection
     ) {
-        /**
-         * Перевіряє callback-и, щоб відсутня дія не спричинила помилку посеред складання графа.
-         */
+        /** Перевіряє callback-и до початку складання графа залежностей. */
         Actions {
             Objects.requireNonNull(save, "save");
             Objects.requireNonNull(updateStatus, "updateStatus");

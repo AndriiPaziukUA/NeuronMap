@@ -3,10 +3,15 @@ package com.example.neuronmap.view.neuron;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronParameters;
+import com.example.neuronmap.view.support.ContentSizedButtonPair;
 import com.example.neuronmap.view.support.EditorKeyboardShortcutBoundary;
+import com.example.neuronmap.view.support.SceneKeyboardModality;
+
+import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
@@ -37,7 +42,7 @@ import java.util.function.UnaryOperator;
 public final class NeuronSettingsView extends StackPane implements EditorKeyboardShortcutBoundary {
 
     private static final String STYLESHEET_RESOURCE = "/neuron-settings.css";
-    private static final String LOCALIZATION_BUNDLE = "i18n.neuronSettingsTitle";
+    private static final String LOCALIZATION_BUNDLE = "i18n.neuronSettings";
     private static final double MAX_PANEL_WIDTH = 920.0;
     private static final double MAX_PANEL_HEIGHT = 430.0;
     private static final double MAX_SETTINGS_VIEWPORT_HEIGHT = 260.0;
@@ -57,10 +62,13 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     private final Button cancelButton = new Button();
     private final TextField signalField = createNumericField();
     private final TextField thresholdField = createNumericField();
+    private final EventHandler<KeyEvent> sceneKeyboardFilter = this::filterOutsideModalKeyboardEvents;
 
     private StackPane host;
+    private Scene keyboardFilterScene;
     private Consumer<NeuronParameters> saveAction;
     private boolean localizationListenerRegistered;
+    private boolean disposed;
 
     /**
      * Створює внутрішню накладку налаштувань з незалежною таблицею стилів.
@@ -114,12 +122,17 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
      * @param neuron нейрон, параметри якого редагують.
      * @param onSave дія застосування підтверджених параметрів.
      * @throws NullPointerException якщо будь-який обов'язковий аргумент не задано.
-     * @throws IllegalStateException якщо накладка вже відкрита в іншому контейнері.
+     * @throws IllegalStateException якщо подання звільнено, контейнер не належить сцені або накладка вже відкрита.
      */
     public void showIn(StackPane applicationRoot, Neuron neuron, Consumer<NeuronParameters> onSave) {
+        ensureNotDisposed();
         Objects.requireNonNull(applicationRoot, "applicationRoot");
         Objects.requireNonNull(neuron, "neuron");
         Objects.requireNonNull(onSave, "onSave");
+        Scene scene = applicationRoot.getScene();
+        if (scene == null) {
+            throw new IllegalStateException("Neuron settings overlay requires an attached JavaFX scene");
+        }
         if (host != null) {
             throw new IllegalStateException("Neuron settings view is already showing");
         }
@@ -132,6 +145,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         thresholdField.positionCaret(thresholdField.getLength());
         saveAction = onSave;
         host = applicationRoot;
+        startFilteringSceneKeyboard(scene);
         startListeningToLocalization();
         refreshTexts();
         validateInput();
@@ -147,10 +161,23 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         close();
     }
 
-    /** Остаточно звільняє слухачі та прибирає накладку з контейнера, якщо вона відкрита. */
+    /** Остаточно звільняє тимчасові ресурси; повторний виклик безпечний, повторний показ заборонено. */
     public void dispose() {
+        if (disposed) {
+            return;
+        }
         close();
-        stopListeningToLocalization();
+        disposed = true;
+    }
+
+    /** Перевіряє, що подання не було остаточно звільнене.
+     *
+     * @throws IllegalStateException якщо подання вже остаточно звільнено.
+     */
+    private void ensureNotDisposed() {
+        if (disposed) {
+            throw new IllegalStateException("Neuron settings view is disposed");
+        }
     }
 
     /** Повідомляє маршрутизатору клавіатури, що відкрите подання ізолює глобальні команди редактора. */
@@ -259,7 +286,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         applyCss();
         panel.applyCss();
         settingsRows.applyCss();
-        sizeActionButtonsToLargestContent();
+        ContentSizedButtonPair.sizeToLargestContent(saveButton, cancelButton);
         updateViewportHeight();
         requestLayout();
         applicationRoot.requestLayout();
@@ -312,33 +339,6 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         return Double.isFinite(width) ? Math.max(0.0, width) : 0.0;
     }
 
-    /** Вирівнює розміри кнопок за природними розмірами найбільшого підпису після CSS. */
-    private void sizeActionButtonsToLargestContent() {
-        resetButtonDimensions(saveButton);
-        resetButtonDimensions(cancelButton);
-        saveButton.applyCss();
-        cancelButton.applyCss();
-
-        double width = Math.max(saveButton.prefWidth(-1.0), cancelButton.prefWidth(-1.0));
-        double height = Math.max(saveButton.prefHeight(width), cancelButton.prefHeight(width));
-        applyButtonDimensions(saveButton, width, height);
-        applyButtonDimensions(cancelButton, width, height);
-    }
-
-    /** Повертає розміри кнопки до природного розрахунку перед вимірюванням її тексту. */
-    private static void resetButtonDimensions(Button button) {
-        button.setMinSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
-        button.setPrefSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
-        button.setMaxSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
-    }
-
-    /** Встановлює обом кнопкам єдині розміри, обчислені за більшим природним розміром. */
-    private static void applyButtonDimensions(Button button, double width, double height) {
-        button.setMinSize(width, height);
-        button.setPrefSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
-        button.setMaxSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
-    }
-
     /** Підлаштовує розмір картки до природного вмісту з обмеженнями адаптивного макета. */
     @Override
     protected void layoutChildren() {
@@ -389,7 +389,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         settingsRows.requestLayout();
         updateViewportHeight();
         if (getScene() != null) {
-            sizeActionButtonsToLargestContent();
+            ContentSizedButtonPair.sizeToLargestContent(saveButton, cancelButton);
             requestLayout();
             if (host != null) {
                 host.requestLayout();
@@ -476,6 +476,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         StackPane previousHost = host;
         host = null;
         saveAction = null;
+        stopFilteringSceneKeyboard();
         stopListeningToLocalization();
         setVisible(false);
         setManaged(false);
@@ -484,7 +485,63 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         }
     }
 
-    /** Обробляє Escape локально, не передаючи його глобальному редакторському маршрутизатору. */
+    /**
+     * Блокує клавіатурну взаємодію поза накладкою, щоб фокус не дозволяв керувати редактором за модальним вікном.
+     * Escape у такому разі закриває накладку локально, не відкриваючи головне меню.
+     *
+     * @param event подія клавіатури, що проходить через сцену.
+     */
+    private void filterOutsideModalKeyboardEvents(KeyEvent event) {
+        if (!blocksEditorShortcuts()) {
+            return;
+        }
+
+        // Handle Escape at the scene-filter phase even when focus is inside a TextField.
+        // A control may consume the key before it reaches this overlay's bubbling handler.
+        boolean escapePressed = event.getEventType() == KeyEvent.KEY_PRESSED
+                && event.getCode() == KeyCode.ESCAPE;
+        if (escapePressed) {
+            event.consume();
+            close();
+            return;
+        }
+
+        // Keyboard input inside the overlay remains available to its own controls;
+        // only background targets are blocked by the modal scene filter.
+        if (EditorKeyboardShortcutBoundary.blocksShortcutsFor(event.getTarget())) {
+            return;
+        }
+        event.consume();
+    }
+
+    /**
+     * Реєструє фільтр сцени лише на час показу модальної накладки.
+     *
+     * @param scene сцена, в якій потрібно забезпечити клавіатурну модальність.
+     */
+    private void startFilteringSceneKeyboard(Scene scene) {
+        if (keyboardFilterScene == scene) {
+            return;
+        }
+        stopFilteringSceneKeyboard();
+        if (scene != null) {
+            SceneKeyboardModality.register(scene, this);
+            scene.addEventFilter(KeyEvent.ANY, sceneKeyboardFilter);
+            keyboardFilterScene = scene;
+        }
+    }
+
+    /** Знімає фільтр сцени, щоб після закриття накладки клавіатура працювала звичайно. */
+    private void stopFilteringSceneKeyboard() {
+        if (keyboardFilterScene != null) {
+            Scene previousScene = keyboardFilterScene;
+            keyboardFilterScene = null;
+            previousScene.removeEventFilter(KeyEvent.ANY, sceneKeyboardFilter);
+            SceneKeyboardModality.unregister(previousScene, this);
+        }
+    }
+
+    /** Обробляє Escape, коли клавіатурний фокус перебуває всередині самої накладки. */
     private void handleKeyPressed(KeyEvent event) {
         if (event.getCode() == KeyCode.ESCAPE && blocksEditorShortcuts()) {
             close();
@@ -512,6 +569,9 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
 
     /** Повертає заголовок для перевірки його вирівнювання. */
     Label titleForTest() { return title; }
+
+    /** Повертає затемнений фон для перевірки скасування натисканням поза карткою налаштувань. */
+    Node backdropForTest() { return backdrop; }
 
     /**
      * Повертає локалізований підпис параметра для перевірки оновлення мови без повторного відкриття.

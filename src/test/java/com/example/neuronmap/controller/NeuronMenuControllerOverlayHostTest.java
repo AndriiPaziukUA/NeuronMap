@@ -2,42 +2,28 @@ package com.example.neuronmap.controller;
 
 import com.example.neuronmap.coordinator.NeuronSettingsOverlayCoordinator;
 import com.example.neuronmap.i18n.LocalizationService;
+import com.example.neuronmap.testsupport.JavaFxTestSupport;
 import com.example.neuronmap.view.menu.MainMenuView;
-import javafx.application.Platform;
+
 import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
-import org.junit.jupiter.api.BeforeAll;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.Locale;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Перевіряє вибір контейнера внутрішньої накладки у вкладеній ієрархії головної сцени. */
 final class NeuronMenuControllerOverlayHostTest {
 
-    /** Запускає JavaFX toolkit перед створенням графічних вузлів. */
-    @BeforeAll
-    static void startJavaFx() throws Exception {
-        CountDownLatch latch = new CountDownLatch(1);
-        try {
-            Platform.startup(latch::countDown);
-        } catch (IllegalStateException alreadyStarted) {
-            latch.countDown();
-        }
-        assertTrue(latch.await(5, TimeUnit.SECONDS), "JavaFX toolkit має запуститися");
-    }
-
-    /** Перевіряє, що контейнером накладки є StackPane з головним меню, а не зовнішня обгортка вікна. */
+    /** Перевіряє, що вибирається StackPane з головним меню, а не зовнішня обгортка вікна. */
     @Test
     void prefersStackPaneThatDirectlyContainsMainMenu() throws Exception {
-        runOnFxThread(() -> {
+        JavaFxTestSupport.runAndWait(() -> {
             StackPane workspaceViewport = new StackPane();
             Pane editorContent = new Pane(workspaceViewport);
             StackPane editorRoot = new StackPane(editorContent);
@@ -53,10 +39,10 @@ final class NeuronMenuControllerOverlayHostTest {
         });
     }
 
-    /** Перевіряє сумісний вибір найзовнішнього StackPane, якщо головного меню немає. */
+    /** Перевіряє резервний вибір контейнера, коли головне меню відсутнє. */
     @Test
     void resolvesEditorRootWhenSceneRootIsWindowChromeContainer() throws Exception {
-        runOnFxThread(() -> {
+        JavaFxTestSupport.runAndWait(() -> {
             StackPane workspaceViewport = new StackPane();
             Pane editorContent = new Pane(workspaceViewport);
             StackPane editorRoot = new StackPane(editorContent);
@@ -69,10 +55,10 @@ final class NeuronMenuControllerOverlayHostTest {
         });
     }
 
-    /** Перевіряє явну помилку, якщо вузол не має предка, придатного для накладки. */
+    /** Перевіряє явну помилку, якщо в ієрархії немає контейнера, придатного для накладки. */
     @Test
     void rejectsHierarchyWithoutStackPaneAncestor() throws Exception {
-        runOnFxThread(() -> {
+        JavaFxTestSupport.runAndWait(() -> {
             Pane root = new Pane();
             Pane editorContent = new Pane();
             root.getChildren().add(editorContent);
@@ -84,24 +70,5 @@ final class NeuronMenuControllerOverlayHostTest {
                     () -> NeuronSettingsOverlayCoordinator.resolveOverlayHost(editorContent)
             );
         });
-    }
-
-    /** Виконує UI-перевірку на JavaFX Application Thread і передає помилку до JUnit. */
-    private static void runOnFxThread(Runnable action) throws Exception {
-        CountDownLatch latch = new CountDownLatch(1);
-        Throwable[] failure = new Throwable[1];
-        Platform.runLater(() -> {
-            try {
-                action.run();
-            } catch (Throwable throwable) {
-                failure[0] = throwable;
-            } finally {
-                latch.countDown();
-            }
-        });
-        assertTrue(latch.await(5, TimeUnit.SECONDS), "JavaFX action має завершитися");
-        if (failure[0] != null) {
-            throw new AssertionError("Перевірка контейнера накладки завершилася помилкою", failure[0]);
-        }
     }
 }

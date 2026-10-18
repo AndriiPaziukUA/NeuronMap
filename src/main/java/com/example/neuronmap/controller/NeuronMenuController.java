@@ -9,6 +9,7 @@ import com.example.neuronmap.view.neuron.NeuronContextMenuView;
 import com.example.neuronmap.view.neuron.NeuronMenuView;
 import com.example.neuronmap.view.neuron.NeuronOverlayPositioner;
 import com.example.neuronmap.view.neuron.NeuronView;
+
 import javafx.scene.layout.VBox;
 
 import java.util.Objects;
@@ -36,9 +37,10 @@ public final class NeuronMenuController {
 
     private VBox menu;
     private String activeNeuronId;
+    private boolean disposed;
 
     /**
-     * Створює контролер меню та приймає залежності для обробки дій користувача.
+     * Створює контролер меню, використовуючи координатор накладки, створений власником графа залежностей.
      *
      * @param neuronService служба операцій над нейронами.
      * @param state поточний стан редактора.
@@ -53,6 +55,8 @@ public final class NeuronMenuController {
      * @param save дія збереження поточного стану.
      * @param status дія показу повідомлення в рядку стану.
      * @param localization служба локалізації інтерфейсу.
+     * @param settingsOverlayCoordinator координатор життєвого циклу накладки налаштувань.
+     * @throws NullPointerException якщо будь-яка обов'язкова залежність відсутня.
      */
     public NeuronMenuController(
             NeuronService neuronService,
@@ -67,7 +71,8 @@ public final class NeuronMenuController {
             Runnable refreshOverlays,
             Runnable save,
             Consumer<String> status,
-            LocalizationService localization
+            LocalizationService localization,
+            NeuronSettingsOverlayCoordinator settingsOverlayCoordinator
     ) {
         this.neuronService = Objects.requireNonNull(neuronService, "neuronService");
         this.state = Objects.requireNonNull(state, "state");
@@ -77,7 +82,10 @@ public final class NeuronMenuController {
         this.deletionController = Objects.requireNonNull(deletionController, "deletionController");
         this.neuronMenuView = Objects.requireNonNull(neuronMenuView, "neuronMenuView");
         this.localization = Objects.requireNonNull(localization, "localization");
-        this.settingsOverlayCoordinator = new NeuronSettingsOverlayCoordinator(this.workspace, this.localization);
+        this.settingsOverlayCoordinator = Objects.requireNonNull(
+                settingsOverlayCoordinator,
+                "settingsOverlayCoordinator"
+        );
         this.menuView = new NeuronContextMenuView(
                 this.localization,
                 this.neuronMenuView::customizeMenuButton,
@@ -115,6 +123,7 @@ public final class NeuronMenuController {
      * @param neuronView візуальне подання нейрона, для якого відкривається меню.
      */
     public void show(NeuronView neuronView) {
+        ensureNotDisposed();
         Objects.requireNonNull(neuronView, "neuronView");
         hide();
         String neuronId = neuronView.model().id();
@@ -152,6 +161,7 @@ public final class NeuronMenuController {
      * @param neuronId ідентифікатор нейрона, напрямок якого потрібно перемкнути.
      */
     void toggleDirection(String neuronId) {
+        ensureNotDisposed();
         if (neuronId == null || !neuronService.toggleDirection(neuronId)) {
             return;
         }
@@ -178,13 +188,33 @@ public final class NeuronMenuController {
         state.setSelectedNeuronForMenu(null);
     }
 
+    /** Остаточно звільняє координатор накладки та приховує контекстне меню. */
+    public void dispose() {
+        if (disposed) {
+            return;
+        }
+        hide();
+        settingsOverlayCoordinator.dispose();
+        disposed = true;
+    }
+
+    /** Забороняє використання контролера після звільнення його ресурсів.
+     *
+     * @throws IllegalStateException якщо контролер остаточно звільнено.
+     */
+    private void ensureNotDisposed() {
+        if (disposed) {
+            throw new IllegalStateException("Neuron menu controller is disposed");
+        }
+    }
+
     /**
      * Перераховує положення меню після зміни позиції нейрона або камери.
      *
      * @param view візуальне подання нейрона, біля якого може бути відкрите меню.
      */
     public void refreshPosition(NeuronView view) {
-        if (!isVisible() || activeNeuronId == null || view == null) {
+        if (disposed || !isVisible() || activeNeuronId == null || view == null) {
             return;
         }
         if (!activeNeuronId.equals(view.model().id())) {
@@ -200,6 +230,7 @@ public final class NeuronMenuController {
      * @param neuronId ідентифікатор нейрона, налаштування якого потрібно змінити.
      */
     private void showNeuronSettings(String neuronId) {
+        ensureNotDisposed();
         neuronService.find(neuronId).ifPresent(neuron -> settingsOverlayCoordinator.show(neuron, parameters -> {
             if (neuronService.updateSettings(neuronId, parameters)) {
                 save.run();

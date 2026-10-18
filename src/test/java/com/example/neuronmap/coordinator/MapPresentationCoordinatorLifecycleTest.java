@@ -230,7 +230,8 @@ final class MapPresentationCoordinatorLifecycleTest {
                 neuronViews, rotationHandles, connectionController, simulationController,
                 () -> { }, this::refreshPresentation, ignored -> { },
                 new NeuronMenuView(new Pane(), state::selectedNeuronForMenu, ignored -> { }, localization),
-                localization);
+                localization,
+                new NeuronSettingsOverlayCoordinator(workspace, localization));
         private final MapPresentationCoordinator presentationCoordinator = new MapPresentationCoordinator(
                 neuronService, workspace, neuronViews, connectionViews, rotationHandles,
                 neuronController, connectionController,

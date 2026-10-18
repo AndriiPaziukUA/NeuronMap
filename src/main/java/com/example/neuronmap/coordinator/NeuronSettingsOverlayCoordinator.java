@@ -6,6 +6,7 @@ import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.view.editor.WorkspaceView;
 import com.example.neuronmap.view.menu.MainMenuView;
 import com.example.neuronmap.view.neuron.NeuronSettingsView;
+
 import javafx.beans.value.ChangeListener;
 import javafx.scene.Node;
 import javafx.scene.Parent;
@@ -30,6 +31,7 @@ public final class NeuronSettingsOverlayCoordinator {
     private NeuronSettingsView settingsView;
     private MainMenuView watchedMainMenu;
     private ChangeListener<Boolean> mainMenuVisibilityListener;
+    private boolean disposed;
 
     /**
      * Створює координатор, який використовує наявну робочу область і службу локалізації.
@@ -49,9 +51,10 @@ public final class NeuronSettingsOverlayCoordinator {
      * @param neuron нейрон, параметри якого редагують.
      * @param onSave дія застосування підтверджених параметрів.
      * @throws NullPointerException якщо нейрон або callback збереження не задано.
-     * @throws IllegalStateException якщо робоча область не належить контейнеру накладок.
+     * @throws IllegalStateException якщо координатор уже звільнено.
      */
     public void show(Neuron neuron, Consumer<NeuronParameters> onSave) {
+        ensureNotDisposed();
         Objects.requireNonNull(neuron, "neuron");
         Objects.requireNonNull(onSave, "onSave");
         Scene scene = workspace.node().getScene();
@@ -72,9 +75,33 @@ public final class NeuronSettingsOverlayCoordinator {
     /** Приховує накладку без збереження введених параметрів і завершує тимчасове спостереження меню. */
     public void hide() {
         if (settingsView != null) {
-            settingsView.dispose();
+            settingsView.hide();
         }
         stopWatchingMainMenu();
+    }
+
+    /** Остаточно звільняє подання й слухачі координатора; повторний виклик безпечний. */
+    public void dispose() {
+        if (disposed) {
+            return;
+        }
+        stopWatchingMainMenu();
+        if (settingsView != null) {
+            settingsView.visibleProperty().removeListener(settingsVisibilityListener);
+            settingsView.dispose();
+            settingsView = null;
+        }
+        disposed = true;
+    }
+
+    /** Перевіряє, що координатор іще може показувати накладку.
+     *
+     * @throws IllegalStateException якщо координатор остаточно звільнено.
+     */
+    private void ensureNotDisposed() {
+        if (disposed) {
+            throw new IllegalStateException("Neuron settings overlay coordinator is disposed");
+        }
     }
 
     /**

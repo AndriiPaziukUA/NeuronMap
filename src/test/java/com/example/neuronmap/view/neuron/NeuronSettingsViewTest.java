@@ -5,7 +5,8 @@ import com.example.neuronmap.i18n.SupportedLanguage;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronType;
-import javafx.application.Platform;
+import com.example.neuronmap.testsupport.JavaFxTestSupport;
+
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
@@ -14,38 +15,25 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import org.junit.jupiter.api.BeforeAll;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.Locale;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Перевіряє оформлення, числову валідацію та компонування внутрішнього вікна налаштувань нейрона. */
 final class NeuronSettingsViewTest {
 
-    /** Запускає JavaFX toolkit перед тестуванням графічних вузлів. */
-    @BeforeAll
-    static void startJavaFx() throws Exception {
-        CountDownLatch latch = new CountDownLatch(1);
-        try {
-            Platform.startup(latch::countDown);
-        } catch (IllegalStateException alreadyStarted) {
-            latch.countDown();
-        }
-        assertTrue(latch.await(5, TimeUnit.SECONDS), "JavaFX toolkit має запуститися");
-    }
-
     /** Перевіряє ізольовану таблицю стилів і однакову природну геометрію кнопок. */
     @Test
     void usesDedicatedStylesAndSizesBothButtonsByLargestLabel() throws Exception {
-        runOnFxThread(() -> {
+        JavaFxTestSupport.runAndWait(() -> {
             StackPane root = new StackPane();
             new Scene(root, 900.0, 600.0);
             LocalizationService localization = new LocalizationService(Locale.ENGLISH);
@@ -58,9 +46,11 @@ final class NeuronSettingsViewTest {
             assertFalse(view.getStylesheets().stream().anyMatch(path -> path.endsWith("/menu-enhancements.css")));
             assertTrue(view.saveButtonForTest().getStyleClass().contains("neuron-settings-button"));
             assertTrue(view.cancelButtonForTest().getStyleClass().contains("neuron-settings-button"));
-            assertEquals(localization.textFrom("i18n.neuronSettingsTitle", "cancel"),
+            assertEquals(localization.textFrom("i18n.neuronSettings", "cancel"),
                     view.cancelButtonForTest().getText());
             assertEquals(Region.USE_COMPUTED_SIZE, view.saveButtonForTest().getMaxWidth(), 0.1);
+            assertEquals(Region.USE_COMPUTED_SIZE, view.saveButtonForTest().getMaxHeight(), 0.1);
+            assertEquals(Region.USE_COMPUTED_SIZE, view.cancelButtonForTest().getMaxWidth(), 0.1);
             assertEquals(Region.USE_COMPUTED_SIZE, view.cancelButtonForTest().getMaxHeight(), 0.1);
             assertEquals(view.saveButtonForTest().getPrefWidth(), view.cancelButtonForTest().getPrefWidth(), 0.1);
             assertEquals(view.saveButtonForTest().getPrefHeight(), view.cancelButtonForTest().getPrefHeight(), 0.1);
@@ -78,7 +68,7 @@ final class NeuronSettingsViewTest {
     /** Перевіряє оновлення підписів параметрів відразу після попереднього перегляду іншої мови. */
     @Test
     void refreshesSettingLabelsImmediatelyWhenLocaleChanges() throws Exception {
-        runOnFxThread(() -> {
+        JavaFxTestSupport.runAndWait(() -> {
             StackPane root = new StackPane();
             new Scene(root, 900.0, 600.0);
             LocalizationService localization = new LocalizationService(Locale.ENGLISH);
@@ -106,7 +96,7 @@ final class NeuronSettingsViewTest {
     /** Перевіряє, що відкриття накладки не фокусує поля та не залишає виділеного тексту. */
     @Test
     void doesNotFocusOrSelectTextInFieldsWhenOpened() throws Exception {
-        runOnFxThread(() -> {
+        JavaFxTestSupport.runAndWait(() -> {
             StackPane root = new StackPane();
             new Scene(root, 900.0, 600.0);
             NeuronSettingsView view = new NeuronSettingsView(new LocalizationService(Locale.ENGLISH));
@@ -128,7 +118,7 @@ final class NeuronSettingsViewTest {
     /** Перевіряє числовий фільтр, додатність значень і блокування переповнення int. */
     @Test
     void acceptsOnlyPositiveIntegersWithinIntegerRange() throws Exception {
-        runOnFxThread(() -> {
+        JavaFxTestSupport.runAndWait(() -> {
             StackPane root = new StackPane();
             new Scene(root, 900.0, 600.0);
             NeuronSettingsView view = new NeuronSettingsView(new LocalizationService(Locale.ENGLISH));
@@ -152,7 +142,7 @@ final class NeuronSettingsViewTest {
     /** Перевіряє зміну сили сигналу гальмівного нейрона та передавання позитивних параметрів на збереження. */
     @Test
     void savesPositiveSignalStrengthForInhibitoryNeuron() throws Exception {
-        runOnFxThread(() -> {
+        JavaFxTestSupport.runAndWait(() -> {
             StackPane root = new StackPane();
             new Scene(root, 900.0, 600.0);
             Neuron neuron = neuron("inhibitory", NeuronType.INHIBITORY, 7, 3);
@@ -172,7 +162,7 @@ final class NeuronSettingsViewTest {
     /** Перевіряє природну висоту списку та появу прокручування лише після перевищення ліміту. */
     @Test
     void growsSettingsViewportToContentAndCapsLongLists() throws Exception {
-        runOnFxThread(() -> {
+        JavaFxTestSupport.runAndWait(() -> {
             StackPane root = new StackPane();
             new Scene(root, 900.0, 600.0);
             NeuronSettingsView view = new NeuronSettingsView(new LocalizationService(Locale.ENGLISH));
@@ -198,27 +188,58 @@ final class NeuronSettingsViewTest {
         });
     }
 
+    /** Перевіряє, що модальну накладку не можна показати без сцени, яка потрібна для ізоляції клавіатури. */
+    @Test
+    void refusesToShowWithoutAttachedScene() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            StackPane unattachedRoot = new StackPane();
+            NeuronSettingsView view = new NeuronSettingsView(new LocalizationService(Locale.ENGLISH));
+
+            assertThrows(IllegalStateException.class,
+                    () -> view.showIn(unattachedRoot, neuron("unattached", NeuronType.EXCITATORY, 1, 1), ignored -> { }));
+            view.dispose();
+        });
+    }
+
+    /** Перевіряє повторне компонування рядків із переносом тексту після зміни доступної ширини. */
+    @Test
+    void recomputesWrappedRowHeightWhenAvailableWidthChanges() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            StackPane root = new StackPane();
+            new Scene(root, 900.0, 600.0);
+            root.resize(900.0, 600.0);
+            NeuronSettingsView view = new NeuronSettingsView(new LocalizationService(Locale.ENGLISH));
+            view.showIn(root, neuron("resize", NeuronType.EXCITATORY, 1, 1), ignored -> { });
+
+            Label wrappedLabel = new Label("A future setting with a deliberately long localized description "
+                    + "that must wrap onto several lines when the available panel width becomes narrow.");
+            wrappedLabel.setWrapText(true);
+            wrappedLabel.setMinWidth(0.0);
+            wrappedLabel.setMaxWidth(Double.MAX_VALUE);
+            view.addSetting(wrappedLabel);
+            root.applyCss();
+            root.layout();
+            double wideHeight = wrappedLabel.getHeight();
+            double wideViewportHeight = view.settingsScrollForTest().getPrefViewportHeight();
+
+            root.resize(420.0, 600.0);
+            root.applyCss();
+            root.layout();
+            view.applyCss();
+            view.layout();
+            root.layout();
+
+            assertTrue(wrappedLabel.getHeight() > wideHeight + 1.0,
+                    "Підпис має займати більше рядків після звуження контейнера");
+            assertTrue(view.settingsScrollForTest().getPrefViewportHeight() >= wideViewportHeight,
+                    "Висота viewport має враховувати додаткові рядки перенесеного тексту");
+            view.hide();
+        });
+    }
+
     /** Створює нейрон для тестового сценарію без залежності від стану редактора. */
     private static Neuron neuron(String id, NeuronType type, int signalStrength, int threshold) {
         return new Neuron(id, type, 0, signalStrength, threshold);
     }
 
-    /** Виконує UI-перевірку в JavaFX Application Thread і передає помилку до JUnit. */
-    private static void runOnFxThread(Runnable action) throws Exception {
-        CountDownLatch latch = new CountDownLatch(1);
-        Throwable[] failure = new Throwable[1];
-        Platform.runLater(() -> {
-            try {
-                action.run();
-            } catch (Throwable throwable) {
-                failure[0] = throwable;
-            } finally {
-                latch.countDown();
-            }
-        });
-        assertTrue(latch.await(5, TimeUnit.SECONDS), "JavaFX action має завершитися");
-        if (failure[0] != null) {
-            throw new AssertionError("Перевірка налаштувань нейрона завершилася помилкою", failure[0]);
-        }
-    }
 }
