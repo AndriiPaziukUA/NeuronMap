@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє створення та оформлення елементів контекстного меню нейрона у view-шарі. */
+/** Перевіряє створення, стилі та поведінку кнопок контекстного меню нейрона у view-шарі. */
 final class NeuronMenuViewTest {
 
     /** Запускає JavaFX toolkit перед перевірками графічних компонентів меню нейрона. */
@@ -33,9 +33,13 @@ final class NeuronMenuViewTest {
         }
     }
 
-    /** Перевіряє кольори й підказки для кнопок активації та видалення нейрона. */
+    /**
+     * Перевіряє приглушені початкові кольори та яскравіші кольори під час наведення для активації й видалення.
+     *
+     * @throws Exception якщо перевірку неможливо виконати в потоці JavaFX.
+     */
     @Test
-    void customizeMenuButtonAppliesActivationAndDeleteStyles() throws Exception {
+    void customizeMenuButtonAppliesMutedStylesAndBrightensColorsOnHover() throws Exception {
         runOnFxThread(() -> {
             NeuronMenuView view = new NeuronMenuView(
                     () -> null,
@@ -51,15 +55,29 @@ final class NeuronMenuViewTest {
             view.customizeMenuButton(deletion);
             view.customizeMenuButton(null);
 
-            assertTrue(activation.getStyle().contains("#f5c542"));
+            assertTrue(activation.getStyle().contains("#c9a52d"));
             assertTrue(activation.getStyle().contains("black"));
             assertNotNull(activation.getTooltip());
-            assertTrue(deletion.getStyle().contains("#d64545"));
+            assertEquals("Імпульс", activation.getTooltip().getText());
+            activation.getOnMouseEntered().handle(null);
+            assertTrue(activation.getStyle().contains("#f5c542"));
+            activation.getOnMouseExited().handle(null);
+            assertTrue(activation.getStyle().contains("#c9a52d"));
+
+            assertTrue(deletion.getStyle().contains("#b83b3b"));
             assertTrue(deletion.getStyle().contains("white"));
+            deletion.getOnMouseEntered().handle(null);
+            assertTrue(deletion.getStyle().contains("#d64545"));
+            deletion.getOnMouseExited().handle(null);
+            assertTrue(deletion.getStyle().contains("#b83b3b"));
         });
     }
 
-    /** Перевіряє, що кнопка напрямку передає ідентифікатор вибраного нейрона callback-у. */
+    /**
+     * Перевіряє, що кнопка напрямку використовує спільний стиль меню та передає ідентифікатор нейрона callback-у.
+     *
+     * @throws Exception якщо перевірку неможливо виконати в потоці JavaFX.
+     */
     @Test
     void directionButtonDelegatesSelectedNeuronIdToCallback() throws Exception {
         runOnFxThread(() -> {
@@ -72,7 +90,9 @@ final class NeuronMenuViewTest {
 
             Button direction = view.createDirectionButton();
             assertNotNull(direction);
+            assertTrue(direction.getStyleClass().contains("menu-button"));
             assertTrue(direction.getStyleClass().contains("neuron-menu-direction"));
+            assertTrue(direction.getStyle().isBlank());
             assertNotNull(direction.getTooltip());
             direction.fire();
 
@@ -80,7 +100,11 @@ final class NeuronMenuViewTest {
         });
     }
 
-    /** Перевіряє, що кнопка напрямку не створюється, якщо дія для неї не задана. */
+    /**
+     * Перевіряє, що кнопка напрямку не створюється, якщо дію для неї не задано.
+     *
+     * @throws Exception якщо перевірку неможливо виконати в потоці JavaFX.
+     */
     @Test
     void directionButtonIsOmittedWhenNoActionIsProvided() throws Exception {
         runOnFxThread(() -> {
@@ -89,7 +113,12 @@ final class NeuronMenuViewTest {
         });
     }
 
-    /** Виконує перевірки в потоці JavaFX і передає помилки до потоку JUnit. */
+    /**
+     * Виконує перевірки в потоці JavaFX і передає помилки до потоку JUnit.
+     *
+     * @param action дія, яку потрібно виконати в потоці JavaFX.
+     * @throws Exception якщо перевірка не завершується в межах установленого часу.
+     */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];

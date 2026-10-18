@@ -16,12 +16,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє структуру контекстного меню нейрона та передавання натискань до дій контролера.
+ * Перевіряє структуру контекстного меню нейрона, локалізацію підказок і передавання дій контролеру.
  */
 final class NeuronContextMenuViewTest {
 
@@ -43,6 +41,8 @@ final class NeuronContextMenuViewTest {
 
     /**
      * Перевіряє порядок кнопок, їхні CSS-класи та відсутність дії видалення зв’язку, коли зв’язків немає.
+     *
+     * @throws Exception якщо перевірку неможливо виконати в потоці JavaFX.
      */
     @Test
     void createsMenuWithoutConnectionDeletionAction() throws Exception {
@@ -60,7 +60,7 @@ final class NeuronContextMenuViewTest {
             HBox buttons = (HBox) menu.getChildren().getFirst();
             assertEquals(5, buttons.getChildren().size());
             assertEquals(
-                    List.of("⚡", "↗", "⚙", "⇄", "✕"),
+                    List.of("⚡", "↗", "⇄", "⚙", "✕"),
                     buttons.getChildren().stream()
                             .map(node -> ((Button) node).getText())
                             .toList()
@@ -75,6 +75,8 @@ final class NeuronContextMenuViewTest {
 
     /**
      * Перевіряє додавання кнопок видалення зв’язку та зміни напрямку за наявності відповідних умов.
+     *
+     * @throws Exception якщо перевірку неможливо виконати в потоці JavaFX.
      */
     @Test
     void includesOptionalActionsWhenAvailable() throws Exception {
@@ -90,7 +92,7 @@ final class NeuronContextMenuViewTest {
 
             assertEquals(7, buttons.getChildren().size());
             assertEquals(
-                    List.of("⚡", "↗", "⚙", "⛓", "↔", "⇄", "✕"),
+                    List.of("⚡", "↗", "⛓", "↔", "⇄", "⚙", "✕"),
                     buttons.getChildren().stream()
                             .map(node -> ((Button) node).getText())
                             .toList()
@@ -99,7 +101,59 @@ final class NeuronContextMenuViewTest {
     }
 
     /**
+     * Перевіряє, що підказки дій контекстного меню мають очікувані тексти в усіх підтримуваних локалях.
+     *
+     * @throws Exception якщо перевірку неможливо виконати в потоці JavaFX.
+     */
+    @Test
+    void localizesMenuTooltipsInEverySupportedLocale() throws Exception {
+        runOnFxThread(() -> {
+            assertMenuTooltips(
+                    Locale.ENGLISH,
+                    List.of("Pulse", "Add connection", "Delete connection", "Change type", "Settings", "Delete")
+            );
+            assertMenuTooltips(
+                    Locale.forLanguageTag("uk"),
+                    List.of(
+                            "Імпульс", "Додати зв'язок", "Видалити зв'язок",
+                            "Змінити тип", "Налаштування", "Видалити"
+                    )
+            );
+            assertMenuTooltips(
+                    Locale.forLanguageTag("ru"),
+                    List.of(
+                            "Импульс", "Добавить связь", "Удалить связь",
+                            "Изменить тип", "Настройки", "Удалить"
+                    )
+            );
+        });
+    }
+
+    /**
+     * Перевіряє підказки меню, що створене для конкретної мови, у фактичному порядку кнопок.
+     *
+     * @param locale локаль, для якої перевіряються переклади.
+     * @param expectedTooltips очікувані підказки в порядку від першої кнопки до останньої.
+     */
+    private static void assertMenuTooltips(Locale locale, List<String> expectedTooltips) {
+        NeuronContextMenuView view = new NeuronContextMenuView(
+                new LocalizationService(locale),
+                button -> { },
+                () -> null
+        );
+        HBox buttons = (HBox) view.createMenu(true, actions()).getChildren().getFirst();
+        assertEquals(
+                expectedTooltips,
+                buttons.getChildren().stream()
+                        .map(node -> ((Button) node).getTooltip().getText())
+                        .toList()
+        );
+    }
+
+    /**
      * Перевіряє, що всі кнопки передають керування відповідним діям контролера.
+     *
+     * @throws Exception якщо перевірку неможливо виконати в потоці JavaFX.
      */
     @Test
     void delegatesButtonActionsToCallbacks() throws Exception {
@@ -123,7 +177,7 @@ final class NeuronContextMenuViewTest {
             buttons.getChildren().forEach(node -> ((Button) node).fire());
 
             assertEquals(
-                    List.of("fire", "add", "settings", "delete-connection", "toggle-type", "delete-neuron"),
+                    List.of("fire", "add", "delete-connection", "toggle-type", "settings", "delete-neuron"),
                     actionsCalled
             );
         });
@@ -131,6 +185,8 @@ final class NeuronContextMenuViewTest {
 
     /**
      * Перевіряє, що інтерфейс дій відхиляє відсутні callback-и.
+     *
+     * @throws Exception якщо перевірку неможливо виконати в потоці JavaFX.
      */
     @Test
     void actionsRequireAllCallbacks() throws Exception {

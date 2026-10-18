@@ -40,7 +40,8 @@ public final class NeuronContextMenuView {
     }
 
     /**
-     * Створює меню нейрона з потрібним набором дій та під’єднаними обробниками.
+     * Створює меню нейрона з кнопкою налаштувань безпосередньо перед кнопкою видалення нейрона.
+     * Кнопка видалення зв’язку додається лише тоді, коли нейрон має зв’язки.
      *
      * @param hasConnections ознака наявності зв’язків у нейрона.
      * @param actions зворотні виклики дій контекстного меню.
@@ -65,11 +66,6 @@ public final class NeuronContextMenuView {
                 localization.text("neuron.menu.add_connection"),
                 ""
         );
-        Button settings = createButton(
-                "⚙",
-                localization.text("neuron.menu.settings"),
-                ""
-        );
         Button deleteConnection = hasConnections
                 ? createButton(
                         "⛓",
@@ -81,6 +77,11 @@ public final class NeuronContextMenuView {
         Button toggleType = createButton(
                 "⇄",
                 localization.text("neuron.menu.toggle_type"),
+                ""
+        );
+        Button settings = createButton(
+                "⚙",
+                localization.text("neuron.menu.settings"),
                 ""
         );
         Button deleteNeuron = createButton(
@@ -116,14 +117,14 @@ public final class NeuronContextMenuView {
             event.consume();
         });
 
-        buttons.getChildren().addAll(fire, addConnection, settings);
+        buttons.getChildren().addAll(fire, addConnection);
         if (deleteConnection != null) {
             buttons.getChildren().add(deleteConnection);
         }
         if (direction != null) {
             buttons.getChildren().add(direction);
         }
-        buttons.getChildren().addAll(toggleType, deleteNeuron);
+        buttons.getChildren().addAll(toggleType, settings, deleteNeuron);
         menu.getChildren().add(buttons);
         return menu;
     }
