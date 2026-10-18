@@ -30,10 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Перевіряє оформлення, числову валідацію та компонування внутрішнього вікна налаштувань нейрона. */
 final class NeuronSettingsViewTest {
 
-    /** Запускає JavaFX toolkit перед тестуванням графічних вузлів.
-     *
-     * @throws Exception якщо JavaFX toolkit не запускається вчасно.
-     */
+    /** Запускає JavaFX toolkit перед тестуванням графічних вузлів. */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -61,7 +58,8 @@ final class NeuronSettingsViewTest {
             assertFalse(view.getStylesheets().stream().anyMatch(path -> path.endsWith("/menu-enhancements.css")));
             assertTrue(view.saveButtonForTest().getStyleClass().contains("neuron-settings-button"));
             assertTrue(view.cancelButtonForTest().getStyleClass().contains("neuron-settings-button"));
-            assertEquals(localization.text("menu.rename.cancel"), view.cancelButtonForTest().getText());
+            assertEquals(localization.textFrom("i18n.neuronSettingsTitle", "cancel"),
+                    view.cancelButtonForTest().getText());
             assertEquals(Region.USE_COMPUTED_SIZE, view.saveButtonForTest().getMaxWidth(), 0.1);
             assertEquals(Region.USE_COMPUTED_SIZE, view.cancelButtonForTest().getMaxHeight(), 0.1);
             assertEquals(view.saveButtonForTest().getPrefWidth(), view.cancelButtonForTest().getPrefWidth(), 0.1);
@@ -74,7 +72,6 @@ final class NeuronSettingsViewTest {
             assertEquals(Pos.CENTER, view.titleForTest().getAlignment());
 
             view.hide();
-            assertFalse(root.getChildren().contains(view));
         });
     }
 

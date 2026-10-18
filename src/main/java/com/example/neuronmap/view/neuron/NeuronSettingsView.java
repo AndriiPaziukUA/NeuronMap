@@ -3,7 +3,7 @@ package com.example.neuronmap.view.neuron;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronParameters;
-import com.example.neuronmap.view.menu.MainMenuView;
+import com.example.neuronmap.view.support.EditorKeyboardShortcutBoundary;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -12,12 +12,13 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 
 import java.net.URL;
@@ -31,16 +32,17 @@ import java.util.function.UnaryOperator;
 
 /**
  * Відображає налаштування нейрона як внутрішню модальну накладку головного вікна.
- * Оформлення накладки, зокрема кнопок, визначається окремою таблицею стилів.
+ * Подання ізолює власне оформлення та клавіатурні команди редактора, доки воно відкрите.
  */
-public final class NeuronSettingsView extends StackPane {
+public final class NeuronSettingsView extends StackPane implements EditorKeyboardShortcutBoundary {
 
     private static final String STYLESHEET_RESOURCE = "/neuron-settings.css";
+    private static final String LOCALIZATION_BUNDLE = "i18n.neuronSettingsTitle";
     private static final double MAX_PANEL_WIDTH = 920.0;
     private static final double MAX_PANEL_HEIGHT = 430.0;
     private static final double MAX_SETTINGS_VIEWPORT_HEIGHT = 260.0;
-    private static final double SCROLLBAR_RESERVED_WIDTH = 9.0;
     private static final double INPUT_COLUMN_WIDTH = 160.0;
+    private static final double PANEL_EDGE_SPACING = 32.0;
 
     private final LocalizationService localization;
     private final Map<String, Label> settingLabels = new LinkedHashMap<>();
@@ -58,6 +60,7 @@ public final class NeuronSettingsView extends StackPane {
 
     private StackPane host;
     private Consumer<NeuronParameters> saveAction;
+    private boolean localizationListenerRegistered;
 
     /**
      * Створює внутрішню накладку налаштувань з незалежною таблицею стилів.
@@ -81,30 +84,31 @@ public final class NeuronSettingsView extends StackPane {
         getStyleClass().add("neuron-settings-overlay");
         setMinSize(0.0, 0.0);
         setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        addEventHandler(KeyEvent.KEY_PRESSED, this::handleKeyPressed);
 
         configureBackdrop();
         configurePanel();
         configureSettingsRows();
         configureFooter();
         getChildren().addAll(backdrop, panel);
-        localization.addListener(localizationListener);
         refreshTexts();
     }
 
     /**
      * Додає рядок до прокручуваного списку та оновлює його природну висоту.
+     * Метод доступний у межах пакета, оскільки додавання рядка саме по собі не реєструє бізнес-параметр.
      *
      * @param settingRow готовий вузол одного параметра.
      * @throws NullPointerException якщо рядок не задано.
      */
-    public void addSetting(Node settingRow) {
+    void addSetting(Node settingRow) {
         settingsRows.getChildren().add(Objects.requireNonNull(settingRow, "settingRow"));
         updateViewportHeight();
         requestLayout();
     }
 
     /**
-     * Показує накладку в головній сцені та завантажує поточні параметри нейрона.
+     * Показує накладку в контейнері головної сцени та завантажує параметри нейрона.
      *
      * @param applicationRoot кореневий контейнер для внутрішніх накладок.
      * @param neuron нейрон, параметри якого редагують.
@@ -128,34 +132,39 @@ public final class NeuronSettingsView extends StackPane {
         thresholdField.positionCaret(thresholdField.getLength());
         saveAction = onSave;
         host = applicationRoot;
+        startListeningToLocalization();
         refreshTexts();
         validateInput();
         setManaged(true);
         setVisible(true);
-
-        int insertionIndex = applicationRoot.getChildren().size();
-        for (int index = 0; index < applicationRoot.getChildren().size(); index++) {
-            if (applicationRoot.getChildren().get(index) instanceof MainMenuView) {
-                insertionIndex = index;
-                break;
-            }
-        }
-        applicationRoot.getChildren().add(insertionIndex, this);
+        applicationRoot.getChildren().add(this);
         applyInitialLayout(applicationRoot);
         requestFocus();
     }
 
-    /** Закриває накладку, якщо вона відображається. */
+    /** Закриває накладку, якщо вона відображається, без збереження введених значень. */
     public void hide() {
         close();
+    }
+
+    /** Остаточно звільняє слухачі та прибирає накладку з контейнера, якщо вона відкрита. */
+    public void dispose() {
+        close();
+        stopListeningToLocalization();
+    }
+
+    /** Повідомляє маршрутизатору клавіатури, що відкрите подання ізолює глобальні команди редактора. */
+    @Override
+    public boolean blocksEditorShortcuts() {
+        return host != null && isVisible();
     }
 
     /** Налаштовує затемнений фон, клацання по якому скасовує редагування. */
     private void configureBackdrop() {
         backdrop.setManaged(false);
+        backdrop.getStyleClass().add("neuron-settings-backdrop");
         backdrop.widthProperty().bind(widthProperty());
         backdrop.heightProperty().bind(heightProperty());
-        backdrop.setFill(Color.rgb(0, 0, 0, 0.5));
         backdrop.setOnMouseClicked(event -> {
             close();
             event.consume();
@@ -189,6 +198,7 @@ public final class NeuronSettingsView extends StackPane {
         settingsScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         settingsScroll.setMinSize(0.0, 0.0);
         settingsScroll.getStyleClass().add("neuron-settings-scroll");
+        settingsScroll.widthProperty().addListener((observable, oldWidth, newWidth) -> updateViewportHeight());
         VBox.setVgrow(settingsScroll, Priority.ALWAYS);
 
         signalField.textProperty().addListener((observable, oldValue, newValue) -> validateInput());
@@ -226,7 +236,7 @@ public final class NeuronSettingsView extends StackPane {
         return row;
     }
 
-    /** Налаштовує пару кнопок з однаковим окремим стилем і без підказок. */
+    /** Налаштовує кнопки підтвердження та скасування з незалежним стилем подання. */
     private void configureFooter() {
         saveButton.getStyleClass().add("neuron-settings-button");
         cancelButton.getStyleClass().add("neuron-settings-button");
@@ -263,10 +273,11 @@ public final class NeuronSettingsView extends StackPane {
     /** Обчислює природну висоту списку, обмежуючи лише viewport, а не рядки. */
     private void updateViewportHeight() {
         Insets insets = settingsRows.getInsets();
+        double scrollbarWidth = verticalScrollbarWidth();
         double rowWidth = settingsScroll.getWidth() > 0.0
-                ? Math.max(0.0, settingsScroll.getWidth() - SCROLLBAR_RESERVED_WIDTH)
+                ? Math.max(0.0, settingsScroll.getWidth() - scrollbarWidth)
                 : Math.max(0.0, MAX_PANEL_WIDTH - panel.getInsets().getLeft()
-                        - panel.getInsets().getRight() - SCROLLBAR_RESERVED_WIDTH);
+                        - panel.getInsets().getRight() - scrollbarWidth);
         double contentHeight = insets.getTop() + insets.getBottom();
         int visibleRows = 0;
         for (Node row : settingsRows.getChildren()) {
@@ -288,7 +299,20 @@ public final class NeuronSettingsView extends StackPane {
         settingsScroll.setPrefViewportHeight(Math.min(MAX_SETTINGS_VIEWPORT_HEIGHT, contentHeight));
     }
 
-    /** Вирівнює розміри двох кнопок за природними розмірами найбільшого підпису після CSS. */
+    /** Повертає фактичну або CSS-обчислену ширину вертикальної смуги прокручування. */
+    private double verticalScrollbarWidth() {
+        Node scrollbar = settingsScroll.lookup(".scroll-bar:vertical");
+        if (!(scrollbar instanceof Region region)) {
+            return 0.0;
+        }
+        double width = region.getWidth();
+        if (width <= 0.0) {
+            width = region.prefWidth(-1.0);
+        }
+        return Double.isFinite(width) ? Math.max(0.0, width) : 0.0;
+    }
+
+    /** Вирівнює розміри кнопок за природними розмірами найбільшого підпису після CSS. */
     private void sizeActionButtonsToLargestContent() {
         resetButtonDimensions(saveButton);
         resetButtonDimensions(cancelButton);
@@ -310,13 +334,12 @@ public final class NeuronSettingsView extends StackPane {
 
     /** Встановлює обом кнопкам єдині розміри, обчислені за більшим природним розміром. */
     private static void applyButtonDimensions(Button button, double width, double height) {
-        // Фіксується лише мінімум за найбільшим підписом; preferred/max залишаються обчислюваними.
         button.setMinSize(width, height);
         button.setPrefSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
         button.setMaxSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
     }
 
-    /** Підлаштовує розмір панелі до природного вмісту з обмеженнями адаптивного макета меню. */
+    /** Підлаштовує розмір картки до природного вмісту з обмеженнями адаптивного макета. */
     @Override
     protected void layoutChildren() {
         super.layoutChildren();
@@ -324,8 +347,8 @@ public final class NeuronSettingsView extends StackPane {
             return;
         }
 
-        double availableWidth = Math.max(0.0, getWidth() - 32.0);
-        double availableHeight = Math.max(0.0, getHeight() - 32.0);
+        double availableWidth = Math.max(0.0, getWidth() - PANEL_EDGE_SPACING);
+        double availableHeight = Math.max(0.0, getHeight() - PANEL_EDGE_SPACING);
         double preferredWidth = preferredWidthForLayout();
         double panelWidth = Math.min(availableWidth, Math.min(MAX_PANEL_WIDTH, preferredWidth));
         double preferredHeight = Math.max(panel.minHeight(panelWidth), panel.prefHeight(panelWidth));
@@ -339,7 +362,7 @@ public final class NeuronSettingsView extends StackPane {
         panel.layout();
     }
 
-    /** Обчислює ширину за природним розміром вмісту та додатковим місцем для scrollbar. */
+    /** Обчислює ширину за природним розміром вмісту та фактичною шириною scrollbar. */
     private double preferredWidthForLayout() {
         double preferredWidth = Math.max(panel.minWidth(-1.0), panel.prefWidth(-1.0));
         Insets panelInsets = panel.getInsets();
@@ -349,17 +372,20 @@ public final class NeuronSettingsView extends StackPane {
         double requiredRowsWidth = rowsWidth
                 + rowInsets.getLeft() + rowInsets.getRight()
                 + scrollInsets.getLeft() + scrollInsets.getRight()
-                + SCROLLBAR_RESERVED_WIDTH;
+                + verticalScrollbarWidth();
         double requiredPanelWidth = requiredRowsWidth + panelInsets.getLeft() + panelInsets.getRight();
         return Math.max(preferredWidth, requiredPanelWidth);
     }
 
-    /** Оновлює заголовок, підписи параметрів і кнопки одразу після зміни активної локалі. */
+    /** Оновлює всі локалізовані тексти під час показу накладки. */
     private void refreshTexts() {
-        title.setText(localization.text("neuron.settings.title"));
+        title.setText(localization.textFrom(LOCALIZATION_BUNDLE, "title"));
         settingLabels.forEach((key, label) -> label.setText(localization.text(key)));
         saveButton.setText(localization.text("neuron.settings.save"));
-        cancelButton.setText(localization.text("menu.rename.cancel"));
+        cancelButton.setText(localization.textFrom(LOCALIZATION_BUNDLE, "cancel"));
+        String positiveIntegerPrompt = localization.text("neuron.settings.positive_integer");
+        signalField.setPromptText(positiveIntegerPrompt);
+        thresholdField.setPromptText(positiveIntegerPrompt);
         settingsRows.requestLayout();
         updateViewportHeight();
         if (getScene() != null) {
@@ -369,6 +395,24 @@ public final class NeuronSettingsView extends StackPane {
                 host.requestLayout();
             }
         }
+    }
+
+    /** Реєструє слухача локалізації лише на час показу накладки. */
+    private void startListeningToLocalization() {
+        if (localizationListenerRegistered) {
+            return;
+        }
+        localization.addListener(localizationListener);
+        localizationListenerRegistered = true;
+    }
+
+    /** Знімає слухача локалізації під час закриття, не утримуючи приховане подання. */
+    private void stopListeningToLocalization() {
+        if (!localizationListenerRegistered) {
+            return;
+        }
+        localization.removeListener(localizationListener);
+        localizationListenerRegistered = false;
     }
 
     /** Перевіряє обидва поля й керує доступністю підтвердження. */
@@ -427,11 +471,12 @@ public final class NeuronSettingsView extends StackPane {
         action.accept(parameters);
     }
 
-    /** Прибирає накладку з кореня сцени та звільняє посилання на callback-и. */
+    /** Закриває накладку, очищує callback та звільняє тимчасові ресурси. */
     private void close() {
         StackPane previousHost = host;
         host = null;
         saveAction = null;
+        stopListeningToLocalization();
         setVisible(false);
         setManaged(false);
         if (previousHost != null) {
@@ -439,42 +484,37 @@ public final class NeuronSettingsView extends StackPane {
         }
     }
 
-    /** Повертає поле сили сигналу для регресійних тестів. */
-    TextField signalFieldForTest() {
-        return signalField;
+    /** Обробляє Escape локально, не передаючи його глобальному редакторському маршрутизатору. */
+    private void handleKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ESCAPE && blocksEditorShortcuts()) {
+            close();
+            event.consume();
+        }
     }
+
+    /** Повертає поле сили сигналу для регресійних тестів. */
+    TextField signalFieldForTest() { return signalField; }
 
     /** Повертає поле порога активації для регресійних тестів. */
-    TextField thresholdFieldForTest() {
-        return thresholdField;
-    }
+    TextField thresholdFieldForTest() { return thresholdField; }
 
     /** Повертає кнопку збереження для перевірок введення та геометрії. */
-    Button saveButtonForTest() {
-        return saveButton;
-    }
+    Button saveButtonForTest() { return saveButton; }
 
     /** Повертає кнопку скасування для перевірок геометрії та закриття. */
-    Button cancelButtonForTest() {
-        return cancelButton;
-    }
+    Button cancelButtonForTest() { return cancelButton; }
 
     /** Повертає прокручувану область для тестів компонування. */
-    ScrollPane settingsScrollForTest() {
-        return settingsScroll;
-    }
+    ScrollPane settingsScrollForTest() { return settingsScroll; }
 
     /** Повертає картку налаштувань для тестів адаптивного компонування. */
-    VBox panelForTest() {
-        return panel;
-    }
+    VBox panelForTest() { return panel; }
 
     /** Повертає заголовок для перевірки його вирівнювання. */
-    Label titleForTest() {
-        return title;
-    }
+    Label titleForTest() { return title; }
 
-    /** Повертає локалізований підпис параметра для перевірки оновлення мови без повторного відкриття.
+    /**
+     * Повертає локалізований підпис параметра для перевірки оновлення мови без повторного відкриття.
      *
      * @param key ключ перекладу підпису.
      * @return поточний текст підпису або {@code null}, якщо параметр із таким ключем не створено.
@@ -485,22 +525,20 @@ public final class NeuronSettingsView extends StackPane {
     }
 
     /** Повертає максимальну ширину панелі. */
-    double panelMaxWidthForTest() {
-        return panel.getMaxWidth();
-    }
+    double panelMaxWidthForTest() { return panel.getMaxWidth(); }
 
     /** Повертає максимальну висоту панелі. */
-    double panelMaxHeightForTest() {
-        return panel.getMaxHeight();
-    }
+    double panelMaxHeightForTest() { return panel.getMaxHeight(); }
 
     /** Повертає фактичну ширину панелі після компонування. */
-    double panelWidthForTest() {
-        return panel.getWidth();
-    }
+    double panelWidthForTest() { return panel.getWidth(); }
 
     /** Повертає фактичну висоту панелі після компонування. */
-    double panelHeightForTest() {
-        return panel.getHeight();
-    }
+    double panelHeightForTest() { return panel.getHeight(); }
+
+    /** Повертає підказку поля сили сигналу для перевірки локалізованого формату. */
+    String signalPromptForTest() { return signalField.getPromptText(); }
+
+    /** Повертає підказку поля порога активації для перевірки локалізованого формату. */
+    String thresholdPromptForTest() { return thresholdField.getPromptText(); }
 }

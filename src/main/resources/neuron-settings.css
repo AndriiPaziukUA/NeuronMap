@@ -3,6 +3,10 @@
     -fx-background-color: transparent;
 }
 
+.neuron-settings-overlay .neuron-settings-backdrop {
+    -fx-fill: rgba(0, 0, 0, 0.5);
+}
+
 .neuron-settings-overlay .neuron-settings-panel {
     -fx-background-color: #20242b;
     -fx-border-color: #4a515c;
@@ -54,7 +58,7 @@
     -fx-background-color: #242a32;
 }
 
-/* Вигляд кнопки скопійовано з «Назад», але властивості незалежні від стилів меню. */
+/* Властивості кнопок залишаються незалежними від таблиць стилів меню. */
 .neuron-settings-overlay .neuron-settings-button {
     -fx-background-color: transparent;
     -fx-text-fill: #b8c0ca;

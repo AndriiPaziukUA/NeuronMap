@@ -1,5 +1,6 @@
 package com.example.neuronmap.controller;
 
+import com.example.neuronmap.view.support.EditorKeyboardShortcutBoundary;
 import com.example.neuronmap.view.support.JavaFxNodeLookup;
 import javafx.event.EventHandler;
 import javafx.scene.Scene;
@@ -59,9 +60,7 @@ public final class EditorKeyboardController {
         scene.addEventHandler(KeyEvent.KEY_PRESSED, keyHandler);
     }
 
-    /**
-     * Знімає обробник клавіатурних подій із поточної сцени; повторний виклик безпечний.
-     */
+    /** Знімає обробник клавіатурних подій із поточної сцени; повторний виклик безпечний. */
     public void dispose() {
         if (scene == null) {
             return;
@@ -71,12 +70,12 @@ public final class EditorKeyboardController {
     }
 
     /**
-     * Маршрутизує підтримувані гарячі клавіші та зберігає стандартне введення в текстових полях.
+     * Маршрутизує підтримувані гарячі клавіші та зберігає стандартне введення у текстових полях.
      *
      * @param event подія натискання клавіші.
      */
     private void handleKeyPressed(KeyEvent event) {
-        if (isTextInputTarget(event.getTarget())) {
+        if (isTextInputTarget(event.getTarget()) || EditorKeyboardShortcutBoundary.blocksShortcutsFor(event.getTarget())) {
             return;
         }
 
@@ -119,4 +118,6 @@ public final class EditorKeyboardController {
     private boolean isTextInputTarget(Object target) {
         return JavaFxNodeLookup.findAncestor(target, TextInputControl.class) != null;
     }
+
+
 }

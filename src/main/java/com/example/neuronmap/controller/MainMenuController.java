@@ -5,6 +5,7 @@ import com.example.neuronmap.i18n.SupportedLanguage;
 import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.settings.SettingsEditSession;
 import com.example.neuronmap.view.menu.MainMenuView;
+import com.example.neuronmap.view.support.EditorKeyboardShortcutBoundary;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
@@ -279,9 +280,7 @@ public final class MainMenuController {
         }
     }
 
-    /**
-     * Відхиляє всі незбережені зміни, намагаючись виконати відкат налаштувань навіть після помилки подання.
-     */
+    /** Відхиляє незбережені зміни, намагаючись відкотити налаштування навіть після помилки подання. */
     private void discardUnsavedChanges() {
         RuntimeException failure = null;
         try {
@@ -416,10 +415,14 @@ public final class MainMenuController {
 
     /**
      * Обробляє Escape відповідно до поточної сторінки меню та блокує редакторські скорочення в меню.
+     * Подання-межі обробляють власні клавіатурні дії до того, як вони потраплять до глобального меню.
      *
      * @param event подія натискання клавіші JavaFX.
      */
     private void handleKeyPressed(KeyEvent event) {
+        if (EditorKeyboardShortcutBoundary.blocksShortcutsFor(event.getTarget())) {
+            return;
+        }
         if (event.getCode() == KeyCode.ESCAPE) {
             if (view.isConfirmingUnsavedChanges()) {
                 view.discardAndContinueUnsavedChanges();
@@ -447,4 +450,6 @@ public final class MainMenuController {
             event.consume();
         }
     }
+
+
 }
