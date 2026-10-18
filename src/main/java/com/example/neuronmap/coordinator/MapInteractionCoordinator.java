@@ -11,9 +11,10 @@ import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.util.WorldCoordinateMapper;
 import com.example.neuronmap.view.connection.ConnectionView;
-import com.example.neuronmap.view.support.JavaFxNodeLookup;
-import com.example.neuronmap.view.neuron.NeuronVisualGeometry;
 import com.example.neuronmap.view.editor.WorkspaceView;
+import com.example.neuronmap.view.neuron.NeuronVisualGeometry;
+import com.example.neuronmap.view.support.JavaFxNodeLookup;
+import javafx.event.EventHandler;
 import javafx.geometry.Point2D;
 import javafx.scene.Cursor;
 import javafx.scene.control.Button;
@@ -23,9 +24,7 @@ import javafx.scene.input.MouseEvent;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-/**
- * Координує обробку подій полотна та передає зміни моделі до координатора презентації.
- */
+/** Координує обробку подій полотна та передає зміни моделі до координатора презентації. */
 public final class MapInteractionCoordinator {
 
     private final NeuronService neuronService;
@@ -40,6 +39,10 @@ public final class MapInteractionCoordinator {
     private final Consumer<String> status;
     private final LocalizationService localization;
     private final NeuronToolDragController toolDragController;
+    private final EventHandler<MouseEvent> canvasClickHandler = this::handleCanvasClick;
+
+    private boolean installed;
+    private boolean disposed;
 
     /**
      * Створює координатор взаємодії редактора з переданими службами та контролерами.
@@ -80,30 +83,31 @@ public final class MapInteractionCoordinator {
         this.save = Objects.requireNonNull(save, "save");
         this.status = Objects.requireNonNull(status, "status");
         this.localization = Objects.requireNonNull(localization, "localization");
-        this.toolDragController = new NeuronToolDragController(
-                state,
-                workspace,
-                this::handleToolDrop
-        );
-    }
-
-    /** Реєструє обробники подій полотна й кнопок інструментів. */
-    public void install() {
-        workspace.node().addEventFilter(MouseEvent.MOUSE_CLICKED, this::handleCanvasClick);
-        toolDragController.install();
+        this.toolDragController = new NeuronToolDragController(state, workspace, this::handleToolDrop);
     }
 
     /**
-     * Починає режим додавання нейрона та готує стан взаємодії.
+     * Реєструє обробники подій полотна й кнопок інструментів. Повторна установка безпечна.
      *
-     * @param type тип нейрона.
+     * @throws IllegalStateException якщо координатор уже звільнив свої ресурси.
      */
+    public void install() {
+        ensureNotDisposed();
+        if (installed) {
+            return;
+        }
+        workspace.node().addEventFilter(MouseEvent.MOUSE_CLICKED, canvasClickHandler);
+        toolDragController.install();
+        installed = true;
+    }
+
+    /** Починає режим додавання нейрона та готує стан взаємодії. */
     public void beginAddNeuronMode(NeuronType type) {
+        ensureNotDisposed();
         simulationController.stop();
         connectionController.cancelCreate();
         connectionController.exitDelete();
         neuronController.hideMenu();
-
         state.enterAddNeuronMode(type);
         workspace.node().setCursor(Cursor.CROSSHAIR);
         status.accept(localization.text("status.add_neuron_hint"));
@@ -111,6 +115,9 @@ public final class MapInteractionCoordinator {
 
     /** Скасовує незавершені режими взаємодії та очищує тимчасові подання. */
     public void cancelInteractions() {
+        if (disposed) {
+            return;
+        }
         toolDragController.clearPreview();
         connectionController.cancelCreate();
         connectionController.exitDelete();
@@ -120,18 +127,12 @@ public final class MapInteractionCoordinator {
         status.accept(localization.text("status.ready"));
     }
 
-    /**
-     * Створює нейрон у заданих координатах і синхронізує карту одним викликом координатора презентації.
-     *
-     * @param type тип нейрона.
-     * @param x світова координата X.
-     * @param y світова координата Y.
-     */
+    /** Створює нейрон у заданих координатах і синхронізує карту одним викликом координатора презентації. */
     public void addNeuronAt(NeuronType type, double x, double y) {
+        ensureNotDisposed();
         if (type == null) {
             return;
         }
-
         neuronService.create(type, x, y);
         presentation.refreshAll();
         save.run();
@@ -140,59 +141,56 @@ public final class MapInteractionCoordinator {
 
     /** Створює групу з вибраних нейронів через відповідну службу вибору. */
     public void groupSelection() {
+        ensureNotDisposed();
         selectionController.groupSelection();
         presentation.refreshAll();
     }
 
     /** Знімає групування з вибраних нейронів. */
     public void ungroupSelection() {
+        ensureNotDisposed();
         selectionController.ungroupSelection();
         presentation.refreshAll();
     }
 
-    /** Очищає тимчасовий попередній перегляд перетягування. */
+    /** Знімає фільтри полотна, завершує тимчасові режими й звільняє джерела перетягування. */
     public void dispose() {
-        toolDragController.clearPreview();
-    }
-
-    /**
-     * Обробляє клацання по полотну відповідно до активного режиму редактора.
-     *
-     * @param event подія миші.
-     */
-    private void handleCanvasClick(MouseEvent event) {
-        if (event.getButton() != MouseButton.PRIMARY) {
+        if (disposed) {
             return;
         }
+        disposed = true;
+        if (installed) {
+            workspace.node().removeEventFilter(MouseEvent.MOUSE_CLICKED, canvasClickHandler);
+            installed = false;
+        }
+        toolDragController.dispose();
+        connectionController.cancelCreate();
+        connectionController.exitDelete();
+        neuronController.hideMenu();
+        state.resetToIdle();
+        workspace.node().setCursor(Cursor.DEFAULT);
+    }
 
+    /** Обробляє клацання по полотну відповідно до активного режиму редактора. */
+    private void handleCanvasClick(MouseEvent event) {
+        if (disposed || event.getButton() != MouseButton.PRIMARY) {
+            return;
+        }
         if (neuronController.isInteractiveTarget(event.getTarget())
                 || JavaFxNodeLookup.findAncestor(event.getTarget(), ConnectionView.class) != null) {
             return;
         }
-
         if (state.mode() == EditorState.Mode.ADD_NEURON) {
-            Point2D viewportPoint = workspace.node().sceneToLocal(
-                    event.getSceneX(),
-                    event.getSceneY()
-            );
+            Point2D viewportPoint = workspace.node().sceneToLocal(event.getSceneX(), event.getSceneY());
             Point2D worldPoint = WorldCoordinateMapper.viewportToWorld(
-                    viewportPoint,
-                    state.zoom(),
-                    state.panX(),
-                    state.panY()
-            );
+                    viewportPoint, state.zoom(), state.panX(), state.panY());
             Point2D neuronTopLeft = NeuronVisualGeometry.topLeftFromCenter(worldPoint);
-            addNeuronAt(
-                    state.pendingNeuronType(),
-                    neuronTopLeft.getX(),
-                    neuronTopLeft.getY()
-            );
+            addNeuronAt(state.pendingNeuronType(), neuronTopLeft.getX(), neuronTopLeft.getY());
             state.resetToIdle();
             workspace.node().setCursor(Cursor.DEFAULT);
             event.consume();
             return;
         }
-
         if (state.isIdle()) {
             neuronController.hideMenu();
             selectionController.clear();
@@ -200,24 +198,25 @@ public final class MapInteractionCoordinator {
         }
     }
 
-    /**
-     * Створює нейрон у точці, куди користувач відпустив інструмент перетягування.
-     *
-     * @param type тип нейрона.
-     * @param worldPoint точка центра у світових координатах карти.
-     */
+    /** Створює нейрон у точці, куди користувач відпустив інструмент перетягування. */
     private void handleToolDrop(NeuronType type, Point2D worldPoint) {
+        if (disposed) {
+            return;
+        }
         Point2D neuronTopLeft = NeuronVisualGeometry.topLeftFromCenter(worldPoint);
         addNeuronAt(type, neuronTopLeft.getX(), neuronTopLeft.getY());
     }
 
-    /**
-     * Під'єднує перетягування до кнопок додавання збуджувального й гальмівного нейронів.
-     *
-     * @param excitatoryButton кнопка додавання збуджувального нейрона.
-     * @param inhibitoryButton кнопка додавання гальмівного нейрона.
-     */
+    /** Під'єднує перетягування до кнопок додавання збуджувального й гальмівного нейронів. */
     public void configureToolbarButtons(Button excitatoryButton, Button inhibitoryButton) {
+        ensureNotDisposed();
         toolDragController.configureToolbarButtons(excitatoryButton, inhibitoryButton);
+    }
+
+    /** Забороняє повторно активувати координатор після звільнення його ресурсів. */
+    private void ensureNotDisposed() {
+        if (disposed) {
+            throw new IllegalStateException("Map interaction coordinator is disposed");
+        }
     }
 }

@@ -31,26 +31,13 @@ public final class MainMenuController {
     private final Runnable resumeAfterMenuAction;
     private final SettingsEditSession settingsEditSession;
     private final SettingsEditSession.Setting<SupportedLanguage> languageSetting;
-
     private final javafx.event.EventHandler<KeyEvent> keyHandler = this::handleKeyPressed;
-    private boolean installed;
-    private boolean savingPendingProjectChanges;
 
-    /**
-     * Створює контролер і пов'язує дії подання з операціями застосунку та єдиною сесією налаштувань.
-     *
-     * @param view візуальний компонент меню, яким керує контролер.
-     * @param localization служба локалізації, яку використовує подання меню.
-     * @param projectsSupplier постачальник поточного каталогу збережених проєктів.
-     * @param newProjectAction дія створення проєкту.
-     * @param openProjectAction дія відкриття проєкту.
-     * @param renameProjectAction дія перейменування проєкту.
-     * @param deleteProjectAction дія видалення проєкту.
-     * @param exitAction дія завершення роботи застосунку.
-     * @param pauseForMenuAction дія призупинення роботи редактора на час відкритого меню.
-     * @param resumeAfterMenuAction дія відновлення роботи редактора після закриття меню.
-     * @throws NullPointerException якщо обов'язкову залежність не задано.
-     */
+    private Scene installedScene;
+    private boolean savingPendingProjectChanges;
+    private boolean disposed;
+
+    /** Створює контролер і пов'язує дії подання з операціями застосунку та єдиною сесією налаштувань. */
     public MainMenuController(
             MainMenuView view,
             LocalizationService localization,
@@ -65,12 +52,11 @@ public final class MainMenuController {
     ) {
         this.view = Objects.requireNonNull(view, "view");
         this.localization = Objects.requireNonNull(localization, "localization");
-        this.settingsEditSession = new SettingsEditSession();
-        this.languageSetting = settingsEditSession.register(
+        settingsEditSession = new SettingsEditSession();
+        languageSetting = settingsEditSession.register(
                 localization::language,
                 localization::previewLanguage,
-                ignored -> localization.persistCurrentLanguage()
-        );
+                ignored -> localization.persistCurrentLanguage());
         this.projectsSupplier = Objects.requireNonNull(projectsSupplier, "projectsSupplier");
         this.openProjectAction = Objects.requireNonNull(openProjectAction, "openProjectAction");
         this.renameProjectAction = Objects.requireNonNull(renameProjectAction, "renameProjectAction");
@@ -78,11 +64,7 @@ public final class MainMenuController {
         this.pauseForMenuAction = Objects.requireNonNull(pauseForMenuAction, "pauseForMenuAction");
         this.resumeAfterMenuAction = Objects.requireNonNull(resumeAfterMenuAction, "resumeAfterMenuAction");
 
-        view.setLanguageActions(
-                this::previewLanguage,
-                this::saveSettings,
-                settingsEditSession::hasChanges
-        );
+        view.setLanguageActions(this::previewLanguage, this::saveSettings, settingsEditSession::hasChanges);
         view.setProjectRenameCommittedAction(this::handleProjectRenameCommitted);
         view.setActions(new MainMenuView.Actions(
                 () -> requestLeave(() -> {
@@ -96,28 +78,24 @@ public final class MainMenuController {
                 this::handleOpenProject,
                 this::handleRenameProject,
                 this::handleDeleteProject,
-                this::handleBack
-        ));
+                this::handleBack));
     }
 
-    /**
-     * Встановлює обробник клавіатури меню на переданій сцені JavaFX.
-     * Повторне встановлення не створює дубльованих реєстрацій обробника.
-     *
-     * @param scene сцена, на якій потрібно обробляти клавіатурні події.
-     * @throws NullPointerException якщо сцену не задано.
-     */
+    /** Під'єднує клавіатурний фільтр до сцени; при перенесенні меню спершу від'єднує попередню сцену. */
     public void install(Scene scene) {
         Objects.requireNonNull(scene, "scene");
-        if (installed) {
-            scene.removeEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
+        ensureNotDisposed();
+        if (scene == installedScene) {
+            return;
         }
+        detachKeyboardHandler(installedScene);
         scene.addEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
-        installed = true;
+        installedScene = scene;
     }
 
     /** Відкриває головне меню та призупиняє редактор, поки меню залишається відкритим. */
     public void open() {
+        ensureNotDisposed();
         if (view.isMenuVisible()) {
             return;
         }
@@ -131,54 +109,35 @@ public final class MainMenuController {
         requestCloseMenu();
     }
 
-    /**
-     * Реєструє типізоване налаштування в спільній сесії попереднього перегляду та відкату.
-     * Реєструвати налаштування слід до початку його редагування; постійне збереження виконується
-     * лише під час підтвердження сесії.
-     *
-     * @param currentValue постачальник фактично застосованого значення.
-     * @param previewAction дія тимчасового застосування значення без постійного збереження.
-     * @param persistAction дія постійного збереження переданого значення.
-     * @param <T> тип значення налаштування.
-     * @return дескриптор зареєстрованого налаштування для викликів {@link #previewSetting}.
-     * @throws NullPointerException якщо будь-який callback не задано.
-     * @throws IllegalStateException якщо сесія вже активна.
-     */
+    /** Реєструє типізоване налаштування в спільній сесії попереднього перегляду та відкату. */
     public <T> SettingsEditSession.Setting<T> registerSetting(
             Supplier<T> currentValue,
             Consumer<T> previewAction,
             Consumer<T> persistAction
     ) {
+        ensureNotDisposed();
         return settingsEditSession.register(currentValue, previewAction, persistAction);
     }
 
-    /**
-     * Застосовує тимчасове значення зареєстрованого налаштування в поточній сесії меню.
-     * Якщо сесію ще не розпочато, перед знімком початкових значень відновлюється підтверджена мова.
-     *
-     * @param setting дескриптор налаштування, раніше зареєстрованого цим контролером.
-     * @param value значення для попереднього перегляду.
-     * @param <T> тип значення налаштування.
-     * @throws IllegalStateException якщо налаштування не належить сесії цього контролера.
-     */
+    /** Застосовує тимчасове значення зареєстрованого налаштування в поточній сесії меню. */
     public <T> void previewSetting(SettingsEditSession.Setting<T> setting, T value) {
+        ensureNotDisposed();
         beginSettingsEditSessionIfNeeded();
         settingsEditSession.preview(setting, value);
         view.refreshSettingsState();
     }
 
-    /**
-     * Оновлює видимий список проєктів за найновішими даними каталогу.
-     * Оновлення виконується в потоці JavaFX, якщо це необхідно, та пропускається за наявності незбережених змін.
-     */
+    /** Оновлює видимий список проєктів за найновішими даними каталогу. */
     public void refreshProjects() {
+        if (disposed) {
+            return;
+        }
         Runnable refresh = () -> {
-            if (!view.isLoadPage() || hasUnsavedChanges()) {
+            if (disposed || !view.isLoadPage() || hasUnsavedChanges()) {
                 return;
             }
             view.showLoadPage(projectsSupplier.get());
         };
-
         if (Platform.isFxApplicationThread()) {
             refresh.run();
         } else {
@@ -191,17 +150,14 @@ public final class MainMenuController {
         return view.isMenuVisible();
     }
 
-    /**
-     * Вилучає обробник клавіатури, відхиляє незбережені зміни й звільняє ресурси подання.
-     * Очищення виконується і в разі помилки відкату налаштувань.
-     *
-     * @param scene сцена, з якої потрібно вилучити обробник; {@code null} дозволено.
-     */
-    public void dispose(Scene scene) {
-        if (scene != null && installed) {
-            scene.removeEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
+    /** Звільняє клавіатурну реєстрацію та ресурси подання; метод є ідемпотентним. */
+    public void dispose() {
+        if (disposed) {
+            return;
         }
-        installed = false;
+        disposed = true;
+        detachKeyboardHandler(installedScene);
+        installedScene = null;
         RuntimeException failure = null;
         try {
             discardUnsavedChanges();
@@ -230,13 +186,18 @@ public final class MainMenuController {
         }
     }
 
+    /** Зберігає сумісність із наявними викликами та ігнорує сцену, що може не збігатися з реальною. */
+    public void dispose(Scene ignoredScene) {
+        dispose();
+    }
+
     /** Починає спільну сесію редагування та відкриває сторінку налаштувань. */
     private void openSettingsPage() {
         beginSettingsEditSessionIfNeeded();
         view.showSettingsPage();
     }
 
-    /** Запускає сесію лише один раз і фіксує підтверджений стан перед першим попереднім переглядом. */
+    /** Запускає сесію один раз і фіксує підтверджений стан перед першим попереднім переглядом. */
     private void beginSettingsEditSessionIfNeeded() {
         if (settingsEditSession.isActive()) {
             return;
@@ -260,10 +221,7 @@ public final class MainMenuController {
         settingsEditSession.commit();
     }
 
-    /**
-     * Підтверджує всі незбережені зміни як єдину дію меню.
-     * Коміти назв проєктів пригнічують проміжне оновлення списку до завершення пакетної операції.
-     */
+    /** Підтверджує всі незбережені зміни як одну дію меню. */
     private void saveUnsavedChanges() {
         boolean wasSaving = savingPendingProjectChanges;
         RuntimeException failure = null;
@@ -324,7 +282,7 @@ public final class MainMenuController {
         return primary;
     }
 
-    /** Перевіряє загальний стан незбережених змін, незалежно від поточної сторінки меню. */
+    /** Перевіряє загальний стан незбережених змін незалежно від поточної сторінки меню. */
     private boolean hasUnsavedChanges() {
         return settingsEditSession.hasChanges() || view.hasUnsavedProjectChanges();
     }
@@ -389,8 +347,7 @@ public final class MainMenuController {
                 () -> {
                     discardUnsavedChanges();
                     action.run();
-                }
-        );
+                });
     }
 
     /** Закриває меню після розв'язання незбережених змін і викликає задану дію. */
@@ -421,25 +378,18 @@ public final class MainMenuController {
         resumeAfterMenuAction.run();
     }
 
-    /**
-     * Обробляє Escape відповідно до поточної сторінки меню та блокує редакторські скорочення в меню.
-     * Активна клавіатурна модальність має пріоритет над обробкою команд меню.
-     *
-     * @param event подія натискання клавіші JavaFX.
-     */
+    /** Обробляє Escape й блокує редакторські скорочення в меню. */
     private void handleKeyPressed(KeyEvent event) {
-        if (EditorKeyboardShortcutBoundary.blocksShortcutsFor(event.getTarget())
+        if (disposed || EditorKeyboardShortcutBoundary.blocksShortcutsFor(event.getTarget())
                 || SceneKeyboardModality.hasActiveBoundaryFor(event.getTarget())) {
             return;
         }
-
         if (event.getCode() == KeyCode.ESCAPE) {
             if (view.isConfirmingUnsavedChanges()) {
                 view.discardAndContinueUnsavedChanges();
                 event.consume();
                 return;
             }
-
             if (isOpen()) {
                 if (view.isLoadPage() || view.isSettingsPage()) {
                     handleBack();
@@ -452,12 +402,23 @@ public final class MainMenuController {
             event.consume();
             return;
         }
-
-        if (isOpen()
-                && (event.getCode() == KeyCode.DELETE
-                || (event.isControlDown()
-                && (event.getCode() == KeyCode.Z || event.getCode() == KeyCode.Y)))) {
+        if (isOpen() && (event.getCode() == KeyCode.DELETE
+                || (event.isControlDown() && (event.getCode() == KeyCode.Z || event.getCode() == KeyCode.Y)))) {
             event.consume();
+        }
+    }
+
+    /** Від'єднує клавіатурний фільтр саме від сцени, якій він належить. */
+    private void detachKeyboardHandler(Scene scene) {
+        if (scene != null) {
+            scene.removeEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
+        }
+    }
+
+    /** Забороняє повторно використовувати контролер після звільнення його ресурсів. */
+    private void ensureNotDisposed() {
+        if (disposed) {
+            throw new IllegalStateException("Main menu controller is disposed");
         }
     }
 }

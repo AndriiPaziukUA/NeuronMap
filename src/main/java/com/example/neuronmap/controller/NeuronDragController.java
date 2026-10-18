@@ -3,8 +3,8 @@ package com.example.neuronmap.controller;
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.service.GroupService;
 import com.example.neuronmap.service.NeuronService;
-import com.example.neuronmap.view.neuron.NeuronView;
 import com.example.neuronmap.view.editor.WorkspaceView;
+import com.example.neuronmap.view.neuron.NeuronView;
 import javafx.scene.Cursor;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
@@ -12,9 +12,7 @@ import javafx.scene.input.MouseEvent;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-/**
- * Обробляє перетягування нейронів і груп, переміщуючи модель та оновлюючи пов’язані з нею зв’язки й накладки.
- */
+/** Обробляє перетягування нейронів і груп, синхронізуючи залежну геометрію та завершення жесту. */
 public final class NeuronDragController {
 
     private final NeuronService neuronService;
@@ -40,7 +38,7 @@ public final class NeuronDragController {
      * @param hideMenu дія приховування контекстного меню.
      * @param showRotationHandle дія показу ручки обертання.
      * @param refreshVisuals дія оновлення подань нейронів.
-     * @param refreshConnections дія оновлення геометрії зв’язків.
+     * @param refreshConnections дія оновлення геометрії зв'язків.
      * @param refreshOverlayPositions дія оновлення позицій накладок.
      * @param save дія збереження карти після завершення перетягування.
      */
@@ -70,12 +68,7 @@ public final class NeuronDragController {
         this.save = Objects.requireNonNull(save, "save");
     }
 
-    /**
-     * Починає обробку натискання миші для вибору та перетягування нейрона.
-     *
-     * @param neuronView подання нейрона.
-     * @param event подія миші.
-     */
+    /** Починає обробку натискання миші для вибору та перетягування нейрона. */
     public void handlePressed(NeuronView neuronView, MouseEvent event) {
         if (event.getButton() == MouseButton.SECONDARY) {
             if (!state.isIdle()) {
@@ -85,69 +78,58 @@ public final class NeuronDragController {
             event.consume();
             return;
         }
-
         if (event.getButton() != MouseButton.PRIMARY || !state.isIdle()) {
             return;
         }
-
         hideMenu.run();
-        selectionController.selectForPrimaryPress(
-                neuronView.model().id(),
-                event.isControlDown()
-        );
-
+        selectionController.selectForPrimaryPress(neuronView.model().id(), event.isControlDown());
         boolean grouped = groupService.containing(neuronView.model().id()).isPresent();
-        neuronView.beginDrag(
-                event.getSceneX(),
-                event.getSceneY(),
-                event.isAltDown(),
-                grouped
-        );
+        neuronView.beginDrag(event.getSceneX(), event.getSceneY(), event.isAltDown(), grouped);
         showRotationHandle.accept(neuronView.model().id());
         event.consume();
     }
 
-    /**
-     * Переміщує нейрон або його групу та синхронізує залежну геометрію.
-     *
-     * @param neuronView подання нейрона, яке перетягують.
-     * @param event подія миші.
-     */
+    /** Переміщує нейрон або його групу та синхронізує залежну геометрію. */
     public void handleDragged(NeuronView neuronView, MouseEvent event) {
         if (!neuronView.isDragging()) {
             return;
         }
-
         neuronView.updateDraggedState(event.getSceneX(), event.getSceneY());
         double dx = neuronView.dragDeltaX(event.getSceneX()) / state.zoom();
         double dy = neuronView.dragDeltaY(event.getSceneY()) / state.zoom();
         String neuronId = neuronView.model().id();
-
         if (neuronView.isDraggingGroup()) {
             groupService.moveContaining(neuronId, dx, dy);
         } else {
             neuronService.move(neuronId, dx, dy);
         }
-
         refreshVisuals.run();
         refreshConnections.run();
         refreshOverlayPositions.run();
         event.consume();
     }
 
-    /**
-     * Завершує перетягування й зберігає змінену карту, якщо положення нейрона змінилося.
-     *
-     * @param neuronView подання нейрона, перетягування якого завершується.
-     */
+    /** Завершує перетягування та зберігає змінену карту, якщо положення нейрона змінилося. */
     public void handleReleased(NeuronView neuronView) {
         boolean dragged = neuronView.wasDragged();
         neuronView.endDrag();
-
         if (dragged) {
             workspace.node().setCursor(Cursor.DEFAULT);
             refreshOverlayPositions.run();
             save.run();
         }
+    }
+
+    /**
+     * Скасовує незавершений жест без збереження та відновлює курсор під час вилучення подання.
+     *
+     * @param neuronView подання, перетягування якого потрібно скасувати.
+     */
+    void cancelDragging(NeuronView neuronView) {
+        if (neuronView == null || !neuronView.isDragging()) {
+            return;
+        }
+        neuronView.endDrag();
+        workspace.node().setCursor(Cursor.DEFAULT);
     }
 }

@@ -7,12 +7,12 @@ import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.view.connection.ConnectionView;
-import com.example.neuronmap.view.group.GroupView;
-import com.example.neuronmap.view.support.JavaFxNodeLookup;
 import com.example.neuronmap.view.editor.NeuronLayerOrderManager;
+import com.example.neuronmap.view.editor.WorkspaceView;
+import com.example.neuronmap.view.group.GroupView;
 import com.example.neuronmap.view.neuron.NeuronView;
 import com.example.neuronmap.view.neuron.RotationHandleView;
-import com.example.neuronmap.view.editor.WorkspaceView;
+import com.example.neuronmap.view.support.JavaFxNodeLookup;
 import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
@@ -21,11 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * Єдиний власник синхронізації графічних подань карти з поточним станом моделі.
- * Створює, вилучає та оновлює нейронні подання, зв'язки, групи й ручки обертання.
- * Контролеру взаємодії делегує лише встановлення обробників і запит стану вибору.
- */
+/** Єдиний власник синхронізації графічних подань карти з поточним станом моделі. */
 public final class MapPresentationCoordinator {
 
     private static final double ROTATION_HANDLE_VIEW_ORDER = -10_000.0;
@@ -39,18 +35,7 @@ public final class MapPresentationCoordinator {
     private final ConnectionController connectionController;
     private final NeuronLayerOrderManager layerOrderController;
 
-    /**
-     * Створює координатор подань і реєструє його як власника синхронізації нейронних подань.
-     *
-     * @param neuronService служба доступу до моделі нейронів.
-     * @param workspace графічне полотно редактора.
-     * @param neuronViews спільна мапа подань нейронів за ідентифікаторами.
-     * @param connectionViews спільна мапа подань зв'язків за ідентифікаторами.
-     * @param rotationHandles спільна мапа ручок обертання за ідентифікаторами.
-     * @param neuronController контролер, який встановлює обробники та надає стан вибору.
-     * @param connectionController контролер режимів роботи зі зв'язками.
-     * @param layerOrderController компонент керування порядком шарів.
-     */
+    /** Створює координатор подань і реєструє його як власника синхронізації нейронних подань. */
     public MapPresentationCoordinator(
             NeuronService neuronService,
             WorkspaceView workspace,
@@ -73,8 +58,7 @@ public final class MapPresentationCoordinator {
                 this::synchronizeNeuronViews,
                 this::refreshNeuronVisuals,
                 this::refreshOverlayPositions,
-                this::refreshRelatedGeometry
-        );
+                this::refreshRelatedGeometry);
     }
 
     /** Оновлює всі подання карти та відповідні накладки згідно з поточною моделлю. */
@@ -98,16 +82,9 @@ public final class MapPresentationCoordinator {
         refreshNeuronVisuals();
     }
 
-    /**
-     * Переміщує клацнутий нейрон вище в порядку шарів, якщо цього вимагає взаємодія.
-     *
-     * @param event подія інтерфейсу, яку потрібно обробити.
-     */
+    /** Переміщує клацнутий нейрон вище в порядку шарів, якщо цього вимагає взаємодія. */
     public void bringClickedNeuronToFront(MouseEvent event) {
-        NeuronView neuronView = JavaFxNodeLookup.findAncestor(
-                event.getTarget(),
-                NeuronView.class
-        );
+        NeuronView neuronView = JavaFxNodeLookup.findAncestor(event.getTarget(), NeuronView.class);
         if (neuronView != null) {
             layerOrderController.bringNeuronToFront(neuronView.model().id());
         }
@@ -133,16 +110,11 @@ public final class MapPresentationCoordinator {
     /** Оновлює вигляд кожного нейрона відповідно до моделі та поточного вибору. */
     private void refreshNeuronVisuals() {
         for (NeuronView neuronView : neuronViews.values()) {
-            neuronView.refreshVisuals(
-                    neuronController.isNeuronSelected(neuronView.model().id())
-            );
+            neuronView.refreshVisuals(neuronController.isNeuronSelected(neuronView.model().id()));
         }
     }
 
-    /**
-     * Оновлює геометрію залежних подань без повторної синхронізації нейронних вузлів.
-     * Позиції нейронів впливають на зв'язки та межі груп, але не вимагають повторного створення подань.
-     */
+    /** Оновлює залежну геометрію без повторного створення нейронних подань. */
     private void refreshRelatedGeometry() {
         refreshConnections();
         refreshGroups();
@@ -153,12 +125,9 @@ public final class MapPresentationCoordinator {
     public void refreshConnections() {
         for (Connection connection : neuronService.model().connections()) {
             ConnectionView connectionView = connectionViews.computeIfAbsent(
-                    connection.id(),
-                    id -> createConnectionView(connection)
-            );
+                    connection.id(), id -> createConnectionView(connection));
             connectionView.updateGeometry();
         }
-
         connectionViews.entrySet().removeIf(entry -> {
             boolean exists = neuronService.model().connections().stream()
                     .anyMatch(connection -> connection.id().equals(entry.getKey()));
@@ -173,18 +142,10 @@ public final class MapPresentationCoordinator {
         });
     }
 
-    /**
-     * Створює видиме подання для напрямленого зв'язку та додає його до відповідного шару.
-     *
-     * @param connection напрямлений зв'язок між нейронами.
-     * @return створене подання зв'язку.
-     */
+    /** Створює видиме подання для напрямленого зв'язку та додає його до відповідного шару. */
     public ConnectionView createConnectionView(Connection connection) {
         ConnectionView connectionView = new ConnectionView(
-                connection,
-                neuronViews::get,
-                neuronService.model()::neuron
-        );
+                connection, neuronViews::get, neuronService.model()::neuron);
         workspace.edgeLayer().getChildren().add(connectionView);
         return connectionView;
     }
@@ -195,7 +156,6 @@ public final class MapPresentationCoordinator {
         for (String neuronId : List.copyOf(neuronViews.keySet())) {
             removeNeuronView(neuronId);
         }
-
         for (ConnectionView connectionView : connectionViews.values()) {
             if (connectionView != null) {
                 connectionView.stopDeleteHighlight();
@@ -207,18 +167,15 @@ public final class MapPresentationCoordinator {
         refreshAll();
     }
 
-    /** Узгоджує мапу та графічний шар нейронів із моделлю, створюючи відсутні подання й вилучаючи застарілі. */
+    /** Узгоджує набір графічних вузлів із моделлю, видаляючи застарілі й створюючи відсутні подання. */
     private void synchronizeNeuronViews() {
         for (String neuronId : List.copyOf(neuronViews.keySet())) {
             var presentation = neuronService.presentation(neuronId);
             NeuronView view = neuronViews.get(neuronId);
-            if (presentation.isEmpty()
-                    || view == null
-                    || view.presentation() != presentation.orElseThrow()) {
+            if (presentation.isEmpty() || view == null || view.presentation() != presentation.orElseThrow()) {
                 removeNeuronView(neuronId);
             }
         }
-
         for (Neuron neuron : neuronService.neurons()) {
             if (!neuronViews.containsKey(neuron.id())) {
                 createNeuronView(neuron);
@@ -226,27 +183,17 @@ public final class MapPresentationCoordinator {
         }
     }
 
-    /**
-     * Створює нейронне подання, додає його до графічних шарів і реєструє обробники взаємодії.
-     *
-     * @param neuron нейрон, який існує в поточній моделі.
-     * @throws IllegalStateException якщо для нейрона немає візуального подання в моделі.
-     */
+    /** Створює нейронне подання, додає його до графічних шарів і реєструє обробники взаємодії. */
     private void createNeuronView(Neuron neuron) {
         NeuronPresentation presentation = neuronService.presentation(neuron.id())
-                .orElseThrow(() -> new IllegalStateException(
-                        "Missing presentation for neuron " + neuron.id()
-                ));
-
+                .orElseThrow(() -> new IllegalStateException("Missing presentation for neuron " + neuron.id()));
         NeuronView view = new NeuronView(presentation);
         neuronViews.put(neuron.id(), view);
         workspace.nodeLayer().getChildren().add(view);
-
         RotationHandleView handle = new RotationHandleView();
         handle.setVisible(false);
         rotationHandles.put(neuron.id(), handle);
         workspace.overlayLayer().getChildren().add(handle);
-
         try {
             neuronController.installInteractionHandlers(view, handle);
         } catch (RuntimeException | Error failure) {
@@ -255,18 +202,16 @@ public final class MapPresentationCoordinator {
         }
     }
 
-    /**
-     * Вилучає подання нейрона й пов'язану ручку обертання з мап та графічних шарів.
-     *
-     * @param neuronId ідентифікатор нейрона, подання якого потрібно вилучити.
-     */
+    /** Від'єднує обробники перед вилученням подання та ручки з мап і графічних шарів. */
     private void removeNeuronView(String neuronId) {
-        NeuronView view = neuronViews.remove(neuronId);
+        NeuronView view = neuronViews.get(neuronId);
+        RotationHandleView handle = rotationHandles.get(neuronId);
+        neuronController.uninstallInteractionHandlers(view, handle);
+        neuronViews.remove(neuronId);
+        rotationHandles.remove(neuronId);
         if (view != null) {
             removeFromParent(view);
         }
-
-        RotationHandleView handle = rotationHandles.remove(neuronId);
         if (handle != null) {
             handle.dispose();
             removeFromParent(handle);
@@ -277,15 +222,10 @@ public final class MapPresentationCoordinator {
     private void refreshGroups() {
         workspace.groupLayer().getChildren().clear();
         neuronService.model().groups().forEach(group ->
-                workspace.groupLayer().getChildren().add(new GroupView(group, neuronViews))
-        );
+                workspace.groupLayer().getChildren().add(new GroupView(group, neuronViews)));
     }
 
-    /**
-     * Вилучає графічний вузол із батьківського контейнера, якщо вузол до нього приєднаний.
-     *
-     * @param node графічний вузол, який потрібно вилучити.
-     */
+    /** Вилучає графічний вузол із батьківського контейнера, якщо вузол до нього приєднаний. */
     private static void removeFromParent(Node node) {
         Node parent = node.getParent();
         if (parent instanceof Pane pane) {

@@ -15,7 +15,7 @@ import javafx.scene.layout.StackPane;
 import java.net.URL;
 import java.util.function.Consumer;
 
-/** Збирає робочу область редактора, панель інструментів, рядок стану та накладку головного меню в одну сцену. */
+/** Збирає робочу область редактора, панель інструментів, рядок стану та накладку головного меню. */
 public final class MainView {
 
     private final StackPane root = new StackPane();
@@ -26,20 +26,10 @@ public final class MainView {
     private final StatusMessagePresenter statusMessagePresenter = new StatusMessagePresenter(statusBar);
     private final MainMenuView mainMenu;
     private boolean normalizingRootLayerOrder;
+    private boolean disposed;
     private final ListChangeListener<Node> rootLayerOrderListener = ignored -> keepMenuAboveOverlays();
 
-    /**
-     * Створює подання редактора з переданою службою локалізації.
-     *
-     * @param addNeuron дія додавання нейрона вибраного типу.
-     * @param group дія групування поточного вибору.
-     * @param ungroup дія розгрупування поточного вибору.
-     * @param pauseResume дія перемикання паузи симуляції.
-     * @param stopSignals дія зупинки передачі сигналів.
-     * @param speedChanged обробник зміни швидкості симуляції.
-     * @param initialSpeedMillis початкова тривалість такту симуляції в мілісекундах.
-     * @param localization служба локалізації повідомлень інтерфейсу.
-     */
+    /** Створює подання редактора з переданою службою локалізації. */
     public MainView(
             Consumer<NeuronType> addNeuron,
             Runnable group,
@@ -50,36 +40,20 @@ public final class MainView {
             double initialSpeedMillis,
             LocalizationService localization
     ) {
-        toolbar = new ToolbarView(
-                addNeuron, group, ungroup, pauseResume, stopSignals,
+        toolbar = new ToolbarView(addNeuron, group, ungroup, pauseResume, stopSignals,
                 speedChanged, initialSpeedMillis, localization);
         mainMenu = new MainMenuView(localization, this::setMainMenuVisualState);
-
         content.getStyleClass().add("root");
         content.getChildren().addAll(toolbar.node(), workspace.node(), statusBar.node());
         content.setPickOnBounds(true);
         content.requestLayout();
-
         root.getStyleClass().add("root");
         root.getChildren().addAll(content, mainMenu);
         root.setPickOnBounds(true);
         root.getChildren().addListener(rootLayerOrderListener);
     }
 
-    /**
-     * Зберігає сумісність зі старими викликами конструктора, що передавали callback вилученої кнопки.
-     * Переданий callback не використовується, оскільки кнопки виходу з режиму видалення більше немає.
-     *
-     * @param addNeuron дія додавання нейрона вибраного типу.
-     * @param group дія групування поточного вибору.
-     * @param ungroup дія розгрупування поточного вибору.
-     * @param ignoredExitDeleteConnectionMode дія застарілої кнопки, яка більше не використовується.
-     * @param pauseResume дія перемикання паузи симуляції.
-     * @param stopSignals дія зупинки передачі сигналів.
-     * @param speedChanged обробник зміни швидкості симуляції.
-     * @param initialSpeedMillis початкова тривалість такту симуляції в мілісекундах.
-     * @param localization служба локалізації повідомлень інтерфейсу.
-     */
+    /** Зберігає сумісність зі старими викликами конструктора, що передавали callback вилученої кнопки. */
     public MainView(
             Consumer<NeuronType> addNeuron,
             Runnable group,
@@ -91,16 +65,7 @@ public final class MainView {
             double initialSpeedMillis,
             LocalizationService localization
     ) {
-        this(
-                addNeuron,
-                group,
-                ungroup,
-                pauseResume,
-                stopSignals,
-                speedChanged,
-                initialSpeedMillis,
-                localization
-        );
+        this(addNeuron, group, ungroup, pauseResume, stopSignals, speedChanged, initialSpeedMillis, localization);
     }
 
     /** Створює сцену JavaFX та додає основну таблицю стилів. */
@@ -125,9 +90,14 @@ public final class MainView {
         statusMessagePresenter.resume();
     }
 
-    /** Звільняє ресурси подання та від'єднує слухача порядку графічних шарів. */
+    /** Звільняє підписки панелі інструментів, рядка стану й порядку графічних шарів; повторний виклик безпечний. */
     public void dispose() {
+        if (disposed) {
+            return;
+        }
+        disposed = true;
         root.getChildren().removeListener(rootLayerOrderListener);
+        toolbar.dispose();
         statusMessagePresenter.dispose();
     }
 
@@ -165,18 +135,12 @@ public final class MainView {
         }
     }
 
-    /**
-     * Повертає головне меню на передній план, якщо під час його показу додано іншу накладку.
-     * Повторні повідомлення від перестановки дочірніх вузлів блокуються прапорцем, щоб уникнути рекурсії.
-     */
+    /** Повертає головне меню на передній план без рекурсивної перебудови списку вузлів. */
     private void keepMenuAboveOverlays() {
-        if (normalizingRootLayerOrder
-                || !mainMenu.isMenuVisible()
-                || root.getChildren().isEmpty()
+        if (normalizingRootLayerOrder || !mainMenu.isMenuVisible() || root.getChildren().isEmpty()
                 || root.getChildren().get(root.getChildren().size() - 1) == mainMenu) {
             return;
         }
-
         normalizingRootLayerOrder = true;
         try {
             mainMenu.toFront();
@@ -196,13 +160,10 @@ public final class MainView {
             if (width <= 0.0 || height <= 0.0) {
                 return;
             }
-
             double toolbarHeight = Math.min(ToolbarView.HEIGHT, height);
-            double statusHeight = Math.min(StatusBarView.HEIGHT,
-                    Math.max(0.0, height - toolbarHeight));
+            double statusHeight = Math.min(StatusBarView.HEIGHT, Math.max(0.0, height - toolbarHeight));
             double statusY = height - statusHeight;
             double viewportHeight = Math.max(0.0, statusY - toolbarHeight);
-
             Pane toolbar = (Pane) getChildren().get(0);
             Pane viewport = (Pane) getChildren().get(1);
             Pane status = (Pane) getChildren().get(2);
