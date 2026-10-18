@@ -1,0 +1,6 @@
+/* Стиль тимчасового штрихового зв'язку, незалежний від постійних зв'язків. */
+.connection-preview-line {
+    -fx-stroke: #c5ccd6;
+    -fx-stroke-width: 2.2;
+    -fx-stroke-dash-array: 9 7;
+}

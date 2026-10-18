@@ -25,7 +25,9 @@ import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
-/** Створює панель інструментів редактора та керує її підписками на локалізацію і сцену. */
+/**
+ * Створює панель інструментів редактора та керує її підписками на локалізацію і сцену.
+ */
 public final class ToolbarView {
 
     public static final double HEIGHT = 54.0;
@@ -149,8 +151,6 @@ public final class ToolbarView {
         speedField.setPrefWidth(88.0);
         speedField.setText(NumberDisplayFormatter.format(initialSpeedMillis));
         appliedSpeedMillis = initialSpeedMillis;
-        speedField.setAlignment(Pos.CENTER_LEFT);
-        speedField.setStyle("-fx-alignment: CENTER-LEFT;");
         speedField.setTextFormatter(new TextFormatter<>(numericSpeedFilter()));
         speedField.addEventHandler(ActionEvent.ACTION, speedActionHandler);
         speedField.focusedProperty().addListener(speedFocusListener);
@@ -175,22 +175,38 @@ public final class ToolbarView {
         refreshTexts();
     }
 
-    /** Повертає кореневий вузол інтерфейсу. */
+    /**
+     * Повертає кореневий вузол інтерфейсу.
+     *
+     * @return коренева панель інструментів.
+     */
     public HBox node() {
         return root;
     }
 
-    /** Повертає кнопку додавання збуджувального нейрона. */
+    /**
+     * Повертає кнопку додавання збуджувального нейрона.
+     *
+     * @return кнопка створення збуджувального нейрона.
+     */
     public Button addExcitatoryButton() {
         return addExcitatoryButton;
     }
 
-    /** Повертає кнопку додавання гальмівного нейрона. */
+    /**
+     * Повертає кнопку додавання гальмівного нейрона.
+     *
+     * @return кнопка створення гальмівного нейрона.
+     */
     public Button addInhibitoryButton() {
         return addInhibitoryButton;
     }
 
-    /** Відображає або приховує елементи керування активною симуляцією. */
+    /**
+     * Відображає або приховує елементи керування активною симуляцією.
+     *
+     * @param visible чи потрібно показати елементи.
+     */
     public void setSimulationControlsVisible(boolean visible) {
         simulationSeparator.setVisible(visible);
         simulationSeparator.setManaged(visible);
@@ -200,20 +216,33 @@ public final class ToolbarView {
         stopSignalsButton.setManaged(visible);
     }
 
-    /** Оновлює вигляд елементів керування, щоб показати, чи симуляція призупинена. */
+    /**
+     * Оновлює вигляд елемента керування, щоб показати стан паузи симуляції.
+     *
+     * @param paused чи призупинено симуляцію.
+     */
     public void setSimulationPaused(boolean paused) {
         pauseResumeButton.setText(paused ? "▶" : "❚❚");
         pauseResumeButton.setTooltip(new Tooltip(localization.text(
                 paused ? "toolbar.resume.tooltip" : "toolbar.pause.tooltip")));
     }
 
-    /** Установлює значення швидкості симуляції, яке показує панель інструментів. */
+    /**
+     * Установлює значення швидкості симуляції, яке показує панель інструментів.
+     *
+     * @param millis тривалість такту в мілісекундах.
+     */
     public void setSimulationSpeedMillis(double millis) {
         appliedSpeedMillis = millis;
         speedField.setText(NumberDisplayFormatter.format(millis));
     }
 
-    /** Установлює координати вказівника, а за відсутності скінченних координат очищує підпис. */
+    /**
+     * Установлює координати вказівника або очищує підпис, якщо координати не скінченні.
+     *
+     * @param x горизонтальна координата.
+     * @param y вертикальна координата.
+     */
     public void setCameraCoordinates(double x, double y) {
         if (!Double.isFinite(x) || !Double.isFinite(y)) {
             cameraCoordinatesLabel.setText("");
@@ -223,7 +252,9 @@ public final class ToolbarView {
                 + ", Y: " + NumberDisplayFormatter.format(y));
     }
 
-    /** Від'єднує слухач локалізації та фільтр сцени, не зачіпаючи обробники, додані іншими власниками. */
+    /**
+     * Від'єднує власні слухачі та фільтр сцени; повторний виклик безпечний.
+     */
     public void dispose() {
         if (disposed) {
             return;
@@ -243,7 +274,13 @@ public final class ToolbarView {
         stopSignalsButton.removeEventHandler(ActionEvent.ACTION, stopSignalsHandler);
     }
 
-    /** Під'єднує обробник кліків до поточної сцени, зберігаючи фактичного власника реєстрації. */
+    /**
+     * Під'єднує фільтр кліків до нової сцени й від'єднує його від попередньої.
+     *
+     * @param observable властивість сцени.
+     * @param oldScene попередня сцена.
+     * @param newScene нова сцена.
+     */
     private void handleSceneChanged(
             javafx.beans.value.ObservableValue<? extends Scene> observable,
             Scene oldScene,
@@ -254,7 +291,11 @@ public final class ToolbarView {
         attachSceneMouseFilter(newScene);
     }
 
-    /** Додає обробник до сцени, якщо вона існує й панель ще не звільнена. */
+    /**
+     * Додає фільтр до сцени, якщо панель ще не звільнена.
+     *
+     * @param scene сцена, на яку додається фільтр.
+     */
     private void attachSceneMouseFilter(Scene scene) {
         if (disposed || scene == null || scene == sceneWithMouseFilter) {
             return;
@@ -264,14 +305,20 @@ public final class ToolbarView {
         sceneWithMouseFilter = scene;
     }
 
-    /** Знімає обробник зі сцени, де він фактично був зареєстрований. */
+    /**
+     * Знімає фільтр із тієї сцени, де його фактично зареєстровано.
+     *
+     * @param scene сцена для очищення.
+     */
     private void detachSceneMouseFilter(Scene scene) {
         if (scene != null) {
             scene.removeEventFilter(MouseEvent.MOUSE_PRESSED, sceneMousePressedHandler);
         }
     }
 
-    /** Оновлює підписи панелі інструментів відповідно до поточної мови інтерфейсу. */
+    /**
+     * Оновлює написи панелі інструментів відповідно до поточної мови.
+     */
     private void refreshTexts() {
         if (disposed) {
             return;
@@ -290,7 +337,11 @@ public final class ToolbarView {
         setSimulationPaused(pauseResumeButton.getText().equals("▶"));
     }
 
-    /** Завершує редагування швидкості, коли користувач клацає за межами текстового поля. */
+    /**
+     * Завершує редагування швидкості, якщо користувач натиснув поза текстовим полем.
+     *
+     * @param event подія натискання миші.
+     */
     private void handleSceneMousePressed(MouseEvent event) {
         if (disposed || !speedField.isFocused()) {
             return;
@@ -301,7 +352,9 @@ public final class ToolbarView {
         }
     }
 
-    /** Перевіряє введену тривалість такту й передає нове значення контролеру симуляції. */
+    /**
+     * Перевіряє введену тривалість такту та передає нове значення контролеру.
+     */
     private void commitSpeedEdit() {
         if (committingSpeed || disposed) {
             return;
@@ -320,7 +373,12 @@ public final class ToolbarView {
         }
     }
 
-    /** Перевіряє, чи відповідає введення вже застосованій швидкості без зайвого запису до сховища. */
+    /**
+     * Перевіряє, чи дорівнює введення вже застосованій швидкості.
+     *
+     * @param text введене значення.
+     * @return {@code true}, якщо значення вже застосовано.
+     */
     private boolean isAppliedSpeed(String text) {
         try {
             double enteredMillis = Double.parseDouble(text);
@@ -330,7 +388,11 @@ public final class ToolbarView {
         }
     }
 
-    /** Створює фільтр текстового поля, який дозволяє вводити лише число допустимого формату. */
+    /**
+     * Створює фільтр поля швидкості, який пропускає лише число допустимого формату.
+     *
+     * @return фільтр введення.
+     */
     private static UnaryOperator<TextFormatter.Change> numericSpeedFilter() {
         return change -> {
             String text = change.getControlNewText();
@@ -341,7 +403,13 @@ public final class ToolbarView {
         };
     }
 
-    /** Перевіряє, чи є вузол ціллю або нащадком заданого вузла. */
+    /**
+     * Перевіряє, чи є вузол ціллю або нащадком заданого вузла.
+     *
+     * @param target вузол для перевірки.
+     * @param parent шуканий предок.
+     * @return {@code true}, якщо вузол збігається або є нащадком.
+     */
     private static boolean isDescendantOrSelf(Node target, Node parent) {
         Node current = target;
         while (current != null) {
@@ -353,14 +421,23 @@ public final class ToolbarView {
         return false;
     }
 
-    /** Створює кнопку інструмента панелі редактора зі спільним оформленням. */
+    /**
+     * Створює кнопку інструмента панелі редактора.
+     *
+     * @return кнопка з базовим CSS-класом інструмента.
+     */
     private static Button toolButton() {
         Button button = new Button();
         button.getStyleClass().add("tool-button");
         return button;
     }
 
-    /** Створює кнопку панелі інструментів із заданим текстом та значком. */
+    /**
+     * Створює кнопку панелі інструментів із заданим значком.
+     *
+     * @param text текст кнопки.
+     * @return оформлена кнопка.
+     */
     private static Button iconButton(String text) {
         Button button = new Button(text);
         button.getStyleClass().add("tool-button");

@@ -1,0 +1,7 @@
+/* Оформлення виділення групи нейронів на полотні редактора. */
+.group-rect {
+    -fx-fill: rgba(95, 108, 128, 0.08);
+    -fx-stroke: #687185;
+    -fx-stroke-width: 1.5;
+    -fx-stroke-dash-array: 8 5;
+}

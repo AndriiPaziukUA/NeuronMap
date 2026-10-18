@@ -1,0 +1,30 @@
+/* Базове оформлення оболонки редактора, полотна та рядка стану. */
+.root {
+    -fx-font-family: "Segoe UI", "Inter", sans-serif;
+    -fx-font-size: 13px;
+    -fx-background-color: #17191d;
+}
+
+.canvas {
+    -fx-background-color: #13161a;
+}
+
+.content {
+    -fx-background-color: transparent;
+}
+
+.status-bar {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.status-label {
+    -fx-background-color: rgba(28, 32, 38, 0.96);
+    -fx-text-fill: #c1c8d2;
+    -fx-background-radius: 7;
+    -fx-border-color: #3a4049;
+    -fx-border-width: 1;
+    -fx-border-radius: 7;
+    -fx-padding: 5 10 5 10;
+    -fx-font-size: 12px;
+}

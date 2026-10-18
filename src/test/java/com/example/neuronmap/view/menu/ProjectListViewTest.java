@@ -49,7 +49,6 @@ final class ProjectListViewTest {
             try {
                 List<SavedProjectRowView> rows = list.rowsForTest();
                 fireMouseClick(rows.get(0), 1);
-
                 assertTrue(rows.get(0).isSelected());
                 assertFalse(rows.get(1).isSelected());
                 assertTrue(rows.get(0).getStyleClass().contains("selected"));
@@ -70,7 +69,6 @@ final class ProjectListViewTest {
                 List<SavedProjectRowView> rows = list.rowsForTest();
                 fireMouseClick(rows.get(0), 1);
                 fireMouseClick(rows.get(1), 1);
-
                 assertFalse(rows.get(0).isSelected());
                 assertFalse(rows.get(0).getStyleClass().contains("selected"));
                 assertTrue(rows.get(1).isSelected());
@@ -91,7 +89,6 @@ final class ProjectListViewTest {
             try {
                 List<SavedProjectRowView> rows = list.rowsForTest();
                 fireMouseClick(rows.get(1), 2);
-
                 assertTrue(rows.get(1).isSelected());
                 assertFalse(rows.get(0).isSelected());
                 assertNotNull(openedProject.get(), "Подвійний клік має викликати відкриття проєкту");
@@ -102,11 +99,11 @@ final class ProjectListViewTest {
         });
     }
 
-    /** Перевіряє, що CSS має окремі стани постійного вибору й наведення для виразної різниці кольорів. */
+    /** Перевіряє окремі стани вибору й наведення у власній таблиці стилів списку проєктів. */
     @Test
     void stylesheetDistinguishesSelectedAndHoveredRows() throws Exception {
-        try (InputStream stream = ProjectListView.class.getResourceAsStream("/menu-enhancements.css")) {
-            assertNotNull(stream, "Таблиця стилів меню має бути доступною в classpath");
+        try (InputStream stream = ProjectListView.class.getResourceAsStream("/project-list.css")) {
+            assertNotNull(stream, "Таблиця стилів списку проєктів має бути доступною в classpath");
             String css = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
             assertTrue(css.contains(".saved-project-row.selected {"));
             assertTrue(css.contains(".saved-project-row.selected:hover {"));
@@ -119,10 +116,7 @@ final class ProjectListViewTest {
     private static ProjectListView createList(AtomicReference<ProjectDescriptor> openedProject) {
         ProjectListView list = new ProjectListView(new LocalizationService(Locale.ENGLISH));
         list.showProjects(
-                List.of(
-                        project("project-one", "Перший проєкт"),
-                        project("project-two", "Другий проєкт")
-                ),
+                List.of(project("project-one", "Перший проєкт"), project("project-two", "Другий проєкт")),
                 openedProject::set,
                 (original, name) -> new ProjectDescriptor(
                         original.id(), name, original.databasePath(), original.modifiedAt()),
@@ -133,11 +127,7 @@ final class ProjectListViewTest {
     /** Створює стабільний дескриптор проєкту без залежності від файлової системи. */
     private static ProjectDescriptor project(String id, String name) {
         return new ProjectDescriptor(
-                id,
-                name,
-                Path.of(id + ".db"),
-                Instant.parse("2026-01-01T00:00:00Z")
-        );
+                id, name, Path.of(id + ".db"), Instant.parse("2026-01-01T00:00:00Z"));
     }
 
     /** Передає рядку подію кліку з заданою кількістю натискань через механізм подій JavaFX. */

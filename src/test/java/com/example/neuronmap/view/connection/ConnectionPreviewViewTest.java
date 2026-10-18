@@ -24,11 +24,13 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє стиль, геометрію та життєвий цикл тимчасового графічного прев’ю зв’язку.
+ * Перевіряє CSS-стиль, геометрію та життєвий цикл тимчасового графічного прев'ю зв'язку.
  */
 final class ConnectionPreviewViewTest {
 
-    /** Запускає JavaFX toolkit перед тестами графічного подання. */
+    /**
+     * Запускає JavaFX toolkit перед тестами графічного подання.
+     */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -40,7 +42,9 @@ final class ConnectionPreviewViewTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
     }
 
-    /** Перевіряє стиль лінії та її розміщення на шарі накладок від виходу джерела до курсора. */
+    /**
+     * Перевіряє CSS-стиль лінії та її розташування від виходу нейрона до курсора.
+     */
     @Test
     void showCreatesStyledMouseTransparentLineAtSourceAndCursor() throws Exception {
         runOnFxThread(() -> {
@@ -49,9 +53,11 @@ final class ConnectionPreviewViewTest {
             Point2D cursor = new Point2D(310.0, 245.0);
 
             preview.show(fixture.source(), cursor);
+            fixture.workspace().node().applyCss();
 
             assertEquals(1, fixture.workspace().overlayLayer().getChildren().size());
             Line line = (Line) fixture.workspace().overlayLayer().getChildren().getFirst();
+            assertTrue(line.getStyleClass().contains("connection-preview-line"));
             assertEquals(Color.web("#c5ccd6"), line.getStroke());
             assertEquals(2.2, line.getStrokeWidth(), 0.001);
             assertEquals(java.util.List.of(9.0, 7.0), line.getStrokeDashArray());
@@ -59,12 +65,13 @@ final class ConnectionPreviewViewTest {
             assertLineStartsAtSource(line, fixture.workspace(), fixture.source());
             assertEquals(cursor.getX(), line.getEndX(), 0.001);
             assertEquals(cursor.getY(), line.getEndY(), 0.001);
-
             preview.hide();
         });
     }
 
-    /** Перевіряє, що оновлення враховує переміщення джерела, напрямок нейрона та зміну камери. */
+    /**
+     * Перевіряє оновлення після переміщення джерела, зміни напрямку нейрона й трансформації камери.
+     */
     @Test
     void updateRecalculatesGeometryAfterSourceAndCameraChanges() throws Exception {
         runOnFxThread(() -> {
@@ -72,14 +79,12 @@ final class ConnectionPreviewViewTest {
             ConnectionPreviewView preview = new ConnectionPreviewView(fixture.workspace());
             preview.show(fixture.source(), new Point2D(200.0, 180.0));
             Line line = (Line) fixture.workspace().overlayLayer().getChildren().getFirst();
-
             fixture.workspace().setWorldTransform(1.75, 42.0, 28.0);
             fixture.source().presentation().setPosition(220.0, 150.0);
             fixture.source().presentation().setDirectionReversed(true);
             fixture.source().refreshVisuals(false);
             Point2D updatedCursor = new Point2D(415.0, 335.0);
             preview.update(fixture.source(), updatedCursor);
-
             assertLineStartsAtSource(line, fixture.workspace(), fixture.source());
             assertEquals(updatedCursor.getX(), line.getEndX(), 0.001);
             assertEquals(updatedCursor.getY(), line.getEndY(), 0.001);
@@ -87,7 +92,9 @@ final class ConnectionPreviewViewTest {
         });
     }
 
-    /** Перевіряє ідемпотентність показу й приховування та не відновлює приховану лінію під час оновлення. */
+    /**
+     * Перевіряє, що повторні show/hide не дублюють лінію й не відновлюють приховане прев'ю.
+     */
     @Test
     void repeatedShowAndHideDoNotDuplicateOrLeakPreviewLine() throws Exception {
         runOnFxThread(() -> {
@@ -96,19 +103,16 @@ final class ConnectionPreviewViewTest {
             Point2D firstCursor = new Point2D(150.0, 160.0);
             preview.show(fixture.source(), firstCursor);
             Line firstLine = (Line) fixture.workspace().overlayLayer().getChildren().getFirst();
-
             preview.show(fixture.source(), new Point2D(260.0, 270.0));
             assertEquals(1, fixture.workspace().overlayLayer().getChildren().size());
             assertSame(firstLine, fixture.workspace().overlayLayer().getChildren().getFirst());
             assertEquals(260.0, firstLine.getEndX(), 0.001);
             assertEquals(270.0, firstLine.getEndY(), 0.001);
-
             preview.hide();
             preview.hide();
             assertTrue(fixture.workspace().overlayLayer().getChildren().isEmpty());
             preview.update(fixture.source(), new Point2D(350.0, 360.0));
             assertTrue(fixture.workspace().overlayLayer().getChildren().isEmpty());
-
             preview.show(fixture.source(), firstCursor);
             Line secondLine = (Line) fixture.workspace().overlayLayer().getChildren().getFirst();
             assertNotSame(firstLine, secondLine);
@@ -119,45 +123,44 @@ final class ConnectionPreviewViewTest {
     }
 
     /**
-     * Створює полотно зі сценним нейроном, щоб перевіряти реальні перетворення координат JavaFX.
+     * Створює сценне полотно з нейроном для перевірки координат JavaFX.
      *
-     * @return підготовлене полотно, подання нейрона та сцену.
+     * @return полотно, подання нейрона й сцену.
      */
     private static PreviewFixture createFixture() {
         WorkspaceView workspace = new WorkspaceView();
         Neuron sourceModel = new Neuron("preview-source", NeuronType.EXCITATORY, 0);
-        NeuronView source = new NeuronView(
-                new NeuronPresentation(sourceModel, 100.0, 80.0, 0.0)
-        );
+        NeuronView source = new NeuronView(new NeuronPresentation(sourceModel, 100.0, 80.0, 0.0));
         workspace.nodeLayer().getChildren().add(source);
         Scene scene = new Scene(workspace.node(), 800.0, 600.0);
+        scene.getStylesheets().add(
+                ConnectionPreviewViewTest.class.getResource("/app.css").toExternalForm());
         scene.getRoot().applyCss();
         scene.getRoot().layout();
         return new PreviewFixture(workspace, source, scene);
     }
 
     /**
-     * Перевіряє, що початок лінії відповідає вихідному порту нейрона в координатах накладки.
+     * Перевіряє, що початок лінії збігається з вихідним портом нейрона в координатах накладки.
      *
-     * @param line графічна лінія прев’ю.
+     * @param line лінія прев'ю.
      * @param workspace полотно редактора.
      * @param source нейрон-джерело.
      */
-    private static void assertLineStartsAtSource(
-            Line line,
-            WorkspaceView workspace,
-            NeuronView source
-    ) {
+    private static void assertLineStartsAtSource(Line line, WorkspaceView workspace, NeuronView source) {
         Point2D expectedScenePoint = source.localToScene(
-                NeuronVisualGeometry.outputTipX(source.isDirectionReversed()),
-                NeuronView.HEIGHT / 2.0
-        );
+                NeuronVisualGeometry.outputTipX(source.isDirectionReversed()), NeuronView.HEIGHT / 2.0);
         Point2D expectedPoint = workspace.node().sceneToLocal(expectedScenePoint);
         assertEquals(expectedPoint.getX(), line.getStartX(), 0.001);
         assertEquals(expectedPoint.getY(), line.getStartY(), 0.001);
     }
 
-    /** Виконує тестову дію в потоці JavaFX і передає помилку до потоку JUnit. */
+    /**
+     * Виконує дію в потоці JavaFX і передає помилки до потоку JUnit.
+     *
+     * @param action дія для JavaFX.
+     * @throws Exception якщо перевірка не завершується вчасно.
+     */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];
@@ -176,7 +179,9 @@ final class ConnectionPreviewViewTest {
         }
     }
 
-    /** Зберігає вузли тестового полотна, потрібні для перевірки координат у сцені. */
+    /**
+     * Утримує об'єкти тестової сцени протягом перевірки геометрії.
+     */
     private record PreviewFixture(WorkspaceView workspace, NeuronView source, Scene scene) {
     }
 }

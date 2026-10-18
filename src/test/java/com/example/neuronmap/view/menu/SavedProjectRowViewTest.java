@@ -52,13 +52,11 @@ final class SavedProjectRowViewTest {
             try {
                 Button rename = row.renameButtonForTest();
                 Button delete = row.deleteButtonForTest();
-
                 assertEquals("", rename.getText());
                 assertTrue(rename.getGraphic() instanceof SVGPath,
                         "Перейменування має відображатися контурною іконкою олівця");
                 assertEquals("Перейменувати", tooltipText(rename));
                 assertEquals("Перейменувати", rename.getAccessibleText());
-
                 assertEquals("", delete.getText());
                 assertTrue(delete.getGraphic() instanceof Region,
                         "Видалення має відображатися графічним дефісом, а не текстовим символом");
@@ -81,7 +79,7 @@ final class SavedProjectRowViewTest {
         });
     }
 
-    /** Перевіряє, що збереження й скасування редагування не показують спливаючих підказок. */
+    /** Переконується, що збереження й скасування редагування не показують спливаючих підказок. */
     @Test
     void saveAndCancelButtonsHaveNoTooltipsDuringRename() throws Exception {
         runOnFxThread(() -> {
@@ -89,7 +87,6 @@ final class SavedProjectRowViewTest {
             SavedProjectRowView row = createRow(localization, new AtomicBoolean());
             try {
                 row.renameButtonForTest().fire();
-
                 assertTrue(row.isEditing());
                 assertEquals("Зберегти", row.renameButtonForTest().getText());
                 assertNull(row.renameButtonForTest().getGraphic());
@@ -98,7 +95,6 @@ final class SavedProjectRowViewTest {
                 assertTrue(row.cancelButtonForTest().isVisible());
                 assertEquals("Скасувати", row.cancelButtonForTest().getText());
                 assertNull(row.cancelButtonForTest().getTooltip());
-
                 row.cancelButtonForTest().fire();
                 assertFalse(row.isEditing());
                 assertEquals("", row.renameButtonForTest().getText());
@@ -115,8 +111,7 @@ final class SavedProjectRowViewTest {
     void deleteIconStillInvokesTheProvidedAction() throws Exception {
         runOnFxThread(() -> {
             AtomicBoolean deleteInvoked = new AtomicBoolean();
-            SavedProjectRowView row = createRow(
-                    new LocalizationService(Locale.ENGLISH), deleteInvoked);
+            SavedProjectRowView row = createRow(new LocalizationService(Locale.ENGLISH), deleteInvoked);
             try {
                 row.deleteButtonForTest().fire();
                 assertTrue(deleteInvoked.get());
@@ -126,15 +121,15 @@ final class SavedProjectRowViewTest {
         });
     }
 
-    /** Перевіряє наявність окремих правил наведення для червоної дії видалення та зеленої дії збереження. */
+    /** Перевіряє локальні CSS-правила наведення для видалення й збереження рядка проєкту. */
     @Test
     void stylesheetDefinesDeleteAndSaveHoverStates() throws Exception {
-        try (InputStream stream = SavedProjectRowView.class.getResourceAsStream("/menu-enhancements.css")) {
-            assertNotNull(stream, "Таблиця стилів меню має бути доступною в classpath");
+        try (InputStream stream = SavedProjectRowView.class.getResourceAsStream("/project-list.css")) {
+            assertNotNull(stream, "Таблиця стилів списку проєктів має бути доступною в classpath");
             String css = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-            assertTrue(css.contains(".saved-project-delete-button:hover"));
+            assertTrue(css.contains(".saved-project-row .saved-project-delete-button:hover"));
             assertTrue(css.contains("#642c30"));
-            assertTrue(css.contains(".saved-project-save-button:hover"));
+            assertTrue(css.contains(".saved-project-row .saved-project-save-button:hover"));
             assertTrue(css.contains("#245b3a"));
         }
 

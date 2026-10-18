@@ -1,4 +1,28 @@
-/* Власний стиль кнопок діалогу незбережених змін. Він відтворює вигляд кнопки «Назад» незалежно від неї. */
+/* Самодостатнє оформлення діалогу незбережених змін та його дій. */
+.unsaved-overlay {
+    -fx-background-color: rgba(0,0,0,0.28);
+}
+
+.unsaved-card {
+    -fx-background-color: #242930;
+    -fx-border-color: #545b66;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.55), 22, 0.28, 0, 6);
+}
+
+.unsaved-title {
+    -fx-text-fill: #eef1f4;
+    -fx-font-size: 16px;
+    -fx-font-weight: 700;
+}
+
+.unsaved-message {
+    -fx-text-fill: #c6cdd6;
+    -fx-font-size: 13px;
+}
+
+/* Кнопки мають незалежний стиль і не залежать від таблиці стилів головного меню. */
 .unsaved-overlay .unsaved-action-button {
     -fx-background-color: transparent;
     -fx-text-fill: #b8c0ca;

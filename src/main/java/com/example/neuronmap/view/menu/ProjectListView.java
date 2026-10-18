@@ -7,17 +7,23 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
+import java.net.URL;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
-/** Відображає список збережених проєктів і керує життєвим циклом його рядків та вибором одного рядка. */
+/**
+ * Відображає список збережених проєктів і керує життєвим циклом його рядків та вибором одного рядка.
+ */
 public final class ProjectListView extends VBox {
 
-    /** Ширина вертикальної смуги прокручування, задана стилями списку меню. */
+    /**
+     * Ширина вертикальної смуги прокручування, задана стилями списку.
+     */
     private static final double VERTICAL_SCROLL_BAR_WIDTH = 9.0;
+    private static final String STYLESHEET_RESOURCE = "/project-list.css";
 
     private final LocalizationService localization;
     private final Consumer<Locale> localizationListener = ignored -> refreshTexts();
@@ -31,12 +37,19 @@ public final class ProjectListView extends VBox {
      * Створює контейнер списку збережених проєктів.
      *
      * @param localization служба локалізації підпису порожнього списку та рядків проєктів.
+     * @throws NullPointerException якщо службу локалізації не задано.
+     * @throws IllegalStateException якщо таблиця стилів списку відсутня в classpath.
      */
     public ProjectListView(LocalizationService localization) {
         this.localization = Objects.requireNonNull(localization, "localization");
+        URL stylesheet = getClass().getResource(STYLESHEET_RESOURCE);
+        if (stylesheet == null) {
+            throw new IllegalStateException(STYLESHEET_RESOURCE + " is missing");
+        }
+        getStylesheets().add(stylesheet.toExternalForm());
         setMinSize(0.0, 0.0);
         setFillWidth(true);
-        emptyProjectsLabel.getStyleClass().add("main-menu-hint");
+        emptyProjectsLabel.getStyleClass().add("project-list-empty-hint");
         projectRowsBox.setMinSize(0.0, 0.0);
         localization.addListener(localizationListener);
         refreshTexts();
@@ -113,7 +126,9 @@ public final class ProjectListView extends VBox {
         getChildren().setAll(scrollPane);
     }
 
-    /** Оновлює локалізований напис для випадку, коли немає збережених проєктів. */
+    /**
+     * Оновлює локалізований напис для випадку, коли немає збережених проєктів.
+     */
     public void refreshTexts() {
         emptyProjectsLabel.setText(localization.text("menu.no_saved_projects"));
     }
@@ -157,28 +172,36 @@ public final class ProjectListView extends VBox {
         return projectRows.stream().anyMatch(SavedProjectRowView::hasUnsavedChanges);
     }
 
-    /** Підтверджує незавершені зміни назв у порядку відображення рядків. */
+    /**
+     * Підтверджує незавершені зміни назв у порядку відображення рядків.
+     */
     public void savePendingChanges() {
         for (SavedProjectRowView row : projectRows) {
             row.savePendingChange();
         }
     }
 
-    /** Відхиляє незавершені зміни назв у всіх рядках списку. */
+    /**
+     * Відхиляє незавершені зміни назв у всіх рядках списку.
+     */
     public void discardPendingChanges() {
         for (SavedProjectRowView row : projectRows) {
             row.discardPendingChange();
         }
     }
 
-    /** Звільняє слухачів рядків і прибирає вміст сторінки перед переходом до іншої сторінки. */
+    /**
+     * Звільняє слухачів рядків і прибирає вміст сторінки перед переходом до іншої сторінки.
+     */
     public void clear() {
         clearRows();
         getChildren().clear();
         scrollPane = null;
     }
 
-    /** Звільняє ресурси рядків і від'єднує слухача локалізації. */
+    /**
+     * Звільняє ресурси рядків і від'єднує слухача локалізації.
+     */
     public void dispose() {
         clear();
         localization.removeListener(localizationListener);
@@ -218,7 +241,9 @@ public final class ProjectListView extends VBox {
         selectedRow.setSelected(true);
     }
 
-    /** Звільняє ресурси рядків і скидає вибір перед побудовою нового вмісту списку. */
+    /**
+     * Звільняє ресурси рядків і скидає вибір перед побудовою нового вмісту списку.
+     */
     private void clearRows() {
         if (selectedRow != null) {
             selectedRow.setSelected(false);

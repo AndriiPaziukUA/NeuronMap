@@ -1,129 +1,97 @@
-/* Scrollbars stay hidden unless needed, and use a visible, draggable thumb when active. */
-.main-menu-scroll {
-    -fx-background-color: transparent;
-    -fx-border-color: transparent;
-}
-
-.main-menu-scroll > .viewport {
+/* Оформлення головного меню та його локальних елементів керування. */
+.main-menu-overlay {
     -fx-background-color: transparent;
 }
 
-.main-menu-scroll .scroll-bar:vertical {
-    -fx-background-color: transparent;
-    -fx-padding: 1 1 1 1;
-    -fx-min-width: 9px;
-    -fx-pref-width: 9px;
-    -fx-max-width: 9px;
-    -fx-opacity: 1;
+.main-menu-overlay .main-menu-backdrop {
+    -fx-fill: rgba(0, 0, 0, 0.5);
 }
 
-.main-menu-scroll .scroll-bar:vertical .track {
-    -fx-background-color: #292e36;
-    -fx-background-radius: 4;
-    -fx-border-color: transparent;
+.main-menu-panel {
+    -fx-background-color: #20242b;
+    -fx-border-color: #4a515c;
+    -fx-border-width: 1.2;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-padding: 22;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.55), 28, 0.28, 0, 8);
 }
 
-.main-menu-scroll .scroll-bar:vertical .thumb {
-    -fx-background-color: #687383;
-    -fx-background-radius: 4;
-    -fx-background-insets: 0;
+.main-menu-title {
+    -fx-text-fill: #f0f2f5;
+    -fx-font-size: 22px;
+    -fx-font-weight: 800;
 }
 
-.main-menu-scroll .scroll-bar:vertical .thumb:hover {
-    -fx-background-color: #788494;
-}
-
-.main-menu-scroll .scroll-bar:vertical .increment-button,
-.main-menu-scroll .scroll-bar:vertical .decrement-button {
-    -fx-background-color: transparent;
-    -fx-padding: 0;
-}
-
-.main-menu-scroll .scroll-bar:vertical .increment-arrow,
-.main-menu-scroll .scroll-bar:vertical .decrement-arrow {
-    -fx-background-color: transparent;
-    -fx-padding: 0;
-}
-
-/* Project row controls shrink to the available row width without clipping the project name. */
-.saved-project-row .saved-project-rename-field,
-.saved-project-row .text-field {
-    -fx-background-color: #20252c;
-    -fx-text-fill: #edf0f3;
-    -fx-prompt-text-fill: #858e9a;
-    -fx-highlight-fill: #52647c;
-    -fx-highlight-text-fill: #ffffff;
-    -fx-background-insets: 0;
-    -fx-background-radius: 6;
-    -fx-border-color: #59616d;
-    -fx-border-width: 1;
-    -fx-border-radius: 6;
-    -fx-padding: 5 8 5 8;
+.main-menu-hint {
+    -fx-text-fill: #9299a4;
     -fx-font-size: 12px;
 }
 
-.saved-project-row .saved-project-rename-field:focused,
-.saved-project-row .text-field:focused {
-    -fx-border-color: #8297b3;
-    -fx-background-color: #242a32;
+.main-menu-label {
+    -fx-text-fill: #dfe3e8;
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
 }
 
-/* A persistent selection remains stronger than hover alone; hover feedback still applies to other rows. */
-.saved-project-row.selected {
-    -fx-background-color: #3b4655;
-    -fx-border-color: #91a9c7;
-    -fx-border-width: 1.4;
-    -fx-effect: dropshadow(gaussian, rgba(145,169,199,0.20), 7, 0.15, 0, 0);
+.main-menu-button {
+    -fx-background-color: #2b3038;
+    -fx-text-fill: #edf0f3;
+    -fx-background-radius: 8;
+    -fx-border-color: #424953;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
+    -fx-cursor: hand;
 }
 
-.saved-project-row.selected:hover {
-    -fx-background-color: #46546a;
-    -fx-border-color: #b5c9e2;
+.main-menu-button:hover {
+    -fx-background-color: #373d46;
+    -fx-border-color: #59616d;
 }
 
-/* Icon controls have a compact square hit area while preserving the established button theme. */
-.saved-project-row .saved-project-rename-button,
-.saved-project-row .saved-project-delete-button {
-    -fx-padding: 3px;
-    -fx-alignment: center;
+.main-menu-button:focused {
+    -fx-background-color: #343a43;
+    -fx-border-color: #788494;
 }
 
-.saved-project-row .saved-project-icon {
-    -fx-fill: transparent;
-    -fx-stroke: #edf0f3;
-    -fx-stroke-width: 2.2;
-}
-
-.saved-project-row .saved-project-delete-icon {
-    -fx-background-color: #edf0f3;
-    -fx-background-radius: 2px;
-    -fx-min-width: 14px;
-    -fx-pref-width: 14px;
-    -fx-max-width: 14px;
-    -fx-min-height: 4px;
-    -fx-pref-height: 4px;
-    -fx-max-height: 4px;
-}
-
-/* Deletion is deliberately signalled with a red hover state. */
-.saved-project-row .saved-project-delete-button:hover {
-    -fx-background-color: #642c30;
-    -fx-border-color: #d95660;
-}
-
-.saved-project-row .saved-project-delete-button:hover .saved-project-delete-icon {
-    -fx-background-color: #ff6873;
-}
-
-/* The same control becomes a text button while editing and signals saving in green. */
-.saved-project-row .saved-project-save-button:hover {
-    -fx-background-color: #245b3a;
-    -fx-border-color: #47ad70;
-    -fx-text-fill: #e5ffed;
-}
-
-/* Hover feedback remains responsive even when a menu control previously held focus. */
 .main-menu-button:focused:hover {
     -fx-background-color: #373d46;
     -fx-border-color: #59616d;
+}
+
+.main-menu-back-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #b8c0ca;
+    -fx-border-color: #434a54;
+    -fx-border-radius: 7;
+    -fx-background-radius: 7;
+    -fx-padding: 7 18 7 18;
+    -fx-cursor: hand;
+}
+
+.main-menu-back-button:hover {
+    -fx-background-color: #2d323a;
+}
+
+.main-menu-panel .combo-box {
+    -fx-background-color: #282d35;
+    -fx-border-color: #47505c;
+    -fx-border-radius: 7;
+    -fx-background-radius: 7;
+    -fx-text-fill: #edf0f3;
+}
+
+.main-menu-panel .combo-box .list-cell {
+    -fx-text-fill: #edf0f3;
+    -fx-background-color: #282d35;
+}
+
+.main-menu-panel .combo-box-popup .list-view {
+    -fx-background-color: #242830;
+}
+
+.main-menu-panel .combo-box-popup .list-cell:hover {
+    -fx-background-color: #343a43;
 }

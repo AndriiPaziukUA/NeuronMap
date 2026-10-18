@@ -7,7 +7,6 @@ import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
-import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
@@ -27,14 +26,12 @@ public final class NeuronView extends StackPane {
 
     private final NeuronPresentation presentation;
     private final Rectangle body = new Rectangle(WIDTH, HEIGHT);
-    private final Circle inputPort =
-            new Circle(NeuronVisualGeometry.INPUT_PORT_RADIUS);
+    private final Circle inputPort = new Circle(NeuronVisualGeometry.INPUT_PORT_RADIUS);
     private final Polygon outputPort = new Polygon();
     private final Label inputSignalLabel = new Label();
     private final Label outputSignalLabel = new Label();
 
     private Integer displayedInputSignal;
-
     private boolean dragging;
     private boolean wasDragged;
     private boolean dragGroup;
@@ -44,19 +41,17 @@ public final class NeuronView extends StackPane {
     private double lastSceneY;
 
     /**
-     * Створює екземпляр NeuronView та зберігає передані залежності, потрібні для його роботи.
+     * Створює подання нейрона та його графічні дочірні вузли.
      *
      * @param presentation візуальне подання нейрона.
+     * @throws IllegalArgumentException якщо подання не задано.
      */
     public NeuronView(NeuronPresentation presentation) {
         if (presentation == null) {
-            throw new IllegalArgumentException(
-                    "presentation must not be null"
-            );
+            throw new IllegalArgumentException("presentation must not be null");
         }
 
         this.presentation = presentation;
-
         setPrefSize(WIDTH, HEIGHT);
         setMinSize(WIDTH, HEIGHT);
         setMaxSize(WIDTH, HEIGHT);
@@ -71,31 +66,17 @@ public final class NeuronView extends StackPane {
 
         configureSignalLabel(inputSignalLabel);
         configureSignalLabel(outputSignalLabel);
-
         inputPort.getStyleClass().add("port");
         inputPort.setMouseTransparent(true);
         inputPort.setManaged(false);
-
         outputPort.getStyleClass().add("port");
         outputPort.setMouseTransparent(true);
         outputPort.setManaged(false);
-
         inputSignalLabel.setManaged(false);
         outputSignalLabel.setManaged(false);
-
         inputSignalLabel.setText("0");
-        outputSignalLabel.setText(
-                Integer.toString(model().signalWeight())
-        );
-
-        getChildren().addAll(
-                body,
-                inputSignalLabel,
-                outputSignalLabel,
-                inputPort,
-                outputPort
-        );
-
+        outputSignalLabel.setText(Integer.toString(model().signalWeight()));
+        getChildren().addAll(body, inputSignalLabel, outputSignalLabel, inputPort, outputPort);
         refreshVisuals(false);
     }
 
@@ -118,46 +99,41 @@ public final class NeuronView extends StackPane {
     }
 
     /**
-     * Повертає ознаку того, що подання нейрона справді перемістили під час поточного жесту миші.
+     * Повертає ознаку фактичного переміщення під час поточного жесту миші.
      *
-     * @return ознаку того, що подання нейрона справді перемістили під час поточного жесту миші.
+     * @return {@code true}, якщо нейрон перемістили.
      */
     public boolean wasDragged() {
         return wasDragged;
     }
 
     /**
-     * Перевіряє, чи dragging за поточного стану компонента.
+     * Перевіряє стан перетягування.
      *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
+     * @return {@code true}, якщо перетягування активне.
      */
     public boolean isDragging() {
         return dragging;
     }
 
     /**
-     * Перевіряє, чи dragging group за поточного стану компонента.
+     * Перевіряє, чи перетягується група нейронів.
      *
-     * @return {@code true}, якщо умову виконано; інакше {@code false}.
+     * @return {@code true}, якщо рух відбувається в режимі групи.
      */
     public boolean isDraggingGroup() {
         return dragGroup;
     }
 
     /**
-     * Запам’ятовує початкові координати перетягування та модифікатори, які впливають на переміщення.
+     * Запам'ятовує початкові координати перетягування та модифікатори переміщення.
      *
-     * @param sceneX горизонтальна координата точки у системі координат сцени JavaFX.
-     * @param sceneY вертикальна координата точки у системі координат сцени JavaFX.
-     * @param altPressed значення «alt pressed», яке використовується в цьому методі.
-     * @param belongsToGroup значення «belongs to group», яке використовується в цьому методі.
+     * @param sceneX горизонтальна координата у системі координат сцени.
+     * @param sceneY вертикальна координата у системі координат сцени.
+     * @param altPressed чи натиснуто Alt.
+     * @param belongsToGroup чи належить нейрон до групи.
      */
-    public void beginDrag(
-            double sceneX,
-            double sceneY,
-            boolean altPressed,
-            boolean belongsToGroup
-    ) {
+    public void beginDrag(double sceneX, double sceneY, boolean altPressed, boolean belongsToGroup) {
         dragging = true;
         wasDragged = false;
         dragStartSceneX = sceneX;
@@ -168,10 +144,10 @@ public final class NeuronView extends StackPane {
     }
 
     /**
-     * Обчислює горизонтальне зміщення від початку перетягування.
+     * Обчислює горизонтальне зміщення від попередньої точки жесту.
      *
-     * @param sceneX горизонтальна координата точки у системі координат сцени JavaFX.
-     * @return горизонтальне зміщення від попередньої точки перетягування.
+     * @param sceneX поточна координата X сцени.
+     * @return горизонтальне зміщення.
      */
     public double dragDeltaX(double sceneX) {
         double delta = sceneX - lastSceneX;
@@ -180,10 +156,10 @@ public final class NeuronView extends StackPane {
     }
 
     /**
-     * Обчислює вертикальне зміщення від початку перетягування.
+     * Обчислює вертикальне зміщення від попередньої точки жесту.
      *
-     * @param sceneY вертикальна координата точки у системі координат сцени JavaFX.
-     * @return вертикальне зміщення від попередньої точки перетягування.
+     * @param sceneY поточна координата Y сцени.
+     * @return вертикальне зміщення.
      */
     public double dragDeltaY(double sceneY) {
         double delta = sceneY - lastSceneY;
@@ -192,22 +168,19 @@ public final class NeuronView extends StackPane {
     }
 
     /**
-     * Оновлює dragged state після зміни даних або взаємодії користувача.
+     * Позначає жест як переміщення після перевищення порога руху.
      *
-     * @param sceneX горизонтальна координата точки у системі координат сцени JavaFX.
-     * @param sceneY вертикальна координата точки у системі координат сцени JavaFX.
+     * @param sceneX поточна координата X сцени.
+     * @param sceneY поточна координата Y сцени.
      */
     public void updateDraggedState(double sceneX, double sceneY) {
-        if (Math.hypot(
-                sceneX - dragStartSceneX,
-                sceneY - dragStartSceneY
-        ) > 4.0) {
+        if (Math.hypot(sceneX - dragStartSceneX, sceneY - dragStartSceneY) > 4.0) {
             wasDragged = true;
         }
     }
 
     /**
-     * Завершує перетягування та очищає тимчасовий стан жесту.
+     * Завершує перетягування та очищає відповідний стан.
      */
     public void endDrag() {
         dragging = false;
@@ -239,16 +212,16 @@ public final class NeuronView extends StackPane {
     }
 
     /**
-     * Перевіряє, чи має подання нейрона розвернутий напрямок.
+     * Перевіряє, чи розвернуто напрямок нейрона.
      *
-     * @return {@code true}, якщо напрямок розвернуто; інакше {@code false}.
+     * @return {@code true}, якщо напрямок розвернуто.
      */
     public boolean isDirectionReversed() {
         return presentation.directionReversed();
     }
 
     /**
-     * Оновлює колір, напрямок і позначення нейрона з урахуванням його стану та вибору.
+     * Оновлює розташування та класи стилю нейрона з урахуванням типу й вибору.
      *
      * @param selected ознака вибраного нейрона.
      */
@@ -256,172 +229,94 @@ public final class NeuronView extends StackPane {
         setLayoutX(presentation.x());
         setLayoutY(presentation.y());
         setRotate(presentation.rotationDegrees());
+        refreshBodyStyleClasses(selected);
 
-        body.setFill(baseColor());
-        body.setStroke(
-                selected
-                        ? Color.WHITE
-                        : Color.web("#25292f")
-        );
-        body.setStrokeWidth(
-                selected
-                        ? SELECTED_STROKE_WIDTH
-                        : 2.0
-        );
-
-        if (displayedInputSignal == null) {
-            inputSignalLabel.setText("0");
-        } else {
-            inputSignalLabel.setText(
-                    Integer.toString(displayedInputSignal)
-            );
-        }
-
-        outputSignalLabel.setText(
-                Integer.toString(model().signalWeight())
-        );
-
+        inputSignalLabel.setText(displayedInputSignal == null ? "0" : Integer.toString(displayedInputSignal));
+        outputSignalLabel.setText(Integer.toString(model().signalWeight()));
         positionFixedChildren();
     }
 
     /**
-     * Повертає світову точку на вихідному порту нейрона, до якої має приєднуватися зв’язок.
+     * Повертає світову точку вихідного порту для під'єднання зв'язку.
      *
-     * @return світова точка на вихідному порту нейрона, до якої має приєднуватися зв’язок.
+     * @return точка вихідного порту.
      */
     public Point2D outputPoint() {
-        return localPointToWorld(
-                new Point2D(
-                        NeuronVisualGeometry.outputTipX(
-                                presentation.directionReversed()
-                        ),
-                        HEIGHT / 2.0
-                )
-        );
+        return localPointToWorld(new Point2D(
+                NeuronVisualGeometry.outputTipX(presentation.directionReversed()), HEIGHT / 2.0));
     }
 
     /**
-     * Повертає світову точку на вхідному порту нейрона, до якої має приєднуватися зв’язок.
+     * Повертає світову точку вхідного порту для під'єднання зв'язку.
      *
-     * @return світову точку на вхідному порту нейрона, до якої має приєднуватися зв’язок.
+     * @return точка вхідного порту.
      */
     public Point2D inputPoint() {
-        return localPointToWorld(
-                new Point2D(
-                        NeuronVisualGeometry.inputPortX(
-                                presentation.directionReversed()
-                        ),
-                        HEIGHT / 2.0
-                )
-        );
+        return localPointToWorld(new Point2D(
+                NeuronVisualGeometry.inputPortX(presentation.directionReversed()), HEIGHT / 2.0));
     }
 
     /**
-     * Перераховує положення постійних графічних елементів усередині подання нейрона.
+     * Оновлює положення графічних елементів усередині подання нейрона.
      */
     private void positionFixedChildren() {
         body.relocate(0.0, 0.0);
-
-        double signalY =
-                (HEIGHT - SIGNAL_LABEL_HEIGHT) / 2.0;
+        double signalY = (HEIGHT - SIGNAL_LABEL_HEIGHT) / 2.0;
         double leftSignalX = SIGNAL_LABEL_SIDE_GAP;
-        double rightSignalX =
-                WIDTH
-                        - SIGNAL_LABEL_WIDTH
-                        - SIGNAL_LABEL_SIDE_GAP;
+        double rightSignalX = WIDTH - SIGNAL_LABEL_WIDTH - SIGNAL_LABEL_SIDE_GAP;
+        inputSignalLabel.resize(SIGNAL_LABEL_WIDTH, SIGNAL_LABEL_HEIGHT);
+        inputSignalLabel.relocate(presentation.directionReversed() ? rightSignalX : leftSignalX, signalY);
+        outputSignalLabel.resize(SIGNAL_LABEL_WIDTH, SIGNAL_LABEL_HEIGHT);
+        outputSignalLabel.relocate(presentation.directionReversed() ? leftSignalX : rightSignalX, signalY);
+        NeuronVisualGeometry.positionInputPort(inputPort, presentation.directionReversed());
+        NeuronVisualGeometry.positionOutputTriangle(outputPort, presentation.directionReversed());
+        outputPort.setTranslateX(presentation.directionReversed()
+                ? -SELECTED_STROKE_WIDTH / 2.0
+                : SELECTED_STROKE_WIDTH / 2.0);
+    }
 
-        inputSignalLabel.resize(
-                SIGNAL_LABEL_WIDTH,
-                SIGNAL_LABEL_HEIGHT
-        );
-        inputSignalLabel.relocate(
-                presentation.directionReversed()
-                        ? rightSignalX
-                        : leftSignalX,
-                signalY
-        );
-
-        outputSignalLabel.resize(
-                SIGNAL_LABEL_WIDTH,
-                SIGNAL_LABEL_HEIGHT
-        );
-        outputSignalLabel.relocate(
-                presentation.directionReversed()
-                        ? leftSignalX
-                        : rightSignalX,
-                signalY
-        );
-
-        NeuronVisualGeometry.positionInputPort(
-                inputPort,
-                presentation.directionReversed()
-        );
-
-        NeuronVisualGeometry.positionOutputTriangle(
-                outputPort,
-                presentation.directionReversed()
-        );
-
-        outputPort.setTranslateX(
-                presentation.directionReversed()
-                        ? -SELECTED_STROKE_WIDTH / 2.0
-                        : SELECTED_STROKE_WIDTH / 2.0
-        );
+    /**
+     * Синхронізує CSS-класи тіла нейрона з типом моделі та станом вибору.
+     *
+     * @param selected ознака вибраного нейрона.
+     */
+    private void refreshBodyStyleClasses(boolean selected) {
+        body.getStyleClass().removeAll("neuron-card-excitatory", "neuron-card-inhibitory", "neuron-card-selected");
+        body.getStyleClass().add(model().type() == NeuronType.EXCITATORY
+                ? "neuron-card-excitatory"
+                : "neuron-card-inhibitory");
+        if (selected) {
+            body.getStyleClass().add("neuron-card-selected");
+        }
     }
 
     /**
      * Перетворює точку з локальних координат нейрона на світові координати полотна.
      *
-     * @param localPoint точка в локальних координатах нейрона.
-     * @return точка в координатах полотна.
+     * @param localPoint локальна точка.
+     * @return світова точка на полотні.
      */
     private Point2D localPointToWorld(Point2D localPoint) {
         double centerX = WIDTH / 2.0;
         double centerY = HEIGHT / 2.0;
-
         double localX = localPoint.getX() - centerX;
         double localY = localPoint.getY() - centerY;
-
-        double angle = Math.toRadians(
-                presentation.rotationDegrees()
-        );
+        double angle = Math.toRadians(presentation.rotationDegrees());
         double cos = Math.cos(angle);
         double sin = Math.sin(angle);
-
-        double rotatedX =
-                localX * cos - localY * sin;
-        double rotatedY =
-                localX * sin + localY * cos;
-
-        return new Point2D(
-                presentation.x()
-                        + centerX
-                        + rotatedX,
-                presentation.y()
-                        + centerY
-                        + rotatedY
-        );
+        double rotatedX = localX * cos - localY * sin;
+        double rotatedY = localX * sin + localY * cos;
+        return new Point2D(presentation.x() + centerX + rotatedX, presentation.y() + centerY + rotatedY);
     }
 
     /**
-     * Налаштовує позначку вхідного або вихідного сигналу.
+     * Налаштовує текстову позначку вхідного або вихідного сигналу.
      *
-     * @param label позначка, яку потрібно налаштувати.
+     * @param label позначка сигналу.
      */
     private void configureSignalLabel(Label label) {
         label.getStyleClass().add("neuron-activation");
         label.setAlignment(Pos.CENTER);
         label.setMouseTransparent(true);
-    }
-
-    /**
-     * Повертає базовий колір тіла нейрона відповідно до його типу.
-     *
-     * @return базовий колір тіла нейрона відповідно до його типу.
-     */
-    private Color baseColor() {
-        return model().type() == NeuronType.EXCITATORY
-                ? Color.web("#328b55")
-                : Color.web("#646971");
     }
 }

@@ -1,0 +1,75 @@
+/* Оформлення нейрона, його портів, підписів сигналу та контекстного меню. */
+.neuron-card {
+    -fx-background-radius: 14;
+    -fx-border-radius: 14;
+    -fx-border-width: 2;
+}
+
+.neuron-card-excitatory {
+    -fx-fill: #328b55;
+    -fx-stroke: #25292f;
+    -fx-stroke-width: 2;
+}
+
+.neuron-card-inhibitory {
+    -fx-fill: #646971;
+    -fx-stroke: #25292f;
+    -fx-stroke-width: 2;
+}
+
+.neuron-card-selected {
+    -fx-stroke: white;
+    -fx-stroke-width: 2.5;
+}
+
+.neuron-activation {
+    -fx-text-fill: white;
+    -fx-font-size: 22px;
+    -fx-font-weight: 800;
+}
+
+.neuron-subtitle {
+    -fx-text-fill: rgba(255,255,255,0.78);
+    -fx-font-size: 10px;
+}
+
+.port {
+    -fx-fill: #d6d9de;
+    -fx-stroke: #17191d;
+    -fx-stroke-width: 1.5;
+}
+
+.menu-button {
+    -fx-background-color: #242830;
+    -fx-text-fill: #e8eaed;
+    -fx-border-color: #454b55;
+    -fx-border-radius: 5;
+    -fx-background-radius: 5;
+    -fx-padding: 5 8 5 8;
+    -fx-cursor: hand;
+}
+
+.menu-button:hover {
+    -fx-background-color: #343943;
+}
+
+.neuron-menu-activate {
+    -fx-background-color: #c9a52d;
+    -fx-text-fill: black;
+}
+
+.neuron-menu-activate:hover {
+    -fx-background-color: #f5c542;
+    -fx-text-fill: black;
+}
+
+.neuron-menu-delete {
+    -fx-background-color: #b83b3b;
+    -fx-text-fill: white;
+}
+
+.neuron-menu-delete:hover {
+    -fx-background-color: #d64545;
+    -fx-text-fill: white;
+}
+

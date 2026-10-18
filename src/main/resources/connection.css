@@ -1,0 +1,18 @@
+/* Оформлення власного меню та базових графічних елементів зв'язку. */
+.connection-menu {
+    -fx-background-color: #20242b;
+    -fx-border-color: #454b55;
+    -fx-border-width: 1;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-padding: 6;
+    -fx-spacing: 4;
+    -fx-effect: dropshadow(
+        gaussian,
+        rgba(0,0,0,0.42),
+        12,
+        0.25,
+        0,
+        3
+    );
+}

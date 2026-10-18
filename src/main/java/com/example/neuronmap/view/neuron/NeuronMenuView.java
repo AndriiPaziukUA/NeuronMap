@@ -13,15 +13,6 @@ import java.util.function.Supplier;
  */
 public final class NeuronMenuView {
 
-    private static final String ACTIVATION_NORMAL_STYLE =
-            "-fx-background-color: #c9a52d; -fx-text-fill: black;";
-    private static final String ACTIVATION_HOVER_STYLE =
-            "-fx-background-color: #f5c542; -fx-text-fill: black;";
-    private static final String DELETE_NORMAL_STYLE =
-            "-fx-background-color: #b83b3b; -fx-text-fill: white;";
-    private static final String DELETE_HOVER_STYLE =
-            "-fx-background-color: #d64545; -fx-text-fill: white;";
-
     private final Supplier<String> selectedNeuronIdSupplier;
     private final Consumer<String> directionAction;
     private final LocalizationService localization;
@@ -77,8 +68,8 @@ public final class NeuronMenuView {
     }
 
     /**
-     * Застосовує початкові та наведені кольори спеціальних кнопок і встановлює локалізовані підказки.
-     * Початковий колір є приглушеним, а яскравіший варіант застосовується лише під час наведення вказівника.
+     * Застосовує локальні класи стилю до спеціальних кнопок і встановлює локалізовані підказки.
+     * Візуальні стани та їхні кольори визначає stylesheet нейрона через псевдоклас :hover.
      *
      * @param button кнопка інтерфейсу, яку потрібно оформити.
      */
@@ -88,30 +79,8 @@ public final class NeuronMenuView {
         }
 
         if (button.getStyleClass().contains("neuron-menu-activate")) {
-            configureHoverStyle(button, ACTIVATION_NORMAL_STYLE, ACTIVATION_HOVER_STYLE);
-            TooltipFactory.install(
-                    button,
-                    localization.text("neuron.menu.fire")
-            );
-            return;
+            TooltipFactory.install(button, localization.text("neuron.menu.fire"));
         }
-
-        if (button.getStyleClass().contains("neuron-menu-delete")) {
-            configureHoverStyle(button, DELETE_NORMAL_STYLE, DELETE_HOVER_STYLE);
-        }
-    }
-
-    /**
-     * Встановлює базовий стиль і тимчасово перемикає його на яскравіший під час наведення вказівника.
-     *
-     * @param button кнопка, для якої потрібно встановити стилі станів.
-     * @param normalStyle стиль звичайного стану без наведення.
-     * @param hoverStyle стиль кнопки під час наведення вказівника.
-     */
-    private void configureHoverStyle(Button button, String normalStyle, String hoverStyle) {
-        button.setStyle(normalStyle);
-        button.setOnMouseEntered(event -> button.setStyle(hoverStyle));
-        button.setOnMouseExited(event -> button.setStyle(normalStyle));
     }
 
     /**

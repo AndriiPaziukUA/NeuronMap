@@ -17,8 +17,8 @@ import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.simulation.SimulationService;
 import com.example.neuronmap.view.connection.ConnectionView;
 import com.example.neuronmap.view.neuron.NeuronMenuView;
-import com.example.neuronmap.view.editor.NeuronLayerOrderManager;
 import com.example.neuronmap.view.neuron.NeuronView;
+import com.example.neuronmap.view.editor.NeuronLayerOrderManager;
 import com.example.neuronmap.view.neuron.RotationHandleView;
 import com.example.neuronmap.view.simulation.SimulationStepPresenter;
 import com.example.neuronmap.view.editor.WorkspaceView;
@@ -61,7 +61,7 @@ final class MapPresentationCoordinatorLifecycleTest {
         }
     }
 
-    /** Перевіряє створення відсутніх подань і повне очищення вузла та ручки після видалення нейрона. */
+    /** Перевіряє створення подань і повне очищення вузла та ручки після видалення нейрона. */
     @Test
     void refreshAllSynchronizesNeuronViewsAndRotationHandles() throws Exception {
         runOnFxThread(() -> {
@@ -71,7 +71,6 @@ final class MapPresentationCoordinatorLifecycleTest {
                 fixture.presentation.refreshAll();
                 NeuronView firstView = fixture.neuronViews.get(first.id());
                 RotationHandleView firstHandle = fixture.rotationHandles.get(first.id());
-
                 assertNotNull(firstView);
                 assertNotNull(firstHandle);
                 assertSame(fixture.neuronService.presentation(first.id()).orElseThrow(), firstView.presentation());
@@ -83,7 +82,6 @@ final class MapPresentationCoordinatorLifecycleTest {
                 assertEquals(2, fixture.neuronViews.size());
                 assertNotNull(fixture.neuronViews.get(second.id()));
                 assertNotNull(fixture.rotationHandles.get(second.id()));
-
                 assertTrue(fixture.neuronService.remove(first.id()).isPresent());
                 fixture.presentation.refreshAll();
                 assertFalse(fixture.neuronViews.containsKey(first.id()));
@@ -98,7 +96,12 @@ final class MapPresentationCoordinatorLifecycleTest {
         });
     }
 
-    /** Перевіряє, що координатор презентації оновлює вигляд нейрона відповідно до стану вибору. */
+    /**
+     * Перевіряє, що координатор оновлює CSS-класи тіла нейрона під час вибору й скасування вибору.
+     * Самі графічні властивості стилю перевіряються після застосування CSS у спеціалізованих UI-тестах.
+     *
+     * @throws Exception якщо перевірку неможливо виконати в JavaFX Application Thread.
+     */
     @Test
     void presentationCoordinatorOwnsNeuronVisualRefresh() throws Exception {
         runOnFxThread(() -> {
@@ -108,15 +111,18 @@ final class MapPresentationCoordinatorLifecycleTest {
                 fixture.presentation.refreshAll();
                 NeuronView view = fixture.neuronViews.get(neuron.id());
                 Rectangle body = (Rectangle) view.getChildren().get(0);
-                assertEquals(2.0, body.getStrokeWidth(), 0.0001);
+
+                assertTrue(body.getStyleClass().contains("neuron-card-excitatory"));
+                assertFalse(body.getStyleClass().contains("neuron-card-selected"));
 
                 fixture.state.selectOnly(neuron.id());
                 fixture.neuronController.refreshVisuals();
-                assertEquals(NeuronView.SELECTED_STROKE_WIDTH, body.getStrokeWidth(), 0.0001);
+                assertTrue(body.getStyleClass().contains("neuron-card-selected"));
 
                 fixture.state.clearSelection();
                 fixture.neuronController.refreshVisuals();
-                assertEquals(2.0, body.getStrokeWidth(), 0.0001);
+                assertTrue(body.getStyleClass().contains("neuron-card-excitatory"));
+                assertFalse(body.getStyleClass().contains("neuron-card-selected"));
             } finally {
                 fixture.dispose();
             }
@@ -129,18 +135,9 @@ final class MapPresentationCoordinatorLifecycleTest {
         runOnFxThread(() -> {
             Fixture fixture = new Fixture();
             MapInteractionCoordinator interactions = new MapInteractionCoordinator(
-                    fixture.neuronService,
-                    fixture.state,
-                    fixture.workspace,
-                    fixture.selectionController,
-                    fixture.connectionController,
-                    fixture.neuronController,
-                    fixture.simulationController,
-                    fixture.presentation,
-                    () -> { },
-                    ignored -> { },
-                    fixture.localization
-            );
+                    fixture.neuronService, fixture.state, fixture.workspace, fixture.selectionController,
+                    fixture.connectionController, fixture.neuronController, fixture.simulationController,
+                    fixture.presentation, () -> { }, ignored -> { }, fixture.localization);
             try {
                 interactions.addNeuronAt(NeuronType.INHIBITORY, 150.0, 140.0);
                 assertEquals(1, fixture.neuronViews.size());
@@ -166,7 +163,6 @@ final class MapPresentationCoordinatorLifecycleTest {
                 RotationHandleView existingHandle = fixture.rotationHandles.get(neuron.id());
                 fixture.refreshCount.set(0);
                 fixture.state.selectOnly(neuron.id());
-
                 assertTrue(fixture.neuronController.deleteSelectedNeurons());
                 assertTrue(fixture.neuronService.find(neuron.id()).isEmpty());
                 assertFalse(fixture.neuronViews.containsKey(neuron.id()));
@@ -236,8 +232,7 @@ final class MapPresentationCoordinatorLifecycleTest {
                 neuronViews, rotationHandles, connectionController, simulationController,
                 () -> { }, this::refreshPresentation, ignored -> { },
                 new NeuronMenuView(new Pane(), state::selectedNeuronForMenu, ignored -> { }, localization),
-                localization,
-                settingsOverlayCoordinator);
+                localization, settingsOverlayCoordinator);
         private final MapPresentationCoordinator presentationCoordinator = new MapPresentationCoordinator(
                 neuronService, workspace, neuronViews, connectionViews, rotationHandles,
                 neuronController, connectionController,

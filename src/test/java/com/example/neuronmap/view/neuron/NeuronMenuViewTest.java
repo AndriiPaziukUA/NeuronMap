@@ -16,10 +16,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє створення, стилі та поведінку кнопок контекстного меню нейрона у view-шарі. */
+/**
+ * Перевіряє створення кнопок контекстного меню та використання незалежних CSS-класів.
+ */
 final class NeuronMenuViewTest {
 
-    /** Запускає JavaFX toolkit перед перевірками графічних компонентів меню нейрона. */
+    /**
+     * Запускає JavaFX toolkit перед перевірками графічних компонентів меню нейрона.
+     */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -34,12 +38,10 @@ final class NeuronMenuViewTest {
     }
 
     /**
-     * Перевіряє приглушені початкові кольори та яскравіші кольори під час наведення для активації й видалення.
-     *
-     * @throws Exception якщо перевірку неможливо виконати в потоці JavaFX.
+     * Переконується, що спеціальні кнопки отримують CSS-класи замість inline-стилів і обробників наведення.
      */
     @Test
-    void customizeMenuButtonAppliesMutedStylesAndBrightensColorsOnHover() throws Exception {
+    void customizeMenuButtonUsesCssClassesWithoutInlineStyles() throws Exception {
         runOnFxThread(() -> {
             NeuronMenuView view = new NeuronMenuView(
                     () -> null,
@@ -55,28 +57,21 @@ final class NeuronMenuViewTest {
             view.customizeMenuButton(deletion);
             view.customizeMenuButton(null);
 
-            assertTrue(activation.getStyle().contains("#c9a52d"));
-            assertTrue(activation.getStyle().contains("black"));
+            assertTrue(activation.getStyleClass().contains("neuron-menu-activate"));
+            assertTrue(deletion.getStyleClass().contains("neuron-menu-delete"));
+            assertTrue(activation.getStyle().isBlank());
+            assertTrue(deletion.getStyle().isBlank());
+            assertNull(activation.getOnMouseEntered());
+            assertNull(activation.getOnMouseExited());
+            assertNull(deletion.getOnMouseEntered());
+            assertNull(deletion.getOnMouseExited());
             assertNotNull(activation.getTooltip());
             assertEquals("Імпульс", activation.getTooltip().getText());
-            activation.getOnMouseEntered().handle(null);
-            assertTrue(activation.getStyle().contains("#f5c542"));
-            activation.getOnMouseExited().handle(null);
-            assertTrue(activation.getStyle().contains("#c9a52d"));
-
-            assertTrue(deletion.getStyle().contains("#b83b3b"));
-            assertTrue(deletion.getStyle().contains("white"));
-            deletion.getOnMouseEntered().handle(null);
-            assertTrue(deletion.getStyle().contains("#d64545"));
-            deletion.getOnMouseExited().handle(null);
-            assertTrue(deletion.getStyle().contains("#b83b3b"));
         });
     }
 
     /**
-     * Перевіряє, що кнопка напрямку використовує спільний стиль меню та передає ідентифікатор нейрона callback-у.
-     *
-     * @throws Exception якщо перевірку неможливо виконати в потоці JavaFX.
+     * Перевіряє, що кнопка напрямку використовує спільний клас меню та передає ідентифікатор через callback.
      */
     @Test
     void directionButtonDelegatesSelectedNeuronIdToCallback() throws Exception {
@@ -87,7 +82,6 @@ final class NeuronMenuViewTest {
                     handledId::set,
                     new LocalizationService(Locale.forLanguageTag("uk"))
             );
-
             Button direction = view.createDirectionButton();
             assertNotNull(direction);
             assertTrue(direction.getStyleClass().contains("menu-button"));
@@ -95,15 +89,12 @@ final class NeuronMenuViewTest {
             assertTrue(direction.getStyle().isBlank());
             assertNotNull(direction.getTooltip());
             direction.fire();
-
             assertEquals("neuron-42", handledId.get());
         });
     }
 
     /**
      * Перевіряє, що кнопка напрямку не створюється, якщо дію для неї не задано.
-     *
-     * @throws Exception якщо перевірку неможливо виконати в потоці JavaFX.
      */
     @Test
     void directionButtonIsOmittedWhenNoActionIsProvided() throws Exception {
@@ -114,10 +105,10 @@ final class NeuronMenuViewTest {
     }
 
     /**
-     * Виконує перевірки в потоці JavaFX і передає помилки до потоку JUnit.
+     * Виконує дію в потоці JavaFX і передає помилки до потоку JUnit.
      *
-     * @param action дія, яку потрібно виконати в потоці JavaFX.
-     * @throws Exception якщо перевірка не завершується в межах установленого часу.
+     * @param action дія для JavaFX.
+     * @throws Exception якщо перевірка не завершується вчасно.
      */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);

@@ -1,0 +1,163 @@
+/* Стилі прокручуваного списку проєктів та інтерактивних рядків; власник — ProjectListView. */
+
+.project-list-empty-hint {
+    -fx-text-fill: #9299a4;
+    -fx-font-size: 12px;
+}
+.main-menu-scroll {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.main-menu-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.main-menu-scroll .scroll-bar:vertical {
+    -fx-background-color: transparent;
+    -fx-padding: 1;
+    -fx-min-width: 9px;
+    -fx-pref-width: 9px;
+    -fx-max-width: 9px;
+    -fx-opacity: 1;
+}
+
+.main-menu-scroll .scroll-bar:vertical .track {
+    -fx-background-color: #292e36;
+    -fx-background-radius: 4;
+    -fx-border-color: transparent;
+}
+
+.main-menu-scroll .scroll-bar:vertical .thumb {
+    -fx-background-color: #687383;
+    -fx-background-radius: 4;
+    -fx-background-insets: 0;
+}
+
+.main-menu-scroll .scroll-bar:vertical .thumb:hover {
+    -fx-background-color: #788494;
+}
+
+.main-menu-scroll .scroll-bar:vertical .increment-button,
+.main-menu-scroll .scroll-bar:vertical .decrement-button {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.main-menu-scroll .scroll-bar:vertical .increment-arrow,
+.main-menu-scroll .scroll-bar:vertical .decrement-arrow {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.saved-project-row {
+    -fx-background-color: #272c34;
+    -fx-border-color: #3e4651;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-border-width: 1;
+    -fx-cursor: hand;
+}
+
+.saved-project-row:hover {
+    -fx-background-color: #303640;
+    -fx-border-color: #555e6a;
+}
+
+.saved-project-date {
+    -fx-text-fill: #858e9a;
+    -fx-font-size: 11px;
+}
+
+.saved-project-name {
+    -fx-text-fill: #edf0f3;
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+}
+
+.menu-small-button {
+    -fx-background-color: #303640;
+    -fx-text-fill: #dfe4e9;
+    -fx-border-color: #48505c;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-padding: 5 9 5 9;
+    -fx-cursor: hand;
+}
+
+.menu-small-button:hover {
+    -fx-background-color: #3a414c;
+}
+
+/* Поля та дії рядка проєкту залишаються локальними до списку проєктів. */
+.saved-project-row .saved-project-rename-field,
+.saved-project-row .text-field {
+    -fx-background-color: #20252c;
+    -fx-text-fill: #edf0f3;
+    -fx-prompt-text-fill: #858e9a;
+    -fx-highlight-fill: #52647c;
+    -fx-highlight-text-fill: #ffffff;
+    -fx-background-insets: 0;
+    -fx-background-radius: 6;
+    -fx-border-color: #59616d;
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+    -fx-padding: 5 8 5 8;
+    -fx-font-size: 12px;
+}
+
+.saved-project-row .saved-project-rename-field:focused,
+.saved-project-row .text-field:focused {
+    -fx-border-color: #8297b3;
+    -fx-background-color: #242a32;
+}
+
+.saved-project-row.selected {
+    -fx-background-color: #3b4655;
+    -fx-border-color: #91a9c7;
+    -fx-border-width: 1.4;
+    -fx-effect: dropshadow(gaussian, rgba(145,169,199,0.20), 7, 0.15, 0, 0);
+}
+
+.saved-project-row.selected:hover {
+    -fx-background-color: #46546a;
+    -fx-border-color: #b5c9e2;
+}
+
+.saved-project-row .saved-project-rename-button,
+.saved-project-row .saved-project-delete-button {
+    -fx-padding: 3px;
+    -fx-alignment: center;
+}
+
+.saved-project-row .saved-project-icon {
+    -fx-fill: transparent;
+    -fx-stroke: #edf0f3;
+    -fx-stroke-width: 2.2;
+}
+
+.saved-project-row .saved-project-delete-icon {
+    -fx-background-color: #edf0f3;
+    -fx-background-radius: 2px;
+    -fx-min-width: 14px;
+    -fx-pref-width: 14px;
+    -fx-max-width: 14px;
+    -fx-min-height: 4px;
+    -fx-pref-height: 4px;
+    -fx-max-height: 4px;
+}
+
+.saved-project-row .saved-project-delete-button:hover {
+    -fx-background-color: #642c30;
+    -fx-border-color: #d95660;
+}
+
+.saved-project-row .saved-project-delete-button:hover .saved-project-delete-icon {
+    -fx-background-color: #ff6873;
+}
+
+.saved-project-row .saved-project-save-button:hover {
+    -fx-background-color: #245b3a;
+    -fx-border-color: #47ad70;
+    -fx-text-fill: #e5ffed;
+}
