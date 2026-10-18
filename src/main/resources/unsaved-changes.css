@@ -1,0 +1,19 @@
+/* Власний стиль кнопок діалогу незбережених змін. Він відтворює вигляд кнопки «Назад» незалежно від неї. */
+.unsaved-overlay .unsaved-action-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #b8c0ca;
+    -fx-border-color: #434a54;
+    -fx-border-radius: 7;
+    -fx-background-radius: 7;
+    -fx-border-width: 1;
+    -fx-padding: 7 18 7 18;
+    -fx-cursor: hand;
+}
+
+.unsaved-overlay .unsaved-action-button:hover {
+    -fx-background-color: #2d323a;
+}
+
+.unsaved-overlay .unsaved-action-button:focused {
+    -fx-border-color: #788494;
+}

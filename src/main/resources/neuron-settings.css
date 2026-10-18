@@ -1,0 +1,121 @@
+/* Самостійні стилі внутрішнього вікна налаштувань нейрона. */
+.neuron-settings-overlay {
+    -fx-background-color: transparent;
+}
+
+.neuron-settings-overlay .neuron-settings-panel {
+    -fx-background-color: #20242b;
+    -fx-border-color: #4a515c;
+    -fx-border-width: 1.2;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-padding: 22;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.55), 28, 0.28, 0, 8);
+}
+
+.neuron-settings-overlay .neuron-settings-title {
+    -fx-text-fill: #f0f2f5;
+    -fx-font-size: 22px;
+    -fx-font-weight: 800;
+    -fx-alignment: center;
+}
+
+.neuron-settings-overlay .neuron-settings-label {
+    -fx-text-fill: #dfe3e8;
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+}
+
+.neuron-settings-overlay .neuron-settings-row {
+    -fx-background-color: #272c34;
+    -fx-border-color: #3e4651;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-border-width: 1;
+}
+
+.neuron-settings-overlay .neuron-settings-row .neuron-settings-field {
+    -fx-background-color: #20252c;
+    -fx-text-fill: #edf0f3;
+    -fx-prompt-text-fill: #858e9a;
+    -fx-highlight-fill: #52647c;
+    -fx-highlight-text-fill: #ffffff;
+    -fx-background-insets: 0;
+    -fx-background-radius: 6;
+    -fx-border-color: #59616d;
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+    -fx-padding: 5 8 5 8;
+    -fx-font-size: 12px;
+}
+
+.neuron-settings-overlay .neuron-settings-row .neuron-settings-field:focused {
+    -fx-border-color: #8297b3;
+    -fx-background-color: #242a32;
+}
+
+/* Вигляд кнопки скопійовано з «Назад», але властивості незалежні від стилів меню. */
+.neuron-settings-overlay .neuron-settings-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #b8c0ca;
+    -fx-border-color: #434a54;
+    -fx-border-radius: 7;
+    -fx-background-radius: 7;
+    -fx-border-width: 1;
+    -fx-padding: 7 18 7 18;
+    -fx-cursor: hand;
+}
+
+.neuron-settings-overlay .neuron-settings-button:hover {
+    -fx-background-color: #2d323a;
+}
+
+.neuron-settings-overlay .neuron-settings-button:focused {
+    -fx-border-color: #788494;
+}
+
+.neuron-settings-overlay .neuron-settings-scroll {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.neuron-settings-overlay .neuron-settings-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.neuron-settings-overlay .neuron-settings-scroll .scroll-bar:vertical {
+    -fx-background-color: transparent;
+    -fx-padding: 1 1 1 1;
+    -fx-min-width: 9px;
+    -fx-pref-width: 9px;
+    -fx-max-width: 9px;
+    -fx-opacity: 1;
+}
+
+.neuron-settings-overlay .neuron-settings-scroll .scroll-bar:vertical .track {
+    -fx-background-color: #292e36;
+    -fx-background-radius: 4;
+    -fx-border-color: transparent;
+}
+
+.neuron-settings-overlay .neuron-settings-scroll .scroll-bar:vertical .thumb {
+    -fx-background-color: #687383;
+    -fx-background-radius: 4;
+    -fx-background-insets: 0;
+}
+
+.neuron-settings-overlay .neuron-settings-scroll .scroll-bar:vertical .thumb:hover {
+    -fx-background-color: #788494;
+}
+
+.neuron-settings-overlay .neuron-settings-scroll .scroll-bar:vertical .increment-button,
+.neuron-settings-overlay .neuron-settings-scroll .scroll-bar:vertical .decrement-button {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.neuron-settings-overlay .neuron-settings-scroll .scroll-bar:vertical .increment-arrow,
+.neuron-settings-overlay .neuron-settings-scroll .scroll-bar:vertical .decrement-arrow {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}

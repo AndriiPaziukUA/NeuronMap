@@ -5,6 +5,8 @@ import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.view.menu.MainMenuView;
 import com.example.neuronmap.view.status.StatusBarView;
 import com.example.neuronmap.view.status.StatusMessagePresenter;
+import javafx.collections.ListChangeListener;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.effect.GaussianBlur;
 import javafx.scene.layout.Pane;
@@ -23,6 +25,8 @@ public final class MainView {
     private final StatusBarView statusBar = new StatusBarView();
     private final StatusMessagePresenter statusMessagePresenter = new StatusMessagePresenter(statusBar);
     private final MainMenuView mainMenu;
+    private boolean normalizingRootLayerOrder;
+    private final ListChangeListener<Node> rootLayerOrderListener = ignored -> keepMenuAboveOverlays();
 
     /**
      * Створює подання редактора з переданою службою локалізації.
@@ -59,6 +63,7 @@ public final class MainView {
         root.getStyleClass().add("root");
         root.getChildren().addAll(content, mainMenu);
         root.setPickOnBounds(true);
+        root.getChildren().addListener(rootLayerOrderListener);
     }
 
     /**
@@ -120,8 +125,9 @@ public final class MainView {
         statusMessagePresenter.resume();
     }
 
-    /** Звільняє ресурси подання повідомлень перед завершенням роботи редактора. */
+    /** Звільняє ресурси подання та від'єднує слухача порядку графічних шарів. */
     public void dispose() {
+        root.getChildren().removeListener(rootLayerOrderListener);
         statusMessagePresenter.dispose();
     }
 
@@ -150,10 +156,33 @@ public final class MainView {
         statusMessagePresenter.show(text);
     }
 
-    /** Оновлює розмиття та доступність вмісту редактора, коли відкрита накладка головного меню. */
+    /** Оновлює розмиття, доступність і графічний шар, коли відкрита накладка головного меню. */
     private void setMainMenuVisualState(boolean visible) {
         content.setDisable(visible);
         content.setEffect(visible ? new GaussianBlur(7.0) : null);
+        if (visible) {
+            keepMenuAboveOverlays();
+        }
+    }
+
+    /**
+     * Повертає головне меню на передній план, якщо під час його показу додано іншу накладку.
+     * Повторні повідомлення від перестановки дочірніх вузлів блокуються прапорцем, щоб уникнути рекурсії.
+     */
+    private void keepMenuAboveOverlays() {
+        if (normalizingRootLayerOrder
+                || !mainMenu.isMenuVisible()
+                || root.getChildren().isEmpty()
+                || root.getChildren().get(root.getChildren().size() - 1) == mainMenu) {
+            return;
+        }
+
+        normalizingRootLayerOrder = true;
+        try {
+            mainMenu.toFront();
+        } finally {
+            normalizingRootLayerOrder = false;
+        }
     }
 
     /** Розміщує панель інструментів, область перегляду й рядок стану без зміни порядку графічних шарів. */

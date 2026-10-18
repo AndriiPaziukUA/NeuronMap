@@ -11,10 +11,13 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 
+import java.net.URL;
 import java.util.Objects;
 
 /** Відображає модальний діалог підтвердження перед втратою незбережених змін. */
 public final class UnsavedChangesView extends StackPane {
+
+    private static final String STYLESHEET_RESOURCE = "/unsaved-changes.css";
 
     private final LocalizationService localization;
     private final VBox card = new VBox(12.0);
@@ -26,13 +29,20 @@ public final class UnsavedChangesView extends StackPane {
     private Runnable pendingDiscardAction;
 
     /**
-     * Створює накладку підтвердження з текстами активної локалі.
+     * Створює накладку підтвердження з локалізованими текстами й незалежним стилем кнопок.
      *
      * @param localization служба перекладів діалогу.
      * @throws NullPointerException якщо службу локалізації не задано.
+     * @throws IllegalStateException якщо таблиця стилів діалогу відсутня в classpath.
      */
     public UnsavedChangesView(LocalizationService localization) {
         this.localization = Objects.requireNonNull(localization, "localization");
+        URL stylesheet = getClass().getResource(STYLESHEET_RESOURCE);
+        if (stylesheet == null) {
+            throw new IllegalStateException(STYLESHEET_RESOURCE + " is missing");
+        }
+        getStylesheets().add(stylesheet.toExternalForm());
+
         setManaged(false);
         setVisible(false);
         setPickOnBounds(true);
@@ -60,8 +70,9 @@ public final class UnsavedChangesView extends StackPane {
 
         HBox buttons = new HBox(10.0, yesButton, noButton);
         buttons.setAlignment(Pos.CENTER);
-        yesButton.getStyleClass().add("main-menu-button");
-        noButton.getStyleClass().add("main-menu-back-button");
+        // Обидві дії мають один клас і однакову візуальну роль у межах цього діалогу.
+        yesButton.getStyleClass().add("unsaved-action-button");
+        noButton.getStyleClass().add("unsaved-action-button");
         card.getChildren().addAll(title, message, buttons);
         getChildren().add(card);
         StackPane.setAlignment(card, Pos.CENTER);
@@ -74,7 +85,7 @@ public final class UnsavedChangesView extends StackPane {
     }
 
     /**
-     * Показує діалог і запам'ятовує дії для збереження або відхилення змін.
+     * Показує діалог і запам'ятовує дії збереження або відхилення змін.
      *
      * @param saveAction дія збереження та продовження.
      * @param discardAction дія відхилення змін і продовження.
@@ -93,6 +104,9 @@ public final class UnsavedChangesView extends StackPane {
         refreshTexts();
         setManaged(true);
         setVisible(true);
+        applyCss();
+        card.applyCss();
+        sizeButtonsToLargestContent();
         requestFocus();
     }
 
@@ -103,7 +117,7 @@ public final class UnsavedChangesView extends StackPane {
         }
     }
 
-    /** Ховає діалог та звільняє збережені callback-и без виконання будь-якої дії. */
+    /** Ховає діалог та звільняє callback-и без виконання будь-якої дії. */
     public void hide() {
         setVisible(false);
         setManaged(false);
@@ -119,10 +133,13 @@ public final class UnsavedChangesView extends StackPane {
         message.setText(localization.text("menu.unsaved.message"));
         yesButton.setText(localization.text("common.yes"));
         noButton.setText(localization.text("common.no"));
+        if (isShowing() && getScene() != null) {
+            sizeButtonsToLargestContent();
+        }
     }
 
     /**
-     * Повертає кнопку «Ні» для перевірки відкату незбережених змін.
+     * Повертає кнопку «Ні» для перевірки відхилення незбережених змін.
      *
      * @return кнопка відхилення змін у діалозі.
      */
@@ -131,7 +148,7 @@ public final class UnsavedChangesView extends StackPane {
     }
 
     /**
-     * Повертає кнопку «Так» для перевірки сценарію підтвердження.
+     * Повертає кнопку «Так» для перевірки підтвердження змін.
      *
      * @return кнопка збереження змін у діалозі.
      */
@@ -154,7 +171,7 @@ public final class UnsavedChangesView extends StackPane {
         return card.getHeight();
     }
 
-    /** Повертає вирівнювання тексту запитання для регресійних тестів. */
+    /** Повертає вирівнювання тексту діалогу для регресійних перевірок. */
     TextAlignment messageTextAlignmentForTest() {
         return message.getTextAlignment();
     }
@@ -164,7 +181,35 @@ public final class UnsavedChangesView extends StackPane {
         return card.getMaxWidth();
     }
 
-    /** Ховає діалог перед виконанням збереженої дії користувача. */
+    /** Вимірює кнопки за текстом і вирівнює їх за найбільшим природним розміром. */
+    private void sizeButtonsToLargestContent() {
+        resetButtonDimensions(yesButton);
+        resetButtonDimensions(noButton);
+        yesButton.applyCss();
+        noButton.applyCss();
+
+        double width = Math.max(yesButton.prefWidth(-1.0), noButton.prefWidth(-1.0));
+        double height = Math.max(yesButton.prefHeight(width), noButton.prefHeight(width));
+        applyButtonDimensions(yesButton, width, height);
+        applyButtonDimensions(noButton, width, height);
+    }
+
+    /** Скидає розміри кнопки перед вимірюванням її природного розміру. */
+    private static void resetButtonDimensions(Button button) {
+        button.setMinSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
+        button.setPrefSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
+        button.setMaxSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
+    }
+
+    /** Призначає обом кнопкам виміряні розміри найбільшої кнопки пари. */
+    private static void applyButtonDimensions(Button button, double width, double height) {
+        // Мінімальний розмір відповідає найбільшому підпису; preferred/max не мають фіксованих значень.
+        button.setMinSize(width, height);
+        button.setPrefSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
+        button.setMaxSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
+    }
+
+    /** Ховає діалог перед виконанням збереженої дії. */
     private void runPendingAction(Runnable action) {
         Runnable actionToRun = action;
         hide();

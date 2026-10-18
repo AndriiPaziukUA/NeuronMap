@@ -1,0 +1,19 @@
+/* Окремо визначений стиль кнопки «Зберегти», візуально узгоджений із кнопкою «Назад». */
+.main-menu-overlay .main-menu-settings-save-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #b8c0ca;
+    -fx-border-color: #434a54;
+    -fx-border-radius: 7;
+    -fx-background-radius: 7;
+    -fx-border-width: 1;
+    -fx-padding: 7 18 7 18;
+    -fx-cursor: hand;
+}
+
+.main-menu-overlay .main-menu-settings-save-button:hover {
+    -fx-background-color: #2d323a;
+}
+
+.main-menu-overlay .main-menu-settings-save-button:focused {
+    -fx-border-color: #788494;
+}

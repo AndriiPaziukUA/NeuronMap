@@ -33,6 +33,7 @@ public final class MainMenuView extends StackPane {
     private static final double MAX_PANEL_WIDTH = 920.0;
     private static final double MAX_PANEL_HEIGHT = 430.0;
     private static final String MENU_STYLESHEET_RESOURCE = "/menu-enhancements.css";
+    private static final String SAVE_BUTTON_STYLESHEET_RESOURCE = "/main-menu-settings-save.css";
 
     /**
      * Зберігає повний набір обов'язкових зворотних викликів навігації меню та операцій над проєктами.
@@ -102,7 +103,7 @@ public final class MainMenuView extends StackPane {
     private final Region footerSpacer = new Region();
     private final Label titleLabel = new Label();
     private final Button backButton = secondaryButton();
-    private final Button saveSettingsButton = menuButton();
+    private final Button saveSettingsButton = settingsSaveButton();
     private final Rectangle backdrop = new Rectangle();
     private final UnsavedChangesView unsavedChangesView;
     private final Consumer<java.util.Locale> localizationListener = ignored -> refreshTexts();
@@ -139,6 +140,7 @@ public final class MainMenuView extends StackPane {
         setPickOnBounds(true);
         getStyleClass().add("main-menu-overlay");
         getStylesheets().add(requireMenuStylesheet().toExternalForm());
+        getStylesheets().add(requireSaveButtonStylesheet().toExternalForm());
 
         configureBackdrop();
         configurePanel();
@@ -159,6 +161,20 @@ public final class MainMenuView extends StackPane {
         URL stylesheet = getClass().getResource(MENU_STYLESHEET_RESOURCE);
         if (stylesheet == null) {
             throw new IllegalStateException(MENU_STYLESHEET_RESOURCE + " is missing");
+        }
+        return stylesheet;
+    }
+
+    /**
+     * Перевіряє окрему таблицю стилів кнопки збереження, не використовуючи стиль решти меню.
+     *
+     * @return URL ізольованого CSS-ресурсу кнопки.
+     * @throws IllegalStateException якщо CSS-ресурс не включено до classpath застосунку.
+     */
+    private URL requireSaveButtonStylesheet() {
+        URL stylesheet = getClass().getResource(SAVE_BUTTON_STYLESHEET_RESOURCE);
+        if (stylesheet == null) {
+            throw new IllegalStateException(SAVE_BUTTON_STYLESHEET_RESOURCE + " is missing");
         }
         return stylesheet;
     }
@@ -358,7 +374,7 @@ public final class MainMenuView extends StackPane {
         projectListView.discardPendingChanges();
     }
 
-    /** Перевіряє, чи відображається діалог незбережених змін. */
+    /** Перевіряє, чи відображається діалог підтвердження незбережених змін. */
     public boolean isConfirmingUnsavedChanges() {
         return unsavedChangesView.isShowing();
     }
@@ -431,7 +447,7 @@ public final class MainMenuView extends StackPane {
     }
 
     /**
-     * Надає комбінований список вибору мови для UI-тестів у цьому пакеті.
+     * Надає комбінований список вибору мови для UI-тестів.
      *
      * @return компонент вибору підтримуваної мови.
      */
@@ -654,23 +670,23 @@ public final class MainMenuView extends StackPane {
         saveSettingsButton.setManaged(showSave);
     }
 
-    /** Створює основну кнопку меню на всю доступну ширину. */
-    private static Button menuButton() {
+    /** Створює кнопку збереження з природними розмірами та ізольованим стилем кнопки «Назад». */
+    private static Button settingsSaveButton() {
         Button button = new Button();
-        button.getStyleClass().add("main-menu-button");
-        button.setMaxWidth(Double.MAX_VALUE);
-        button.setMinHeight(46.0);
-        button.setPrefHeight(46.0);
-        button.setMaxHeight(46.0);
+        button.getStyleClass().add("main-menu-settings-save-button");
+        button.setMinSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
+        button.setPrefSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
+        button.setMaxSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
         return button;
     }
 
-    /** Створює допоміжну кнопку повернення для підсторінок меню. */
+    /** Створює допоміжну кнопку повернення з розмірами, що цілком визначаються стилем і підписом. */
     private static Button secondaryButton() {
         Button button = new Button();
         button.getStyleClass().add("main-menu-back-button");
-        button.setMinHeight(38.0);
-        button.setPrefHeight(38.0);
+        button.setMinSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
+        button.setPrefSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
+        button.setMaxSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
         return button;
     }
 }

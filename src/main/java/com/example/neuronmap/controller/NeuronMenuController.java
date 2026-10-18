@@ -3,12 +3,18 @@ package com.example.neuronmap.controller;
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.service.NeuronService;
+import com.example.neuronmap.view.editor.WorkspaceView;
+import com.example.neuronmap.view.menu.MainMenuView;
 import com.example.neuronmap.view.neuron.NeuronContextMenuView;
 import com.example.neuronmap.view.neuron.NeuronMenuView;
 import com.example.neuronmap.view.neuron.NeuronOverlayPositioner;
-import com.example.neuronmap.view.neuron.NeuronSettingsDialog;
+import com.example.neuronmap.view.neuron.NeuronSettingsView;
 import com.example.neuronmap.view.neuron.NeuronView;
-import com.example.neuronmap.view.editor.WorkspaceView;
+import javafx.beans.value.ChangeListener;
+import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
 import java.util.Objects;
@@ -28,6 +34,9 @@ public final class NeuronMenuController {
     private final NeuronMenuView neuronMenuView;
     private final NeuronContextMenuView menuView;
     private final NeuronOverlayPositioner overlayPositioner;
+    private NeuronSettingsView settingsView;
+    private MainMenuView watchedMainMenu;
+    private ChangeListener<Boolean> mainMenuVisibilityListener;
     private final Runnable refreshVisuals;
     private final Runnable refreshConnections;
     private final Runnable refreshOverlays;
@@ -173,6 +182,10 @@ public final class NeuronMenuController {
      * Приховує контекстне меню нейрона й очищує ідентифікатор активного меню.
      */
     public void hide() {
+        if (settingsView != null) {
+            settingsView.hide();
+        }
+        stopWatchingMainMenu();
         if (menu != null) {
             workspace.overlayLayer().getChildren().remove(menu);
             menu = null;
@@ -196,24 +209,97 @@ public final class NeuronMenuController {
         overlayPositioner.position(view, menu, null);
     }
 
+
     /**
-     * Відкриває налаштування нейрона та застосовує нові параметри одним узгодженим значенням.
+     * Знаходить зовнішній контейнер StackPane редактора, який залишається під коренем оформлення вікна.
+     *
+     * <p>Головну сцену може обгортати {@code WindowChromeView}, який не є StackPane. Тому контейнер
+     * накладки визначається за ланцюжком батьків робочої області, а не за типом кореня Scene.</p>
+     *
+     * @param editorContent вузол робочої області, що вже належить головній сцені.
+     * @return найзовнішній предок StackPane, який може приймати внутрішні накладки редактора.
+     * @throws NullPointerException якщо вузол робочої області не задано.
+     * @throws IllegalStateException якщо в ланцюжку предків немає StackPane-контейнера.
+     */
+    static StackPane resolveSettingsOverlayHost(Node editorContent) {
+        Objects.requireNonNull(editorContent, "editorContent");
+        StackPane overlayHost = null;
+        Parent ancestor = editorContent.getParent();
+        while (ancestor != null) {
+            if (ancestor instanceof StackPane stackPane) {
+                overlayHost = stackPane;
+            }
+            ancestor = ancestor.getParent();
+        }
+        if (overlayHost == null) {
+            throw new IllegalStateException(
+                    "Не вдалося знайти контейнер StackPane для внутрішньої накладки налаштувань нейрона");
+        }
+        return overlayHost;
+    }
+
+    /**
+     * Закриває налаштування нейрона, щойно відкривається головне меню, і передає йому керування фокусом.
+     * Слухач реєструється лише на час активного сценарію налаштувань та прибирається під час закриття.
+     *
+     * @param applicationRoot кореневий контейнер накладок головного вікна.
+     */
+    private void watchMainMenuVisibility(StackPane applicationRoot) {
+        MainMenuView mainMenu = applicationRoot.getChildren().stream()
+                .filter(MainMenuView.class::isInstance)
+                .map(MainMenuView.class::cast)
+                .findFirst()
+                .orElse(null);
+        if (mainMenu == null || (watchedMainMenu == mainMenu && mainMenuVisibilityListener != null)) {
+            return;
+        }
+        stopWatchingMainMenu();
+        watchedMainMenu = mainMenu;
+        mainMenuVisibilityListener = (observable, wasVisible, isVisible) -> {
+            if (Boolean.TRUE.equals(isVisible)) {
+                if (settingsView != null) {
+                    settingsView.hide();
+                }
+                stopWatchingMainMenu();
+            }
+        };
+        mainMenu.visibleProperty().addListener(mainMenuVisibilityListener);
+    }
+
+    /** Вилучає тимчасовий слухач видимості головного меню. */
+    private void stopWatchingMainMenu() {
+        if (watchedMainMenu != null && mainMenuVisibilityListener != null) {
+            watchedMainMenu.visibleProperty().removeListener(mainMenuVisibilityListener);
+        }
+        watchedMainMenu = null;
+        mainMenuVisibilityListener = null;
+    }
+
+    /**
+     * Відкриває внутрішню накладку налаштувань нейрона та застосовує параметри після підтвердження.
+     * Контейнер береться з головної сцени, тож нове системне вікно не створюється.
      *
      * @param neuronId ідентифікатор нейрона, налаштування якого потрібно змінити.
      */
     private void showNeuronSettings(String neuronId) {
-        neuronService.find(neuronId).ifPresent(neuron ->
-                NeuronSettingsDialog.show(
-                        workspace.node().getScene() == null
-                                ? null
-                                : workspace.node().getScene().getWindow(),
-                        neuron,
-                        localization
-                ).ifPresent(parameters -> {
-                    neuronService.updateSettings(neuronId, parameters);
+        neuronService.find(neuronId).ifPresent(neuron -> {
+            Scene scene = workspace.node().getScene();
+            if (scene == null) {
+                return;
+            }
+            StackPane applicationRoot = resolveSettingsOverlayHost(workspace.node());
+
+            hide();
+            if (settingsView == null) {
+                settingsView = new NeuronSettingsView(localization);
+            }
+            watchMainMenuVisibility(applicationRoot);
+            settingsView.showIn(applicationRoot, neuron, parameters -> {
+                if (neuronService.updateSettings(neuronId, parameters)) {
                     save.run();
                     status.accept(localization.text("neuron.settings.saved"));
-                })
-        );
+                }
+            });
+        });
     }
 }
