@@ -4,8 +4,8 @@ package com.example.neuronmap.model;
  * Описує типи нейронів та вагу сигналу, яку кожен тип передає наступному нейрону.
  */
 public enum NeuronType {
-    EXCITATORY("Активуючий"),
-    INHIBITORY("Гальмуючий");
+    EXCITATORY("Excitatory"),
+    INHIBITORY("Inhibitory");
 
     private final String label;
 

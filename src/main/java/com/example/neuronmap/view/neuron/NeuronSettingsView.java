@@ -87,7 +87,6 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         getStyleClass().add("neuron-settings-overlay");
         setMinSize(0.0, 0.0);
         setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-        addEventHandler(KeyEvent.KEY_PRESSED, this::handleKeyPressed);
 
         configureBackdrop();
         configurePanel();
@@ -408,14 +407,6 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
             keyboardFilterScene = null;
             previousScene.removeEventFilter(KeyEvent.ANY, sceneKeyboardFilter);
             SceneKeyboardModality.unregister(previousScene, this);
-        }
-    }
-
-    /** Обробляє Escape, коли клавіатурний фокус перебуває всередині самої накладки. */
-    private void handleKeyPressed(KeyEvent event) {
-        if (event.getCode() == KeyCode.ESCAPE && blocksEditorShortcuts()) {
-            close();
-            event.consume();
         }
     }
 
