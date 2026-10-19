@@ -15,9 +15,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Перевіряє геометрію лінії анімації імпульсу за заданим знімком зв’язку.
- */
+/** Перевіряє геометрію лінії анімації імпульсу за заданим знімком зв’язку. */
 class PulseAnimationViewTest {
 
     @BeforeAll
@@ -31,17 +29,14 @@ class PulseAnimationViewTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
     }
 
+    /** Перевіряє, що оновлення подання імпульсу бере геометрію з актуального знімка зв’язку. */
     @Test
     void pulseRefreshesGeometryFromCurrentSnapshot() throws Exception {
         runOnFxThread(() -> {
             ConnectionPulseSnapshot initial = snapshot(10, 20, 100, 120);
-            AtomicReference<ConnectionPulseSnapshot> current =
-                    new AtomicReference<>(initial);
+            AtomicReference<ConnectionPulseSnapshot> current = new AtomicReference<>(initial);
 
-            PulseAnimationView pulse = new PulseAnimationView(
-                    initial,
-                    current::get
-            );
+            PulseAnimationView pulse = new PulseAnimationView(initial, current::get);
             Line line = (Line) pulse.getChildren().get(0);
 
             assertLineMatches(line, initial);
@@ -55,9 +50,7 @@ class PulseAnimationViewTest {
         });
     }
 
-    /**
-     * Перевіряє сценарій «snapshot» і відповідність результату очікуваній поведінці.
-     */
+    /** Створює знімок геометрії зв’язку з указаними кінцевими точками та тестовими кольорами. */
     private static ConnectionPulseSnapshot snapshot(
             double startX,
             double startY,
@@ -72,13 +65,8 @@ class PulseAnimationViewTest {
         );
     }
 
-    /**
-     * Перевіряє сценарій «assert line matches» і відповідність результату очікуваній поведінці.
-     */
-    private static void assertLineMatches(
-            Line line,
-            ConnectionPulseSnapshot snapshot
-    ) {
+    /** Перевіряє, що початок і кінець графічної лінії відповідають координатам знімка. */
+    private static void assertLineMatches(Line line, ConnectionPulseSnapshot snapshot) {
         assertEquals(snapshot.start().getX(), line.getStartX());
         assertEquals(snapshot.start().getY(), line.getStartY());
         assertEquals(snapshot.end().getX(), line.getEndX());
@@ -101,7 +89,6 @@ class PulseAnimationViewTest {
 
         assertTrue(latch.await(5, TimeUnit.SECONDS));
         if (failure[0] != null) {
-
             throw new AssertionError("JavaFX test failed", failure[0]);
         }
     }

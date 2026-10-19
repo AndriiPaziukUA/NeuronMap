@@ -37,13 +37,11 @@ final class NeuronOverlayCoordinateTest {
         }
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
-
-            throw new IllegalStateException(
-                    "JavaFX startup timed out"
-            );
+            throw new IllegalStateException("JavaFX startup timed out");
         }
     }
 
+    /** Перевіряє перетворення геометричного центра нейрона в координати шару накладок. */
     @Test
     void rectangleCenterIsConvertedIntoOverlayCoordinates() throws Exception {
         runOnFxThread(() -> {
@@ -64,6 +62,7 @@ final class NeuronOverlayCoordinateTest {
         });
     }
 
+    /** Перевіряє, що перетворення центра враховує зміщення та масштаб світового шару. */
     @Test
     void rectangleCenterIncludesWorldTranslationAndScale() throws Exception {
         runOnFxThread(() -> {
@@ -90,9 +89,9 @@ final class NeuronOverlayCoordinateTest {
         });
     }
 
+    /** Переконується, що центр нейрона залишається геометричним центром і після обертання подання. */
     @Test
-    void rectangleCenterRemainsGeometricallyCenteredAfterRotation()
-            throws Exception {
+    void rectangleCenterRemainsGeometricallyCenteredAfterRotation() throws Exception {
         runOnFxThread(() -> {
             Fixture fixture = fixture();
 
@@ -115,6 +114,7 @@ final class NeuronOverlayCoordinateTest {
         });
     }
 
+    /** Перевіряє горизонтальне центрування меню відносно прямокутника нейрона. */
     @Test
     void menuIsCenteredOnRectangleCenter() throws Exception {
         runOnFxThread(() -> {
@@ -144,6 +144,7 @@ final class NeuronOverlayCoordinateTest {
         });
     }
 
+    /** Перевіряє, що горизонтальний центр меню зміщується разом із переміщенням нейрона. */
     @Test
     void menuHorizontalCenterTracksNeuronMovement() throws Exception {
         runOnFxThread(() -> {
@@ -160,8 +161,7 @@ final class NeuronOverlayCoordinateTest {
                     null
             );
 
-            double before =
-                    menu.getLayoutX() + menu.getWidth() / 2.0;
+            double before = menu.getLayoutX() + menu.getWidth() / 2.0;
 
             fixture.presentation().moveBy(140.0, 100.0);
             fixture.neuronView().refreshVisuals(false);
@@ -173,23 +173,16 @@ final class NeuronOverlayCoordinateTest {
                     null
             );
 
-            double after =
-                    menu.getLayoutX() + menu.getWidth() / 2.0;
+            double after = menu.getLayoutX() + menu.getWidth() / 2.0;
 
             assertEquals(140.0, after - before, EPSILON);
         });
     }
 
-    /**
-     * Перевіряє сценарій «fixture» і відповідність результату очікуваній поведінці.
-     */
+    /** Створює тестову сцену з нейроном і окремим шаром накладок. */
     private static Fixture fixture() {
         NeuronPresentation presentation = new NeuronPresentation(
-                new Neuron(
-                        "overlay-test-neuron",
-                        NeuronType.EXCITATORY,
-                        0
-                ),
+                new Neuron("overlay-test-neuron", NeuronType.EXCITATORY, 0),
                 100.0,
                 80.0,
                 0.0
@@ -222,13 +215,8 @@ final class NeuronOverlayCoordinateTest {
         );
     }
 
-    /**
-     * Перевіряє сценарій «assert point equals» і відповідність результату очікуваній поведінці.
-     */
-    private static void assertPointEquals(
-            Point2D expected,
-            Point2D actual
-    ) {
+    /** Порівнює координати двох точок із заданою похибкою по обох осях. */
+    private static void assertPointEquals(Point2D expected, Point2D actual) {
         assertEquals(expected.getX(), actual.getX(), EPSILON);
         assertEquals(expected.getY(), actual.getY(), EPSILON);
     }
@@ -248,18 +236,11 @@ final class NeuronOverlayCoordinateTest {
         });
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
-
-            throw new IllegalStateException(
-                    "JavaFX test timed out"
-            );
+            throw new IllegalStateException("JavaFX test timed out");
         }
 
         if (failure[0] != null) {
-
-            throw new AssertionError(
-                    "JavaFX test failed",
-                    failure[0]
-            );
+            throw new AssertionError("JavaFX test failed", failure[0]);
         }
     }
 

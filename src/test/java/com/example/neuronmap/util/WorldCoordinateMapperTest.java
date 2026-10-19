@@ -6,9 +6,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/**
- * Перевіряє єдине перетворення координат області перегляду на координати світу.
- */
+/** Перевіряє єдине перетворення координат області перегляду на координати світу. */
 final class WorldCoordinateMapperTest {
 
     private static final double EPSILON = 0.0001;
@@ -26,6 +24,7 @@ final class WorldCoordinateMapperTest {
         assertEquals(85.0, worldPoint.getY(), EPSILON);
     }
 
+    /** Перевіряє, що перетворення координат скасовує панорамування та масштаб камери. */
     @Test
     void reversesCameraPanAndZoom() {
         Point2D worldPoint = WorldCoordinateMapper.viewportToWorld(
@@ -39,6 +38,7 @@ final class WorldCoordinateMapperTest {
         assertEquals(50.0, worldPoint.getY(), EPSILON);
     }
 
+    /** Переконується, що нульовий, від’ємний або нескінченний масштаб відхиляється як некоректний. */
     @Test
     void rejectsNonPositiveOrNonFiniteZoom() {
         assertThrows(
@@ -61,6 +61,7 @@ final class WorldCoordinateMapperTest {
         );
     }
 
+    /** Перевіряє, що перетворення не приймає відсутню точку області перегляду. */
     @Test
     void rejectsNullViewportPoint() {
         assertThrows(

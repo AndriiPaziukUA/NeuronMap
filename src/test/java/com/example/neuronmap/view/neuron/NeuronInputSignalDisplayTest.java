@@ -13,9 +13,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/**
- * Перевіряє показ і очищення позначення вхідного сигналу на нейроні.
- */
+/** Перевіряє показ і очищення позначення вхідного сигналу на нейроні. */
 final class NeuronInputSignalDisplayTest {
 
     @BeforeAll
@@ -29,36 +27,20 @@ final class NeuronInputSignalDisplayTest {
         }
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
-
-            throw new IllegalStateException(
-                    "JavaFX startup timed out"
-            );
+            throw new IllegalStateException("JavaFX startup timed out");
         }
     }
 
+    /** Перевіряє, що тимчасово показаний вхідний сигнал знову відображається як нуль після очищення стану. */
     @Test
-    void inputSignalReturnsToZeroWhenTemporaryStateIsCleared()
-            throws Exception {
+    void inputSignalReturnsToZeroWhenTemporaryStateIsCleared() throws Exception {
         runOnFxThread(() -> {
-            Neuron neuron = new Neuron(
-                    "input-display-test",
-                    NeuronType.EXCITATORY,
-                    0
-            );
-
-            NeuronPresentation presentation =
-                    new NeuronPresentation(
-                            neuron,
-                            100.0,
-                            80.0,
-                            0.0
-                    );
-
+            Neuron neuron = new Neuron("input-display-test", NeuronType.EXCITATORY, 0);
+            NeuronPresentation presentation = new NeuronPresentation(neuron, 100.0, 80.0, 0.0);
             NeuronView view = new NeuronView(presentation);
             Label inputLabel = (Label) view.getChildren().get(1);
 
             assertEquals("0", inputLabel.getText());
-
             view.showInputSignal(7);
             assertEquals("7", inputLabel.getText());
 
@@ -73,24 +55,12 @@ final class NeuronInputSignalDisplayTest {
         });
     }
 
+    /** Переконується, що метод очищення індикатора також встановлює фактичне значення сигналу в нуль. */
     @Test
-    void clearDisplayedInputSignalAlsoLeavesActualZeroValue()
-            throws Exception {
+    void clearDisplayedInputSignalAlsoLeavesActualZeroValue() throws Exception {
         runOnFxThread(() -> {
-            Neuron neuron = new Neuron(
-                    "input-display-clear-test",
-                    NeuronType.EXCITATORY,
-                    0
-            );
-
-            NeuronPresentation presentation =
-                    new NeuronPresentation(
-                            neuron,
-                            100.0,
-                            80.0,
-                            0.0
-                    );
-
+            Neuron neuron = new Neuron("input-display-clear-test", NeuronType.EXCITATORY, 0);
+            NeuronPresentation presentation = new NeuronPresentation(neuron, 100.0, 80.0, 0.0);
             NeuronView view = new NeuronView(presentation);
             Label inputLabel = (Label) view.getChildren().get(1);
 
@@ -118,18 +88,11 @@ final class NeuronInputSignalDisplayTest {
         });
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
-
-            throw new IllegalStateException(
-                    "JavaFX test timed out"
-            );
+            throw new IllegalStateException("JavaFX test timed out");
         }
 
         if (failure[0] != null) {
-
-            throw new AssertionError(
-                    "JavaFX test failed",
-                    failure[0]
-            );
+            throw new AssertionError("JavaFX test failed", failure[0]);
         }
     }
 }

@@ -24,11 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Перевіряє відкладену матеріалізацію тимчасового проєкту та передачу роботи постійному репозиторію. */
 final class TransientProjectRepositoryTest {
 
-    /**
-     * Перевіряє, що порожній тимчасовий проєкт не створює каталог до появи даних.
-     *
-     * @param tempDir тимчасовий каталог тесту.
-     */
+    /** Перевіряє, що порожній тимчасовий проєкт не створює каталог до появи даних. */
     @Test
     void emptyProjectDoesNotCreateFolder(@TempDir Path tempDir) {
         Path path = tempDir.resolve("Project").resolve("project.db");
@@ -41,19 +37,22 @@ final class TransientProjectRepositoryTest {
     }
 
     /**
-     * Перевіряє, що перший нейрон матеріалізує проєкт і очищає попередній вміст каталогу.
+     * Перевіряє, що перший запис непорожньої карти очищає вміст лише призначеного каталогу проєкту.
+     * Файли й каталоги поруч із ним у корені володіння мають залишитися недоторканими.
      *
-     * @param tempDir тимчасовий каталог тесту.
-     * @throws Exception якщо не вдається підготувати тестові файли.
+     * @param tempDir тимчасовий корінь сховища, ізольований для цього тесту.
+     * @throws Exception якщо не вдається підготувати чи прочитати тестові файли.
      */
     @Test
-    void firstElementMaterializesProjectAndCleansJunk(@TempDir Path tempDir)
+    void firstElementMaterializesProjectAndClearsOnlyOwnedDirectoryContents(@TempDir Path tempDir)
             throws Exception {
         Path directory = tempDir.resolve("Project");
         Path path = directory.resolve("project.db");
+        Path siblingFile = tempDir.resolve("keep.txt");
         Files.createDirectories(directory.resolve("old"));
         Files.writeString(directory.resolve("junk.txt"), "junk");
-        Files.writeString(directory.resolve("old").resolve("junk.txt"), "junk");
+        Files.writeString(directory.resolve("old").resolve("junk.txt"), "nested junk");
+        Files.writeString(siblingFile, "keep");
 
         ProjectDescriptor project = new ProjectDescriptor(
                 "project-id",
@@ -72,14 +71,12 @@ final class TransientProjectRepositoryTest {
             assertTrue(Files.isRegularFile(path));
             assertFalse(Files.exists(directory.resolve("junk.txt")));
             assertFalse(Files.exists(directory.resolve("old")));
+            assertTrue(Files.isRegularFile(siblingFile));
+            assertEquals("keep", Files.readString(siblingFile));
         }
     }
 
-    /**
-     * Перевіряє збереження налаштувань панелі й камери до матеріалізації тимчасового проєкту.
-     *
-     * @param tempDir тимчасовий каталог тесту.
-     */
+    /** Перевіряє збереження налаштувань панелі й камери до матеріалізації тимчасового проєкту. */
     @Test
     void emptyProjectRetainsPendingToolbarAndCameraSettings(@TempDir Path tempDir) {
         Path path = tempDir.resolve("Project").resolve("project.db");
@@ -95,15 +92,14 @@ final class TransientProjectRepositoryTest {
     }
 
     /**
-     * Переконується, що постійний делегат створюється ін'єктованим постачальником після підготовки каталогу.
+     * Переконується, що постійний делегат створюється ін’єктованим постачальником після підготовки каталогу.
      * Тест використовує тестовий делегат і не відкриває SQLite.
      *
      * @param tempDir тимчасовий каталог тесту.
      * @throws Exception якщо не вдається підготувати тестові файли.
      */
     @Test
-    void usesInjectedDelegateAfterPreparingProjectDirectory(@TempDir Path tempDir)
-            throws Exception {
+    void usesInjectedDelegateAfterPreparingProjectDirectory(@TempDir Path tempDir) throws Exception {
         Path directory = tempDir.resolve("Project");
         Path path = directory.resolve("project.db");
         Files.createDirectories(directory);
@@ -136,15 +132,9 @@ final class TransientProjectRepositoryTest {
         assertEquals(1, delegate.closeCalls);
     }
 
-    /**
-     * Перевіряє, що наявний файл бази даних не перезаписується під час матеріалізації.
-     *
-     * @param tempDir тимчасовий каталог тесту.
-     * @throws Exception якщо не вдається створити тестовий файл.
-     */
+    /** Перевіряє, що файл бази даних, який існував до матеріалізації, не перезаписується. */
     @Test
-    void existingProjectDatabaseIsNeverOverwritten(@TempDir Path tempDir)
-            throws Exception {
+    void existingProjectDatabaseIsNeverOverwritten(@TempDir Path tempDir) throws Exception {
         Path directory = tempDir.resolve("Project");
         Path path = directory.resolve("project.db");
         Files.createDirectories(directory);
@@ -162,11 +152,7 @@ final class TransientProjectRepositoryTest {
         }
     }
 
-    /**
-     * Перевіряє, що репозиторій відхиляє шлях, який не належить переданому кореню сховища.
-     *
-     * @param tempDir тимчасовий каталог тесту.
-     */
+    /** Перевіряє, що репозиторій не приймає шлях до каталогу, який не належить переданому кореню сховища. */
     @Test
     void refusesProjectOutsideExplicitOwnershipRoot(@TempDir Path tempDir) {
         Path databasePath = tempDir.resolve("outside/Project/project.db");
@@ -199,7 +185,7 @@ final class TransientProjectRepositoryTest {
             this.databasePath = databasePath.toAbsolutePath().normalize();
         }
 
-        /** Повертає шлях, пов'язаний із тестовим делегатом. */
+        /** Повертає шлях, пов’язаний із тестовим делегатом. */
         @Override
         public Path databasePath() {
             return databasePath;
@@ -229,7 +215,7 @@ final class TransientProjectRepositoryTest {
             // Налаштування симуляції не потрібне для цього тесту.
         }
 
-        /** Запам'ятовує модель і стан камери, передані тимчасовим репозиторієм. */
+        /** Запам’ятовує модель і стан камери, передані тимчасовим репозиторієм. */
         @Override
         public void save(NeuronMapModel model, CameraState cameraState) {
             savedModel = model;

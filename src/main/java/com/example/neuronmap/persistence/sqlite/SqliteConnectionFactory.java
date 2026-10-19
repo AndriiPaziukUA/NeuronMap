@@ -20,8 +20,11 @@ public final class SqliteConnectionFactory {
 
     /**
      * Відкриває SQLite-з’єднання для заданого файлу бази даних і застосовує необхідні параметри з’єднання.
+     * Відповідальність за закриття поверненого з’єднання належить виклику, який його отримав.
      *
      * @param databasePath шлях до файлу бази даних проєкту.
+     * @return відкрите й налаштоване JDBC-з’єднання, яке потрібно закрити після використання.
+     * @throws PersistenceException якщо драйвер, файлова система або SQLite не дозволяють відкрити з’єднання.
      */
     public static Connection open(Path databasePath) {
         try {
@@ -53,16 +56,14 @@ public final class SqliteConnectionFactory {
     }
 
     /**
-     * Установлює параметри SQLite-з’єднання, потрібні для стабільної роботи сховища.
+     * Застосовує до переданого JDBC-з’єднання параметри SQLite, потрібні для надійної роботи сховища.
+     * Установлює журналювання WAL, повну синхронізацію, перевірку зовнішніх ключів і тайм-аут блокування.
      *
-     * @param connection напрямлений зв’язок між нейронами.
+     * @param connection відкрите JDBC-з’єднання, для якого потрібно встановити параметри PRAGMA.
+     * @throws SQLException якщо SQLite не може застосувати один із параметрів.
      */
-    private static void configure(
-            Connection connection
-    ) throws SQLException {
-        try (Statement statement =
-                     connection.createStatement()) {
-
+    private static void configure(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
             statement.execute("PRAGMA journal_mode=WAL");
             statement.execute("PRAGMA synchronous=FULL");
             statement.execute("PRAGMA foreign_keys=ON");

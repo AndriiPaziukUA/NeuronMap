@@ -20,9 +20,7 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
-/**
- * Перевіряє пошук видимого подання зв’язку за точкою сцени.
- */
+/** Перевіряє пошук видимого подання зв’язку за точкою сцени. */
 final class ConnectionHitTesterTest {
 
     @BeforeAll
@@ -40,6 +38,7 @@ final class ConnectionHitTesterTest {
         }
     }
 
+    /** Перевіряє, що пошук повертає видимий зв’язок, який перетинає задану точку сцени. */
     @Test
     void findsVisibleConnectionAtSceneCoordinates() throws Exception {
         runOnFxThread(() -> {
@@ -56,6 +55,7 @@ final class ConnectionHitTesterTest {
         });
     }
 
+    /** Переконується, що зв’язок не бере участі в пошуку, коли його графічне подання приховане. */
     @Test
     void ignoresConnectionWhenItsViewIsNotVisible() throws Exception {
         runOnFxThread(() -> {
@@ -72,25 +72,17 @@ final class ConnectionHitTesterTest {
         });
     }
 
+    /** Перевіряє, що пошук повертає {@code null}, коли задана точка не перетинає жодного видимого зв’язку. */
     @Test
     void returnsNullWhenPointDoesNotIntersectVisibleConnection() throws Exception {
         runOnFxThread(() -> {
             Fixture fixture = fixture();
 
-            assertNull(
-                    fixture.hitTester().findConnectionViewAt(
-                            15.0,
-                            550.0
-                    )
-            );
+            assertNull(fixture.hitTester().findConnectionViewAt(15.0, 550.0));
         });
     }
 
-    /**
-     * Створює сцену з одним зв’язком для перевірки геометричного пошуку.
-     *
-     * @return підготовлені компоненти тестової сцени.
-     */
+    /** Створює сцену з одним зв’язком для перевірки геометричного пошуку. */
     private static Fixture fixture() {
         NeuronMapModel model = new NeuronMapModel();
         Neuron source = model.addNeuron(
@@ -148,12 +140,7 @@ final class ConnectionHitTesterTest {
         );
     }
 
-    /**
-     * Виконує дію в потоці JavaFX і передає помилку тестовому потоку.
-     *
-     * @param action дія, яку потрібно виконати.
-     * @throws Exception якщо очікування потоку JavaFX перервано.
-     */
+    /** Виконує дію в потоці JavaFX і передає помилку тестовому потоку. */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];

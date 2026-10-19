@@ -19,9 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Перевіряє, що напрямок нейрона змінює сервіс, а подання лише відображає його стан.
- */
+/** Перевіряє, що напрямок нейрона змінює сервіс, а подання лише відображає його стан. */
 final class NeuronViewDirectionRefreshTest {
 
     private static final double EPSILON = 0.0001;
@@ -37,12 +35,11 @@ final class NeuronViewDirectionRefreshTest {
         }
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
-            throw new IllegalStateException(
-                    "JavaFX startup timed out"
-            );
+            throw new IllegalStateException("JavaFX startup timed out");
         }
     }
 
+    /** Перевіряє, що подання нейрона не оголошує власної операції зміни доменного напрямку. */
     @Test
     void viewDoesNotDeclareDirectionMutationMethod() {
         assertFalse(
@@ -52,17 +49,13 @@ final class NeuronViewDirectionRefreshTest {
         );
     }
 
+    /** Переконується, що оновлення візуальних елементів відображає напрямок, змінений через NeuronService. */
     @Test
-    void refreshVisualsReflectsDirectionChangedThroughService()
-            throws Exception {
+    void refreshVisualsReflectsDirectionChangedThroughService() throws Exception {
         runOnFxThread(() -> {
             NeuronMapModel model = new NeuronMapModel();
             NeuronService service = new NeuronService(model);
-            Neuron neuron = service.create(
-                    NeuronType.EXCITATORY,
-                    100.0,
-                    80.0
-            );
+            Neuron neuron = service.create(NeuronType.EXCITATORY, 100.0, 80.0);
             NeuronPresentation presentation = service.presentation(neuron.id())
                     .orElseThrow(() -> new AssertionError(
                             "Подання щойно створеного нейрона має існувати."
@@ -99,16 +92,11 @@ final class NeuronViewDirectionRefreshTest {
         });
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
-            throw new IllegalStateException(
-                    "JavaFX test timed out"
-            );
+            throw new IllegalStateException("JavaFX test timed out");
         }
 
         if (failure[0] != null) {
-            throw new AssertionError(
-                    "JavaFX test failed",
-                    failure[0]
-            );
+            throw new AssertionError("JavaFX test failed", failure[0]);
         }
     }
 }

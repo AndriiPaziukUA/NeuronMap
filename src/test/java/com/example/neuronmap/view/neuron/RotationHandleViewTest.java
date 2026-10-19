@@ -15,9 +15,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/**
- * Перевіряє, що ручка обертання розміщується відповідно до центра та кута нейрона.
- */
+/** Перевіряє, що ручка обертання розміщується відповідно до центра та кута нейрона. */
 final class RotationHandleViewTest {
 
     private static final double EPSILON = 0.0001;
@@ -33,13 +31,11 @@ final class RotationHandleViewTest {
         }
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
-
-            throw new IllegalStateException(
-                    "JavaFX startup timed out"
-            );
+            throw new IllegalStateException("JavaFX startup timed out");
         }
     }
 
+    /** Перевіряє початкове центрування ручки під нейроном і точний проміжок від його нижнього краю. */
     @Test
     void handleStartsCenteredBelowNeuronWithExactGap() throws Exception {
         runOnFxThread(() -> {
@@ -50,15 +46,9 @@ final class RotationHandleViewTest {
                     NeuronView.WIDTH / 2.0,
                     NeuronView.HEIGHT
             );
-            Point2D handleCenter = handleCenterInScene(
-                    fixture.handle()
-            );
+            Point2D handleCenter = handleCenterInScene(fixture.handle());
 
-            assertEquals(
-                    neuronBottom.getX(),
-                    handleCenter.getX(),
-                    EPSILON
-            );
+            assertEquals(neuronBottom.getX(), handleCenter.getX(), EPSILON);
             assertEquals(
                     RotationHandleView.GAP
                             + RotationHandleView.SIZE / 2.0
@@ -71,6 +61,7 @@ final class RotationHandleViewTest {
         });
     }
 
+    /** Переконується, що ручка переміщується разом із нейроном, зберігаючи відносне положення. */
     @Test
     void handleFollowsNeuronAfterMove() throws Exception {
         runOnFxThread(() -> {
@@ -78,9 +69,7 @@ final class RotationHandleViewTest {
             position(fixture);
 
             Point2D before = handleCenterInScene(fixture.handle());
-            Point2D neuronBefore = neuronCenterInScene(
-                    fixture.neuronView()
-            );
+            Point2D neuronBefore = neuronCenterInScene(fixture.neuronView());
 
             fixture.presentation().moveBy(140.0, 100.0);
             fixture.neuronView().refreshVisuals(false);
@@ -88,91 +77,49 @@ final class RotationHandleViewTest {
             position(fixture);
 
             Point2D after = handleCenterInScene(fixture.handle());
-            Point2D neuronAfter = neuronCenterInScene(
-                    fixture.neuronView()
-            );
+            Point2D neuronAfter = neuronCenterInScene(fixture.neuronView());
 
-            assertEquals(
-                    140.0,
-                    after.getX() - before.getX(),
-                    EPSILON
-            );
-            assertEquals(
-                    100.0,
-                    after.getY() - before.getY(),
-                    EPSILON
-            );
-            assertEquals(
-                    before.getX() - neuronBefore.getX(),
-                    after.getX() - neuronAfter.getX(),
-                    EPSILON
-            );
-            assertEquals(
-                    before.getY() - neuronBefore.getY(),
-                    after.getY() - neuronAfter.getY(),
-                    EPSILON
-            );
+            assertEquals(140.0, after.getX() - before.getX(), EPSILON);
+            assertEquals(100.0, after.getY() - before.getY(), EPSILON);
+            assertEquals(before.getX() - neuronBefore.getX(), after.getX() - neuronAfter.getX(), EPSILON);
+            assertEquals(before.getY() - neuronBefore.getY(), after.getY() - neuronAfter.getY(), EPSILON);
         });
     }
 
+    /** Перевіряє орбітальний рух ручки при обертанні нейрона зі сталим проміжком до його краю. */
     @Test
-    void handleOrbitsAroundNeuronWhileKeepingExactEdgeGap()
-            throws Exception {
+    void handleOrbitsAroundNeuronWhileKeepingExactEdgeGap() throws Exception {
         runOnFxThread(() -> {
             Fixture fixture = fixture(0.0);
-            Point2D center = neuronCenterInScene(
-                    fixture.neuronView()
-            );
+            Point2D center = neuronCenterInScene(fixture.neuronView());
 
-            double edgeGap =
-                    RotationHandleView.GAP
-                            + RotationHandleView.SIZE / 2.0
-                            + NeuronView.SELECTED_STROKE_WIDTH / 2.0;
+            double edgeGap = RotationHandleView.GAP
+                    + RotationHandleView.SIZE / 2.0
+                    + NeuronView.SELECTED_STROKE_WIDTH / 2.0;
 
             for (double degrees : new double[]{
-                    0.0,
-                    45.0,
-                    90.0,
-                    135.0,
-                    180.0,
-                    225.0,
-                    270.0,
-                    315.0
+                    0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0
             }) {
                 fixture.presentation().setRotationDegrees(degrees);
                 fixture.neuronView().refreshVisuals(false);
                 fixture.root().layout();
                 position(fixture);
 
-                Point2D actual = handleCenterInScene(
-                        fixture.handle()
-                );
-
+                Point2D actual = handleCenterInScene(fixture.handle());
                 double angle = Math.toRadians(degrees);
-                double expectedDistance =
-                        NeuronView.HEIGHT / 2.0 + edgeGap;
-
+                double expectedDistance = NeuronView.HEIGHT / 2.0 + edgeGap;
                 Point2D expected = new Point2D(
-                        center.getX()
-                                - expectedDistance * Math.sin(angle),
-                        center.getY()
-                                + expectedDistance * Math.cos(angle)
+                        center.getX() - expectedDistance * Math.sin(angle),
+                        center.getY() + expectedDistance * Math.cos(angle)
                 );
 
-                assertEquals(
-                        expected.getX(),
-                        actual.getX(),
-                        EPSILON
-                );
-                assertEquals(
-                        expected.getY(),
-                        actual.getY(),
-                        EPSILON
-                );
+                assertEquals(expected.getX(), actual.getX(), EPSILON);
+                assertEquals(expected.getY(), actual.getY(), EPSILON);
             }
         });
     }
 
+    /** Перевіряє, що проміжок від ручки до нейрона лишається сталим у екранних одиницях за різного масштабу. */
     @Test
     void handleKeepsScreenGapThroughWorldZoom() throws Exception {
         runOnFxThread(() -> {
@@ -194,53 +141,31 @@ final class RotationHandleViewTest {
                         NeuronView.WIDTH / 2.0,
                         NeuronView.HEIGHT + 1.0
                 );
-                Point2D handleCenter = handleCenterInScene(
-                        fixture.handle()
-                );
+                Point2D handleCenter = handleCenterInScene(fixture.handle());
 
-                double dx =
-                        normalSample.getX() - neuronEdge.getX();
-                double dy =
-                        normalSample.getY() - neuronEdge.getY();
+                double dx = normalSample.getX() - neuronEdge.getX();
+                double dy = normalSample.getY() - neuronEdge.getY();
                 double normalLength = Math.hypot(dx, dy);
+                double screenUnitsPerLocalUnit = normalLength;
+                double selectionStrokeReserve = NeuronView.SELECTED_STROKE_WIDTH / 2.0
+                        * screenUnitsPerLocalUnit;
+                double expectedCenterGap = RotationHandleView.GAP
+                        + RotationHandleView.SIZE / 2.0
+                        + selectionStrokeReserve;
+                double actualGap = ((handleCenter.getX() - neuronEdge.getX()) * dx
+                        + (handleCenter.getY() - neuronEdge.getY()) * dy) / normalLength;
 
-                double screenUnitsPerLocalUnit =
-                        normalLength;
-                double selectionStrokeReserve =
-                        NeuronView.SELECTED_STROKE_WIDTH / 2.0
-                                * screenUnitsPerLocalUnit;
-
-                double expectedCenterGap =
-                        RotationHandleView.GAP
-                                + RotationHandleView.SIZE / 2.0
-                                + selectionStrokeReserve;
-
-                double actualGap =
-                        ((handleCenter.getX() - neuronEdge.getX()) * dx
-                                + (handleCenter.getY() - neuronEdge.getY()) * dy)
-                                / normalLength;
-
-                assertEquals(
-                        expectedCenterGap,
-                        actualGap,
-                        EPSILON
-                );
-
-                double gapOutsideSelectionStroke =
-                        actualGap - selectionStrokeReserve
-                                - RotationHandleView.SIZE / 2.0;
-
-                assertEquals(
-                        RotationHandleView.GAP,
-                        gapOutsideSelectionStroke,
-                        EPSILON
-                );
+                assertEquals(expectedCenterGap, actualGap, EPSILON);
+                double gapOutsideSelectionStroke = actualGap - selectionStrokeReserve
+                        - RotationHandleView.SIZE / 2.0;
+                assertEquals(RotationHandleView.GAP, gapOutsideSelectionStroke, EPSILON);
 
                 fixture.handle().dispose();
             }
         });
     }
 
+    /** Переконується, що область попадання ручки має заданий розмір і не масштабується разом зі світом. */
     @Test
     void handleHitAreaStaysExactly22By22() throws Exception {
         runOnFxThread(() -> {
@@ -252,32 +177,14 @@ final class RotationHandleViewTest {
             fixture.root().layout();
             position(fixture);
 
-            assertEquals(
-                    RotationHandleView.SIZE,
-                    fixture.handle().getPrefWidth(),
-                    EPSILON
-            );
-            assertEquals(
-                    RotationHandleView.SIZE,
-                    fixture.handle().getPrefHeight(),
-                    EPSILON
-            );
-            assertEquals(
-                    RotationHandleView.SIZE,
-                    fixture.handle().getBoundsInLocal().getWidth(),
-                    EPSILON
-            );
-            assertEquals(
-                    RotationHandleView.SIZE,
-                    fixture.handle().getBoundsInLocal().getHeight(),
-                    EPSILON
-            );
+            assertEquals(RotationHandleView.SIZE, fixture.handle().getPrefWidth(), EPSILON);
+            assertEquals(RotationHandleView.SIZE, fixture.handle().getPrefHeight(), EPSILON);
+            assertEquals(RotationHandleView.SIZE, fixture.handle().getBoundsInLocal().getWidth(), EPSILON);
+            assertEquals(RotationHandleView.SIZE, fixture.handle().getBoundsInLocal().getHeight(), EPSILON);
         });
     }
 
-    /**
-     * Перевіряє сценарій «position» і відповідність результату очікуваній поведінці.
-     */
+    /** Розміщує ручку в батьківському шарі відповідно до актуальної геометрії нейрона. */
     private static void position(Fixture fixture) {
         NeuronOverlayPositioner.positionRotationHandleInParent(
                 fixture.neuronView(),
@@ -286,16 +193,10 @@ final class RotationHandleViewTest {
         );
     }
 
-    /**
-     * Перевіряє сценарій «fixture» і відповідність результату очікуваній поведінці.
-     */
+    /** Створює тестову сцену з нейроном, ручкою обертання та окремим шаром накладок. */
     private static Fixture fixture(double rotationDegrees) {
         NeuronPresentation presentation = new NeuronPresentation(
-                new Neuron(
-                        "rotation-test-neuron",
-                        NeuronType.EXCITATORY,
-                        0
-                ),
+                new Neuron("rotation-test-neuron", NeuronType.EXCITATORY, 0),
                 100.0,
                 80.0,
                 rotationDegrees
@@ -303,7 +204,6 @@ final class RotationHandleViewTest {
 
         NeuronView neuronView = new NeuronView(presentation);
         RotationHandleView handle = new RotationHandleView();
-
         Pane world = new Pane();
         Pane overlay = new Pane();
         Pane root = new Pane(world, overlay);
@@ -311,22 +211,12 @@ final class RotationHandleViewTest {
         world.getChildren().add(neuronView);
         overlay.getChildren().add(handle);
         new Scene(root, 1000.0, 800.0);
-
         root.layout();
 
-        return new Fixture(
-                presentation,
-                neuronView,
-                handle,
-                world,
-                overlay,
-                root
-        );
+        return new Fixture(presentation, neuronView, handle, world, overlay, root);
     }
 
-    /**
-     * Перевіряє сценарій «neuron center in scene» і відповідність результату очікуваній поведінці.
-     */
+    /** Повертає геометричний центр нейрона в системі координат сцени. */
     private static Point2D neuronCenterInScene(NeuronView neuronView) {
         return neuronView.localToScene(
                 NeuronView.WIDTH / 2.0,
@@ -334,12 +224,8 @@ final class RotationHandleViewTest {
         );
     }
 
-    /**
-     * Перевіряє сценарій «handle center in scene» і відповідність результату очікуваній поведінці.
-     */
-    private static Point2D handleCenterInScene(
-            RotationHandleView handle
-    ) {
+    /** Повертає геометричний центр ручки в системі координат сцени. */
+    private static Point2D handleCenterInScene(RotationHandleView handle) {
         return handle.localToScene(
                 RotationHandleView.SIZE / 2.0,
                 RotationHandleView.SIZE / 2.0
@@ -361,18 +247,11 @@ final class RotationHandleViewTest {
         });
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
-
-            throw new IllegalStateException(
-                    "JavaFX test timed out"
-            );
+            throw new IllegalStateException("JavaFX test timed out");
         }
 
         if (failure[0] != null) {
-
-            throw new AssertionError(
-                    "JavaFX test failed",
-                    failure[0]
-            );
+            throw new AssertionError("JavaFX test failed", failure[0]);
         }
     }
 

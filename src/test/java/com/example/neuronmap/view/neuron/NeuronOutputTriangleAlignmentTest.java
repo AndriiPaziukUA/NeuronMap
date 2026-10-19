@@ -15,9 +15,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/**
- * Перевіряє вирівнювання вихідного трикутника нейрона для звичайного й розвернутого напрямків.
- */
+/** Перевіряє вирівнювання вихідного трикутника нейрона для звичайного й розвернутого напрямків. */
 final class NeuronOutputTriangleAlignmentTest {
 
     private static final double EPSILON = 0.0001;
@@ -33,32 +31,28 @@ final class NeuronOutputTriangleAlignmentTest {
         }
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
-
-            throw new IllegalStateException(
-                    "JavaFX startup timed out"
-            );
+            throw new IllegalStateException("JavaFX startup timed out");
         }
     }
 
+    /** Перевіряє центр трикутника відносно зовнішнього краю виділеного штриха за звичайного напрямку нейрона. */
     @Test
-    void outputTriangleIsCenteredOnSelectedStrokeForNormalDirection()
-            throws Exception {
+    void outputTriangleIsCenteredOnSelectedStrokeForNormalDirection() throws Exception {
         runOnFxThread(() -> {
             NeuronView view = neuronView(false);
             Polygon triangle = outputTriangle(view);
 
             assertEquals(
-                    NeuronView.WIDTH
-                            + NeuronView.SELECTED_STROKE_WIDTH / 2.0,
+                    NeuronView.WIDTH + NeuronView.SELECTED_STROKE_WIDTH / 2.0,
                     triangleCenterX(triangle),
                     EPSILON
             );
         });
     }
 
+    /** Перевіряє, що трикутник вирівнюється відносно протилежного краю штриха після розвороту напрямку. */
     @Test
-    void outputTriangleIsCenteredOnSelectedStrokeForReversedDirection()
-            throws Exception {
+    void outputTriangleIsCenteredOnSelectedStrokeForReversedDirection() throws Exception {
         runOnFxThread(() -> {
             NeuronView view = neuronView(true);
             Polygon triangle = outputTriangle(view);
@@ -71,22 +65,10 @@ final class NeuronOutputTriangleAlignmentTest {
         });
     }
 
-    /**
-     * Перевіряє сценарій «neuron view» і відповідність результату очікуваній поведінці.
-     */
+    /** Створює подання нейрона з указаним напрямком і розміщує його в тестовій сцені. */
     private static NeuronView neuronView(boolean reversed) {
-        Neuron neuron = new Neuron(
-                "triangle-alignment-test",
-                NeuronType.EXCITATORY,
-                0
-        );
-
-        NeuronPresentation presentation = new NeuronPresentation(
-                neuron,
-                100.0,
-                80.0,
-                0.0
-        );
+        Neuron neuron = new Neuron("triangle-alignment-test", NeuronType.EXCITATORY, 0);
+        NeuronPresentation presentation = new NeuronPresentation(neuron, 100.0, 80.0, 0.0);
 
         if (reversed) {
             presentation.toggleDirection();
@@ -98,22 +80,17 @@ final class NeuronOutputTriangleAlignmentTest {
         return view;
     }
 
-    /**
-     * Перевіряє сценарій «output triangle» і відповідність результату очікуваній поведінці.
-     */
+    /** Знаходить графічний трикутник вихідного порту серед дочірніх вузлів подання нейрона. */
     private static Polygon outputTriangle(NeuronView view) {
         for (Node child : view.getChildrenUnmodifiable()) {
             if (child instanceof Polygon polygon) {
                 return polygon;
             }
         }
-
         throw new AssertionError("Output triangle was not found");
     }
 
-    /**
-     * Перевіряє сценарій «triangle center x» і відповідність результату очікуваній поведінці.
-     */
+    /** Обчислює горизонтальну координату геометричного центра трикутника з урахуванням його зміщення. */
     private static double triangleCenterX(Polygon triangle) {
         double minX = Double.POSITIVE_INFINITY;
         double maxX = Double.NEGATIVE_INFINITY;
@@ -142,18 +119,11 @@ final class NeuronOutputTriangleAlignmentTest {
         });
 
         if (!latch.await(5, TimeUnit.SECONDS)) {
-
-            throw new IllegalStateException(
-                    "JavaFX test timed out"
-            );
+            throw new IllegalStateException("JavaFX test timed out");
         }
 
         if (failure[0] != null) {
-
-            throw new AssertionError(
-                    "JavaFX test failed",
-                    failure[0]
-            );
+            throw new AssertionError("JavaFX test failed", failure[0]);
         }
     }
 }

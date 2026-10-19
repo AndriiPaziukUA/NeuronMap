@@ -14,9 +14,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
-/**
- * Перевіряє застосування runtime-активацій симуляції окремо від компонента відображення.
- */
+/** Перевіряє застосування runtime-активацій симуляції окремо від компонента відображення. */
 final class SimulationRuntimeStateTest {
 
     @Test
@@ -39,6 +37,7 @@ final class SimulationRuntimeStateTest {
         assertEquals(0, second.activation());
     }
 
+    /** Перевіряє, що очищення runtime-стану скидає активації всіх нейронів до нуля. */
     @Test
     void clearResetsAllRuntimeActivations() {
         NeuronMapModel model = new NeuronMapModel();
@@ -53,6 +52,7 @@ final class SimulationRuntimeStateTest {
         assertEquals(0, second.activation());
     }
 
+    /** Перевіряє, що підготовка даних для відображення не залежить від служби зміни доменної моделі нейрона. */
     @Test
     void presenterDoesNotDependOnDomainMutationService() {
         boolean usesNeuronService = java.util.Arrays.stream(
