@@ -57,14 +57,10 @@ final class CssStylesheetParser {
         // Допоміжний клас без екземплярів.
     }
 
-    /**
-     * Розбирає CSS і відхиляє помилки парсингу, які інакше могли б
-     * бути пропущені як відновлювані.
-     *
-     * @param source повний текст таблиці стилів.
-     * @return AST таблиці стилів з імпортами та правилами.
-     * @throws IllegalArgumentException якщо CSS має синтаксичну помилку
-     *         або не вдалося створити AST.
+    /** Розбирає CSS зі строгим контролем помилок.
+     * @param source текст CSS.
+     * @return розібрана таблиця стилів.
+     * @throws IllegalArgumentException якщо CSS некоректний або AST не створено.
      */
     static Stylesheet parse(String source) {
         if (source == null) {
@@ -149,14 +145,10 @@ final class CssStylesheetParser {
         }
     }
 
-    /**
-     * Повертає заголовок контейнерного at-rule без тіла, щоб не змішувати
-     * різні CSS-контексти.
-     *
+    /** Визначає контекст вкладеного CSS-правила.
      * @param rule контейнерне правило.
-     * @param writerSettings налаштування канонічної серіалізації.
-     * @return стабільний текст заголовка або назва типу, якщо
-     *         серіалізація недоступна.
+     * @param writerSettings налаштування CSS-серіалізації.
+     * @return заголовок правила або його тип.
      */
     private static String ruleScope(Object rule, CSSWriterSettings writerSettings) {
         if (rule instanceof ICSSWriteable writeable) {
