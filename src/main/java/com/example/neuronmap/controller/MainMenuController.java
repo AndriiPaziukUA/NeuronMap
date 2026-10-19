@@ -1,7 +1,7 @@
 package com.example.neuronmap.controller;
 
+import com.example.neuronmap.coordinator.MainMenuSettingsCoordinator;
 import com.example.neuronmap.i18n.LocalizationService;
-import com.example.neuronmap.i18n.SupportedLanguage;
 import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.settings.SettingsEditSession;
 import com.example.neuronmap.view.menu.MainMenuView;
@@ -18,26 +18,24 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/** Керує навігацією меню, сценаріями незбережених змін, операціями проєктів і сеансом налаштувань. */
+/** Керує навігацією меню, сценаріями незбережених змін і діями над проєктами. */
 public final class MainMenuController {
 
     private final MainMenuView view;
-    private final LocalizationService localization;
     private final Supplier<List<ProjectDescriptor>> projectsSupplier;
     private final Consumer<ProjectDescriptor> openProjectAction;
     private final BiFunction<ProjectDescriptor, String, ProjectDescriptor> renameProjectAction;
     private final Consumer<ProjectDescriptor> deleteProjectAction;
     private final Runnable pauseForMenuAction;
     private final Runnable resumeAfterMenuAction;
-    private final SettingsEditSession settingsEditSession;
-    private final SettingsEditSession.Setting<SupportedLanguage> languageSetting;
+    private final MainMenuSettingsCoordinator settingsCoordinator;
     private final javafx.event.EventHandler<KeyEvent> keyHandler = this::handleKeyPressed;
 
     private Scene installedScene;
     private boolean savingPendingProjectChanges;
     private boolean disposed;
 
-    /** Створює контролер і пов'язує дії подання з операціями застосунку та єдиною сесією налаштувань. */
+    /** Створює контролер і пов'язує подання з діями застосунку та координатором налаштувань. */
     public MainMenuController(
             MainMenuView view,
             LocalizationService localization,
@@ -51,12 +49,8 @@ public final class MainMenuController {
             Runnable resumeAfterMenuAction
     ) {
         this.view = Objects.requireNonNull(view, "view");
-        this.localization = Objects.requireNonNull(localization, "localization");
-        settingsEditSession = new SettingsEditSession();
-        languageSetting = settingsEditSession.register(
-                localization::language,
-                localization::previewLanguage,
-                ignored -> localization.persistCurrentLanguage());
+        this.settingsCoordinator = new MainMenuSettingsCoordinator(
+                Objects.requireNonNull(localization, "localization"));
         this.projectsSupplier = Objects.requireNonNull(projectsSupplier, "projectsSupplier");
         this.openProjectAction = Objects.requireNonNull(openProjectAction, "openProjectAction");
         this.renameProjectAction = Objects.requireNonNull(renameProjectAction, "renameProjectAction");
@@ -64,7 +58,8 @@ public final class MainMenuController {
         this.pauseForMenuAction = Objects.requireNonNull(pauseForMenuAction, "pauseForMenuAction");
         this.resumeAfterMenuAction = Objects.requireNonNull(resumeAfterMenuAction, "resumeAfterMenuAction");
 
-        view.setLanguageActions(this::previewLanguage, this::saveSettings, settingsEditSession::hasChanges);
+        view.setLanguageActions(settingsCoordinator::previewLanguage,
+                this::saveSettings, settingsCoordinator::hasChanges);
         view.setProjectRenameCommittedAction(this::handleProjectRenameCommitted);
         view.setActions(new MainMenuView.Actions(
                 () -> requestLeave(() -> {
@@ -81,7 +76,7 @@ public final class MainMenuController {
                 this::handleBack));
     }
 
-    /** Під'єднує клавіатурний фільтр до сцени; при перенесенні меню спершу від'єднує попередню сцену. */
+    /** Під'єднує клавіатурний фільтр до сцени; при перенесенні меню від'єднує попередню сцену. */
     public void install(Scene scene) {
         Objects.requireNonNull(scene, "scene");
         ensureNotDisposed();
@@ -93,7 +88,7 @@ public final class MainMenuController {
         installedScene = scene;
     }
 
-    /** Відкриває головне меню та призупиняє редактор, поки меню залишається відкритим. */
+    /** Відкриває головне меню та призупиняє редактор, доки меню залишається відкритим. */
     public void open() {
         ensureNotDisposed();
         if (view.isMenuVisible()) {
@@ -109,21 +104,20 @@ public final class MainMenuController {
         requestCloseMenu();
     }
 
-    /** Реєструє типізоване налаштування в спільній сесії попереднього перегляду та відкату. */
+    /** Реєструє типізоване налаштування в координаторі сеансу попереднього перегляду. */
     public <T> SettingsEditSession.Setting<T> registerSetting(
             Supplier<T> currentValue,
             Consumer<T> previewAction,
             Consumer<T> persistAction
     ) {
         ensureNotDisposed();
-        return settingsEditSession.register(currentValue, previewAction, persistAction);
+        return settingsCoordinator.register(currentValue, previewAction, persistAction);
     }
 
-    /** Застосовує тимчасове значення зареєстрованого налаштування в поточній сесії меню. */
+    /** Застосовує тимчасове значення зареєстрованого налаштування та оновлює стан подання. */
     public <T> void previewSetting(SettingsEditSession.Setting<T> setting, T value) {
         ensureNotDisposed();
-        beginSettingsEditSessionIfNeeded();
-        settingsEditSession.preview(setting, value);
+        settingsCoordinator.preview(setting, value);
         view.refreshSettingsState();
     }
 
@@ -165,7 +159,7 @@ public final class MainMenuController {
             failure = exception;
         }
         try {
-            settingsEditSession.rollback();
+            settingsCoordinator.rollback();
         } catch (RuntimeException exception) {
             failure = combineFailures(failure, exception);
         }
@@ -186,39 +180,23 @@ public final class MainMenuController {
         }
     }
 
-    /** Зберігає сумісність із наявними викликами та ігнорує сцену, що може не збігатися з реальною. */
+    /** Зберігає сумісність із наявними викликами й ігнорує передану сцену. */
     public void dispose(Scene ignoredScene) {
         dispose();
     }
 
-    /** Починає спільну сесію редагування та відкриває сторінку налаштувань. */
+    /** Починає сеанс редагування та відкриває сторінку налаштувань. */
     private void openSettingsPage() {
-        beginSettingsEditSessionIfNeeded();
+        settingsCoordinator.beginIfNeeded();
         view.showSettingsPage();
     }
 
-    /** Запускає сесію один раз і фіксує підтверджений стан перед першим попереднім переглядом. */
-    private void beginSettingsEditSessionIfNeeded() {
-        if (settingsEditSession.isActive()) {
-            return;
-        }
-        localization.discardLanguagePreview();
-        settingsEditSession.begin();
-    }
-
-    /** Передає вибір мови до спільної сесії попереднього перегляду. */
-    private void previewLanguage(SupportedLanguage language) {
-        if (language != null) {
-            previewSetting(languageSetting, language);
-        }
-    }
-
-    /** Підтверджує та постійно зберігає всі змінені налаштування активної сесії. */
+    /** Підтверджує й постійно зберігає налаштування, лише коли відкрита їхня сторінка. */
     private void saveSettings() {
         if (!view.isSettingsPage()) {
             return;
         }
-        settingsEditSession.commit();
+        settingsCoordinator.commit();
     }
 
     /** Підтверджує всі незбережені зміни як одну дію меню. */
@@ -228,8 +206,8 @@ public final class MainMenuController {
         savingPendingProjectChanges = true;
         try {
             view.savePendingProjectChanges();
-            if (settingsEditSession.isActive() && settingsEditSession.hasChanges()) {
-                settingsEditSession.commit();
+            if (settingsCoordinator.isActive() && settingsCoordinator.hasChanges()) {
+                settingsCoordinator.commit();
             }
         } catch (RuntimeException exception) {
             failure = exception;
@@ -255,8 +233,8 @@ public final class MainMenuController {
             failure = exception;
         }
         try {
-            if (settingsEditSession.isActive()) {
-                settingsEditSession.rollback();
+            if (settingsCoordinator.isActive()) {
+                settingsCoordinator.rollback();
             }
         } catch (RuntimeException exception) {
             failure = combineFailures(failure, exception);
@@ -284,7 +262,7 @@ public final class MainMenuController {
 
     /** Перевіряє загальний стан незбережених змін незалежно від поточної сторінки меню. */
     private boolean hasUnsavedChanges() {
-        return settingsEditSession.hasChanges() || view.hasUnsavedProjectChanges();
+        return settingsCoordinator.hasChanges() || view.hasUnsavedProjectChanges();
     }
 
     /** Відкриває вибраний проєкт і після цього закриває меню. */
@@ -317,11 +295,11 @@ public final class MainMenuController {
         });
     }
 
-    /** Повертається з підсторінки або закриває меню, коли відкрита головна сторінка. */
+    /** Повертається з підсторінки або закриває меню, якщо відкрита головна сторінка. */
     private void handleBack() {
         if (view.isLoadPage() || view.isSettingsPage()) {
             requestLeave(() -> {
-                settingsEditSession.rollback();
+                settingsCoordinator.rollback();
                 view.showMainPage();
             });
         } else {
@@ -353,7 +331,7 @@ public final class MainMenuController {
     /** Закриває меню після розв'язання незбережених змін і викликає задану дію. */
     private void requestClose(Runnable action) {
         requestLeave(() -> {
-            settingsEditSession.rollback();
+            settingsCoordinator.rollback();
             view.hide();
             resumeAfterMenuAction.run();
             action.run();
@@ -373,7 +351,7 @@ public final class MainMenuController {
         if (!view.isMenuVisible()) {
             return;
         }
-        settingsEditSession.rollback();
+        settingsCoordinator.rollback();
         view.hide();
         resumeAfterMenuAction.run();
     }

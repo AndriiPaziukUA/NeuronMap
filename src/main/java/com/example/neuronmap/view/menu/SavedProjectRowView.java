@@ -2,12 +2,9 @@ package com.example.neuronmap.view.menu;
 
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.project.ProjectDescriptor;
-import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
@@ -29,7 +26,7 @@ import java.util.function.Consumer;
 
 /**
  * Відображає рядок збереженого проєкту: окремий клік вибирає його, подвійний — відкриває.
- * Рядок також керує перейменуванням і видаленням проєкту, не виконуючи операцій сховища самостійно.
+ * Рядок також керує діями перейменування й видалення через callback-и, не виконуючи операцій сховища.
  */
 public final class SavedProjectRowView extends HBox {
 
@@ -39,15 +36,14 @@ public final class SavedProjectRowView extends HBox {
     private final LocalizationService localization;
     private final Consumer<ProjectDescriptor> openAction;
     private final Consumer<SavedProjectRowView> selectAction;
-    private ProjectDescriptor project;
     private final BiFunction<ProjectDescriptor, String, ProjectDescriptor> renameAction;
     private final Runnable renameCommitted;
-
+    private final SavedProjectRenameEditor renameEditor = new SavedProjectRenameEditor();
+    private ProjectDescriptor project;
     private final Label modifiedLabel = new Label();
     private final Label nameLabel = new Label();
     private final SVGPath renameIcon = createRenameIcon();
     private final Region deleteIcon = createDeleteIcon();
-    private TextField renameField;
     private final Button renameButton = new Button();
     private final Button deleteButton = new Button();
     private final Button cancelButton = new Button();
@@ -189,7 +185,7 @@ public final class SavedProjectRowView extends HBox {
      * @return {@code true}, якщо поле введення й елементи редагування видимі.
      */
     public boolean isEditing() {
-        return renameField != null && renameField.isVisible();
+        return renameEditor.isEditing();
     }
 
     /**
@@ -201,8 +197,7 @@ public final class SavedProjectRowView extends HBox {
         if (!isEditing()) {
             return false;
         }
-        String pending = renameField.getText() == null ? "" : renameField.getText().trim();
-        return !pending.equals(project.name());
+        return !renameEditor.text().trim().equals(project.name());
     }
 
     /** Зберігає коректну незавершену зміну назви або виходить із режиму редагування без змін. */
@@ -230,7 +225,7 @@ public final class SavedProjectRowView extends HBox {
      * @return поле редагування назви проєкту.
      */
     TextField renameFieldForTest() {
-        return renameField;
+        return renameEditor.field();
     }
 
     /**
@@ -333,7 +328,7 @@ public final class SavedProjectRowView extends HBox {
         Node current = targetNode;
         while (current != null && current != this) {
             if (current == renameButton || current == deleteButton
-                    || current == cancelButton || current == renameField) {
+                    || current == cancelButton || current == renameEditor.field()) {
                 return true;
             }
             current = current.getParent();
@@ -341,103 +336,29 @@ public final class SavedProjectRowView extends HBox {
         return false;
     }
 
-    /** Вмикає режим редагування з новим полем введення та залишає видимими лише потрібні елементи керування. */
+    /** Вмикає режим редагування, доручаючи створення й керування полем спеціалізованому поданню. */
     private void beginRename() {
         int nameIndex = getChildren().indexOf(nameLabel);
-        renameField = createRenameField();
-        getChildren().set(nameIndex, renameField);
+        TextField editorField = renameEditor.begin(project.name(), this::commitRename);
+        getChildren().set(nameIndex, editorField);
         setManagedAndVisible(modifiedLabel, false);
         setManagedAndVisible(nameLabel, false);
         setManagedAndVisible(deleteButton, false);
         setManagedAndVisible(cancelButton, true);
         refreshTexts();
         requestLayout();
-
-        layoutRenameField();
-        renameField.setText(project.name());
-        renameField.requestFocus();
-        synchronizeRenameFieldLayoutAndCaret();
-        scheduleRenameCaretRestoration();
+        renameEditor.synchronizeLayoutAndCaret(this);
+        renameEditor.scheduleCaretRestoration(this);
     }
 
-    /**
-     * Створює стилізоване порожнє поле введення, яке підтверджує перейменування клавішею Enter.
-     *
-     * @return нове поле введення для поточного перейменування.
-     */
-    private TextField createRenameField() {
-        TextField field = new TextField();
-        field.getStyleClass().add("saved-project-rename-field");
-        field.setMinWidth(0.0);
-        field.setMaxWidth(Double.MAX_VALUE);
-        HBox.setHgrow(field, Priority.ALWAYS);
-        field.setOnAction(event -> {
-            commitRename();
-            event.consume();
-        });
-        return field;
-    }
-
-    /** Застосовує CSS і розміщує нове поле введення в ієрархії сцени, щоб JavaFX коректно обчислив ширину поля. */
-    private void layoutRenameField() {
-        if (!isEditing() || renameField == null) {
-            return;
-        }
-
-        Scene scene = getScene();
-        if (scene != null) {
-            Parent root = scene.getRoot();
-            root.applyCss();
-            root.requestLayout();
-            root.layout();
-        }
-
-        applyCss();
-        requestLayout();
-        layout();
-
-        renameField.applyCss();
-        renameField.requestLayout();
-        renameField.layout();
-    }
-
-    /** Оновлює положення каретки після вставлення збереженої назви та застосування стилів. */
-    private void synchronizeRenameFieldLayoutAndCaret() {
-        if (!isEditing() || renameField == null) {
-            return;
-        }
-
-        layoutRenameField();
-        positionRenameCaretAtEnd();
-        renameField.requestLayout();
-        renameField.layout();
-    }
-
-    /** Планує додаткове оновлення каретки після завершення обробника натискання кнопки перейменування. */
-    private void scheduleRenameCaretRestoration() {
-        Platform.runLater(() -> {
-            if (!isEditing()) {
-                return;
-            }
-            renameField.requestFocus();
-            synchronizeRenameFieldLayoutAndCaret();
-        });
-    }
-
-    /** Прибирає виділення тексту та встановлює каретку в кінець поточної назви проєкту. */
-    private void positionRenameCaretAtEnd() {
-        if (!isEditing()) {
-            return;
-        }
-        int endPosition = renameField.getLength();
-        renameField.selectRange(endPosition, endPosition);
-    }
-
-    /** Перевіряє та зберігає введену назву проєкту. */
+    /** Перевіряє та зберігає введену назву проєкту через наданий callback. */
     private void commitRename() {
-        String name = renameField.getText() == null ? "" : renameField.getText().trim();
+        String name = renameEditor.text().trim();
         if (name.isBlank()) {
-            renameField.requestFocus();
+            TextField field = renameEditor.field();
+            if (field != null) {
+                field.requestFocus();
+            }
             return;
         }
 
@@ -454,16 +375,15 @@ public final class SavedProjectRowView extends HBox {
         endRename();
     }
 
-    /** Повертає звичайний макет рядка та оновлює збережену назву й локалізовані підписи. */
+    /** Повертає звичайний макет рядка та звільняє локальний редактор назви. */
     private void endRename() {
-        TextField completedField = renameField;
+        TextField completedField = renameEditor.field();
         if (completedField != null) {
             int fieldIndex = getChildren().indexOf(completedField);
             if (fieldIndex >= 0) {
                 getChildren().set(fieldIndex, nameLabel);
             }
-            completedField.setOnAction(null);
-            renameField = null;
+            renameEditor.finish();
         }
         setManagedAndVisible(modifiedLabel, true);
         setManagedAndVisible(nameLabel, true);
