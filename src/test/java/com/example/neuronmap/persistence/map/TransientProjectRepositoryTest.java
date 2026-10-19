@@ -18,11 +18,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Перевіряє відкладену матеріалізацію тимчасового проєкту та передачу роботи постійному репозиторію.
- */
+/** Перевіряє відкладену матеріалізацію тимчасового проєкту та передачу роботи постійному репозиторію. */
 final class TransientProjectRepositoryTest {
 
     /**
@@ -33,13 +32,12 @@ final class TransientProjectRepositoryTest {
     @Test
     void emptyProjectDoesNotCreateFolder(@TempDir Path tempDir) {
         Path path = tempDir.resolve("Project").resolve("project.db");
-        TransientProjectRepository repository = neverMaterializedRepository(path);
+        try (TransientProjectRepository repository = neverMaterializedRepository(path, tempDir)) {
+            repository.save(new NeuronMapModel(), CameraState.defaultState());
 
-        repository.save(new NeuronMapModel(), CameraState.defaultState());
-
-        assertFalse(Files.exists(path.getParent()));
-        assertFalse(repository.isPersistent());
-        repository.close();
+            assertFalse(Files.exists(path.getParent()));
+            assertFalse(repository.isPersistent());
+        }
     }
 
     /**
@@ -63,7 +61,7 @@ final class TransientProjectRepositoryTest {
                 path,
                 null
         );
-        MapRepositoryFactory factory = new DefaultMapRepositoryFactory();
+        MapRepositoryFactory factory = new DefaultMapRepositoryFactory(tempDir);
         NeuronMapModel model = new NeuronMapModel();
         model.createNeuron(NeuronType.EXCITATORY, 20.0, 30.0);
 
@@ -78,23 +76,22 @@ final class TransientProjectRepositoryTest {
     }
 
     /**
-     * Перевіряє збереження налаштувань панелі й камери до матеріалізації проєкту.
+     * Перевіряє збереження налаштувань панелі й камери до матеріалізації тимчасового проєкту.
      *
      * @param tempDir тимчасовий каталог тесту.
      */
     @Test
     void emptyProjectRetainsPendingToolbarAndCameraSettings(@TempDir Path tempDir) {
         Path path = tempDir.resolve("Project").resolve("project.db");
-        TransientProjectRepository repository = neverMaterializedRepository(path);
+        try (TransientProjectRepository repository = neverMaterializedRepository(path, tempDir)) {
+            CameraState camera = new CameraState(1.5, 20, -10);
+            repository.save(new NeuronMapModel(), camera);
+            repository.saveSimulationTickMillis(275.0);
 
-        CameraState camera = new CameraState(1.5, 20, -10);
-        repository.save(new NeuronMapModel(), camera);
-        repository.saveSimulationTickMillis(275.0);
-
-        assertEquals(camera, repository.loadCameraState());
-        assertEquals(275.0, repository.loadSimulationTickMillis(650.0));
-        assertFalse(repository.isPersistent());
-        repository.close();
+            assertEquals(camera, repository.loadCameraState());
+            assertEquals(275.0, repository.loadSimulationTickMillis(650.0));
+            assertFalse(repository.isPersistent());
+        }
     }
 
     /**
@@ -115,34 +112,32 @@ final class TransientProjectRepositoryTest {
 
         AtomicInteger factoryCalls = new AtomicInteger();
         RecordingMapRepository delegate = new RecordingMapRepository(path);
-        TransientProjectRepository repository = new TransientProjectRepository(path, () -> {
+        try (TransientProjectRepository repository = new TransientProjectRepository(path, tempDir, () -> {
             factoryCalls.incrementAndGet();
             assertTrue(Files.isDirectory(directory));
             assertFalse(Files.exists(junk));
             return delegate;
-        });
+        })) {
+            assertEquals(0, factoryCalls.get());
+            assertFalse(repository.isPersistent());
 
-        assertEquals(0, factoryCalls.get());
-        assertFalse(repository.isPersistent());
+            NeuronMapModel model = new NeuronMapModel();
+            model.createNeuron(NeuronType.EXCITATORY, 10.0, 15.0);
+            CameraState camera = new CameraState(1.25, 12.0, -8.0);
+            repository.save(model, camera);
 
-        NeuronMapModel model = new NeuronMapModel();
-        model.createNeuron(NeuronType.EXCITATORY, 10.0, 15.0);
-        CameraState camera = new CameraState(1.25, 12.0, -8.0);
-        repository.save(model, camera);
-
-        assertEquals(1, factoryCalls.get());
-        assertTrue(repository.isPersistent());
-        assertSame(model, delegate.savedModel);
-        assertEquals(camera, delegate.savedCameraState);
-        assertEquals(0, delegate.closeCalls);
-
-        repository.close();
+            assertEquals(1, factoryCalls.get());
+            assertTrue(repository.isPersistent());
+            assertSame(model, delegate.savedModel);
+            assertEquals(camera, delegate.savedCameraState);
+            assertEquals(0, delegate.closeCalls);
+        }
 
         assertEquals(1, delegate.closeCalls);
     }
 
     /**
-     * Перевіряє, що наявний файл бази даних не перезаписується під час спроби матеріалізації.
+     * Перевіряє, що наявний файл бази даних не перезаписується під час матеріалізації.
      *
      * @param tempDir тимчасовий каталог тесту.
      * @throws Exception якщо не вдається створити тестовий файл.
@@ -155,33 +150,43 @@ final class TransientProjectRepositoryTest {
         Files.createDirectories(directory);
         Files.writeString(path, "existing");
 
-        TransientProjectRepository repository = neverMaterializedRepository(path);
-        NeuronMapModel model = new NeuronMapModel();
-        model.createNeuron(NeuronType.EXCITATORY, 1, 2);
+        try (TransientProjectRepository repository = neverMaterializedRepository(path, tempDir)) {
+            NeuronMapModel model = new NeuronMapModel();
+            model.createNeuron(NeuronType.EXCITATORY, 1, 2);
 
-        org.junit.jupiter.api.Assertions.assertThrows(
-                PersistenceException.class,
-                () -> repository.save(model, CameraState.defaultState())
-        );
-        assertEquals("existing", Files.readString(path));
-        repository.close();
+            assertThrows(
+                    PersistenceException.class,
+                    () -> repository.save(model, CameraState.defaultState())
+            );
+            assertEquals("existing", Files.readString(path));
+        }
     }
 
     /**
-     * Створює репозиторій, постачальник якого виявляє неочікувану матеріалізацію в тесті.
+     * Перевіряє, що репозиторій відхиляє шлях, який не належить переданому кореню сховища.
      *
-     * @param path шлях до бази даних тимчасового проєкту.
-     * @return тимчасовий репозиторій без реального постійного делегата.
+     * @param tempDir тимчасовий каталог тесту.
      */
-    private static TransientProjectRepository neverMaterializedRepository(Path path) {
-        return new TransientProjectRepository(path, () -> {
+    @Test
+    void refusesProjectOutsideExplicitOwnershipRoot(@TempDir Path tempDir) {
+        Path databasePath = tempDir.resolve("outside/Project/project.db");
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new TransientProjectRepository(databasePath, tempDir, () -> {
+                    throw new AssertionError("The repository must reject the path before materialization");
+                })
+        );
+    }
+
+    /** Створює репозиторій, постачальник якого виявляє неочікувану матеріалізацію в тесті. */
+    private static TransientProjectRepository neverMaterializedRepository(Path path, Path ownershipRoot) {
+        return new TransientProjectRepository(path, ownershipRoot, () -> {
             throw new AssertionError("The repository should not be materialized in this test");
         });
     }
 
-    /**
-     * Імітує постійне сховище, зберігаючи передані дані та рахуючи закриття без доступу до SQLite.
-     */
+    /** Імітує постійне сховище, зберігаючи передані дані та рахуючи закриття без доступу до SQLite. */
     private static final class RecordingMapRepository implements MapRepository {
 
         private final Path databasePath;
@@ -189,81 +194,49 @@ final class TransientProjectRepositoryTest {
         private CameraState savedCameraState;
         private int closeCalls;
 
-        /**
-         * Створює тестовий делегат для вказаного шляху.
-         *
-         * @param databasePath шлях до бази даних, який представляє делегат.
-         */
+        /** Створює тестовий делегат для вказаного шляху. */
         private RecordingMapRepository(Path databasePath) {
             this.databasePath = databasePath.toAbsolutePath().normalize();
         }
 
-        /**
-         * Повертає шлях, пов'язаний із тестовим делегатом.
-         *
-         * @return абсолютний нормалізований шлях до бази даних.
-         */
+        /** Повертає шлях, пов'язаний із тестовим делегатом. */
         @Override
         public Path databasePath() {
             return databasePath;
         }
 
-        /**
-         * Повертає типовий стан камери, оскільки тест не перевіряє читання.
-         *
-         * @return типовий стан камери.
-         */
+        /** Повертає типовий стан камери, оскільки тест не перевіряє читання. */
         @Override
         public CameraState loadCameraState() {
             return CameraState.defaultState();
         }
 
-        /**
-         * Повертає резервну тривалість такту, оскільки тест не зберігає це налаштування.
-         *
-         * @param fallbackMillis резервна тривалість такту.
-         * @return передане резервне значення.
-         */
+        /** Повертає резервну тривалість такту, оскільки цей тест не зберігає її. */
         @Override
         public double loadSimulationTickMillis(double fallbackMillis) {
             return fallbackMillis;
         }
 
-        /**
-         * Залишає модель без змін, оскільки тест перевіряє тільки передавання операцій запису.
-         *
-         * @param model модель карти, у яку потрібно було б завантажити дані.
-         */
+        /** Залишає модель без змін, оскільки тест перевіряє тільки передавання операцій запису. */
         @Override
         public void loadInto(NeuronMapModel model) {
             // Читання не потрібне для цього тестового делегата.
         }
 
-        /**
-         * Не зберігає налаштування симуляції, оскільки цей сценарій перевіряє лише запис карти.
-         *
-         * @param millis тривалість такту симуляції.
-         */
+        /** Не зберігає налаштування симуляції, оскільки цей сценарій перевіряє лише запис карти. */
         @Override
         public void saveSimulationTickMillis(double millis) {
             // Налаштування симуляції не потрібне для цього тесту.
         }
 
-        /**
-         * Запам'ятовує модель і стан камери, передані тимчасовим репозиторієм.
-         *
-         * @param model модель карти.
-         * @param cameraState стан камери.
-         */
+        /** Запам'ятовує модель і стан камери, передані тимчасовим репозиторієм. */
         @Override
         public void save(NeuronMapModel model, CameraState cameraState) {
             savedModel = model;
             savedCameraState = cameraState;
         }
 
-        /**
-         * Рахує закриття тестового делегата.
-         */
+        /** Рахує закриття тестового делегата. */
         @Override
         public void close() {
             closeCalls++;

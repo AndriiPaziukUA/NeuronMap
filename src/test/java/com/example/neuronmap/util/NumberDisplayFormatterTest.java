@@ -7,7 +7,7 @@ import java.util.Locale;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Перевіряє компактне форматування чисел, зокрема допуск для цілих значень і незалежність від локалі.
+ * Перевіряє компактне форматування чисел, відсотків, допуск для цілих значень і незалежність від локалі.
  */
 final class NumberDisplayFormatterTest {
 
@@ -26,15 +26,25 @@ final class NumberDisplayFormatterTest {
         assertEquals("12.3", NumberDisplayFormatter.format(12.34));
     }
 
-    /** Перевіряє, що системна локаль не змінює десятковий роздільник форматованого значення. */
+    /** Перевіряє цілі та дробові відсотки, включно зі значеннями поблизу цілого. */
+    @Test
+    void formatsPercentagesWithSharedIntegerTolerance() {
+        assertEquals("100%", NumberDisplayFormatter.formatPercentage(100.0));
+        assertEquals("100.5%", NumberDisplayFormatter.formatPercentage(100.5));
+        assertEquals("100%", NumberDisplayFormatter.formatPercentage(100.00009));
+        assertEquals("99.9%", NumberDisplayFormatter.formatPercentage(99.94));
+    }
+
+    /** Перевіряє, що системна локаль не змінює десятковий роздільник чисел і відсотків. */
     @Test
     void alwaysUsesRootLocaleForDecimalSeparator() {
-        Locale previousLocale = Locale.getDefault();
+        Locale previousLocale = Locale.getDefault(Locale.Category.FORMAT);
         try {
-            Locale.setDefault(Locale.GERMANY);
+            Locale.setDefault(Locale.Category.FORMAT, Locale.GERMANY);
             assertEquals("12.5", NumberDisplayFormatter.format(12.5));
+            assertEquals("100.5%", NumberDisplayFormatter.formatPercentage(100.5));
         } finally {
-            Locale.setDefault(previousLocale);
+            Locale.setDefault(Locale.Category.FORMAT, previousLocale);
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.example.neuronmap.persistence.sqlite;
 
 import com.example.neuronmap.model.CameraState;
+import com.example.neuronmap.persistence.PersistenceException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -8,6 +9,8 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Handler;
@@ -16,22 +19,16 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Перевіряє відновлення стану камери з SQLite, включно з діагностикою пошкоджених значень.
- */
+/** Перевіряє відновлення стану камери з SQLite, включно з діагностикою пошкоджених значень. */
 final class SqliteCameraStateValidationTest {
 
-    /**
-     * Перевіряє, що повністю відсутні налаштування камери повертають типовий стан без попередження.
-     *
-     * @param tempDir ізольований тимчасовий каталог тесту.
-     * @throws Exception якщо робота з тестовою базою даних завершується помилкою.
-     */
+    /** Перевіряє, що повністю відсутні налаштування камери повертають типовий стан без попередження. */
     @Test
     void usesDefaultCameraWithoutWarningWhenSettingsAreAbsent(@TempDir Path tempDir) throws Exception {
-        Logger logger = Logger.getLogger(SqliteMapRepository.class.getName());
+        Logger logger = Logger.getLogger(SqliteSettingsStore.class.getName());
         CapturingHandler handler = attach(logger);
         try (SqliteMapRepository repository = new SqliteMapRepository(tempDir.resolve("no-camera-settings.db"))) {
             assertEquals(CameraState.defaultState(), repository.loadCameraState());
@@ -41,12 +38,7 @@ final class SqliteCameraStateValidationTest {
         }
     }
 
-    /**
-     * Перевіряє, що нечислові, нескінченні та позадіапазонні значення камери відновлюються й діагностуються.
-     *
-     * @param tempDir ізольований тимчасовий каталог тесту.
-     * @throws Exception якщо робота з тестовою базою даних завершується помилкою.
-     */
+    /** Перевіряє, що нечислові, нескінченні та позадіапазонні значення камери відновлюються й діагностуються. */
     @Test
     void fallsBackAndLogsForInvalidZoomAndPanValues(@TempDir Path tempDir) throws Exception {
         List<String[]> invalidStates = List.of(
@@ -65,7 +57,7 @@ final class SqliteCameraStateValidationTest {
                 new String[]{"1.0", "0.0", "-Infinity"},
                 new String[]{"not-a-number", "0.0", "0.0"}
         );
-        Logger logger = Logger.getLogger(SqliteMapRepository.class.getName());
+        Logger logger = Logger.getLogger(SqliteSettingsStore.class.getName());
         CapturingHandler handler = attach(logger);
         try {
             int index = 0;
@@ -84,16 +76,11 @@ final class SqliteCameraStateValidationTest {
         }
     }
 
-    /**
-     * Перевіряє, що частково записаний стан окремо діагностується, а не сприймається як відсутні налаштування.
-     *
-     * @param tempDir ізольований тимчасовий каталог тесту.
-     * @throws Exception якщо робота з тестовою базою даних завершується помилкою.
-     */
+    /** Перевіряє, що частково записаний стан окремо діагностується, а не сприймається як відсутні налаштування. */
     @Test
     void logsPartiallyMissingCameraSettings(@TempDir Path tempDir) throws Exception {
         Path database = tempDir.resolve("partial-camera.db");
-        Logger logger = Logger.getLogger(SqliteMapRepository.class.getName());
+        Logger logger = Logger.getLogger(SqliteSettingsStore.class.getName());
         CapturingHandler handler = attach(logger);
         try (SqliteMapRepository repository = new SqliteMapRepository(database)) {
             writeSettings(database, "1.0", null, "10.0");
@@ -107,30 +94,37 @@ final class SqliteCameraStateValidationTest {
     }
 
     /**
-     * Зберігає тестові значення камери напряму, щоб імітувати дані старої або пошкодженої версії сховища.
+     * Перевіряє, що SQL-помилка читання налаштувань не маскується типовим станом камери.
      *
-     * @param database шлях до бази даних.
-     * @param zoom текстове значення масштабу або {@code null}, щоб вилучити ключ.
-     * @param panX текстове горизонтальне зміщення або {@code null}, щоб вилучити ключ.
-     * @param panY текстове вертикальне зміщення або {@code null}, щоб вилучити ключ.
-     * @throws Exception якщо запис тестових налаштувань завершується помилкою.
+     * @param tempDir ізольований тимчасовий каталог тесту.
+     * @throws Exception якщо робота з тестовою базою даних завершується помилкою.
      */
-    private static void writeSettings(Path database, String zoom, String panX, String panY) throws Exception {
-        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + database.toAbsolutePath())) {
-            writeSetting(connection, "zoom", zoom);
-            writeSetting(connection, "panX", panX);
-            writeSetting(connection, "panY", panY);
+    @Test
+    void wrapsSqlFailureInPersistenceException(@TempDir Path tempDir) throws Exception {
+        Path database = tempDir.resolve("missing-settings-table.db");
+        try (SqliteMapRepository repository = new SqliteMapRepository(database);
+             Connection connection = DriverManager.getConnection("jdbc:sqlite:" + database.toAbsolutePath());
+             Statement statement = connection.createStatement()) {
+            statement.execute("DROP TABLE settings");
+
+            PersistenceException exception = assertThrows(
+                    PersistenceException.class,
+                    repository::loadCameraState
+            );
+            assertTrue(exception.getCause() instanceof SQLException);
         }
     }
 
-    /**
-     * Записує одне тестове налаштування або видаляє його, якщо значення не задано.
-     *
-     * @param connection відкрите з’єднання з тестовою базою.
-     * @param key ключ налаштування.
-     * @param value значення налаштування або {@code null}.
-     * @throws Exception якщо SQL-операція завершується помилкою.
-     */
+    /** Зберігає тестові значення камери напряму, щоб імітувати дані старої або пошкодженої версії сховища. */
+    private static void writeSettings(Path database, String zoom, String panX, String panY) throws Exception {
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + database.toAbsolutePath())) {
+            writeSetting(connection, SqliteSettingsStore.CAMERA_ZOOM_KEY, zoom);
+            writeSetting(connection, SqliteSettingsStore.CAMERA_PAN_X_KEY, panX);
+            writeSetting(connection, SqliteSettingsStore.CAMERA_PAN_Y_KEY, panY);
+        }
+    }
+
+    /** Записує одне тестове налаштування або видаляє його, якщо значення не задано. */
     private static void writeSetting(Connection connection, String key, String value) throws Exception {
         if (value == null) {
             try (PreparedStatement statement = connection.prepareStatement("DELETE FROM settings WHERE key = ?")) {
@@ -149,12 +143,7 @@ final class SqliteCameraStateValidationTest {
         }
     }
 
-    /**
-     * Додає до журналу тестовий обробник і тимчасово вмикає попередження.
-     *
-     * @param logger журнал тестованого класу.
-     * @return обробник, який накопичує записи для перевірки.
-     */
+    /** Додає до журналу тестовий обробник і тимчасово вмикає попередження. */
     private static CapturingHandler attach(Logger logger) {
         CapturingHandler handler = new CapturingHandler();
         handler.previousLevel = logger.getLevel();
@@ -165,46 +154,31 @@ final class SqliteCameraStateValidationTest {
         return handler;
     }
 
-    /**
-     * Від’єднує тестовий обробник і повертає попередню конфігурацію журналу.
-     *
-     * @param logger журнал тестованого класу.
-     * @param handler обробник, який потрібно прибрати.
-     */
+    /** Від’єднує тестовий обробник і повертає попередню конфігурацію журналу. */
     private static void detach(Logger logger, CapturingHandler handler) {
         logger.removeHandler(handler);
         logger.setLevel(handler.previousLevel);
         logger.setUseParentHandlers(handler.previousParentHandlers);
     }
 
-    /**
-     * Збирає записи журналу для перевірки поведінки відновлення.
-     */
+    /** Збирає записи журналу для перевірки поведінки відновлення. */
     private static final class CapturingHandler extends Handler {
         private final List<LogRecord> records = new ArrayList<>();
         private Level previousLevel;
         private boolean previousParentHandlers;
 
-        /**
-         * Зберігає запис журналу.
-         *
-         * @param record запис журналу.
-         */
+        /** Зберігає запис журналу. */
         @Override
         public void publish(LogRecord record) {
             records.add(record);
         }
 
-        /**
-         * Очищає внутрішній стан, оскільки обробник не використовує зовнішніх ресурсів.
-         */
+        /** Очищає внутрішній стан, оскільки обробник не використовує зовнішніх ресурсів. */
         @Override
         public void flush() {
         }
 
-        /**
-         * Закриває обробник без додаткових дій.
-         */
+        /** Закриває обробник без додаткових дій. */
         @Override
         public void close() {
         }

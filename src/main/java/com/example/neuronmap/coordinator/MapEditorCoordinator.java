@@ -51,7 +51,6 @@ public final class MapEditorCoordinator {
     private final double minSimulationTickMillis;
     private final double maxSimulationTickMillis;
     private final double defaultSimulationTickMillis;
-    private double simulationTickMillis;
     private final Map<String, NeuronView> neuronViews = new HashMap<>();
     private final Map<String, ConnectionView> connectionViews = new HashMap<>();
     private final Map<String, RotationHandleView> rotationHandles = new HashMap<>();
@@ -96,7 +95,7 @@ public final class MapEditorCoordinator {
         minSimulationTickMillis = config.simulation().minTickMillis();
         maxSimulationTickMillis = config.simulation().maxTickMillis();
         defaultSimulationTickMillis = config.simulation().defaultTickMillis();
-        simulationTickMillis = EditorProjectSessionCoordinator.resolveInitialSimulationTickMillis(
+        double initialSimulationTickMillis = EditorProjectSessionCoordinator.resolveInitialSimulationTickMillis(
                 mapService.loadSimulationTickMillis(config.simulation().defaultTickMillis()),
                 config.simulation().defaultTickMillis(), minSimulationTickMillis, maxSimulationTickMillis);
         CameraState camera = mapService.loadCameraState();
@@ -108,7 +107,7 @@ public final class MapEditorCoordinator {
                 this::toggleSimulationPause,
                 this::stopSimulationSignals,
                 this::changeSimulationSpeed,
-                simulationTickMillis,
+                initialSimulationTickMillis,
                 localization);
 
         mapService.load();
@@ -124,7 +123,7 @@ public final class MapEditorCoordinator {
                 new MapEditorComponentFactory.Inputs(
                         config, localization, mapService, neuronService, connectionService, groupService,
                         historyService, state, view, neuronViews, connectionViews, rotationHandles,
-                        simulationTickMillis,
+                        initialSimulationTickMillis,
                         new MapEditorComponentFactory.Actions(
                                 this::saveNow, this::updateStatus, this::refreshMapPresentation,
                                 this::refreshNeuronVisuals, this::applySimulationSpeed,
@@ -140,7 +139,7 @@ public final class MapEditorCoordinator {
 
         editorProjectSessionCoordinator = new EditorProjectSessionCoordinator(
                 mapService, historyService, state, project -> currentProject = project,
-                speed -> simulationTickMillis = speed, projectCatalog::markLastOpened,
+                simulationController::setTickDurationMillis, projectCatalog::markLastOpened,
                 minSimulationTickMillis, maxSimulationTickMillis, defaultSimulationTickMillis,
                 createEditorProjectSessionActions());
         editorProjectSessionCoordinator.registerUiProcess(
@@ -190,9 +189,8 @@ public final class MapEditorCoordinator {
             @Override public void pauseConnectionAnimations() { connectionController.pauseAnimations(); }
             /** Відновлює анімації зв'язків. */
             @Override public void resumeConnectionAnimations() { connectionController.resumeAnimations(); }
-            /** Оновлює швидкість у контролері симуляції та панелі інструментів. */
+            /** Оновлює тривалість такту в панелі; фактичний runtime уже оновив його єдиний власник. */
             @Override public void updateSimulationSpeed(double millis) {
-                simulationController.setTickDurationMillis(millis);
                 view.toolbar().setSimulationSpeedMillis(millis);
             }
             /** Узгоджує подання карти з новим вмістом моделі. */
@@ -284,13 +282,16 @@ public final class MapEditorCoordinator {
         view.toolbar().setSimulationPaused(false);
     }
 
-    /** Передає швидкість координатору, який перевіряє значення та зберігає його в активному проєкті. */
+    /** Передає швидкість координатору, який перевіряє значення та зберігає її в активному проєкті. */
     private void changeSimulationSpeed(String text) { simulationSpeedCoordinator.changeSpeed(text); }
 
-    /** Застосовує швидкість до симуляції, стану редактора та панелі інструментів. */
+    /**
+     * Застосовує змінену тривалість такту до єдиного runtime-власника й оновлює панель інструментів.
+     *
+     * @param millis перевірена тривалість такту в мілісекундах.
+     */
     private void applySimulationSpeed(double millis) {
         simulationController.setTickDurationMillis(millis);
-        simulationTickMillis = millis;
         view.toolbar().setSimulationSpeedMillis(millis);
     }
 

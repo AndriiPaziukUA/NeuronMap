@@ -11,15 +11,9 @@ import java.nio.file.attribute.FileTime;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
-/**
- * Реалізує постійне сховище карти на SQLite та керує транзакціями, параметрами камери й налаштуваннями симуляції.
- */
+/** Реалізує постійне сховище карти на SQLite та координує читання, запис і транзакції репозиторію. */
 public final class SqliteMapRepository implements MapRepository {
-
-    private static final Logger LOGGER = Logger.getLogger(SqliteMapRepository.class.getName());
 
     private final Path databasePath;
     private final Connection connection;
@@ -54,21 +48,13 @@ public final class SqliteMapRepository implements MapRepository {
         this.writer = new SqliteMapWriter(this.connection, settings);
     }
 
-    /**
-     * Перевіряє, чи залишається репозиторій відкритим для роботи з постійними даними.
-     *
-     * @return {@code true}, якщо репозиторій ще не закрито; інакше {@code false}.
-     */
+    /** Перевіряє, чи залишається репозиторій відкритим для роботи з постійними даними. */
     @Override
     public boolean isPersistent() {
         return !closed;
     }
 
-    /**
-     * Повертає нормалізований шлях до файла бази даних репозиторію.
-     *
-     * @return абсолютний шлях до файла бази даних.
-     */
+    /** Повертає нормалізований шлях до файла бази даних репозиторію. */
     @Override
     public Path databasePath() {
         return databasePath;
@@ -99,51 +85,16 @@ public final class SqliteMapRepository implements MapRepository {
     }
 
     /**
-     * Завантажує параметри камери. Відсутні налаштування замінює типовим станом без попередження,
-     * а пошкоджені або неповні збережені значення реєструє та відновлює до типового стану.
+     * Делегує типізоване читання стану камери сховищу налаштувань, не дублюючи ключі чи валідацію.
      *
-     * @return коректний збережений стан камери або типовий стан, якщо налаштування відсутні чи пошкоджені.
+     * @return коректний збережений стан камери або типовий стан для відсутніх чи пошкоджених даних.
      * @throws IllegalStateException якщо репозиторій закрито.
      * @throws PersistenceException якщо SQLite не може прочитати налаштування.
      */
     @Override
     public CameraState loadCameraState() {
         ensureOpen();
-        try {
-            String zoomValue = settings.load("zoom");
-            String panXValue = settings.load("panX");
-            String panYValue = settings.load("panY");
-
-            if (zoomValue == null && panXValue == null && panYValue == null) {
-                return CameraState.defaultState();
-            }
-            if (zoomValue == null || panXValue == null || panYValue == null) {
-                LOGGER.log(
-                        Level.WARNING,
-                        "Неповний збережений стан камери в SQLite; використано типовий стан. Database: {0}",
-                        databasePath
-                );
-                return CameraState.defaultState();
-            }
-
-            try {
-                return new CameraState(
-                        Double.parseDouble(zoomValue),
-                        Double.parseDouble(panXValue),
-                        Double.parseDouble(panYValue)
-                );
-            } catch (IllegalArgumentException exception) {
-                LOGGER.log(
-                        Level.WARNING,
-                        "Некоректний збережений стан камери в SQLite; використано типовий стан. Database: "
-                                + databasePath,
-                        exception
-                );
-                return CameraState.defaultState();
-            }
-        } catch (SQLException exception) {
-            throw failure("Не вдалося завантажити стан камери з SQLite.", exception);
-        }
+        return settings.loadCameraState(databasePath);
     }
 
     /**
@@ -214,11 +165,7 @@ public final class SqliteMapRepository implements MapRepository {
         }
     }
 
-    /**
-     * Закриває з’єднання SQLite та звільняє ресурси репозиторію; повторне закриття не змінює результат.
-     *
-     * @throws PersistenceException якщо SQLite не вдалося закрити з’єднання.
-     */
+    /** Закриває з’єднання SQLite та звільняє ресурси; повторне закриття не змінює результат. */
     @Override
     public synchronized void close() {
         if (closed) {
@@ -232,11 +179,7 @@ public final class SqliteMapRepository implements MapRepository {
         }
     }
 
-    /**
-     * Оновлює часову мітку файла бази даних після успішного збереження.
-     *
-     * @throws PersistenceException якщо неможливо оновити часову мітку файла.
-     */
+    /** Оновлює часову мітку файла бази даних після успішного збереження. */
     private void touchDatabaseFile() {
         try {
             Files.setLastModifiedTime(databasePath, FileTime.from(Instant.now()));
@@ -245,23 +188,14 @@ public final class SqliteMapRepository implements MapRepository {
         }
     }
 
-    /**
-     * Забороняє доступ до з’єднання після закриття або коли його стан став ненадійним.
-     *
-     * @throws IllegalStateException якщо репозиторій закрито.
-     */
+    /** Забороняє доступ до з’єднання після закриття репозиторію. */
     private void ensureOpen() {
         if (closed) {
             throw new IllegalStateException("SQLite repository is closed");
         }
     }
 
-    /**
-     * Виконує відкат після невдалої операції; якщо відкат теж не вдається, закриває репозиторій.
-     *
-     * @param operationFailure первісна помилка операції.
-     * @return первісна помилка з доданою інформацією про невдалий відкат, якщо він не вдався.
-     */
+    /** Виконує відкат після невдалої операції та закриває репозиторій, якщо стан транзакції став ненадійним. */
     private RuntimeException rollbackAfterFailure(RuntimeException operationFailure) {
         try {
             connection.rollback();
@@ -275,12 +209,7 @@ public final class SqliteMapRepository implements MapRepository {
         }
     }
 
-    /**
-     * Відновлює автоматичне підтвердження транзакцій, не замінюючи первісної помилки.
-     *
-     * @param operationFailure помилка операції або {@code null}, якщо вона завершилася успішно.
-     * @return первісна помилка або помилка відновлення режиму транзакцій.
-     */
+    /** Відновлює автоматичне підтвердження транзакцій, не замінюючи первісної помилки. */
     private RuntimeException restoreAutoCommit(RuntimeException operationFailure) {
         try {
             connection.setAutoCommit(true);
@@ -300,11 +229,7 @@ public final class SqliteMapRepository implements MapRepository {
         }
     }
 
-    /**
-     * Позначає репозиторій закритим і намагається звільнити з’єднання, стан транзакції якого невідомий.
-     *
-     * @param primaryFailure помилка, яку потрібно зберегти основною.
-     */
+    /** Позначає репозиторій закритим і звільняє з’єднання після помилки стану транзакції. */
     private void closeAfterTransactionStateFailure(RuntimeException primaryFailure) {
         closed = true;
         try {
@@ -316,11 +241,7 @@ public final class SqliteMapRepository implements MapRepository {
         }
     }
 
-    /**
-     * Закриває з’єднання, якщо під час створення репозиторію не вдалося виконати міграції схеми.
-     *
-     * @param initializationFailure виняток, через який ініціалізація завершилася невдало.
-     */
+    /** Закриває з’єднання, якщо під час створення репозиторію не вдалося виконати міграції схеми. */
     private void closeAfterInitializationFailure(RuntimeException initializationFailure) {
         try {
             connection.close();
@@ -329,13 +250,7 @@ public final class SqliteMapRepository implements MapRepository {
         }
     }
 
-    /**
-     * Створює виняток сховища з контекстом шляху до бази даних і першопричиною помилки.
-     *
-     * @param message опис операції, що завершилася невдало.
-     * @param cause першопричина помилки.
-     * @return виняток сховища з додатковим контекстом.
-     */
+    /** Створює виняток сховища з контекстом шляху до бази даних і першопричиною помилки. */
     private PersistenceException failure(String message, Throwable cause) {
         return new PersistenceException(message + " Database: " + databasePath, cause);
     }

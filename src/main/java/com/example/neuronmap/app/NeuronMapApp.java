@@ -56,7 +56,7 @@ public final class NeuronMapApp extends Application {
                 localization.text("project.default_name")
         );
 
-        MapRepositoryFactory mapRepositoryFactory = new DefaultMapRepositoryFactory();
+        MapRepositoryFactory mapRepositoryFactory = new DefaultMapRepositoryFactory(storageDirectory);
         MapRepository repository = initialProject.isPersisted()
                 ? mapRepositoryFactory.createSavedProjectRepository(initialProject)
                 : mapRepositoryFactory.createTransientProjectRepository(initialProject);

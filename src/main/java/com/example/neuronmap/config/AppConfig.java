@@ -1,5 +1,7 @@
 package com.example.neuronmap.config;
 
+import java.util.Objects;
+
 /**
  * Об’єднує налаштування вікна, камери й симуляції, завантажені з конфігурації застосунку.
  * @param window параметри головного вікна.
@@ -19,7 +21,7 @@ public record AppConfig(
      * @param simulation налаштування часу одного такту симуляції.
      */
     public AppConfig {
-        if (window == null || camera == null || simulation == null) {
+        if (Objects.isNull(window) || Objects.isNull(camera) || Objects.isNull(simulation)) {
 
             throw new IllegalArgumentException("configuration sections must not be null");
         }
@@ -39,7 +41,7 @@ public record AppConfig(
             String stateFile
     ) {
         public Window {
-            if (title == null || title.isBlank()) {
+            if (Objects.isNull(title) || title.isBlank()) {
 
                 throw new IllegalArgumentException("window title must not be blank");
             }
@@ -51,7 +53,7 @@ public record AppConfig(
 
                 throw new IllegalArgumentException("defaultHeight must be positive and finite");
             }
-            if (stateFile == null || stateFile.isBlank()) {
+            if (Objects.isNull(stateFile) || stateFile.isBlank()) {
 
                 throw new IllegalArgumentException("stateFile must not be blank");
             }

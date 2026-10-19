@@ -3,6 +3,7 @@ package com.example.neuronmap.controller;
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.util.GeometryUtils;
+import com.example.neuronmap.util.NumberDisplayFormatter;
 import com.example.neuronmap.util.ViewportWorldCoordinates;
 import com.example.neuronmap.view.editor.WorkspaceView;
 import javafx.animation.PauseTransition;
@@ -17,7 +18,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.util.Duration;
 
-import java.util.Locale;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
@@ -113,11 +113,7 @@ public final class CameraController {
         saveDebounce.setOnFinished(event -> savePendingCameraChanges());
     }
 
-    /**
-     * Реєструє обробники камери та відстежує курсор на всій сцені. Повторний виклик безпечний.
-     *
-     * @throws IllegalStateException якщо контролер уже звільнив свої ресурси.
-     */
+    /** Реєструє обробники камери та відстежує курсор на всій сцені. Повторний виклик безпечний. */
     public void install() {
         if (disposed) {
             throw new IllegalStateException("Camera controller is disposed");
@@ -209,10 +205,7 @@ public final class CameraController {
         refreshCursorCoordinates();
     }
 
-    /**
-     * Призупиняє зміни камери перед відкриттям меню та завершує лише відкладене збереження реальних змін.
-     * Координати вказівника не змінюють прапорець незбереженої камери.
-     */
+    /** Призупиняє зміни камери перед відкриттям меню та завершує лише відкладене збереження реальних змін. */
     public void pausePendingSave() {
         if (suspended || disposed) {
             return;
@@ -263,8 +256,7 @@ public final class CameraController {
 
     /** Очищає показник, коли вказівник залишає геометричні межі полотна. */
     private void handlePointerExited(MouseEvent event) {
-        Point2D viewportPoint = workspace.node().sceneToLocal(
-                event.getSceneX(), event.getSceneY());
+        Point2D viewportPoint = workspace.node().sceneToLocal(event.getSceneX(), event.getSceneY());
         if (event.getTarget() == workspace.node() || !isInsideWorkspace(viewportPoint)) {
             clearCursorCoordinates();
         }
@@ -443,11 +435,13 @@ public final class CameraController {
         savePendingCameraChanges();
     }
 
-    /** Форматує масштаб як відсоток без зайвих десяткових знаків. */
+    /**
+     * Форматує масштаб як відсоток за спільними правилами відображення чисел.
+     *
+     * @param zoom коефіцієнт масштабу камери.
+     * @return компактне представлення масштабу у відсотках.
+     */
     private static String formatZoom(double zoom) {
-        double percent = zoom * 100.0;
-        return Math.abs(percent - Math.rint(percent)) < 0.0001
-                ? String.format(Locale.ROOT, "%.0f%%", percent)
-                : String.format(Locale.ROOT, "%.1f%%", percent);
+        return NumberDisplayFormatter.formatPercentage(zoom * 100.0);
     }
 }

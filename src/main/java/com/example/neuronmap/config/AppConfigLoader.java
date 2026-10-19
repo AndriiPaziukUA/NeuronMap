@@ -8,6 +8,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Objects;
 
 /**
  * Зчитує XML-конфігурацію застосунку, перевіряє обов’язкові значення й перетворює числові параметри на типізовані налаштування.
@@ -28,7 +29,7 @@ public final class AppConfigLoader {
      */
     public static AppConfig load() {
         InputStream input = AppConfigLoader.class.getResourceAsStream(RESOURCE);
-        if (input == null) {
+        if (Objects.isNull(input)) {
             throw new IllegalStateException("Missing application configuration: " + RESOURCE);
         }
 
@@ -70,7 +71,7 @@ public final class AppConfigLoader {
      */
     static AppConfig parse(InputStream input)
             throws ParserConfigurationException, SAXException, IOException {
-        if (input == null) {
+        if (Objects.isNull(input)) {
             throw new IllegalArgumentException("input must not be null");
         }
 
@@ -85,7 +86,7 @@ public final class AppConfigLoader {
         Document document = factory.newDocumentBuilder().parse(input);
         Element root = document.getDocumentElement();
 
-        if (root == null || !"app".equals(root.getTagName())) {
+        if (Objects.isNull(root) || !"app".equals(root.getTagName())) {
             throw new IllegalArgumentException("Root element must be <app>");
         }
 
@@ -140,7 +141,7 @@ public final class AppConfigLoader {
      */
     private static String required(Element element, String name) {
         String value = element.getAttribute(name);
-        if (value == null || value.isBlank()) {
+        if (Objects.isNull(value) || value.isBlank()) {
             throw new IllegalArgumentException(
                     "Missing attribute '" + name + "' in <" + element.getTagName() + ">"
             );

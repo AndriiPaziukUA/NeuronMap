@@ -109,8 +109,8 @@ public final class MainWindowController {
             stage.setHeight(windowConfig.defaultHeight());
 
             WindowState savedState = windowStateStore.load().orElse(null);
-            savedStateRestored = savedState != null;
-            if (savedState != null) {
+            savedStateRestored = Objects.nonNull(savedState);
+            if (Objects.nonNull(savedState)) {
                 stage.setWidth(savedState.width());
                 stage.setHeight(savedState.height());
                 stage.setX(savedState.x());
@@ -208,7 +208,7 @@ public final class MainWindowController {
      */
     public void shutdown() {
         try {
-            if (lifecycleCoordinator != null) {
+            if (Objects.nonNull(lifecycleCoordinator)) {
                 lifecycleCoordinator.shutdown();
             }
         } finally {

@@ -51,6 +51,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 ### `testsupport`
 
 - `JavaFxTestSupport` — одноразовий запуск JavaFX toolkit, синхронне виконання дій у JavaFX Application Thread і передавання помилок до JUnit.
+- `TransientRepositoryTestSupport` — створення відкладеного репозиторію в ізольованому тестовому каталозі з явним коренем володіння для перевірки матеріалізації.
 
 ### `app`
 
@@ -95,7 +96,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 
 ### `coordinator`
 
-- `EditorProjectSessionCoordinatorTest` — зупинка й відновлення редакторської сесії, перемикання проєктів, камера та швидкість симуляції.
+- `EditorProjectSessionCoordinatorTest` — зупинка й відновлення редакторської сесії, перемикання проєктів, передавання відновленої швидкості єдиному runtime-власнику та UI, а також fallback для значень поза діапазоном.
 - `NeuronSettingsOverlayCoordinatorTest` — закриття модальної накладки налаштувань при відкритті переданого головного меню, ідемпотентність звільнення координатора та заборона повторного показу після `dispose()`.
 - `UiProcessCoordinatorTest` — вкладені причини призупинення, порядок паузи й відновлення, ідемпотентність повторних команд та керування реєстраціями процесів.
 - `EditorSaveCoordinatorTest` — узгоджене збереження стану редактора.
@@ -121,9 +122,13 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 - `NeuronPresentationTest` — положення, обертання й напрямок представлення.
 - `NeuronTest` — параметри нейрона та перевірка некоректних значень.
 
+### `persistence`
+
+- `FileTreeOperationsTest` — очищення та видалення належного каталогу, відхилення шляхів поза коренем володіння й перевірка того, що символічні посилання не відкривають доступ до зовнішнього дерева.
+
 ### `persistence/map`
 
-- `TransientProjectRepositoryTest` — відкладене створення каталогу проєкту та захист від сторонніх файлів і наявних даних.
+- `TransientProjectRepositoryTest` — відкладене створення каталогу проєкту, явна перевірка довіреного кореня та захист від перезапису наявних даних.
 
 ### `persistence/project`
 
@@ -138,11 +143,11 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 
 ### `persistence/sqlite`
 
-- `DefaultMapRepositoryFactoryTest` — вибір репозиторію для типу проєкту.
+- `DefaultMapRepositoryFactoryTest` — вибір репозиторію для типу проєкту, передавання довіреного кореня тимчасовому сховищу та відхилення проєкту поза ним.
 - `NeuronDirectionPersistenceTest` — збереження напрямку нейрона.
-- `SqliteCameraStateValidationTest` — відновлення типової камери та журналювання відсутніх, нечислових, нескінченних і позадіапазонних значень.
+- `SqliteCameraStateValidationTest` — відновлення типової камери та діагностика часткових, нечислових, нескінченних і позадіапазонних значень; ключі перевіряються через власника `SqliteSettingsStore`, а помилки SQL мають тип `PersistenceException`.
 - `SqliteMapRepositoryFailureTest` — помилки репозиторію SQLite.
-- `SqliteMapRepositoryTest` — збереження та читання карти.
+- `SqliteMapRepositoryTest` — збереження та читання карти, зокрема round-trip стану камери.
 - `SqliteNeuronSchemaContractTest` — контракт схеми даних нейрона.
 - `SqliteSchemaMigrationTest` — міграція старої схеми SQLite.
 - `SqliteSimulationSettingsTest` — збереження параметрів симуляції та значень за замовчуванням.
@@ -175,7 +180,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 - `SimulationRuntimeStateTest` — застосування та очищення поточних активацій.
 - `SimulationServiceTest` — створення сеансу симуляції.
 - `SimulationSessionTest` — поширення сигналів, цикли, кілька джерел і спільний відлік тактів.
-- `SimulationSpeedTest` — перевірка допустимих значень швидкості.
+- `SimulationSpeedTest` — прийняття мінімальної та максимальної допустимих швидкостей і відхилення значень за межами конфігурації.
 - `SimulationStepTest` — подання номера такту, більшого за межу `long`.
 - `SimulationTickTest` — збільшення номера такту та перевірка від'ємних значень.
 
@@ -185,7 +190,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 - `GeometryUtilsNonFiniteZoomTest` — відхилення `NaN` та нескінченностей і обмеження скінченного масштабу.
 - `GeometryUtilsTest` — обмеження масштабу.
 - `NeuronRotationMathTest` — обчислення кутів обертання.
-- `NumberDisplayFormatterTest` — компактний формат числа, допуск для цілих значень і незалежність від системної локалі.
+- `NumberDisplayFormatterTest` — компактне форматування чисел і відсотків, значення поблизу цілого та незалежність від системної локалі.
 - `WorldCoordinateMapperTest` — перетворення координат між простором світу та екраном.
 
 ### `view`
@@ -269,7 +274,7 @@ JaCoCo налаштований формувати звіт у `target/site/jaco
 
 - `SimulationSpeedCoordinatorTest` — некоректне введення не змінює швидкість і не записується до сховища;
 - `SimulationControllerSpeedFormattingTest` — локалізоване повідомлення про зміну швидкості використовує спільний формат числового значення;
-- `EditorProjectSessionCoordinatorTest` — відсутнє або некоректне значення швидкості нового проєкту замінюється типовим значенням конфігурації, а не успадковується від попереднього проєкту;
+- `EditorProjectSessionCoordinatorTest` — швидкість нового проєкту передається runtime-власнику та UI узгоджено, а відсутнє або некоректне значення замінюється типовим значенням конфігурації;
 - `MainMenuViewTest` — використовується єдиний контракт callback-ів налаштування мови;
 - `MapPresentationWorkflowLifecycleTest` — перемикання проєкту працює з актуальною сигнатурою `EditorProjectSessionCoordinator`, без постачальника швидкості попереднього проєкту;
 - `UiProcessCoordinatorTest` — вкладена пауза не відновлює таймери й анімації, доки активна остання причина призупинення;

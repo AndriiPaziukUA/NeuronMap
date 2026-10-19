@@ -17,17 +17,16 @@ import java.time.Instant;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Перевіряє створення репозиторіїв фабрикою та використання її постійного делегата під час матеріалізації.
- */
+/** Перевіряє створення репозиторіїв фабрикою та використання її постійного делегата під час матеріалізації. */
 final class DefaultMapRepositoryFactoryTest {
 
     /**
      * Перевіряє створення тимчасового репозиторію без негайного створення каталогу проєкту.
      *
-     * @param tempDir тимчасовий каталог тесту.
+     * @param tempDir тимчасовий корінь сховища тесту.
      */
     @Test
     void createsTransientRepositoryWithoutMaterializingProject(@TempDir Path tempDir) {
@@ -38,7 +37,7 @@ final class DefaultMapRepositoryFactoryTest {
                 databasePath,
                 null
         );
-        MapRepositoryFactory factory = new DefaultMapRepositoryFactory();
+        MapRepositoryFactory factory = new DefaultMapRepositoryFactory(tempDir);
 
         try (MapRepository repository = factory.createTransientProjectRepository(project)) {
             assertInstanceOf(TransientProjectRepository.class, repository);
@@ -50,7 +49,7 @@ final class DefaultMapRepositoryFactoryTest {
     /**
      * Перевіряє, що після появи даних фабрика створює постійний делегат і проєкт зберігається у SQLite.
      *
-     * @param tempDir тимчасовий каталог тесту.
+     * @param tempDir тимчасовий корінь сховища тесту.
      */
     @Test
     void materializesTransientProjectThroughFactoryDelegate(@TempDir Path tempDir) {
@@ -61,7 +60,7 @@ final class DefaultMapRepositoryFactoryTest {
                 databasePath,
                 null
         );
-        MapRepositoryFactory factory = new DefaultMapRepositoryFactory();
+        MapRepositoryFactory factory = new DefaultMapRepositoryFactory(tempDir);
         NeuronMapModel model = new NeuronMapModel();
         model.createNeuron(NeuronType.EXCITATORY, 20.0, 30.0);
 
@@ -76,7 +75,7 @@ final class DefaultMapRepositoryFactoryTest {
     /**
      * Перевіряє створення SQLite-репозиторію для наявного збереженого проєкту.
      *
-     * @param tempDir тимчасовий каталог тесту.
+     * @param tempDir тимчасовий корінь сховища тесту.
      */
     @Test
     void createsSqliteRepositoryForSavedProject(@TempDir Path tempDir) {
@@ -87,12 +86,33 @@ final class DefaultMapRepositoryFactoryTest {
                 databasePath,
                 Instant.now()
         );
-        MapRepositoryFactory factory = new DefaultMapRepositoryFactory();
+        MapRepositoryFactory factory = new DefaultMapRepositoryFactory(tempDir);
 
         try (MapRepository repository = factory.createSavedProjectRepository(project)) {
             assertInstanceOf(SqliteMapRepository.class, repository);
             assertEquals(databasePath.toAbsolutePath().normalize(), repository.databasePath());
             assertTrue(Files.isRegularFile(databasePath));
         }
+    }
+
+    /**
+     * Перевіряє, що фабрика не створює тимчасовий репозиторій для шляху поза довіреним коренем.
+     *
+     * @param tempDir тимчасовий каталог тесту.
+     */
+    @Test
+    void refusesTransientProjectOutsideConfiguredStorageDirectory(@TempDir Path tempDir) {
+        ProjectDescriptor outsideProject = new ProjectDescriptor(
+                "outside-project",
+                "Outside",
+                tempDir.resolve("elsewhere/Outside/project.db"),
+                null
+        );
+        MapRepositoryFactory factory = new DefaultMapRepositoryFactory(tempDir.resolve("projects"));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> factory.createTransientProjectRepository(outsideProject)
+        );
     }
 }

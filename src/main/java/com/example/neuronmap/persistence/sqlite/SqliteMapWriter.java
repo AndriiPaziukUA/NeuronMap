@@ -6,30 +6,23 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-/**
- * Записує стан моделі карти й параметри камери до таблиць SQLite в межах операції збереження.
- */
+/** Записує стан моделі карти й параметри камери до таблиць SQLite в межах операції збереження. */
 public final class SqliteMapWriter {
 
     private final java.sql.Connection connection;
     private final SqliteSettingsStore settings;
 
     /**
-     * Створює екземпляр SqliteMapWriter та зберігає передані залежності, потрібні для його роботи.
+     * Створює записувач із тим самим з'єднанням і власником типізованих налаштувань, що й репозиторій.
      *
-     * @param connection напрямлений зв’язок між нейронами.
-     * @param settings сховище глобальних налаштувань застосунку.
+     * @param connection з'єднання SQLite спільної транзакції.
+     * @param settings сховище типізованих налаштувань проєкту.
      */
-    public SqliteMapWriter(
-            java.sql.Connection connection,
-            SqliteSettingsStore settings
-    ) {
+    public SqliteMapWriter(java.sql.Connection connection, SqliteSettingsStore settings) {
         if (connection == null) {
-
             throw new IllegalArgumentException("connection must not be null");
         }
         if (settings == null) {
-
             throw new IllegalArgumentException("settings must not be null");
         }
         this.connection = connection;
@@ -37,26 +30,22 @@ public final class SqliteMapWriter {
     }
 
     /**
-     * Записує стан карти та камери до бази даних.
+     * Записує стан карти та камери.
      *
      * @param model модель карти нейронів.
      * @param cameraState стан камери, який потрібно зберегти разом із картою.
+     * @throws SQLException якщо запис будь-якої частини карти не вдався.
      */
-    public void save(
-            NeuronMapModel model,
-            CameraState cameraState
-    ) throws SQLException {
+    public void save(NeuronMapModel model, CameraState cameraState) throws SQLException {
         deleteAllData();
         insertNeurons(model);
         insertPresentations(model);
         insertConnections(model);
         insertGroups(model);
-        saveCameraState(cameraState);
+        settings.saveCameraState(cameraState);
     }
 
-    /**
-     * Очищає таблиці карти перед повним записом актуального стану.
-     */
+    /** Очищає таблиці карти перед повним записом актуального стану. */
     private void deleteAllData() throws SQLException {
         try (Statement statement = connection.createStatement()) {
             statement.executeUpdate("DELETE FROM group_members");
@@ -70,7 +59,8 @@ public final class SqliteMapWriter {
     /**
      * Записує семантичні параметри всіх нейронів у таблицю нейронів.
      *
-     * @param model модель карти нейронів.
+     * @param model модель карти, звідки беруться нейрони.
+     * @throws SQLException якщо пакетний запис нейронів не вдався.
      */
     private void insertNeurons(NeuronMapModel model) throws SQLException {
         String sql = """
@@ -100,10 +90,10 @@ public final class SqliteMapWriter {
     /**
      * Записує координати, обертання й напрямок візуальних подань нейронів.
      *
-     * @param model модель карти нейронів.
+     * @param model модель карти, що містить подання нейронів.
+     * @throws SQLException якщо пакетний запис подань не вдався.
      */
-    private void insertPresentations(NeuronMapModel model)
-            throws SQLException {
+    private void insertPresentations(NeuronMapModel model) throws SQLException {
         String sql = """
                 INSERT INTO neuron_presentations (
                     neuron_id,
@@ -121,10 +111,7 @@ public final class SqliteMapWriter {
                 statement.setDouble(2, presentation.x());
                 statement.setDouble(3, presentation.y());
                 statement.setDouble(4, presentation.rotationDegrees());
-                statement.setInt(
-                        5,
-                        presentation.directionReversed() ? 1 : 0
-                );
+                statement.setInt(5, presentation.directionReversed() ? 1 : 0);
                 statement.addBatch();
             }
             statement.executeBatch();
@@ -134,10 +121,10 @@ public final class SqliteMapWriter {
     /**
      * Записує напрямлені зв’язки між нейронами.
      *
-     * @param model модель карти нейронів.
+     * @param model модель карти, що містить зв’язки.
+     * @throws SQLException якщо пакетний запис зв’язків не вдався.
      */
-    private void insertConnections(NeuronMapModel model)
-            throws SQLException {
+    private void insertConnections(NeuronMapModel model) throws SQLException {
         String sql = """
                 INSERT INTO connections (
                     id,
@@ -161,7 +148,8 @@ public final class SqliteMapWriter {
     /**
      * Записує групи та їхніх учасників.
      *
-     * @param model модель карти нейронів.
+     * @param model модель карти, що містить групи та учасників.
+     * @throws SQLException якщо запис груп або учасників не вдався.
      */
     private void insertGroups(NeuronMapModel model) throws SQLException {
         String groupSql = "INSERT INTO groups (id) VALUES (?)";
@@ -173,14 +161,11 @@ public final class SqliteMapWriter {
                 VALUES (?, ?)
                 """;
 
-        try (PreparedStatement groupStatement =
-                     connection.prepareStatement(groupSql);
-             PreparedStatement memberStatement =
-                     connection.prepareStatement(memberSql)) {
+        try (PreparedStatement groupStatement = connection.prepareStatement(groupSql);
+             PreparedStatement memberStatement = connection.prepareStatement(memberSql)) {
             for (NeuronGroup group : model.groups()) {
                 groupStatement.setString(1, group.id());
                 groupStatement.addBatch();
-
                 for (String neuronId : group.memberIds()) {
                     memberStatement.setString(1, group.id());
                     memberStatement.setString(2, neuronId);
@@ -190,16 +175,5 @@ public final class SqliteMapWriter {
             groupStatement.executeBatch();
             memberStatement.executeBatch();
         }
-    }
-
-    /**
-     * Зберігає camera state у відповідному сховищі.
-     *
-     * @param state стан об’єкта, який потрібно зберегти або відновити.
-     */
-    private void saveCameraState(CameraState state) throws SQLException {
-        settings.write("zoom", Double.toString(state.zoom()));
-        settings.write("panX", Double.toString(state.panX()));
-        settings.write("panY", Double.toString(state.panY()));
     }
 }

@@ -1,24 +1,23 @@
 package com.example.neuronmap.persistence.project;
 
+import com.example.neuronmap.persistence.FileTreeOperations;
 import com.example.neuronmap.persistence.PersistenceException;
 import com.example.neuronmap.persistence.settings.GlobalSettingsStore;
 import com.example.neuronmap.project.ProjectDescriptor;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/**
- * Реалізує збереження каталогу проєктів у файловій системі та зберігає назву останнього відкритого проєкту.
- */
+/** Реалізує каталог проєктів у файловій системі та зберігає назву останнього відкритого проєкту. */
 public final class FileSystemProjectCatalogRepository implements ProjectCatalogRepository {
 
     private static final Logger LOGGER = Logger.getLogger(FileSystemProjectCatalogRepository.class.getName());
@@ -45,7 +44,6 @@ public final class FileSystemProjectCatalogRepository implements ProjectCatalogR
      * @param storageDirectory кореневий каталог збереження проєктів.
      * @param globalSettings сховище глобальних налаштувань застосунку.
      * @param lastModifiedTimeReader читач часу останньої зміни файла.
-     * @throws IllegalArgumentException якщо будь-яку залежність не задано.
      */
     FileSystemProjectCatalogRepository(
             Path storageDirectory,
@@ -60,9 +58,7 @@ public final class FileSystemProjectCatalogRepository implements ProjectCatalogR
         this.lastModifiedTimeReader = lastModifiedTimeReader;
     }
 
-    /**
-     * Абстрагує читання часової мітки файла для тестування помилок доступу до метаданих.
-     */
+    /** Абстрагує читання часової мітки файла для тестування помилок доступу до метаданих. */
     @FunctionalInterface
     interface LastModifiedTimeReader {
         /**
@@ -75,11 +71,7 @@ public final class FileSystemProjectCatalogRepository implements ProjectCatalogR
         FileTime read(Path path) throws IOException;
     }
 
-    /**
-     * Повертає нормалізований абсолютний шлях до кореневого каталогу проєктів.
-     *
-     * @return шлях до кореневого каталогу збереження проєктів.
-     */
+    /** Повертає нормалізований абсолютний шлях до кореневого каталогу проєктів. */
     @Override
     public Path storageDirectory() {
         return storageDirectory;
@@ -114,14 +106,12 @@ public final class FileSystemProjectCatalogRepository implements ProjectCatalogR
      *
      * @param databasePath шлях до файлу бази даних проєкту.
      * @return опис проєкту з нормалізованим шляхом і часом зміни, якщо його вдалося прочитати.
-     * @throws IllegalArgumentException якщо шлях не задано або він не має батьківського каталогу.
      */
     @Override
     public ProjectDescriptor descriptorForDatabasePath(Path databasePath) {
         if (databasePath == null) {
             throw new IllegalArgumentException("databasePath must not be null");
         }
-
         Path normalized = databasePath.toAbsolutePath().normalize();
         Path directory = normalized.getParent();
         if (directory == null) {
@@ -129,18 +119,13 @@ public final class FileSystemProjectCatalogRepository implements ProjectCatalogR
         }
 
         Instant modifiedAt = Files.isRegularFile(normalized) ? lastModified(normalized) : null;
-        return new ProjectDescriptor(
-                directory.toString(),
-                directory.getFileName().toString(),
-                normalized,
-                modifiedAt
-        );
+        return new ProjectDescriptor(directory.toString(), directory.getFileName().toString(), normalized, modifiedAt);
     }
 
     /**
-     * Створює опис тимчасового проєкту, визначаючи його каталог і файл бази даних у файловому сховищі.
+     * Створює опис тимчасового проєкту, визначаючи каталог і файл бази даних у файловому сховищі.
      *
-     * @param projectName нормалізована назва тимчасового проєкту.
+     * @param projectName назва тимчасового проєкту.
      * @return опис тимчасового проєкту без часу зміни.
      * @throws IllegalArgumentException якщо назву не задано або вона виходить за межі кореневого каталогу.
      */
@@ -149,7 +134,6 @@ public final class FileSystemProjectCatalogRepository implements ProjectCatalogR
         if (projectName == null || projectName.isBlank()) {
             throw new IllegalArgumentException("projectName must not be blank");
         }
-
         Path directory = storageDirectory.resolve(projectName).normalize();
         if (!storageDirectory.equals(directory.getParent())) {
             throw new IllegalArgumentException("Project directory is outside the project storage root");
@@ -176,7 +160,6 @@ public final class FileSystemProjectCatalogRepository implements ProjectCatalogR
         if (project == null) {
             throw new IllegalArgumentException("project must not be null");
         }
-
         Path sourceDirectory = project.databasePath().getParent();
         if (sourceDirectory == null || !storageDirectory.equals(sourceDirectory.getParent())) {
             throw new IllegalArgumentException("Project directory is outside the project storage root");
@@ -190,10 +173,7 @@ public final class FileSystemProjectCatalogRepository implements ProjectCatalogR
         try {
             prepareRenameTarget(targetDirectory);
             Files.move(sourceDirectory, targetDirectory);
-            Files.setLastModifiedTime(
-                    targetDirectory.resolve(PROJECT_FILE_NAME),
-                    FileTime.from(Instant.now())
-            );
+            Files.setLastModifiedTime(targetDirectory.resolve(PROJECT_FILE_NAME), FileTime.from(Instant.now()));
         } catch (IOException exception) {
             throw new PersistenceException("Не вдалося перейменувати проєкт.", exception);
         }
@@ -212,7 +192,6 @@ public final class FileSystemProjectCatalogRepository implements ProjectCatalogR
         if (project == null) {
             return;
         }
-
         Path directory = project.databasePath().getParent();
         if (directory == null) {
             return;
@@ -222,90 +201,52 @@ public final class FileSystemProjectCatalogRepository implements ProjectCatalogR
         }
 
         try {
-            deleteRecursively(directory);
+            FileTreeOperations.deleteOwnedDirectoryTree(storageDirectory, directory);
         } catch (IOException exception) {
             throw new PersistenceException("Не вдалося видалити проєкт.", exception);
         }
     }
 
-    /**
-     * Зчитує з глобальних налаштувань назву останнього відкритого проєкту.
-     *
-     * @return назва останнього відкритого проєкту або {@code null}, якщо її не збережено.
-     */
+    /** Зчитує з глобальних налаштувань назву останнього відкритого проєкту. */
     @Override
     public String loadLastOpenedProjectName() {
         return globalSettings.load(LAST_PROJECT_NAME_KEY);
     }
 
-    /**
-     * Зберігає в глобальних налаштуваннях назву останнього відкритого проєкту.
-     *
-     * @param projectName назва проєкту або {@code null}, щоб видалити збережене значення.
-     */
+    /** Зберігає або видаляє в глобальних налаштуваннях назву останнього відкритого проєкту. */
     @Override
     public void saveLastOpenedProjectName(String projectName) {
         globalSettings.save(LAST_PROJECT_NAME_KEY, projectName);
     }
 
-    /**
-     * Створює опис каталогу, якщо в ньому є файл бази даних проєкту.
-     *
-     * @param directory каталог, який потрібно перевірити.
-     * @return опис збереженого проєкту або {@code null}, якщо файл бази даних відсутній.
-     */
+    /** Повертає опис каталогу, якщо він містить звичайний файл бази даних проєкту. */
     private ProjectDescriptor descriptorIfSaved(Path directory) {
         Path database = directory.resolve(PROJECT_FILE_NAME);
         return Files.isRegularFile(database) ? descriptorForDatabasePath(database) : null;
     }
 
     /**
-     * Перевіряє цільовий каталог і звільняє його, якщо він не містить збереженого проєкту.
+     * Перевіряє ціль перейменування й очищає її лише тоді, коли там немає навіть символьного посилання на базу.
      *
      * @param targetDirectory цільовий каталог перейменування.
      * @throws IOException якщо каталог неможливо перевірити або видалити.
      */
     private void prepareRenameTarget(Path targetDirectory) throws IOException {
-        if (Files.notExists(targetDirectory)) {
+        if (Files.notExists(targetDirectory, LinkOption.NOFOLLOW_LINKS)) {
             return;
         }
-        if (Files.isRegularFile(targetDirectory.resolve(PROJECT_FILE_NAME))) {
+        if (Files.exists(targetDirectory.resolve(PROJECT_FILE_NAME), LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException("Проєкт з такою назвою вже існує: " + targetDirectory.getFileName());
         }
-        deleteRecursively(targetDirectory);
+        FileTreeOperations.deleteOwnedDirectoryTree(storageDirectory, targetDirectory);
     }
 
-    /**
-     * Видаляє каталог і всі його вкладені елементи.
-     *
-     * @param root кореневий каталог, який потрібно видалити.
-     * @throws IOException якщо один із елементів неможливо видалити.
-     */
-    private static void deleteRecursively(Path root) throws IOException {
-        List<Path> paths;
-        try (var stream = Files.walk(root)) {
-            paths = stream.sorted(Comparator.reverseOrder()).toList();
-        }
-        for (Path path : paths) {
-            Files.deleteIfExists(path);
-        }
-    }
-
-    /**
-     * Повертає час останньої зміни файла або реєструє помилку й повертає відсутнє значення.
-     *
-     * @param path шлях до файла.
-     * @return час останньої зміни файла або {@code null}, якщо метадані прочитати не вдалося.
-     */
+    /** Повертає час зміни файла або реєструє помилку й повертає відсутнє значення. */
     private Instant lastModified(Path path) {
         try {
             return lastModifiedTimeReader.read(path).toInstant();
         } catch (IOException exception) {
-            LOGGER.log(
-                    Level.WARNING,
-                    "Не вдалося прочитати час останньої зміни файла проєкту " + path,
-                    exception
-            );
+            LOGGER.log(Level.WARNING, "Не вдалося прочитати час останньої зміни файла проєкту " + path, exception);
             return null;
         }
     }
