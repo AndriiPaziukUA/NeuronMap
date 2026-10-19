@@ -20,6 +20,8 @@ public final class NeuronView extends StackPane {
     public static final double HEIGHT = NeuronVisualGeometry.HEIGHT;
     public static final double SELECTED_STROKE_WIDTH = 2.5;
 
+    /** Текстова позначка вхідного сигналу, коли тимчасове значення відсутнє. */
+    private static final String NO_INPUT_SIGNAL_TEXT = "0";
     private static final double SIGNAL_LABEL_WIDTH = 48.0;
     private static final double SIGNAL_LABEL_HEIGHT = 28.0;
     private static final double SIGNAL_LABEL_SIDE_GAP = 10.0;
@@ -74,7 +76,7 @@ public final class NeuronView extends StackPane {
         outputPort.setManaged(false);
         inputSignalLabel.setManaged(false);
         outputSignalLabel.setManaged(false);
-        inputSignalLabel.setText("0");
+        inputSignalLabel.setText(NO_INPUT_SIGNAL_TEXT);
         outputSignalLabel.setText(Integer.toString(model().signalWeight()));
         getChildren().addAll(body, inputSignalLabel, outputSignalLabel, inputPort, outputPort);
         refreshVisuals(false);
@@ -201,7 +203,7 @@ public final class NeuronView extends StackPane {
      */
     public void hideInputSignal() {
         displayedInputSignal = null;
-        inputSignalLabel.setText("0");
+        inputSignalLabel.setText(NO_INPUT_SIGNAL_TEXT);
     }
 
     /**
@@ -231,7 +233,7 @@ public final class NeuronView extends StackPane {
         setRotate(presentation.rotationDegrees());
         refreshBodyStyleClasses(selected);
 
-        inputSignalLabel.setText(displayedInputSignal == null ? "0" : Integer.toString(displayedInputSignal));
+        inputSignalLabel.setText(displayedInputSignal == null ? NO_INPUT_SIGNAL_TEXT : Integer.toString(displayedInputSignal));
         outputSignalLabel.setText(Integer.toString(model().signalWeight()));
         positionFixedChildren();
     }

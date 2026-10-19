@@ -15,6 +15,7 @@ import javafx.scene.shape.Circle;
 public final class RotationHandleView extends Button {
 
     public static final double SIZE = 22.0;
+    /** Геометричний зазор між нейроном і ручкою обертання; використовується позиціонером накладок. */
     public static final double GAP = 8.0;
 
     private final StackPane graphicPane = new StackPane();
@@ -56,12 +57,13 @@ public final class RotationHandleView extends Button {
         setGraphic(graphicPane);
     }
 
-/**
- * Переміщує ручку обертання так, щоб її центр збігався з переданою точкою батьківської області.
- *
- * @param parentCenter значення «parent center», яке використовується в цьому методі.
- */
-public void placeCenterAt(Point2D parentCenter) {
+    /**
+     * Переміщує ручку обертання так, щоб її центр збігався з переданою точкою батьківської області.
+     *
+     * @param parentCenter центр ручки в локальних координатах батьківського контейнера.
+     * @throws IllegalArgumentException якщо координату центру не задано.
+     */
+    public void placeCenterAt(Point2D parentCenter) {
         if (parentCenter == null) {
 
             throw new IllegalArgumentException(
@@ -82,19 +84,19 @@ public void placeCenterAt(Point2D parentCenter) {
         );
     }
 
-/**
- * Установлює visual rotation для поточного об’єкта.
- *
- * @param degrees кут у градусах.
- */
-public void setVisualRotation(double degrees) {
+    /**
+     * Установлює візуальний кут графічного символу ручки.
+     *
+     * @param degrees кут повороту в градусах.
+     */
+    public void setVisualRotation(double degrees) {
         graphicPane.setRotate(degrees);
     }
 
-/**
- * Від’єднує обробники подій і звільняє ресурси, якими керує компонент.
- */
-public void dispose() {
+    /**
+     * Скидає візуальний кут внутрішнього графічного елемента перед повторним використанням.
+     */
+    public void dispose() {
         graphicPane.setRotate(0.0);
     }
 }

@@ -12,7 +12,6 @@ import javafx.scene.layout.VBox;
 public final class NeuronOverlayPositioner {
 
     public static final double MENU_GAP = 8.0;
-    public static final double HANDLE_GAP = 8.0;
 
     private static final double NORMAL_SAMPLE = 1.0;
 
@@ -242,7 +241,7 @@ public final class NeuronOverlayPositioner {
                         * sceneUnitsPerLocalUnit;
 
         double centerOffset =
-                HANDLE_GAP
+                RotationHandleView.GAP
                         + RotationHandleView.SIZE / 2.0
                         + reservedSelectionStroke;
 
