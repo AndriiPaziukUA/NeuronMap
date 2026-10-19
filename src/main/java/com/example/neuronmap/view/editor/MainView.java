@@ -27,6 +27,8 @@ public final class MainView {
     private final MainMenuView mainMenu;
     private boolean normalizingRootLayerOrder;
     private boolean disposed;
+    private Scene createdScene;
+    private String ownedStylesheetUrl;
     private final ListChangeListener<Node> rootLayerOrderListener = ignored -> keepMenuAboveOverlays();
 
     /** Створює подання редактора з переданою службою локалізації. */
@@ -68,14 +70,33 @@ public final class MainView {
         this(addNeuron, group, ungroup, pauseResume, stopSignals, speedChanged, initialSpeedMillis, localization);
     }
 
-    /** Створює сцену JavaFX та додає основну таблицю стилів. */
+    /**
+     * Створює єдину сцену JavaFX та підключає основну таблицю стилів, залишаючись її власником до {@link #dispose()}.
+     *
+     * @param width початкова ширина сцени.
+     * @param height початкова висота сцени.
+     * @return створена сцена редактора.
+     * @throws IllegalStateException якщо подання звільнено, сцена вже створена або ресурс {@code app.css} відсутній.
+     */
     public Scene createScene(double width, double height) {
-        Scene scene = new Scene(root, width, height);
+        if (disposed) {
+            throw new IllegalStateException("Main view is disposed");
+        }
+        if (createdScene != null) {
+            throw new IllegalStateException("Main view scene has already been created");
+        }
+
         URL css = getClass().getResource("/app.css");
         if (css == null) {
             throw new IllegalStateException("app.css is missing");
         }
-        scene.getStylesheets().add(css.toExternalForm());
+        Scene scene = new Scene(root, width, height);
+        String stylesheetUrl = css.toExternalForm();
+        if (!scene.getStylesheets().contains(stylesheetUrl)) {
+            scene.getStylesheets().add(stylesheetUrl);
+            ownedStylesheetUrl = stylesheetUrl;
+        }
+        createdScene = scene;
         root.layout();
         return scene;
     }
@@ -90,7 +111,10 @@ public final class MainView {
         statusMessagePresenter.resume();
     }
 
-    /** Звільняє підписки панелі інструментів, рядка стану й порядку графічних шарів; повторний виклик безпечний. */
+    /**
+     * Звільняє власні слухачі, від'єднує ресурси робочої області та прибирає таблицю стилів із керованої сцени.
+     * Повторне виконання безпечне; ресурси накладки меню звільняє її власний контролер.
+     */
     public void dispose() {
         if (disposed) {
             return;
@@ -98,7 +122,20 @@ public final class MainView {
         disposed = true;
         root.getChildren().removeListener(rootLayerOrderListener);
         toolbar.dispose();
+        workspace.dispose();
         statusMessagePresenter.dispose();
+        removeOwnedStylesheet();
+    }
+
+    /**
+     * Прибирає зі сцени лише таблицю стилів, яку додало це подання, не втручаючись у зовнішні таблиці.
+     */
+    private void removeOwnedStylesheet() {
+        if (createdScene != null && ownedStylesheetUrl != null) {
+            createdScene.getStylesheets().remove(ownedStylesheetUrl);
+        }
+        createdScene = null;
+        ownedStylesheetUrl = null;
     }
 
     /** Повертає кореневий вузол інтерфейсу. */

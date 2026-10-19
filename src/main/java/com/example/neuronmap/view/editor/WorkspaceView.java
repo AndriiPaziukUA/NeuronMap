@@ -1,5 +1,6 @@
 package com.example.neuronmap.view.editor;
 
+import javafx.beans.value.ChangeListener;
 import javafx.geometry.Pos;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.layout.Pane;
@@ -7,15 +8,12 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.transform.Scale;
 
-/**
- * Збирає шари полотна карти й застосовує світове перетворення до координатної сітки, нейронів, зв’язків та накладок.
- */
+/** Збирає шари полотна карти й застосовує світове перетворення до координатної сітки, нейронів, зв’язків та накладок. */
 public final class WorkspaceView {
 
     private final StackPane viewport = new StackPane();
     private final Canvas gridCanvas = new Canvas();
-    private final GridRenderer gridRenderer =
-            new GridRenderer(gridCanvas);
+    private final GridRenderer gridRenderer = new GridRenderer(gridCanvas);
 
     private final Pane world = new Pane();
     private final Pane groupLayer = new Pane();
@@ -25,13 +23,14 @@ public final class WorkspaceView {
     private final Pane overlayLayer = new Pane();
 
     private final Rectangle clip = new Rectangle();
-    private final Scale worldScale = new Scale(
-            1.0,
-            1.0,
-            0.0,
-            0.0
-    );
+    private final Scale worldScale = new Scale(1.0, 1.0, 0.0, 0.0);
+    private final ChangeListener<Number> viewportWidthListener =
+            (observable, oldValue, newValue) -> redrawGrid();
+    private final ChangeListener<Number> viewportHeightListener =
+            (observable, oldValue, newValue) -> redrawGrid();
+    private boolean disposed;
 
+    /** Створює шари робочої області та реєструє слухачі розміру, необхідні для перемальовування сітки. */
     public WorkspaceView() {
         viewport.getStyleClass().add("canvas");
         viewport.setPickOnBounds(true);
@@ -60,29 +59,30 @@ public final class WorkspaceView {
         overlayLayer.setManaged(false);
         overlayLayer.setPickOnBounds(false);
 
-        world.getChildren().addAll(
-                groupLayer,
-                edgeLayer,
-                pulseLayer,
-                nodeLayer
-        );
-
-        viewport.getChildren().addAll(
-                gridCanvas,
-                world,
-                overlayLayer
-        );
+        world.getChildren().addAll(groupLayer, edgeLayer, pulseLayer, nodeLayer);
+        viewport.getChildren().addAll(gridCanvas, world, overlayLayer);
 
         StackPane.setAlignment(gridCanvas, Pos.TOP_LEFT);
         StackPane.setAlignment(world, Pos.TOP_LEFT);
         StackPane.setAlignment(overlayLayer, Pos.TOP_LEFT);
 
-        viewport.widthProperty().addListener(
-                (obs, oldValue, newValue) -> redrawGrid()
-        );
-        viewport.heightProperty().addListener(
-                (obs, oldValue, newValue) -> redrawGrid()
-        );
+        viewport.widthProperty().addListener(viewportWidthListener);
+        viewport.heightProperty().addListener(viewportHeightListener);
+    }
+
+    /**
+     * Від'єднує слухачі розміру та внутрішні прив'язки робочої області.
+     * Повторний виклик безпечний і не змінює поточне графічне представлення.
+     */
+    public void dispose() {
+        if (disposed) {
+            return;
+        }
+        disposed = true;
+        viewport.widthProperty().removeListener(viewportWidthListener);
+        viewport.heightProperty().removeListener(viewportHeightListener);
+        clip.widthProperty().unbind();
+        clip.heightProperty().unbind();
     }
 
     /**
@@ -146,16 +146,11 @@ public final class WorkspaceView {
      * @param panX горизонтальне зміщення камери.
      * @param panY вертикальне зміщення камери.
      */
-    public void setWorldTransform(
-            double zoom,
-            double panX,
-            double panY
-    ) {
+    public void setWorldTransform(double zoom, double panX, double panY) {
         worldScale.setX(zoom);
         worldScale.setY(zoom);
         world.setTranslateX(panX);
         world.setTranslateY(panY);
-
         redrawGrid(zoom, panX, panY);
     }
 
@@ -166,28 +161,12 @@ public final class WorkspaceView {
      * @param panX горизонтальне зміщення камери.
      * @param panY вертикальне зміщення камери.
      */
-    public void redrawGrid(
-            double zoom,
-            double panX,
-            double panY
-    ) {
-        gridRenderer.redraw(
-                viewport.getWidth(),
-                viewport.getHeight(),
-                zoom,
-                panX,
-                panY
-        );
+    public void redrawGrid(double zoom, double panX, double panY) {
+        gridRenderer.redraw(viewport.getWidth(), viewport.getHeight(), zoom, panX, panY);
     }
 
-    /**
-     * Перемальовує координатну сітку відповідно до поточних параметрів камери.
-     */
+    /** Перемальовує координатну сітку відповідно до поточних параметрів камери. */
     private void redrawGrid() {
-        redrawGrid(
-                worldScale.getX(),
-                world.getTranslateX(),
-                world.getTranslateY()
-        );
+        redrawGrid(worldScale.getX(), world.getTranslateX(), world.getTranslateY());
     }
 }
