@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Перевіряє, що кількість PMD-порушень у файлі та за правилом не зросла."""
+"""Перевіряє незмінність набору PMD-знахідок відносно затвердженого baseline."""
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -12,11 +13,12 @@ from pathlib import Path
 from typing import Iterable
 from xml.etree import ElementTree as ET
 
-FindingKey = tuple[str, str]
+FindingKey = tuple[str, str, str]
+FINGERPRINT_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
 
 def normalize_source_path(path: str) -> str:
-    """Повертає стабільний шлях від `src/`, незалежний від каталогу runner-а.
+    """Повертає стабільний шлях від `src/`, незалежний від runner-а.
 
     @param path абсолютний або відносний шлях із PMD XML-звіту.
     @return шлях до файла від кореня каталогу `src/`.
@@ -29,12 +31,44 @@ def normalize_source_path(path: str) -> str:
     return "src/" + match.group(1)
 
 
-def load_findings(report_path: Path) -> tuple[Counter[FindingKey], str | None]:
-    """Зчитує PMD XML і рахує порушення за парою шлях до файла / правило.
+def finding_fingerprint(violation: ET.Element) -> str:
+    """Обчислює стабільний відбиток конкретної PMD-знахідки.
 
-    @param report_path шлях до XML-звіту, створеного Maven PMD Plugin.
-    @return лічильник порушень і версія рушія PMD зі звіту, якщо вона задана.
-    @raises OSError якщо файл звіту недоступний.
+    Номери рядків навмисно не входять до відбитка: вставлення коду вище за
+    знайдений фрагмент не повинно вважатися новим порушенням. Водночас правило,
+    повідомлення, клас, метод, набір правил і координати стовпців відрізняють
+    різні проблеми всередині того самого файла та правила.
+
+    @param violation XML-елемент одного PMD-порушення.
+    @return SHA-256 від канонічного опису знахідки.
+    @raises ValueError якщо звіт не містить достатнього опису правила.
+    """
+    rule = violation.attrib.get("rule", "").strip()
+    if not rule:
+        raise ValueError("PMD-порушення не містить назви правила")
+
+    description = " ".join((violation.text or "").split())
+    identity = {
+        "rule": rule,
+        "ruleset": violation.attrib.get("ruleset", "").strip(),
+        "priority": violation.attrib.get("priority", "").strip(),
+        "package": violation.attrib.get("package", "").strip(),
+        "class": violation.attrib.get("class", "").strip(),
+        "method": violation.attrib.get("method", "").strip(),
+        "begincolumn": violation.attrib.get("begincolumn", "").strip(),
+        "endcolumn": violation.attrib.get("endcolumn", "").strip(),
+        "description": description,
+    }
+    canonical = json.dumps(identity, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def load_findings(report_path: Path) -> tuple[Counter[FindingKey], str | None]:
+    """Зчитує PMD XML і рахує відбитки окремих знахідок.
+
+    @param report_path шлях до XML-звіту Maven PMD Plugin.
+    @return лічильник за ключем «шлях + правило + відбиток» і версія PMD.
+    @raises OSError якщо звіт недоступний.
     @raises ET.ParseError якщо XML некоректний.
     @raises ValueError якщо звіт має неочікувану структуру.
     """
@@ -50,21 +84,21 @@ def load_findings(report_path: Path) -> tuple[Counter[FindingKey], str | None]:
         for violation in file_element:
             if violation.tag.split("}")[-1] != "violation":
                 continue
-            rule = violation.attrib.get("rule")
+            rule = violation.attrib.get("rule", "").strip()
             if not rule:
                 raise ValueError(f"PMD-порушення без назви правила у файлі {source_path}")
-            findings[(source_path, rule)] += 1
+            findings[(source_path, rule, finding_fingerprint(violation))] += 1
 
     return findings, root.attrib.get("version")
 
 
 def load_baseline(baseline_path: Path) -> tuple[Counter[FindingKey], dict[str, object]]:
-    """Зчитує baseline і перевіряє структуру та невід'ємність лічильників.
+    """Зчитує baseline з відбитками й перевіряє структуру та контрольні суми.
 
-    @param baseline_path шлях до JSON-файла з базовими лічильниками PMD.
-    @return лічильник базових порушень і метадані baseline.
+    @param baseline_path шлях до JSON-файла з базовими PMD-відбитками.
+    @return лічильник відбитків і метадані baseline.
     @raises OSError якщо baseline недоступний.
-    @raises ValueError якщо JSON має некоректну структуру.
+    @raises ValueError якщо JSON має некоректну структуру або контрольні суми.
     """
     data = json.loads(baseline_path.read_text(encoding="utf-8"))
     if not isinstance(data, dict) or not isinstance(data.get("findings"), dict):
@@ -75,12 +109,14 @@ def load_baseline(baseline_path: Path) -> tuple[Counter[FindingKey], dict[str, o
         if not isinstance(source_path, str) or not source_path.startswith("src/"):
             raise ValueError(f"Некоректний шлях у PMD baseline: {source_path!r}")
         if not isinstance(rules, dict):
-            raise ValueError(f"Очікувалася таблиця правил для {source_path}")
-        for rule, count in rules.items():
-            if not isinstance(rule, str) or not rule or isinstance(count, bool) or not isinstance(count, int) or count < 0:
-                raise ValueError(f"Некоректний лічильник для {source_path} / {rule}: {count!r}")
-            if count:
-                baseline[(source_path, rule)] = count
+            raise ValueError(f"Очікувалася таблиця відбитків правил для {source_path}")
+        for rule, fingerprints in rules.items():
+            if not isinstance(rule, str) or not rule or not isinstance(fingerprints, list):
+                raise ValueError(f"Некоректний список відбитків для {source_path} / {rule}")
+            for fingerprint in fingerprints:
+                if not isinstance(fingerprint, str) or FINGERPRINT_PATTERN.fullmatch(fingerprint) is None:
+                    raise ValueError(f"Некоректний PMD-відбиток для {source_path} / {rule}: {fingerprint!r}")
+                baseline[(source_path, rule, fingerprint)] += 1
 
     expected_total = data.get("totalFindings")
     if expected_total is not None and (
@@ -88,13 +124,14 @@ def load_baseline(baseline_path: Path) -> tuple[Counter[FindingKey], dict[str, o
         or not isinstance(expected_total, int)
         or expected_total != sum(baseline.values())
     ):
-        raise ValueError("Сума лічильників не збігається з totalFindings у PMD baseline")
+        raise ValueError("Сума відбитків не збігається з totalFindings у PMD baseline")
 
     expected_buckets = data.get("findingBuckets")
+    actual_buckets = len({(path, rule) for path, rule, _ in baseline})
     if expected_buckets is not None and (
         isinstance(expected_buckets, bool)
         or not isinstance(expected_buckets, int)
-        or expected_buckets != len(baseline)
+        or expected_buckets != actual_buckets
     ):
         raise ValueError("Кількість пар «файл + правило» не збігається з findingBuckets у PMD baseline")
 
@@ -103,22 +140,22 @@ def load_baseline(baseline_path: Path) -> tuple[Counter[FindingKey], dict[str, o
 
 def find_increases(
     baseline: Counter[FindingKey], current: Counter[FindingKey]
-) -> list[tuple[str, str, int, int]]:
-    """Знаходить пари «файл + правило», для яких кількість порушень зросла.
+) -> list[tuple[str, str, str, int, int]]:
+    """Знаходить нові відбитки або збільшення їх кратності в тому самому файлі/правилі.
 
-    @param baseline базова кількість порушень.
-    @param current кількість порушень у поточному звіті.
-    @return відсортований список пар із базовою та поточною кількістю.
+    @param baseline затверджений лічильник конкретних відбитків.
+    @param current лічильник відбитків поточного звіту.
+    @return відсортовані записи шляху, правила, відбитка та старої/нової кратності.
     """
     increases = [
-        (path, rule, baseline_count, current[path, rule])
-        for (path, rule), baseline_count in baseline.items()
-        if current[path, rule] > baseline_count
+        (path, rule, fingerprint, baseline_count, current[path, rule, fingerprint])
+        for (path, rule, fingerprint), baseline_count in baseline.items()
+        if current[path, rule, fingerprint] > baseline_count
     ]
     increases.extend(
-        (path, rule, 0, current_count)
-        for (path, rule), current_count in current.items()
-        if (path, rule) not in baseline and current_count > 0
+        (path, rule, fingerprint, 0, current_count)
+        for (path, rule, fingerprint), current_count in current.items()
+        if (path, rule, fingerprint) not in baseline and current_count > 0
     )
     return sorted(set(increases))
 
@@ -136,10 +173,10 @@ def parse_arguments(arguments: Iterable[str] | None = None) -> argparse.Namespac
 
 
 def main(arguments: Iterable[str] | None = None) -> int:
-    """Порівнює звіт із baseline та завершує процес помилкою при будь-якому прирості.
+    """Порівнює звіт із baseline та завершує процес помилкою за нових знахідок.
 
     @param arguments явний список аргументів або `None` для системного CLI.
-    @return код завершення 0 за відсутності приросту, інакше 1.
+    @return код завершення 0 за відсутності приросту, 1 за нових знахідок, 2 за помилки входу.
     """
     options = parse_arguments(arguments)
     try:
@@ -164,20 +201,24 @@ def main(arguments: Iterable[str] | None = None) -> int:
     current_total = sum(current.values())
     if increases:
         print(
-            f"PMD quality gate: виявлено приріст у {len(increases)} парах «файл + правило» "
-            f"({baseline_total} базових, {current_total} поточних порушень):",
+            f"PMD quality gate: виявлено {len(increases)} нових/збільшених відбитків "
+            f"({baseline_total} базових, {current_total} поточних знахідок):",
             file=sys.stderr,
         )
-        for path, rule, previous, actual in increases:
-            print(f"  {path} — {rule}: {previous} -> {actual} (+{actual - previous})", file=sys.stderr)
-        print("Виправте нові порушення або перегляньте baseline окремим обґрунтованим комітом.", file=sys.stderr)
+        for path, rule, fingerprint, previous, actual in increases:
+            print(
+                f"  {path} — {rule} [{fingerprint[:12]}]: {previous} -> {actual} "
+                f"(+{actual - previous})",
+                file=sys.stderr,
+            )
+        print("Виправте нові знахідки або перегляньте baseline окремим обґрунтованим комітом.", file=sys.stderr)
         return 1
 
     reductions = sum(max(0, baseline[key] - current[key]) for key in baseline)
     print(
         "PMD quality gate пройдено: "
-        f"поточних порушень {current_total}, базових {baseline_total}; "
-        f"приросту немає, зменшено {reductions}."
+        f"поточних знахідок {current_total}, базових {baseline_total}; "
+        f"приросту відбитків немає, вилучено {reductions}."
     )
     return 0
 

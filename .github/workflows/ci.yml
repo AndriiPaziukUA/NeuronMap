@@ -39,22 +39,22 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes xvfb
 
-      - name: Run tests on Linux
+      - name: Run tests and enforce coverage on Linux
         if: runner.os == 'Linux'
         shell: bash
-        run: xvfb-run -a bash ./mvnw --batch-mode clean test
+        run: xvfb-run -a bash ./mvnw --batch-mode clean verify
 
-      - name: Run tests on Windows
+      - name: Run tests and enforce coverage on Windows
         if: runner.os == 'Windows'
         shell: pwsh
-        run: .\mvnw.cmd --batch-mode clean test
+        run: .\mvnw.cmd --batch-mode clean verify
 
-      - name: Run tests on macOS
+      - name: Run tests and enforce coverage on macOS
         if: runner.os == 'macOS'
         shell: bash
-        run: bash ./mvnw --batch-mode clean test
+        run: bash ./mvnw --batch-mode clean verify
 
-      - name: Upload JaCoCo report for baseline measurement
+      - name: Upload JaCoCo report
         if: always() && runner.os == 'Linux'
         uses: actions/upload-artifact@v7
         with:
@@ -78,13 +78,13 @@ jobs:
           java-version: '25'
           cache: maven
 
-      - name: Test PMD baseline checker
+      - name: Test PMD fingerprint checker
         run: python3 -m unittest discover --start-directory quality --pattern 'test_*.py'
 
       - name: Generate PMD XML report
         run: bash ./mvnw --batch-mode test-compile pmd:pmd
 
-      - name: Enforce incremental PMD baseline
+      - name: Enforce PMD fingerprint baseline
         run: python3 quality/check_pmd_baseline.py --baseline quality/pmd-baseline.json --report target/pmd.xml
 
       - name: Upload PMD report

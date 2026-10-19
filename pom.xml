@@ -97,6 +97,42 @@
                             <goal>report</goal>
                         </goals>
                     </execution>
+                    <execution>
+                        <id>coverage-check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>INSTRUCTION</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.80</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.80</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>BRANCH</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.60</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>METHOD</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.80</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
 
@@ -114,7 +150,7 @@
                     <skipPmdError>false</skipPmdError>
                     <printFailingErrors>true</printFailingErrors>
                     <linkXRef>false</linkXRef>
-                    <!-- CI порівнює XML-звіт із кількісним baseline; pmd:check не підтримує такий рівень granularності. -->
+                    <!-- CI порівнює XML-звіт з відбитками baseline; pmd:check не забезпечує такого контракту. -->
                 </configuration>
             </plugin>
         </plugins>
