@@ -5,206 +5,284 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Перевіряє одноосібне володіння CSS-селекторами.
- * Ізоляція компонентів перевіряється за їхніми таблицями стилів.
- */
+/** Перевіряє синтаксис CSS, імпорти та межі володіння стилями незалежних компонентів. */
 final class ComponentStylesheetIsolationTest {
 
-    /**
-     * Знаходить прості CSS-блоки без вкладених фігурних дужок.
-     */
-    private static final Pattern CSS_RULE_PATTERN = Pattern.compile("(?s)([^{}]+)\\{[^{}]*}");
+    private static final String RESOURCES_DIRECTORY = "src/main/resources";
+    private static final String AGGREGATE_STYLESHEET = "app.css";
+    private static final Set<String> WINDOW_CHROME_STYLESHEETS = Set.of(
+            "window-chrome.css", "window-chrome-linux.css", "window-chrome-macos.css");
+    private static final Set<String> SHARED_WINDOW_CHROME_CLASSES = Set.of(
+            "window-title-bar", "window-title-bar-host", "window-title", "window-control-group",
+            "window-control-button", "window-control-minimize", "window-control-maximize",
+            "window-control-close", "window-icon-stroke", "window-icon-outline");
+    private static final Map<String, String> GLOBAL_JAVAFX_STYLE_OWNER_RESOURCES = Map.of(
+            "root", "editor-shell.css",
+            "menu-button", "neuron.css");
 
-    /**
-     * Перевіряє пакування таблиць стилів разом із застосунком.
-     *
-     * @throws IOException якщо перелік ресурсів неможливо прочитати.
-     */
+    /** Переконується, що кожен CSS-файл ресурсів присутній у зібраному classpath. */
     @Test
     void everyStylesheetResourceIsPackaged() throws IOException {
-        for (Path stylesheet : findStylesheets()) {
-            String resource = "/" + stylesheet.getFileName();
+        for (StylesheetResource stylesheet : findStylesheets().values()) {
+            String classpathResource = "/" + stylesheet.resourcePath();
             assertNotNull(
-                    getClass().getResource(resource),
-                    "CSS-ресурс відсутній у classpath: " + resource);
+                    getClass().getResource(classpathResource),
+                    "CSS-ресурс відсутній у classpath: " + classpathResource);
         }
     }
 
-    /**
-     * Забороняє селектору мати кількох власників-таблиць стилів.
-     *
-     * @throws IOException якщо каталог або таблиця стилів недоступні.
-     */
+    /** Перевіряє всі CSS-файли CSS-парсером і виявляє відсутні імпорти та цикли залежностей. */
     @Test
-    void componentSelectorsHaveSingleStylesheetOwner() throws IOException {
-        Map<String, String> owners = new HashMap<>();
-        List<Path> stylesheets = findStylesheets();
+    void stylesheetsParseAndImportsResolveWithoutCycles() throws IOException {
+        Map<String, StylesheetResource> stylesheets = findStylesheets();
+        assertFalse(stylesheets.isEmpty(), "Каталог ресурсів не містить CSS-файлів");
+        Map<String, List<String>> importGraph = new HashMap<>();
 
-        assertTrue(
-                stylesheets.size() > 1,
-                "Очікується кілька незалежних таблиць стилів");
-        for (Path stylesheet : stylesheets) {
-            if ("app.css".equals(stylesheet.getFileName().toString())) {
+        for (StylesheetResource stylesheet : stylesheets.values()) {
+            CssStylesheetParser.Stylesheet parsed = parseStylesheet(stylesheet);
+            List<String> resolvedImports = new ArrayList<>();
+            for (CssStylesheetParser.CssImport cssImport : parsed.imports()) {
+                String importedResource = resolveImport(stylesheet, cssImport.resourceUri());
+                assertTrue(
+                        stylesheets.containsKey(importedResource),
+                        "CSS " + stylesheet.resourcePath() + ": імпортований ресурс не знайдено: "
+                                + importedResource);
+                resolvedImports.add(importedResource);
+            }
+            importGraph.put(stylesheet.resourcePath(), resolvedImports);
+        }
+
+        Set<String> visited = new HashSet<>();
+        Set<String> active = new HashSet<>();
+        for (String resource : importGraph.keySet()) {
+            assertNoImportCycle(resource, importGraph, visited, active);
+        }
+    }
+
+    /** Не дозволяє двом таблицям визначати стиль того самого компонентного класу. */
+    @Test
+    void componentStyleOwnersDoNotOverlapAcrossStylesheets() throws IOException {
+        Map<String, SelectorOwner> owners = new HashMap<>();
+        for (StylesheetResource stylesheet : findStylesheets().values()) {
+            if (AGGREGATE_STYLESHEET.equals(stylesheet.file().getFileName().toString())) {
                 continue;
             }
-
-            String css = stripComments(Files.readString(stylesheet, StandardCharsets.UTF_8));
-            Matcher matcher = CSS_RULE_PATTERN.matcher(css);
-            while (matcher.find()) {
-                String selectorGroup = matcher.group(1).trim();
-                if (selectorGroup.startsWith("@")) {
-                    continue;
-                }
-
-                for (String selector : splitSelectorList(selectorGroup)) {
-                    String normalized = normalizeSelector(selector);
-                    if (normalized.isEmpty()) {
-                        continue;
+            CssStylesheetParser.Stylesheet parsed = parseStylesheet(stylesheet);
+            for (CssStylesheetParser.CssRule rule : parsed.rules()) {
+                for (CssStylesheetParser.Selector selector : rule.selectors()) {
+                    String componentClass = selector.componentOwner();
+                    assertFalse(
+                            componentClass.isBlank(),
+                            () -> "CSS-селектор '" + selector.text() + "' у " + stylesheet.resourcePath()
+                                    + " не має визначеного класу-власника");
+                    String expectedGlobalOwner = GLOBAL_JAVAFX_STYLE_OWNER_RESOURCES.get(componentClass);
+                    if (expectedGlobalOwner != null) {
+                        assertEquals(
+                                expectedGlobalOwner,
+                                stylesheet.resourcePath(),
+                                "Глобальне перевизначення JavaFX-класу '" + componentClass
+                                        + "' має залишатися у " + expectedGlobalOwner);
                     }
-                    String previousOwner = owners.putIfAbsent(normalized, stylesheet.getFileName().toString());
-                    assertTrue(
-                            previousOwner == null || previousOwner.equals(stylesheet.getFileName().toString()),
-                            () -> "CSS-селектор '" + normalized + "' належить одночасно "
-                                    + previousOwner + " та " + stylesheet.getFileName());
+                    SelectorOwner owner = new SelectorOwner(stylesheet.resourcePath(), selector.text());
+                    SelectorOwner previousOwner = owners.putIfAbsent(componentClass, owner);
+                    if (previousOwner != null
+                            && !previousOwner.resourcePath().equals(owner.resourcePath())) {
+                        assertTrue(
+                                sharedPlatformOverrideAllowed(componentClass, previousOwner, owner),
+                                () -> "CSS-клас-власник '" + componentClass + "' визначено в кількох файлах: "
+                                        + previousOwner.resourcePath() + " (селектор '" + previousOwner.selector()
+                                        + "') та " + owner.resourcePath() + " (селектор '" + owner.selector() + "')");
+                    }
                 }
             }
         }
     }
 
-    /**
-     * Перевіряє, що app.css лише імпортує стилі компонентів.
-     *
-     * @throws IOException якщо агрегатор неможливо прочитати.
-     */
+    /** Перевіряє, що кожен дозволений глобальний стиль JavaFX існує лише у своєму ресурсі-власнику. */
+    @Test
+    void designatedGlobalJavaFxOverridesRemainInTheirOwnerStylesheets() throws IOException {
+        Map<String, StylesheetResource> stylesheets = findStylesheets();
+        for (Map.Entry<String, String> entry : GLOBAL_JAVAFX_STYLE_OWNER_RESOURCES.entrySet()) {
+            String className = entry.getKey();
+            String resourcePath = entry.getValue();
+            StylesheetResource stylesheet = stylesheets.get(resourcePath);
+            assertNotNull(stylesheet, "Не знайдено CSS-власника глобального класу " + className);
+
+            boolean hasBaseOverride = parseStylesheet(stylesheet).rules().stream()
+                    .flatMap(rule -> rule.selectors().stream())
+                    .anyMatch(selector -> selector.text().equals("." + className)
+                            && selector.componentOwner().equals(className));
+            assertTrue(
+                    hasBaseOverride,
+                    "Очікувалося явне глобальне перевизначення ." + className + " у " + resourcePath);
+        }
+    }
+
+    /** Переконується, що app.css лишається агрегатором без власних правил і сторонніх at-rule. */
     @Test
     void aggregateStylesheetContainsOnlyImports() throws IOException {
-        Path aggregate = Path.of("src", "main", "resources", "app.css");
-        assertTrue(Files.isRegularFile(aggregate), "Не знайдено агрегатор стилів editor");
+        StylesheetResource aggregate = findStylesheets().get(AGGREGATE_STYLESHEET);
+        assertNotNull(aggregate, "Не знайдено агрегатор стилів редактора");
+        CssStylesheetParser.Stylesheet parsed = parseStylesheet(aggregate);
 
-        String content = stripComments(Files.readString(aggregate, StandardCharsets.UTF_8));
-        String remaining = content.replaceAll("(?m)^\\s*@import\\s+[^;]+;\\s*$", "").trim();
-        assertEquals(
-                "",
-                remaining,
-                "app.css повинен містити лише імпорти "
-                        + "компонентних таблиць стилів");
+        assertFalse(parsed.hasNonImportRules(), "app.css не повинен містити власних CSS-правил або namespace");
+        assertTrue(parsed.importCount() > 0, "app.css повинен підключати компонентні таблиці стилів");
     }
 
     /**
-     * Повертає CSS-файли ресурсів у відсортованому порядку.
+     * Забороняє точні дублікати селектора з тим самим списком декларацій в межах однієї таблиці.
      *
-     * @return відсортований перелік компонентних таблиць стилів.
-     * @throws IOException якщо каталог ресурсів недоступний.
+     * @throws IOException якщо файл стилів неможливо прочитати.
      */
-    private static List<Path> findStylesheets() throws IOException {
-        Path resources = Path.of("src", "main", "resources");
-        try (Stream<Path> entries = Files.list(resources)) {
-            return entries
-                    .filter(Files::isRegularFile)
-                    .filter(path -> path.getFileName().toString().endsWith(".css"))
-                    .sorted()
-                    .toList();
-        }
-    }
-
-    /**
-     * Вилучає коментарі, які не беруть участі в аналізі селекторів.
-     *
-     * @param css повний текст таблиці стилів.
-     * @return текст без коментарів.
-     */
-    private static String stripComments(String css) {
-        return css.replaceAll("(?s)/\\*.*?\\*/", "");
-    }
-
-    /**
-     * Розділяє групу селекторів за комами поза дужками.
-     *
-     * @param selectorGroup група селекторів із одного CSS-правила.
-     * @return окремі селектори зі збереженням вкладених псевдокласів.
-     */
-    private static List<String> splitSelectorList(String selectorGroup) {
-        List<String> selectors = new ArrayList<>();
-        int parenthesisDepth = 0;
-        int bracketDepth = 0;
-        char quote = '\0';
-        int start = 0;
-
-        for (int index = 0; index < selectorGroup.length(); index++) {
-            char current = selectorGroup.charAt(index);
-            if (quote != '\0') {
-                if (current == quote && (index == 0 || selectorGroup.charAt(index - 1) != '\\')) {
-                    quote = '\0';
-                }
+    @Test
+    void selectorsWithIdenticalDeclarationsAreNotRepeatedWithinAStylesheet() throws IOException {
+        for (StylesheetResource stylesheet : findStylesheets().values()) {
+            if (AGGREGATE_STYLESHEET.equals(stylesheet.file().getFileName().toString())) {
                 continue;
             }
-            if (current == '\'' || current == '"') {
-                quote = current;
-            } else if (current == '(') {
-                parenthesisDepth++;
-            } else if (current == ')') {
-                parenthesisDepth--;
-            } else if (current == '[') {
-                bracketDepth++;
-            } else if (current == ']') {
-                bracketDepth--;
-            } else if (current == ',' && parenthesisDepth == 0 && bracketDepth == 0) {
-                selectors.add(selectorGroup.substring(start, index));
-                start = index + 1;
+            Set<String> seenRules = new HashSet<>();
+            for (CssStylesheetParser.CssRule rule : parseStylesheet(stylesheet).rules()) {
+                String declarations = String.join(";", rule.declarations());
+                for (CssStylesheetParser.Selector selector : rule.selectors()) {
+                    String normalizedRule = rule.scope() + "|" + selector.text() + "{" + declarations + "}";
+                    assertTrue(
+                            seenRules.add(normalizedRule),
+                            () -> "Повторюється CSS-правило '" + selector.text() + "' у "
+                                    + stylesheet.resourcePath());
+                }
             }
         }
-        selectors.add(selectorGroup.substring(start));
-        return selectors;
     }
 
     /**
-     * Нормалізує пробіли, зберігаючи рядкові значення селектора.
+     * Читає файл і будує AST, додаючи шлях ресурсу до діагностики синтаксичних помилок.
      *
-     * @param selector CSS-селектор для зіставлення між файлами.
-     * @return нормалізований селектор.
+     * @param stylesheet опис CSS-ресурсу.
+     * @return розібрана таблиця стилів.
+     * @throws IOException якщо читання файла не вдалося.
      */
-    private static String normalizeSelector(String selector) {
-        StringBuilder normalized = new StringBuilder();
-        char quote = '\0';
-        boolean pendingSpace = false;
-        for (int index = 0; index < selector.length(); index++) {
-            char current = selector.charAt(index);
-            if (quote != '\0') {
-                normalized.append(current);
-                if (current == quote && (index == 0 || selector.charAt(index - 1) != '\\')) {
-                    quote = '\0';
-                }
-            } else if (current == '\'' || current == '\"') {
-                if (pendingSpace && normalized.length() > 0) {
-                    normalized.append(' ');
-                }
-                pendingSpace = false;
-                quote = current;
-                normalized.append(current);
-            } else if (Character.isWhitespace(current)) {
-                pendingSpace = true;
-            } else {
-                if (pendingSpace && normalized.length() > 0) {
-                    normalized.append(' ');
-                }
-                pendingSpace = false;
-                normalized.append(current);
-            }
+    private static CssStylesheetParser.Stylesheet parseStylesheet(StylesheetResource stylesheet)
+            throws IOException {
+        String css = Files.readString(stylesheet.file(), StandardCharsets.UTF_8);
+        try {
+            return CssStylesheetParser.parse(css);
+        } catch (IllegalArgumentException exception) {
+            throw new AssertionError("Некоректна CSS-таблиця " + stylesheet.resourcePath()
+                    + ": " + exception.getMessage(), exception);
         }
-        return normalized.toString().trim();
+    }
+
+    /**
+     * Знаходить CSS-файли рекурсивно, зберігаючи стабільні шляхи від каталогу ресурсів.
+     *
+     * @return CSS-ресурси, упорядковані за відносним шляхом.
+     * @throws IOException якщо каталог ресурсів недоступний.
+     */
+    private static Map<String, StylesheetResource> findStylesheets() throws IOException {
+        Path resources = Path.of(RESOURCES_DIRECTORY).toAbsolutePath().normalize();
+        Map<String, StylesheetResource> stylesheets = new TreeMap<>();
+        try (Stream<Path> entries = Files.walk(resources)) {
+            entries.filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().endsWith(".css"))
+                    .forEach(path -> {
+                        String relative = resources.relativize(path.toAbsolutePath().normalize())
+                                .toString().replace(path.getFileSystem().getSeparator(), "/");
+                        stylesheets.put(relative, new StylesheetResource(relative, path));
+                    });
+        }
+        return stylesheets;
+    }
+
+    /**
+     * Перевіряє безпечний шлях імпортованого ресурсу відносно каталогу ресурсів.
+     *
+     * @param importer таблиця стилів, що містить імпорт.
+     * @param importedUri URI з директиви @import.
+     * @return нормалізований шлях ресурсу з роздільниками '/'.
+     */
+    private static String resolveImport(StylesheetResource importer, String importedUri) {
+        assertFalse(
+                importedUri.matches("(?i)^[a-z][a-z0-9+.-]*:.*") || importedUri.startsWith("//"),
+                "CSS " + importer.resourcePath() + ": зовнішні URL в @import не підтримуються: " + importedUri);
+        assertFalse(
+                importedUri.contains("?") || importedUri.contains("#"),
+                "CSS " + importer.resourcePath() + ": query і fragment у шляху @import не підтримуються: "
+                        + importedUri);
+        try {
+            Path resources = Path.of(RESOURCES_DIRECTORY).toAbsolutePath().normalize();
+            Path importedPath = Path.of(importedUri);
+            Path resolved = importedUri.startsWith("/")
+                    ? resources.resolve(importedUri.substring(1)).normalize()
+                    : importer.file().toAbsolutePath().normalize().getParent().resolve(importedPath).normalize();
+            assertTrue(
+                    resolved.startsWith(resources),
+                    "CSS " + importer.resourcePath() + ": @import виходить за межі каталогу ресурсів: "
+                            + importedUri);
+            return resources.relativize(resolved).toString().replace(resolved.getFileSystem().getSeparator(), "/");
+        } catch (InvalidPathException exception) {
+            throw new AssertionError("Некоректний шлях @import у " + importer.resourcePath()
+                    + ": " + importedUri, exception);
+        }
+    }
+
+    /** Виявляє цикли в орієнтованому графі імпортів CSS. */
+    private static void assertNoImportCycle(
+            String resource,
+            Map<String, List<String>> graph,
+            Set<String> visited,
+            Set<String> active) {
+        if (visited.contains(resource)) {
+            return;
+        }
+        assertTrue(active.add(resource), "Виявлено цикл імпорту CSS біля ресурсу " + resource);
+        for (String dependency : graph.getOrDefault(resource, List.of())) {
+            assertNoImportCycle(dependency, graph, visited, active);
+        }
+        active.remove(resource);
+        visited.add(resource);
+    }
+
+    /** Дозволяє спільні класи лише в таблицях стилів заголовка вікна. */
+    private static boolean sharedPlatformOverrideAllowed(
+            String componentClass,
+            SelectorOwner first,
+            SelectorOwner second) {
+        return SHARED_WINDOW_CHROME_CLASSES.contains(componentClass)
+                && WINDOW_CHROME_STYLESHEETS.contains(Path.of(first.resourcePath()).getFileName().toString())
+                && WINDOW_CHROME_STYLESHEETS.contains(Path.of(second.resourcePath()).getFileName().toString());
+    }
+
+    /**
+     * Ресурс CSS на диску.
+     *
+     * @param resourcePath шлях відносно каталогу ресурсів.
+     * @param file шлях до файла.
+     */
+    private record StylesheetResource(String resourcePath, Path file) {
+    }
+
+    /**
+     * Перше оголошення CSS-власника в таблиці стилів.
+     *
+     * @param resourcePath шлях до таблиці стилів.
+     * @param selector селектор, що оголосив власника.
+     */
+    private record SelectorOwner(String resourcePath, String selector) {
     }
 }

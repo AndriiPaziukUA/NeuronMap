@@ -15,6 +15,7 @@
         <javafx.version>27</javafx.version>
         <sqlite.version>3.53.4.0</sqlite.version>
         <junit.version>5.14.3</junit.version>
+        <ph-css.version>8.2.3</ph-css.version>
     </properties>
 
     <dependencies>
@@ -34,6 +35,13 @@
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.helger</groupId>
+            <artifactId>ph-css</artifactId>
+            <version>${ph-css.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

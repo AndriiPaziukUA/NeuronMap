@@ -8,8 +8,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -18,10 +16,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Перевіряє наявність, ізоляцію та цілісність окремих таблиць стилів компонентів. */
 final class IndependentStylesheetArchitectureTest {
 
-    /** Розбирає прості CSS-блоки правил для виявлення однакових селекторів із тим самим набором декларацій. */
-    private static final Pattern CSS_RULE_PATTERN = Pattern.compile("(?s)([^{}]+)\\{([^{}]*)\\}");
-
-    /** Переконується, що всі окремі таблиці стилів редактора, меню та заголовка присутні в classpath. */
+    /**
+     * Переконується, що таблиці стилів редактора, меню й заголовка присутні у classpath.
+     */
     @Test
     void componentStylesheetsArePackaged() {
         List<String> resources = List.of(
@@ -40,15 +37,15 @@ final class IndependentStylesheetArchitectureTest {
                 "/unsaved-changes.css",
                 "/window-chrome.css",
                 "/window-chrome-linux.css",
-                "/window-chrome-macos.css"
-        );
+                "/window-chrome-macos.css");
 
         resources.forEach(path -> assertNotNull(
                 IndependentStylesheetArchitectureTest.class.getResource(path),
                 "Не знайдено CSS-ресурс " + path));
     }
 
-    /** Переконується, що app.css лише підключає модулі й не конкурує з власником стилів меню.
+    /**
+     * Переконується, що app.css лише підключає модулі й не конкурує з власниками стилів меню.
      *
      * @throws IOException якщо будь-яку потрібну таблицю стилів неможливо прочитати.
      */
@@ -89,9 +86,10 @@ final class IndependentStylesheetArchitectureTest {
         assertFalse(connectionPreviewCss.contains(".toolbar-speed-field"));
     }
 
-    /** Виявляє точні дублікати однакових правил, не забороняючи окремі стани hover, focus та їхні комбінації.
+    /**
+     * Виявляє дублікати правил на основі розібраного CSS AST, не плутаючи коми у функціях із роздільниками.
      *
-     * @throws IOException якщо під час читання таблиці стилів сталася помилка.
+     * @throws IOException якщо одна з таблиць стилів недоступна.
      */
     @Test
     void componentStylesheetsContainNoDuplicateRuleBlocksAndKeepInteractiveStates() throws IOException {
@@ -109,8 +107,7 @@ final class IndependentStylesheetArchitectureTest {
                 "/unsaved-changes.css",
                 "/window-chrome.css",
                 "/window-chrome-linux.css",
-                "/window-chrome-macos.css"
-        );
+                "/window-chrome-macos.css");
         for (String resource : resources) {
             assertNoDuplicateRuleBlocks(resource, readResource(resource));
         }
@@ -130,34 +127,27 @@ final class IndependentStylesheetArchitectureTest {
         assertTrue(projectListCss.contains(".saved-project-delete-button:hover"));
     }
 
-    /** Перевіряє відсутність повторного оголошення того самого селектора з ідентичними деклараціями.
+    /**
+     * Перевіряє відсутність повторного селектора з тим самим набором декларацій.
      *
-     * @param resourcePath шлях CSS-ресурсу для повідомлення про помилку.
-     * @param css вміст таблиці стилів, який перевіряється.
+     * @param resourcePath шлях ресурсу для повідомлення про помилку.
+     * @param css текст таблиці стилів.
      */
     private static void assertNoDuplicateRuleBlocks(String resourcePath, String css) {
-        String withoutComments = css.replaceAll("(?s)/\\*.*?\\*/", "");
-        Matcher matcher = CSS_RULE_PATTERN.matcher(withoutComments);
         Set<String> seenBlocks = new HashSet<>();
-        while (matcher.find()) {
-            String selectorGroup = matcher.group(1).trim();
-            if (selectorGroup.startsWith("@")) {
-                continue;
-            }
-            String declarations = matcher.group(2).replaceAll("\\s+", " ").trim();
-            for (String selector : selectorGroup.split(",")) {
-                String normalizedSelector = selector.trim().replaceAll("\\s+", " ");
-                if (normalizedSelector.isEmpty()) {
-                    continue;
-                }
-                String ruleBlock = normalizedSelector + "{" + declarations + "}";
-                assertTrue(seenBlocks.add(ruleBlock),
-                        () -> "Повторюється CSS-правило " + normalizedSelector + " у " + resourcePath);
+        for (CssStylesheetParser.CssRule rule : CssStylesheetParser.parse(css).rules()) {
+            String declarations = String.join(";", rule.declarations());
+            for (CssStylesheetParser.Selector selector : rule.selectors()) {
+                String normalizedRule = rule.scope() + "|" + selector.text() + "{" + declarations + "}";
+                assertTrue(
+                        seenBlocks.add(normalizedRule),
+                        () -> "Повторюється CSS-правило " + selector.text() + " у " + resourcePath);
             }
         }
     }
 
-    /** Читає повний текст ресурсу в UTF-8 та закриває потік незалежно від результату читання.
+    /**
+     * Читає повний текст ресурсу в UTF-8 та закриває потік незалежно від результату читання.
      *
      * @param path абсолютний шлях ресурсу у classpath.
      * @return вміст таблиці стилів.
