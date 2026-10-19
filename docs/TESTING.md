@@ -20,7 +20,7 @@
 
 Якщо Maven установлено окремо, можна виконати `mvn clean test`.
 
-GitHub Actions workflow `.github/workflows/ci.yml` має запускати `clean test` на кожному push до `develop`, у pull request до `develop` і вручну. Матриця перевіряє Windows, Linux (із Xvfb для JavaFX-тестів) та macOS на JDK 25. Окремий job PMD наразі працює в інформаційному режимі та зберігає звіт базових порушень як артефакт CI, не блокуючи тестову матрицю. Коли додаєш або змінюєш цей workflow, перевір перший реальний запуск у вкладці **Actions** репозиторію; локальний запуск не замінює результат CI.
+GitHub Actions workflow `.github/workflows/ci.yml` запускає `clean test` на кожному push до `develop`, у pull request до `develop` і вручну. Матриця перевіряє Windows, Linux (із Xvfb для JavaFX-тестів) та macOS на JDK 25. Окремий job статичного аналізу генерує PMD XML-звіт і перевіряє його відносно baseline `quality/pmd-baseline.json`: збірка блокується, якщо поточна кількість порушень перевищує зафіксований лічильник для будь-якої пари «файл + правило». Наявні порушення тимчасово допускаються в межах baseline, а сам звіт публікується як artifact CI. Перевіряльник baseline має власні автоматизовані тести в `quality/test_check_pmd_baseline.py`. Коли додаєш або змінюєш workflow, перевір перший реальний запуск у вкладці **Actions** репозиторію; локальний запуск не замінює результат CI.
 
 Окремий клас:
 
@@ -42,7 +42,19 @@ GitHub Actions workflow `.github/workflows/ci.yml` має запускати `cl
 
 У Windows використовуйте `.\mvnw.cmd` замість `./mvnw`. Maven Compiler налаштований на JDK 25. Проєкт використовує JavaFX 27; JavaFX-тести запускають toolkit і виконують перевірки графічних вузлів у JavaFX Application Thread. Допоміжний `JavaFxTestSupport` централізує запуск toolkit, синхронне виконання дій у JavaFX-потоці та передавання помилок у JUnit. Для цих тестів має бути доступне середовище з потрібними JavaFX native-залежностями.
 
-JaCoCo налаштований формувати звіт у `target/site/jacoco/` на фазі `test`, якщо збірка дійшла до цього етапу.
+JaCoCo налаштований формувати звіт у `target/site/jacoco/` на фазі `test`, якщо збірка дійшла до цього етапу. CI завантажує цей звіт як artifact `jacoco-coverage`, щоб зафіксувати поточний рівень покриття перед установленням обґрунтованого порога.
+
+## Інкрементальна перевірка PMD
+
+Запуск тієї самої перевірки, яку використовує CI, після генерації PMD XML-звіту:
+
+```bash
+./mvnw --batch-mode test-compile pmd:pmd
+python3 -m unittest discover --start-directory quality --pattern 'test_*.py'
+python3 quality/check_pmd_baseline.py --baseline quality/pmd-baseline.json --report target/pmd.xml
+```
+
+Baseline зафіксовано зі звіту PMD 7.17.0 для commit `ff2bb1dd077cbaf5a2d62e458c4ab9a365f15a0a`. Він зберігає кількість існуючих порушень для кожної пари «шлях до файла + правило», а не залежить від абсолютного шляху runner-а чи номерів рядків. Якщо кількість перевищує baseline, CI блокується; зменшення кількості не змінює baseline автоматично. Зменшувати baseline слід окремою перевіреною зміною після аналізу поточного звіту. Оновлення версії PMD вимагає свідомого перегляду baseline, оскільки інша версія рушія може змінити набір знахідок.
 
 ## Каталог тестів
 

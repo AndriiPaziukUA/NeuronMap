@@ -54,8 +54,17 @@ jobs:
         shell: bash
         run: bash ./mvnw --batch-mode clean test
 
+      - name: Upload JaCoCo report for baseline measurement
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: jacoco-coverage
+          path: target/site/jacoco/
+          if-no-files-found: warn
+          retention-days: 30
+
   static-analysis:
-    name: PMD baseline (informational)
+    name: PMD incremental quality gate
     runs-on: ubuntu-latest
 
     steps:
@@ -69,16 +78,20 @@ jobs:
           java-version: '25'
           cache: maven
 
-      - name: Generate PMD baseline report
+      - name: Test PMD baseline checker
+        run: python3 -m unittest discover --start-directory quality --pattern 'test_*.py'
+
+      - name: Generate PMD XML report
         run: bash ./mvnw --batch-mode test-compile pmd:pmd
 
-      - name: Upload PMD baseline report
+      - name: Enforce incremental PMD baseline
+        run: python3 quality/check_pmd_baseline.py --baseline quality/pmd-baseline.json --report target/pmd.xml
+
+      - name: Upload PMD report
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: pmd-baseline
-          path: |
-            target/site/pmd.html
-            target/pmd.xml
+          name: pmd-report
+          path: target/pmd.xml
           if-no-files-found: warn
           retention-days: 90

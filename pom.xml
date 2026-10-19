@@ -67,7 +67,6 @@
                 <version>0.0.8</version>
                 <configuration>
                     <mainClass>com.example.neuronmap.app.NeuronMapApp</mainClass>
-
                 </configuration>
             </plugin>
 
@@ -112,10 +111,10 @@
                     </rulesets>
                     <targetJdk>25</targetJdk>
                     <includeTests>true</includeTests>
-                    <failOnViolation>false</failOnViolation>
                     <skipPmdError>false</skipPmdError>
                     <printFailingErrors>true</printFailingErrors>
                     <linkXRef>false</linkXRef>
+                    <!-- CI порівнює XML-звіт із кількісним baseline; pmd:check не підтримує такий рівень granularності. -->
                 </configuration>
             </plugin>
         </plugins>

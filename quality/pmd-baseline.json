@@ -1,0 +1,1135 @@
+{
+  "baselineCommit": "ff2bb1dd077cbaf5a2d62e458c4ab9a365f15a0a",
+  "baselineDate": "2026-10-19",
+  "pmdVersion": "7.17.0",
+  "totalFindings": 2822,
+  "findingBuckets": 580,
+  "findings": {
+    "src/main/java/com/example/neuronmap/ApplicationMetadata.java": {
+      "CommentSize": 1
+    },
+    "src/main/java/com/example/neuronmap/app/MainWindowController.java": {
+      "CommentRequired": 8,
+      "CommentSize": 21
+    },
+    "src/main/java/com/example/neuronmap/app/NeuronMapApp.java": {
+      "CloseResource": 1,
+      "CommentRequired": 1,
+      "CommentSize": 9
+    },
+    "src/main/java/com/example/neuronmap/app/NeuronMapEditor.java": {
+      "CommentRequired": 1,
+      "CommentSize": 7
+    },
+    "src/main/java/com/example/neuronmap/app/WindowChromeLifecycle.java": {
+      "CommentRequired": 8,
+      "CommentSize": 6,
+      "CompareObjectsWithEquals": 1
+    },
+    "src/main/java/com/example/neuronmap/app/WindowLifecycleCoordinator.java": {
+      "CommentRequired": 3,
+      "CommentSize": 4,
+      "CompareObjectsWithEquals": 1
+    },
+    "src/main/java/com/example/neuronmap/application/DemoMapFactory.java": {
+      "CompareObjectsWithEquals": 1
+    },
+    "src/main/java/com/example/neuronmap/application/EditorState.java": {
+      "CommentRequired": 7,
+      "CommentSize": 7
+    },
+    "src/main/java/com/example/neuronmap/application/InitialProjectInitializer.java": {
+      "CommentRequired": 1,
+      "CommentSize": 5
+    },
+    "src/main/java/com/example/neuronmap/application/NeuronMapApplicationService.java": {
+      "CommentRequired": 4,
+      "CommentSize": 2
+    },
+    "src/main/java/com/example/neuronmap/config/AppConfig.java": {
+      "CommentSize": 14,
+      "DanglingJavadoc": 8,
+      "LiteralsFirstInComparisons": 2
+    },
+    "src/main/java/com/example/neuronmap/config/AppConfigLoader.java": {
+      "CommentRequired": 5,
+      "CommentSize": 35,
+      "GuardLogStatement": 1
+    },
+    "src/main/java/com/example/neuronmap/controller/CameraController.java": {
+      "CommentRequired": 36,
+      "CommentSize": 16,
+      "CompareObjectsWithEquals": 4,
+      "UnusedFormalParameter": 3
+    },
+    "src/main/java/com/example/neuronmap/controller/ConnectionController.java": {
+      "CommentRequired": 8,
+      "CommentSize": 7
+    },
+    "src/main/java/com/example/neuronmap/controller/ConnectionControllerFactory.java": {
+      "CommentSize": 3,
+      "DanglingJavadoc": 2
+    },
+    "src/main/java/com/example/neuronmap/controller/ConnectionCreationController.java": {
+      "CommentRequired": 12,
+      "CommentSize": 6
+    },
+    "src/main/java/com/example/neuronmap/controller/ConnectionDeletionController.java": {
+      "CommentRequired": 8,
+      "CommentSize": 2
+    },
+    "src/main/java/com/example/neuronmap/controller/EditorKeyboardController.java": {
+      "CommentRequired": 6,
+      "CommentSize": 5,
+      "CompareObjectsWithEquals": 1
+    },
+    "src/main/java/com/example/neuronmap/controller/MainMenuController.java": {
+      "CommentRequired": 12,
+      "CommentSize": 5,
+      "CompareObjectsWithEquals": 2
+    },
+    "src/main/java/com/example/neuronmap/controller/NeuronClipboardController.java": {
+      "AssignmentInOperand": 1,
+      "CommentRequired": 19,
+      "CommentSize": 9,
+      "CompareObjectsWithEquals": 1,
+      "UnusedFormalParameter": 2
+    },
+    "src/main/java/com/example/neuronmap/controller/NeuronDeletionController.java": {
+      "CommentRequired": 8,
+      "CommentSize": 4,
+      "LooseCoupling": 2,
+      "SimplifyBooleanReturns": 1
+    },
+    "src/main/java/com/example/neuronmap/controller/NeuronDragController.java": {
+      "CommentRequired": 11,
+      "CommentSize": 5
+    },
+    "src/main/java/com/example/neuronmap/controller/NeuronInteractionController.java": {
+      "CommentRequired": 15,
+      "CommentSize": 14,
+      "CompareObjectsWithEquals": 1
+    },
+    "src/main/java/com/example/neuronmap/controller/NeuronInteractionControllerFactory.java": {
+      "CommentSize": 9,
+      "DanglingJavadoc": 2
+    },
+    "src/main/java/com/example/neuronmap/controller/NeuronMenuController.java": {
+      "CommentRequired": 19,
+      "CommentSize": 5
+    },
+    "src/main/java/com/example/neuronmap/controller/NeuronRotationController.java": {
+      "CommentRequired": 18,
+      "CommentSize": 4,
+      "CompareObjectsWithEquals": 2
+    },
+    "src/main/java/com/example/neuronmap/controller/NeuronToolDragController.java": {
+      "CommentRequired": 12,
+      "CommentSize": 8,
+      "LooseCoupling": 1
+    },
+    "src/main/java/com/example/neuronmap/controller/PulseAnimationController.java": {
+      "CommentRequired": 3,
+      "CommentSize": 1
+    },
+    "src/main/java/com/example/neuronmap/controller/SelectionController.java": {
+      "CommentRequired": 6,
+      "CommentSize": 2
+    },
+    "src/main/java/com/example/neuronmap/controller/SimulationController.java": {
+      "CommentRequired": 17,
+      "CommentSize": 9,
+      "UnusedPrivateField": 1
+    },
+    "src/main/java/com/example/neuronmap/coordinator/EditorHistoryCoordinator.java": {
+      "CommentRequired": 11,
+      "CommentSize": 7
+    },
+    "src/main/java/com/example/neuronmap/coordinator/EditorProjectSessionCoordinator.java": {
+      "AssignmentInOperand": 1,
+      "CommentRequired": 13,
+      "CommentSize": 21
+    },
+    "src/main/java/com/example/neuronmap/coordinator/EditorSaveCoordinator.java": {
+      "CommentRequired": 3,
+      "CommentSize": 3
+    },
+    "src/main/java/com/example/neuronmap/coordinator/MainMenuSettingsCoordinator.java": {
+      "CommentRequired": 3,
+      "CommentSize": 7
+    },
+    "src/main/java/com/example/neuronmap/coordinator/MapEditorComponentFactory.java": {
+      "CommentSize": 16
+    },
+    "src/main/java/com/example/neuronmap/coordinator/MapEditorCoordinator.java": {
+      "AssignmentInOperand": 2,
+      "CommentRequired": 32,
+      "CommentSize": 10
+    },
+    "src/main/java/com/example/neuronmap/coordinator/MapInteractionCoordinator.java": {
+      "CommentRequired": 15,
+      "CommentSize": 6
+    },
+    "src/main/java/com/example/neuronmap/coordinator/MapPresentationCoordinator.java": {
+      "CommentRequired": 9,
+      "CommentSize": 9,
+      "CompareObjectsWithEquals": 1
+    },
+    "src/main/java/com/example/neuronmap/coordinator/NeuronSettingsOverlayCoordinator.java": {
+      "CommentRequired": 7,
+      "CommentSize": 6
+    },
+    "src/main/java/com/example/neuronmap/coordinator/ProjectWorkflowCoordinator.java": {
+      "CloseResource": 3,
+      "CommentRequired": 9,
+      "CommentSize": 14,
+      "CompareObjectsWithEquals": 2
+    },
+    "src/main/java/com/example/neuronmap/coordinator/SimulationSpeedCoordinator.java": {
+      "CommentRequired": 7,
+      "CommentSize": 9
+    },
+    "src/main/java/com/example/neuronmap/coordinator/UiProcessCoordinator.java": {
+      "CommentRequired": 9,
+      "CommentSize": 14,
+      "UncommentedEmptyConstructor": 2,
+      "UnnecessaryConstructor": 1
+    },
+    "src/main/java/com/example/neuronmap/i18n/LocalizationService.java": {
+      "CommentRequired": 6,
+      "CommentSize": 17
+    },
+    "src/main/java/com/example/neuronmap/i18n/SupportedLanguage.java": {
+      "CommentRequired": 2,
+      "CommentSize": 1
+    },
+    "src/main/java/com/example/neuronmap/model/CameraState.java": {
+      "CommentSize": 2,
+      "DanglingJavadoc": 2
+    },
+    "src/main/java/com/example/neuronmap/model/Connection.java": {
+      "CommentSize": 1,
+      "DanglingJavadoc": 2
+    },
+    "src/main/java/com/example/neuronmap/model/MapPosition.java": {
+      "CommentSize": 1
+    },
+    "src/main/java/com/example/neuronmap/model/Neuron.java": {
+      "CommentRequired": 4,
+      "CommentSize": 6
+    },
+    "src/main/java/com/example/neuronmap/model/NeuronGroup.java": {
+      "CommentRequired": 2,
+      "CommentSize": 1
+    },
+    "src/main/java/com/example/neuronmap/model/NeuronMapModel.java": {
+      "CommentRequired": 4,
+      "CommentSize": 10,
+      "CompareObjectsWithEquals": 1,
+      "LooseCoupling": 1
+    },
+    "src/main/java/com/example/neuronmap/model/NeuronParameters.java": {
+      "CommentSize": 5,
+      "DanglingJavadoc": 2
+    },
+    "src/main/java/com/example/neuronmap/model/NeuronPresentation.java": {
+      "CommentRequired": 4,
+      "CommentSize": 10
+    },
+    "src/main/java/com/example/neuronmap/model/NeuronType.java": {
+      "CommentRequired": 1
+    },
+    "src/main/java/com/example/neuronmap/persistence/ApplicationStorageLayout.java": {
+      "CommentRequired": 3,
+      "CommentSize": 7,
+      "LiteralsFirstInComparisons": 2
+    },
+    "src/main/java/com/example/neuronmap/persistence/AtomicPropertiesWriter.java": {
+      "CommentRequired": 2,
+      "CommentSize": 12
+    },
+    "src/main/java/com/example/neuronmap/persistence/FileTreeOperations.java": {
+      "CommentSize": 15,
+      "PreserveStackTrace": 1
+    },
+    "src/main/java/com/example/neuronmap/persistence/MapRepository.java": {
+      "CommentSize": 4
+    },
+    "src/main/java/com/example/neuronmap/persistence/MapRepositoryFactory.java": {
+      "CommentSize": 3
+    },
+    "src/main/java/com/example/neuronmap/persistence/PersistenceException.java": {
+      "CommentSize": 1
+    },
+    "src/main/java/com/example/neuronmap/persistence/map/TransientProjectRepository.java": {
+      "CommentRequired": 7,
+      "CommentSize": 31
+    },
+    "src/main/java/com/example/neuronmap/persistence/project/FileSystemProjectCatalogRepository.java": {
+      "CommentRequired": 6,
+      "CommentSize": 13,
+      "GuardLogStatement": 1
+    },
+    "src/main/java/com/example/neuronmap/persistence/project/ProjectCatalogRepository.java": {
+      "CommentSize": 2
+    },
+    "src/main/java/com/example/neuronmap/persistence/project/ProjectDirectoryWatcher.java": {
+      "CloseResource": 3,
+      "CommentRequired": 7,
+      "CommentSize": 13,
+      "CompareObjectsWithEquals": 3,
+      "GuardLogStatement": 1
+    },
+    "src/main/java/com/example/neuronmap/persistence/project/ProjectStorageDirectoryResolver.java": {
+      "CommentRequired": 2,
+      "CommentSize": 7
+    },
+    "src/main/java/com/example/neuronmap/persistence/settings/GlobalSettingsLanguagePreferenceStore.java": {
+      "CommentRequired": 2,
+      "CommentSize": 2
+    },
+    "src/main/java/com/example/neuronmap/persistence/settings/GlobalSettingsStore.java": {
+      "CommentRequired": 1,
+      "CommentSize": 3
+    },
+    "src/main/java/com/example/neuronmap/persistence/sqlite/DefaultMapRepositoryFactory.java": {
+      "CommentRequired": 1,
+      "CommentSize": 9
+    },
+    "src/main/java/com/example/neuronmap/persistence/sqlite/SqliteConnectionFactory.java": {
+      "CommentSize": 7
+    },
+    "src/main/java/com/example/neuronmap/persistence/sqlite/SqliteMapLoader.java": {
+      "CommentRequired": 1,
+      "CommentSize": 3
+    },
+    "src/main/java/com/example/neuronmap/persistence/sqlite/SqliteMapRepository.java": {
+      "CommentRequired": 6,
+      "CommentSize": 14
+    },
+    "src/main/java/com/example/neuronmap/persistence/sqlite/SqliteMapWriter.java": {
+      "CommentRequired": 2,
+      "CommentSize": 2
+    },
+    "src/main/java/com/example/neuronmap/persistence/sqlite/SqliteSchema.java": {
+      "CommentRequired": 1,
+      "CommentSize": 7
+    },
+    "src/main/java/com/example/neuronmap/persistence/sqlite/SqliteSettingsStore.java": {
+      "CommentRequired": 6,
+      "CommentSize": 18,
+      "GuardLogStatement": 1
+    },
+    "src/main/java/com/example/neuronmap/persistence/window/WindowState.java": {
+      "CommentSize": 2
+    },
+    "src/main/java/com/example/neuronmap/persistence/window/WindowStateStore.java": {
+      "CommentRequired": 6,
+      "CommentSize": 8,
+      "GuardLogStatement": 4
+    },
+    "src/main/java/com/example/neuronmap/project/ProjectDescriptor.java": {
+      "CommentSize": 3,
+      "DanglingJavadoc": 2
+    },
+    "src/main/java/com/example/neuronmap/service/ConnectionService.java": {
+      "CommentRequired": 1,
+      "CommentSize": 6
+    },
+    "src/main/java/com/example/neuronmap/service/GroupService.java": {
+      "CommentRequired": 1,
+      "CommentSize": 5
+    },
+    "src/main/java/com/example/neuronmap/service/HistoryService.java": {
+      "CommentRequired": 2,
+      "CommentSize": 3
+    },
+    "src/main/java/com/example/neuronmap/service/MapService.java": {
+      "CloseResource": 2,
+      "CommentRequired": 2,
+      "CommentSize": 25,
+      "CompareObjectsWithEquals": 2
+    },
+    "src/main/java/com/example/neuronmap/service/NeuronClipboardService.java": {
+      "CommentRequired": 3,
+      "CommentSize": 5,
+      "DanglingJavadoc": 4,
+      "LooseCoupling": 2
+    },
+    "src/main/java/com/example/neuronmap/service/NeuronService.java": {
+      "CommentRequired": 1,
+      "CommentSize": 14
+    },
+    "src/main/java/com/example/neuronmap/service/ProjectCatalogService.java": {
+      "AssignmentInOperand": 1,
+      "CommentRequired": 1,
+      "CommentSize": 10
+    },
+    "src/main/java/com/example/neuronmap/service/history/FieldHistory.java": {
+      "CommentRequired": 3,
+      "CommentSize": 2,
+      "UncommentedEmptyConstructor": 2,
+      "UnnecessaryConstructor": 1
+    },
+    "src/main/java/com/example/neuronmap/service/history/FieldStateSnapshot.java": {
+      "CommentRequired": 4,
+      "CommentSize": 3,
+      "DanglingJavadoc": 6
+    },
+    "src/main/java/com/example/neuronmap/settings/SettingsEditSession.java": {
+      "CommentRequired": 7,
+      "CommentSize": 10
+    },
+    "src/main/java/com/example/neuronmap/simulation/SimulationRuntimeState.java": {
+      "CommentRequired": 1,
+      "CommentSize": 1
+    },
+    "src/main/java/com/example/neuronmap/simulation/SimulationService.java": {
+      "CommentSize": 1
+    },
+    "src/main/java/com/example/neuronmap/simulation/SimulationSession.java": {
+      "CommentRequired": 5,
+      "CommentSize": 6
+    },
+    "src/main/java/com/example/neuronmap/simulation/SimulationSpeed.java": {
+      "CommentSize": 3
+    },
+    "src/main/java/com/example/neuronmap/simulation/SimulationStep.java": {
+      "CommentSize": 2,
+      "DanglingJavadoc": 2
+    },
+    "src/main/java/com/example/neuronmap/simulation/SimulationTick.java": {
+      "CommentRequired": 1,
+      "CommentSize": 1
+    },
+    "src/main/java/com/example/neuronmap/util/CameraWorldCenter.java": {
+      "CommentSize": 5
+    },
+    "src/main/java/com/example/neuronmap/util/GeometryUtils.java": {
+      "CommentSize": 3
+    },
+    "src/main/java/com/example/neuronmap/util/NeuronRotationMath.java": {
+      "CommentSize": 3
+    },
+    "src/main/java/com/example/neuronmap/util/NumberDisplayFormatter.java": {
+      "CommentRequired": 1,
+      "CommentSize": 7
+    },
+    "src/main/java/com/example/neuronmap/util/ViewportWorldCoordinates.java": {
+      "CommentSize": 4
+    },
+    "src/main/java/com/example/neuronmap/util/WorldCoordinateMapper.java": {
+      "CommentSize": 2
+    },
+    "src/main/java/com/example/neuronmap/view/connection/ConnectionHitTester.java": {
+      "CommentRequired": 1,
+      "CommentSize": 1
+    },
+    "src/main/java/com/example/neuronmap/view/connection/ConnectionPreviewView.java": {
+      "CommentRequired": 4,
+      "CommentSize": 7
+    },
+    "src/main/java/com/example/neuronmap/view/connection/ConnectionStyle.java": {
+      "CommentSize": 3,
+      "DanglingJavadoc": 2
+    },
+    "src/main/java/com/example/neuronmap/view/connection/ConnectionView.java": {
+      "CommentRequired": 11,
+      "CommentSize": 3
+    },
+    "src/main/java/com/example/neuronmap/view/editor/GridRenderer.java": {
+      "CommentRequired": 2,
+      "CommentSize": 5,
+      "DanglingJavadoc": 2
+    },
+    "src/main/java/com/example/neuronmap/view/editor/MainView.java": {
+      "CommentRequired": 12,
+      "CommentSize": 11,
+      "CompareObjectsWithEquals": 1
+    },
+    "src/main/java/com/example/neuronmap/view/editor/NeuronLayerOrderManager.java": {
+      "CommentRequired": 3,
+      "CommentSize": 5,
+      "CompareObjectsWithEquals": 1
+    },
+    "src/main/java/com/example/neuronmap/view/editor/ToolbarView.java": {
+      "CommentRequired": 29,
+      "CommentSize": 4,
+      "CompareObjectsWithEquals": 2,
+      "LiteralsFirstInComparisons": 1,
+      "UnusedFormalParameter": 2
+    },
+    "src/main/java/com/example/neuronmap/view/editor/WorkspaceView.java": {
+      "CommentRequired": 14,
+      "CommentSize": 4
+    },
+    "src/main/java/com/example/neuronmap/view/group/GroupView.java": {
+      "CommentRequired": 5,
+      "CommentSize": 1
+    },
+    "src/main/java/com/example/neuronmap/view/menu/LanguageSettingsView.java": {
+      "CommentRequired": 6,
+      "CommentSize": 4
+    },
+    "src/main/java/com/example/neuronmap/view/menu/MainMenuHomeView.java": {
+      "CommentRequired": 7,
+      "CommentSize": 9
+    },
+    "src/main/java/com/example/neuronmap/view/menu/MainMenuView.java": {
+      "CommentRequired": 25,
+      "CommentSize": 23,
+      "DanglingJavadoc": 2,
+      "UnnecessaryFullyQualifiedName": 15
+    },
+    "src/main/java/com/example/neuronmap/view/menu/ProjectListView.java": {
+      "CommentRequired": 8,
+      "CommentSize": 14,
+      "CompareObjectsWithEquals": 1,
+      "UnnecessaryFullyQualifiedName": 1
+    },
+    "src/main/java/com/example/neuronmap/view/menu/SavedProjectRenameEditor.java": {
+      "CommentRequired": 1,
+      "CommentSize": 5
+    },
+    "src/main/java/com/example/neuronmap/view/menu/SavedProjectRowView.java": {
+      "CommentRequired": 18,
+      "CommentSize": 17,
+      "CompareObjectsWithEquals": 5,
+      "SimplifyBooleanReturns": 1,
+      "UnnecessaryFullyQualifiedName": 8,
+      "UnusedPrivateField": 2
+    },
+    "src/main/java/com/example/neuronmap/view/menu/UnsavedChangesView.java": {
+      "CommentRequired": 9,
+      "CommentSize": 1,
+      "UnnecessaryFullyQualifiedName": 7
+    },
+    "src/main/java/com/example/neuronmap/view/neuron/NeuronContextMenuView.java": {
+      "CommentRequired": 3,
+      "CommentSize": 5,
+      "DanglingJavadoc": 2
+    },
+    "src/main/java/com/example/neuronmap/view/neuron/NeuronDragPreviewFactory.java": {
+      "CommentSize": 1
+    },
+    "src/main/java/com/example/neuronmap/view/neuron/NeuronDragPreviewView.java": {
+      "CommentRequired": 10,
+      "CommentSize": 3
+    },
+    "src/main/java/com/example/neuronmap/view/neuron/NeuronMenuView.java": {
+      "CommentRequired": 3,
+      "CommentSize": 10
+    },
+    "src/main/java/com/example/neuronmap/view/neuron/NeuronOverlayPositioner.java": {
+      "CommentRequired": 3,
+      "CommentSize": 23
+    },
+    "src/main/java/com/example/neuronmap/view/neuron/NeuronSettingsForm.java": {
+      "CommentRequired": 3,
+      "CommentSize": 3
+    },
+    "src/main/java/com/example/neuronmap/view/neuron/NeuronSettingsLayout.java": {
+      "CommentRequired": 8,
+      "CommentSize": 3
+    },
+    "src/main/java/com/example/neuronmap/view/neuron/NeuronSettingsView.java": {
+      "CommentRequired": 24,
+      "CommentSize": 13,
+      "CompareObjectsWithEquals": 1,
+      "UnnecessaryFullyQualifiedName": 3
+    },
+    "src/main/java/com/example/neuronmap/view/neuron/NeuronView.java": {
+      "CommentRequired": 20,
+      "CommentSize": 1
+    },
+    "src/main/java/com/example/neuronmap/view/neuron/NeuronVisualGeometry.java": {
+      "CommentRequired": 4,
+      "CommentSize": 4
+    },
+    "src/main/java/com/example/neuronmap/view/neuron/RotationHandleView.java": {
+      "CommentRequired": 5,
+      "CommentSize": 5
+    },
+    "src/main/java/com/example/neuronmap/view/simulation/PulseAnimationView.java": {
+      "CommentRequired": 14,
+      "CommentSize": 1,
+      "SingularField": 1
+    },
+    "src/main/java/com/example/neuronmap/view/simulation/SimulationStepPresenter.java": {
+      "CommentRequired": 4,
+      "CommentSize": 2
+    },
+    "src/main/java/com/example/neuronmap/view/status/StatusBarView.java": {
+      "CommentRequired": 3,
+      "CommentSize": 1
+    },
+    "src/main/java/com/example/neuronmap/view/status/StatusMessageLifecycle.java": {
+      "CommentRequired": 9,
+      "CommentSize": 10
+    },
+    "src/main/java/com/example/neuronmap/view/status/StatusMessagePresenter.java": {
+      "CommentRequired": 3,
+      "CommentSize": 3
+    },
+    "src/main/java/com/example/neuronmap/view/support/ContentSizedButtonPair.java": {
+      "CommentSize": 2
+    },
+    "src/main/java/com/example/neuronmap/view/support/EditorKeyboardShortcutBoundary.java": {
+      "CommentSize": 4
+    },
+    "src/main/java/com/example/neuronmap/view/support/ImmediateTooltipManager.java": {
+      "CommentRequired": 7,
+      "CommentSize": 5,
+      "CompareObjectsWithEquals": 1
+    },
+    "src/main/java/com/example/neuronmap/view/support/JavaFxNodeLookup.java": {
+      "CommentSize": 7
+    },
+    "src/main/java/com/example/neuronmap/view/support/SceneKeyboardModality.java": {
+      "CommentRequired": 2,
+      "CommentSize": 8,
+      "SimplifyBooleanReturns": 1,
+      "UnnecessaryConstructor": 1
+    },
+    "src/main/java/com/example/neuronmap/view/support/TooltipFactory.java": {
+      "CommentSize": 4
+    },
+    "src/main/java/com/example/neuronmap/view/support/UiTiming.java": {
+      "CommentRequired": 5,
+      "CommentSize": 1
+    },
+    "src/main/java/com/example/neuronmap/view/window/WindowChromeIconFactory.java": {
+      "CommentSize": 4
+    },
+    "src/main/java/com/example/neuronmap/view/window/WindowChromePlatformStyle.java": {
+      "CommentRequired": 3,
+      "CommentSize": 11
+    },
+    "src/main/java/com/example/neuronmap/view/window/WindowChromeView.java": {
+      "CommentRequired": 21,
+      "CommentSize": 18,
+      "CompareObjectsWithEquals": 7,
+      "UnnecessaryFullyQualifiedName": 1
+    },
+    "src/test/java/com/example/neuronmap/app/MainWindowControllerTest.java": {
+      "AvoidAccessibilityAlteration": 2,
+      "AvoidCatchingThrowable": 1,
+      "CommentRequired": 1,
+      "CommentSize": 3,
+      "LiteralsFirstInComparisons": 1
+    },
+    "src/test/java/com/example/neuronmap/app/NeuronMapAppTest.java": {
+      "CommentRequired": 1,
+      "CommentSize": 11
+    },
+    "src/test/java/com/example/neuronmap/app/NeuronMapEditorTest.java": {
+      "CommentSize": 6
+    },
+    "src/test/java/com/example/neuronmap/app/WindowChromeLifecycleExtendedWindowTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentRequired": 1,
+      "CommentSize": 4
+    },
+    "src/test/java/com/example/neuronmap/application/DemoMapFactoryTest.java": {
+      "CommentSize": 1
+    },
+    "src/test/java/com/example/neuronmap/application/EditorStateCameraStateTest.java": {
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/application/EditorStateCameraValidationTest.java": {
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/application/EditorStateTest.java": {
+      "CommentSize": 4
+    },
+    "src/test/java/com/example/neuronmap/application/InitialProjectInitializerTest.java": {
+      "CommentRequired": 1,
+      "CommentSize": 8
+    },
+    "src/test/java/com/example/neuronmap/application/NeuronMapApplicationServiceTest.java": {
+      "CloseResource": 2,
+      "CommentRequired": 3,
+      "CommentSize": 3,
+      "UncommentedEmptyMethodBody": 4
+    },
+    "src/test/java/com/example/neuronmap/config/AppConfigLoaderTest.java": {
+      "CommentRequired": 2,
+      "CommentSize": 15
+    },
+    "src/test/java/com/example/neuronmap/controller/CameraControllerLifecycleTest.java": {
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/controller/CameraControllerPanSaveTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentRequired": 1,
+      "CommentSize": 4
+    },
+    "src/test/java/com/example/neuronmap/controller/CameraControllerZoomFormattingTest.java": {
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/controller/ConnectionControllerLifecycleTest.java": {
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/controller/ConnectionCreationControllerTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 8
+    },
+    "src/test/java/com/example/neuronmap/controller/EditorKeyboardControllerTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 5
+    },
+    "src/test/java/com/example/neuronmap/controller/MainMenuControllerSceneLifecycleTest.java": {
+      "CommentSize": 3
+    },
+    "src/test/java/com/example/neuronmap/controller/MainMenuControllerTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentRequired": 1,
+      "CommentSize": 5,
+      "LambdaCanBeMethodReference": 1
+    },
+    "src/test/java/com/example/neuronmap/controller/NeuronClipboardControllerLifecycleTest.java": {
+      "CommentSize": 1
+    },
+    "src/test/java/com/example/neuronmap/controller/NeuronDeletionControllerTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 7
+    },
+    "src/test/java/com/example/neuronmap/controller/NeuronDragControllerLifecycleTest.java": {
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/controller/NeuronInteractionControllerMouseButtonTest.java": {
+      "CommentSize": 4
+    },
+    "src/test/java/com/example/neuronmap/controller/NeuronMenuControllerDirectionTest.java": {
+      "CommentSize": 4
+    },
+    "src/test/java/com/example/neuronmap/controller/NeuronMenuControllerOverlayHostTest.java": {
+      "CommentSize": 3
+    },
+    "src/test/java/com/example/neuronmap/controller/NeuronOverlayCoordinateTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentRequired": 1,
+      "CommentSize": 3,
+      "CompareObjectsWithEquals": 1
+    },
+    "src/test/java/com/example/neuronmap/controller/NeuronToolDragControllerLifecycleTest.java": {
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/controller/PulseAnimationControllerTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 2,
+      "LooseCoupling": 1
+    },
+    "src/test/java/com/example/neuronmap/controller/RequiredLocalizationDependencyTest.java": {
+      "CommentSize": 4,
+      "UnnecessaryImport": 1
+    },
+    "src/test/java/com/example/neuronmap/controller/SimulationControllerModalPauseTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/controller/SimulationControllerSpeedFormattingTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentRequired": 2,
+      "CommentSize": 3
+    },
+    "src/test/java/com/example/neuronmap/controller/SimulationControllerStopSignalsTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 3
+    },
+    "src/test/java/com/example/neuronmap/coordinator/EditorProjectSessionCoordinatorTest.java": {
+      "CloseResource": 1,
+      "CommentRequired": 3,
+      "CommentSize": 7,
+      "UncommentedEmptyMethodBody": 30
+    },
+    "src/test/java/com/example/neuronmap/coordinator/EditorSaveCoordinatorTest.java": {
+      "CloseResource": 2,
+      "CommentRequired": 3,
+      "CommentSize": 5,
+      "UncommentedEmptyMethodBody": 6,
+      "UnnecessaryImport": 1
+    },
+    "src/test/java/com/example/neuronmap/coordinator/MainMenuSettingsCoordinatorTest.java": {
+      "CommentSize": 3
+    },
+    "src/test/java/com/example/neuronmap/coordinator/MapEditorCoordinatorSceneLifecycleTest.java": {
+      "CommentRequired": 7,
+      "CommentSize": 10,
+      "CompareObjectsWithEquals": 1
+    },
+    "src/test/java/com/example/neuronmap/coordinator/MapPresentationCoordinatorLifecycleTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentRequired": 21,
+      "CommentSize": 6
+    },
+    "src/test/java/com/example/neuronmap/coordinator/MapPresentationWorkflowLifecycleTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentRequired": 25,
+      "CommentSize": 14,
+      "CompareObjectsWithEquals": 2,
+      "SimplifiableTestAssertion": 2,
+      "UncommentedEmptyMethodBody": 24
+    },
+    "src/test/java/com/example/neuronmap/coordinator/NeuronSettingsOverlayCoordinatorTest.java": {
+      "CommentSize": 4
+    },
+    "src/test/java/com/example/neuronmap/coordinator/ProjectWorkflowCoordinatorActivationTest.java": {
+      "CloseResource": 1,
+      "CommentRequired": 4,
+      "CommentSize": 12
+    },
+    "src/test/java/com/example/neuronmap/coordinator/ProjectWorkflowCoordinatorRecoveryTest.java": {
+      "CommentRequired": 1,
+      "CommentSize": 3
+    },
+    "src/test/java/com/example/neuronmap/coordinator/ProjectWorkflowCoordinatorRenameLifecycleTest.java": {
+      "CloseResource": 3,
+      "CommentRequired": 4,
+      "CommentSize": 8,
+      "UncommentedEmptyConstructor": 2,
+      "UnnecessaryConstructor": 2
+    },
+    "src/test/java/com/example/neuronmap/coordinator/ProjectWorkflowCoordinatorTest.java": {
+      "CommentSize": 6
+    },
+    "src/test/java/com/example/neuronmap/coordinator/SimulationSpeedCoordinatorTest.java": {
+      "AssignmentInOperand": 2,
+      "CloseResource": 4,
+      "CommentRequired": 7,
+      "CommentSize": 5
+    },
+    "src/test/java/com/example/neuronmap/coordinator/UiProcessCoordinatorTest.java": {
+      "CloseResource": 1,
+      "CommentSize": 7
+    },
+    "src/test/java/com/example/neuronmap/i18n/EnglishBaseBundleTest.java": {
+      "CommentRequired": 1,
+      "CommentSize": 3
+    },
+    "src/test/java/com/example/neuronmap/i18n/LocalizationServicePreviewRollbackTest.java": {
+      "CommentSize": 4
+    },
+    "src/test/java/com/example/neuronmap/i18n/LocalizationServicePreviewTransactionTest.java": {
+      "CommentRequired": 1,
+      "CommentSize": 4
+    },
+    "src/test/java/com/example/neuronmap/i18n/LocalizationServiceTest.java": {
+      "AssignmentInOperand": 1,
+      "CommentRequired": 1,
+      "CommentSize": 8,
+      "LambdaCanBeMethodReference": 1
+    },
+    "src/test/java/com/example/neuronmap/model/CameraStateTest.java": {
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/model/MapPositionTest.java": {
+      "CommentSize": 1
+    },
+    "src/test/java/com/example/neuronmap/model/NeuronMapModelTest.java": {
+      "CommentSize": 3
+    },
+    "src/test/java/com/example/neuronmap/model/NeuronParametersTest.java": {
+      "CommentSize": 1
+    },
+    "src/test/java/com/example/neuronmap/model/NeuronPresentationPositionTest.java": {
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/model/NeuronTest.java": {
+      "CommentSize": 3
+    },
+    "src/test/java/com/example/neuronmap/persistence/ApplicationStorageLayoutTest.java": {
+      "CommentRequired": 1,
+      "CommentSize": 4
+    },
+    "src/test/java/com/example/neuronmap/persistence/AtomicPropertiesWriterTest.java": {
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/persistence/FileTreeOperationsTest.java": {
+      "CommentSize": 12
+    },
+    "src/test/java/com/example/neuronmap/persistence/map/TransientProjectRepositoryTest.java": {
+      "CommentRequired": 5,
+      "CommentSize": 12
+    },
+    "src/test/java/com/example/neuronmap/persistence/project/FileSystemProjectCatalogMetadataTest.java": {
+      "CommentRequired": 3,
+      "CommentSize": 3,
+      "LooseCoupling": 1,
+      "UncommentedEmptyMethodBody": 4
+    },
+    "src/test/java/com/example/neuronmap/persistence/project/FileSystemProjectCatalogRepositoryTest.java": {
+      "CommentSize": 3
+    },
+    "src/test/java/com/example/neuronmap/persistence/project/ProjectDirectoryWatcherTest.java": {
+      "CloseResource": 2,
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/persistence/project/ProjectStorageDirectoryResolverTest.java": {
+      "CommentSize": 1
+    },
+    "src/test/java/com/example/neuronmap/persistence/settings/GlobalSettingsStoreTest.java": {
+      "CommentSize": 1
+    },
+    "src/test/java/com/example/neuronmap/persistence/sqlite/DefaultMapRepositoryFactoryTest.java": {
+      "CommentSize": 4
+    },
+    "src/test/java/com/example/neuronmap/persistence/sqlite/NeuronDirectionPersistenceTest.java": {
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/persistence/sqlite/SqliteCameraStateValidationTest.java": {
+      "AssignmentInOperand": 1,
+      "CommentRequired": 3,
+      "CommentSize": 6,
+      "UncommentedEmptyMethodBody": 4
+    },
+    "src/test/java/com/example/neuronmap/persistence/sqlite/SqliteMapRepositoryFailureTest.java": {
+      "CommentSize": 6
+    },
+    "src/test/java/com/example/neuronmap/persistence/sqlite/SqliteMapRepositoryTest.java": {
+      "CheckResultSet": 2,
+      "CommentSize": 4
+    },
+    "src/test/java/com/example/neuronmap/persistence/sqlite/SqliteSchemaMigrationTest.java": {
+      "CheckResultSet": 2,
+      "CommentSize": 9
+    },
+    "src/test/java/com/example/neuronmap/persistence/sqlite/SqliteSimulationSettingsTest.java": {
+      "CommentSize": 3,
+      "EmptyControlStatement": 1,
+      "UnusedLocalVariable": 1
+    },
+    "src/test/java/com/example/neuronmap/persistence/window/WindowStateStoreDiagnosticsTest.java": {
+      "CommentRequired": 3,
+      "CommentSize": 4,
+      "UncommentedEmptyMethodBody": 4
+    },
+    "src/test/java/com/example/neuronmap/persistence/window/WindowStateStoreTest.java": {
+      "CommentRequired": 1,
+      "CommentSize": 3,
+      "UncommentedEmptyMethodBody": 4
+    },
+    "src/test/java/com/example/neuronmap/service/ConnectionServiceTest.java": {
+      "CommentSize": 1
+    },
+    "src/test/java/com/example/neuronmap/service/GroupServiceTest.java": {
+      "CommentSize": 1
+    },
+    "src/test/java/com/example/neuronmap/service/MapServiceProjectActivationTest.java": {
+      "CloseResource": 12,
+      "CommentRequired": 10,
+      "CommentSize": 8,
+      "LambdaCanBeMethodReference": 1,
+      "UncommentedEmptyMethodBody": 4,
+      "UnnecessaryConstructor": 1
+    },
+    "src/test/java/com/example/neuronmap/service/NeuronClipboardServiceTest.java": {
+      "CommentSize": 1
+    },
+    "src/test/java/com/example/neuronmap/service/NeuronServiceParametersTest.java": {
+      "CommentSize": 1
+    },
+    "src/test/java/com/example/neuronmap/service/NeuronServiceTest.java": {
+      "CommentSize": 3
+    },
+    "src/test/java/com/example/neuronmap/service/ProjectCatalogServiceTest.java": {
+      "CommentSize": 6,
+      "LiteralsFirstInComparisons": 2
+    },
+    "src/test/java/com/example/neuronmap/service/history/FieldHistoryTest.java": {
+      "CommentSize": 3
+    },
+    "src/test/java/com/example/neuronmap/service/history/FieldStateSnapshotTest.java": {
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/service/history/FieldStateSnapshotValueObjectsTest.java": {
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/settings/SettingsEditSessionTest.java": {
+      "CommentSize": 6,
+      "UnusedLocalVariable": 1
+    },
+    "src/test/java/com/example/neuronmap/simulation/SimulationRuntimeStateTest.java": {
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/simulation/SimulationServiceTest.java": {
+      "CommentSize": 1
+    },
+    "src/test/java/com/example/neuronmap/simulation/SimulationSessionTest.java": {
+      "CommentSize": 4
+    },
+    "src/test/java/com/example/neuronmap/simulation/SimulationSpeedTest.java": {
+      "CommentSize": 1
+    },
+    "src/test/java/com/example/neuronmap/simulation/SimulationTickTest.java": {
+      "CommentSize": 1
+    },
+    "src/test/java/com/example/neuronmap/testsupport/JavaFxTestSupport.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentRequired": 4,
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/testsupport/TransientRepositoryTestSupport.java": {
+      "CommentSize": 8
+    },
+    "src/test/java/com/example/neuronmap/util/CameraWorldCenterTest.java": {
+      "CommentSize": 1
+    },
+    "src/test/java/com/example/neuronmap/util/GeometryUtilsNonFiniteZoomTest.java": {
+      "CommentSize": 3
+    },
+    "src/test/java/com/example/neuronmap/util/NeuronRotationMathTest.java": {
+      "CommentRequired": 1,
+      "CommentSize": 4
+    },
+    "src/test/java/com/example/neuronmap/util/NumberDisplayFormatterTest.java": {
+      "CommentSize": 3
+    },
+    "src/test/java/com/example/neuronmap/util/WorldCoordinateMapperTest.java": {
+      "CommentRequired": 1,
+      "CommentSize": 1
+    },
+    "src/test/java/com/example/neuronmap/view/IndependentStylesheetArchitectureTest.java": {
+      "CommentSize": 6
+    },
+    "src/test/java/com/example/neuronmap/view/connection/ConnectionHitTesterTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/view/connection/ConnectionPreviewViewTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 4
+    },
+    "src/test/java/com/example/neuronmap/view/connection/ConnectionViewStyleTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/view/editor/MainViewToolbarLifecycleTest.java": {
+      "CommentSize": 5
+    },
+    "src/test/java/com/example/neuronmap/view/editor/ToolbarCoordinatesDisplayTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 3
+    },
+    "src/test/java/com/example/neuronmap/view/editor/ToolbarViewTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 7
+    },
+    "src/test/java/com/example/neuronmap/view/menu/MainMenuButtonConsistencyTest.java": {
+      "CommentSize": 1
+    },
+    "src/test/java/com/example/neuronmap/view/menu/MainMenuPageViewsTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 8
+    },
+    "src/test/java/com/example/neuronmap/view/menu/MainMenuPagesCompositionTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentRequired": 1,
+      "CommentSize": 11
+    },
+    "src/test/java/com/example/neuronmap/view/menu/MainMenuUnsavedChangesWorkflowTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 5
+    },
+    "src/test/java/com/example/neuronmap/view/menu/MainMenuViewTest.java": {
+      "AvoidCatchingThrowable": 2,
+      "CommentRequired": 2,
+      "CommentSize": 12
+    },
+    "src/test/java/com/example/neuronmap/view/menu/MainMenuViewTestAccess.java": {
+      "CommentSize": 5
+    },
+    "src/test/java/com/example/neuronmap/view/menu/MenuStylesheetResourceTest.java": {
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/view/menu/PackagePrivateTestAccessorsTest.java": {
+      "CommentSize": 3
+    },
+    "src/test/java/com/example/neuronmap/view/menu/ProjectListViewTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 6
+    },
+    "src/test/java/com/example/neuronmap/view/menu/SavedProjectRenameEditorTest.java": {
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/view/menu/SavedProjectRowViewTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 6
+    },
+    "src/test/java/com/example/neuronmap/view/neuron/NeuronContextMenuViewTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 7
+    },
+    "src/test/java/com/example/neuronmap/view/neuron/NeuronInputSignalDisplayTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/view/neuron/NeuronMenuViewTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 4
+    },
+    "src/test/java/com/example/neuronmap/view/neuron/NeuronOutputTriangleAlignmentTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentRequired": 1,
+      "CommentSize": 5
+    },
+    "src/test/java/com/example/neuronmap/view/neuron/NeuronOverlayPositionerTest.java": {
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/view/neuron/NeuronSettingsModalKeyboardTest.java": {
+      "CommentSize": 3
+    },
+    "src/test/java/com/example/neuronmap/view/neuron/NeuronSettingsViewTest.java": {
+      "CommentSize": 7,
+      "SimplifiableTestAssertion": 2,
+      "UnnecessaryImport": 1
+    },
+    "src/test/java/com/example/neuronmap/view/neuron/NeuronViewDirectionRefreshTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentRequired": 1,
+      "CommentSize": 3
+    },
+    "src/test/java/com/example/neuronmap/view/neuron/NeuronViewStylesTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/view/neuron/NeuronVisualGeometryTest.java": {
+      "CommentRequired": 1,
+      "CommentSize": 6,
+      "SimplifiableTestAssertion": 1
+    },
+    "src/test/java/com/example/neuronmap/view/neuron/RotationHandleViewTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentRequired": 1,
+      "CommentSize": 5
+    },
+    "src/test/java/com/example/neuronmap/view/simulation/PulseAnimationViewTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 2
+    },
+    "src/test/java/com/example/neuronmap/view/status/StatusMessageLifecyclePauseTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 4
+    },
+    "src/test/java/com/example/neuronmap/view/status/StatusMessagePresenterTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 6,
+      "UnusedLocalVariable": 1
+    },
+    "src/test/java/com/example/neuronmap/view/support/JavaFxNodeLookupTest.java": {
+      "CommentSize": 3
+    },
+    "src/test/java/com/example/neuronmap/view/support/TooltipFactoryTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentSize": 6
+    },
+    "src/test/java/com/example/neuronmap/view/window/WindowChromeIconFactoryTest.java": {
+      "CommentSize": 4
+    },
+    "src/test/java/com/example/neuronmap/view/window/WindowChromeLocalizationTest.java": {
+      "AvoidCatchingThrowable": 1,
+      "CommentRequired": 1,
+      "CommentSize": 9
+    }
+  }
+}
