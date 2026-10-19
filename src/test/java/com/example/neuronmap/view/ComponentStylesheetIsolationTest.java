@@ -58,7 +58,7 @@ final class ComponentStylesheetIsolationTest {
                 stylesheets.size() > 1,
                 "Очікується кілька незалежних таблиць стилів");
         for (Path stylesheet : stylesheets) {
-            if (stylesheet.getFileName().toString().equals("app.css")) {
+            if ("app.css".equals(stylesheet.getFileName().toString())) {
                 continue;
             }
 
@@ -77,7 +77,7 @@ final class ComponentStylesheetIsolationTest {
                     }
                     String previousOwner = owners.putIfAbsent(normalized, stylesheet.getFileName().toString());
                     assertTrue(
-                            null == previousOwner || previousOwner.equals(stylesheet.getFileName().toString()),
+                            previousOwner == null || previousOwner.equals(stylesheet.getFileName().toString()),
                             () -> "CSS-селектор '" + normalized + "' належить одночасно "
                                     + previousOwner + " та " + stylesheet.getFileName());
                 }
