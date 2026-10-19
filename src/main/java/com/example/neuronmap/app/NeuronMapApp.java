@@ -6,10 +6,10 @@ import com.example.neuronmap.config.AppConfigLoader;
 import com.example.neuronmap.i18n.LanguagePreferenceStore;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.NeuronMapModel;
+import com.example.neuronmap.persistence.ApplicationStorageLayout;
 import com.example.neuronmap.persistence.MapRepository;
 import com.example.neuronmap.persistence.MapRepositoryFactory;
 import com.example.neuronmap.persistence.project.FileSystemProjectCatalogRepository;
-import com.example.neuronmap.persistence.project.ProjectStorageDirectoryResolver;
 import com.example.neuronmap.persistence.settings.GlobalSettingsLanguagePreferenceStore;
 import com.example.neuronmap.persistence.settings.GlobalSettingsStore;
 import com.example.neuronmap.persistence.sqlite.DefaultMapRepositoryFactory;
@@ -38,12 +38,10 @@ public final class NeuronMapApp extends Application {
      */
     @Override
     public void start(Stage stage) {
-        AppConfig config = AppConfigLoader.load();
-
-        Path storageDirectory = ProjectStorageDirectoryResolver.resolve();
-        GlobalSettingsStore globalSettings = new GlobalSettingsStore(
-                storageDirectory.resolve("global.properties")
-        );
+        ApplicationStorageLayout storageLayout = ApplicationStorageLayout.resolve();
+        AppConfig config = AppConfigLoader.load(storageLayout);
+        Path storageDirectory = storageLayout.rootDirectory();
+        GlobalSettingsStore globalSettings = new GlobalSettingsStore(storageLayout.globalSettingsFile());
 
         LanguagePreferenceStore languagePreferenceStore =
                 new GlobalSettingsLanguagePreferenceStore(globalSettings);
@@ -62,7 +60,7 @@ public final class NeuronMapApp extends Application {
                 : mapRepositoryFactory.createTransientProjectRepository(initialProject);
 
         WindowStateStore windowStateStore = new WindowStateStore(
-                storageDirectory.resolve(config.window().stateFile())
+                storageLayout.windowStateFile(config.window().stateFile())
         );
         mainWindowController = new MainWindowController(stage, windowStateStore, localization);
 

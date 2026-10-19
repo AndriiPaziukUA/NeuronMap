@@ -1,5 +1,6 @@
 package com.example.neuronmap.view.editor;
 
+import com.example.neuronmap.ApplicationMetadata;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.util.NumberDisplayFormatter;
@@ -111,7 +112,7 @@ public final class ToolbarView {
         root.setMaxHeight(HEIGHT);
         root.setFocusTraversable(true);
 
-        Label title = new Label("NeuronMap");
+        Label title = new Label(ApplicationMetadata.NAME);
         title.getStyleClass().add("toolbar-title");
         pauseResumeButton.getStyleClass().add("simulation-icon-button");
         stopSignalsButton.getStyleClass().add("simulation-icon-button-danger");
