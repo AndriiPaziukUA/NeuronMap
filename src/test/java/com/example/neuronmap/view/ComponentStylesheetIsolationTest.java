@@ -77,7 +77,7 @@ final class ComponentStylesheetIsolationTest {
                     }
                     String previousOwner = owners.putIfAbsent(normalized, stylesheet.getFileName().toString());
                     assertTrue(
-                            previousOwner == null || previousOwner.equals(stylesheet.getFileName().toString()),
+                            null == previousOwner || previousOwner.equals(stylesheet.getFileName().toString()),
                             () -> "CSS-селектор '" + normalized + "' належить одночасно "
                                     + previousOwner + " та " + stylesheet.getFileName());
                 }
