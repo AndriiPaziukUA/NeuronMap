@@ -1,6 +1,7 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.service.GroupService;
@@ -9,6 +10,8 @@ import com.example.neuronmap.testsupport.JavaFxTestSupport;
 import com.example.neuronmap.view.editor.WorkspaceView;
 import com.example.neuronmap.view.neuron.NeuronView;
 import org.junit.jupiter.api.Test;
+
+import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -30,7 +33,8 @@ final class NeuronDragControllerLifecycleTest {
                     state,
                     () -> { },
                     () -> { },
-                    ignored -> { }
+                    ignored -> { },
+                    new LocalizationService(Locale.ENGLISH)
             );
             NeuronDragController controller = new NeuronDragController(
                     neuronService,

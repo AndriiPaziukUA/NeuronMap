@@ -22,6 +22,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 
 import java.util.Locale;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
@@ -71,30 +72,6 @@ public final class ToolbarView {
     private Scene sceneWithMouseFilter;
 
     /**
-     * Створює панель інструментів зі стандартною українською локалізацією.
-     *
-     * @param addNeuron дія створення нейрона вибраного типу.
-     * @param group дія групування вибраних нейронів.
-     * @param ungroup дія розгрупування вибраних нейронів.
-     * @param pauseResume дія перемикання паузи симуляції.
-     * @param stopSignals дія зупинки передачі сигналів.
-     * @param speedChanged дія застосування введеної швидкості.
-     * @param initialSpeedMillis початкова тривалість такту симуляції в мілісекундах.
-     */
-    public ToolbarView(
-            Consumer<NeuronType> addNeuron,
-            Runnable group,
-            Runnable ungroup,
-            Runnable pauseResume,
-            Runnable stopSignals,
-            Consumer<String> speedChanged,
-            double initialSpeedMillis
-    ) {
-        this(addNeuron, group, ungroup, pauseResume, stopSignals, speedChanged, initialSpeedMillis,
-                new LocalizationService(Locale.forLanguageTag("uk")));
-    }
-
-    /**
      * Створює панель інструментів зі спільною службою локалізації застосунку.
      *
      * @param addNeuron дія створення нейрона вибраного типу.
@@ -104,7 +81,8 @@ public final class ToolbarView {
      * @param stopSignals дія зупинки передачі сигналів.
      * @param speedChanged дія застосування введеної швидкості.
      * @param initialSpeedMillis початкова тривалість такту симуляції в мілісекундах.
-     * @param localization служба локалізації повідомлень інтерфейсу.
+     * @param localization обов'язкова спільна служба локалізації повідомлень інтерфейсу.
+     * @throws NullPointerException якщо локалізацію не передано.
      */
     public ToolbarView(
             Consumer<NeuronType> addNeuron,
@@ -116,8 +94,8 @@ public final class ToolbarView {
             double initialSpeedMillis,
             LocalizationService localization
     ) {
-        this.speedChanged = speedChanged;
-        this.localization = localization;
+        this.localization = Objects.requireNonNull(localization, "localization");
+        this.speedChanged = Objects.requireNonNull(speedChanged, "speedChanged");
         this.addExcitatoryHandler = event -> addNeuron.accept(NeuronType.EXCITATORY);
         this.addInhibitoryHandler = event -> addNeuron.accept(NeuronType.INHIBITORY);
         this.groupHandler = event -> group.run();

@@ -4,8 +4,10 @@ import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.config.AppConfig;
 import com.example.neuronmap.controller.CameraController;
 import com.example.neuronmap.controller.ConnectionController;
+import com.example.neuronmap.controller.ConnectionControllerFactory;
 import com.example.neuronmap.controller.EditorKeyboardController;
 import com.example.neuronmap.controller.NeuronInteractionController;
+import com.example.neuronmap.controller.NeuronInteractionControllerFactory;
 import com.example.neuronmap.controller.PulseAnimationController;
 import com.example.neuronmap.controller.SelectionController;
 import com.example.neuronmap.controller.SimulationController;
@@ -108,15 +110,17 @@ final class MapEditorComponentFactory {
                 inputs.config().simulation().maxTickMillis()
         );
 
-        ConnectionController connectionController = new ConnectionController(
-                inputs.connectionService(),
-                inputs.state(),
-                inputs.view().workspace(),
-                inputs.neuronViews(),
-                inputs.actions().refreshMapPresentation(),
-                inputs.actions().save(),
-                inputs.actions().updateStatus(),
-                inputs.localization()
+        ConnectionController connectionController = ConnectionControllerFactory.create(
+                new ConnectionControllerFactory.Dependencies(
+                        inputs.connectionService(),
+                        inputs.state(),
+                        inputs.view().workspace(),
+                        inputs.neuronViews(),
+                        inputs.actions().refreshMapPresentation(),
+                        inputs.actions().save(),
+                        inputs.actions().updateStatus(),
+                        inputs.localization()
+                )
         );
         SelectionController selectionController = new SelectionController(
                 inputs.groupService(),
@@ -131,28 +135,29 @@ final class MapEditorComponentFactory {
                 inputs.neuronService(),
                 inputs.groupService()
         );
-        NeuronInteractionController neuronController = new NeuronInteractionController(
-                inputs.neuronService(),
-                inputs.groupService(),
-                selectionController,
-                clipboardService,
-                inputs.state(),
-                inputs.view().workspace(),
-                inputs.neuronViews(),
-                inputs.rotationHandles(),
-                connectionController,
-                simulationController,
-                inputs.actions().save(),
-                inputs.actions().refreshMapPresentation(),
-                inputs.actions().updateStatus(),
-                neuronMenuView,
-                inputs.localization(),
-                settingsOverlayCoordinator
+        NeuronInteractionController neuronController = NeuronInteractionControllerFactory.create(
+                new NeuronInteractionControllerFactory.Dependencies(
+                        inputs.neuronService(),
+                        inputs.groupService(),
+                        selectionController,
+                        clipboardService,
+                        inputs.state(),
+                        inputs.view().workspace(),
+                        inputs.neuronViews(),
+                        inputs.rotationHandles(),
+                        connectionController,
+                        simulationController,
+                        inputs.actions().save(),
+                        inputs.actions().refreshMapPresentation(),
+                        inputs.actions().updateStatus(),
+                        neuronMenuView,
+                        inputs.localization(),
+                        settingsOverlayCoordinator
+                )
         );
 
         return new BaseComponents(
                 layerOrderController,
-                neuronMenuView,
                 simulationController,
                 simulationSpeedCoordinator,
                 connectionController,
@@ -346,7 +351,6 @@ final class MapEditorComponentFactory {
      * Готові компоненти контролерів до побудови координаторів презентації та взаємодії.
      *
      * @param layerOrderController керування порядком графічних шарів.
-     * @param neuronMenuView контекстне меню нейрона.
      * @param simulationController контролер виконання симуляції.
      * @param simulationSpeedCoordinator координатор зміни швидкості.
      * @param connectionController контролер зв'язків.
@@ -355,7 +359,6 @@ final class MapEditorComponentFactory {
      */
     private record BaseComponents(
             NeuronLayerOrderManager layerOrderController,
-            NeuronMenuView neuronMenuView,
             SimulationController simulationController,
             SimulationSpeedCoordinator simulationSpeedCoordinator,
             ConnectionController connectionController,

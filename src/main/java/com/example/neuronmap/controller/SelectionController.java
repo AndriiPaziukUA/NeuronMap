@@ -6,6 +6,7 @@ import com.example.neuronmap.service.GroupService;
 
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
@@ -21,40 +22,15 @@ public final class SelectionController {
     private final LocalizationService localization;
 
     /**
-     * Створює екземпляр SelectionController та зберігає передані залежності, потрібні для його роботи.
+     * Створює контролер вибору з обов'язковою спільною службою локалізації.
      *
      * @param groupService служба операцій над групами нейронів.
-     * @param state стан об’єкта, який потрібно зберегти або відновити.
-     * @param refreshNeuronViews callback, який оновлює візуальні подання нейронів після зміни вибору.
-     * @param save функція зворотного виклику для відповідної дії.
-     * @param status callback для показу повідомлення в рядку стану.
-     */
-    public SelectionController(
-            GroupService groupService,
-            EditorState state,
-            Runnable refreshNeuronViews,
-            Runnable save,
-            Consumer<String> status
-    ) {
-        this(
-                groupService,
-                state,
-                refreshNeuronViews,
-                save,
-                status,
-                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
-        );
-    }
-
-    /**
-     * Створює екземпляр SelectionController та зберігає передані залежності, потрібні для його роботи.
-     *
-     * @param groupService служба операцій над групами нейронів.
-     * @param state стан об’єкта, який потрібно зберегти або відновити.
-     * @param refreshNeuronViews callback, який оновлює візуальні подання нейронів після зміни вибору.
-     * @param save функція зворотного виклику для відповідної дії.
-     * @param status callback для показу повідомлення в рядку стану.
-     * @param localization служба локалізації інтерфейсу.
+     * @param state спільний стан редактора.
+     * @param refreshNeuronViews дія оновлення подань нейронів після зміни вибору.
+     * @param save дія збереження змін карти.
+     * @param status дія показу повідомлення в рядку стану.
+     * @param localization спільна служба локалізації інтерфейсу.
+     * @throws NullPointerException якщо локалізацію не передано.
      */
     public SelectionController(
             GroupService groupService,
@@ -64,19 +40,19 @@ public final class SelectionController {
             Consumer<String> status,
             LocalizationService localization
     ) {
-        this.groupService = groupService;
-        this.state = state;
-        this.refreshNeuronViews = refreshNeuronViews;
-        this.save = save;
-        this.status = status;
-        this.localization = localization;
+        this.groupService = Objects.requireNonNull(groupService, "groupService");
+        this.state = Objects.requireNonNull(state, "state");
+        this.refreshNeuronViews = Objects.requireNonNull(refreshNeuronViews, "refreshNeuronViews");
+        this.save = Objects.requireNonNull(save, "save");
+        this.status = Objects.requireNonNull(status, "status");
+        this.localization = Objects.requireNonNull(localization, "localization");
     }
 
     /**
      * Обробляє первинне натискання по нейрону: замінює вибір або додає нейрон до нього, якщо натиснуто клавішу модифікатора.
      *
      * @param neuronId ідентифікатор нейрона.
-     * @param additive значення «additive», яке використовується в цьому методі.
+     * @param additive чи потрібно додати нейрон до поточного вибору.
      */
     public void selectForPrimaryPress(String neuronId, boolean additive) {
         if (additive) {
@@ -108,42 +84,27 @@ public final class SelectionController {
         refreshNeuronViews.run();
     }
 
-    /**
-     * Знімає виділення з усіх нейронів і оновлює візуальний стан.
-     */
+    /** Знімає виділення з усіх нейронів і оновлює візуальний стан. */
     public void clear() {
         state.clearSelection();
         refreshNeuronViews.run();
     }
 
-    /**
-     * Створює групу з вибраних нейронів.
-     */
+    /** Створює групу з вибраних нейронів, якщо вибрано принаймні два елементи. */
     public void groupSelection() {
         if (state.selectedNeuronIds().size() < 2) {
             status.accept(localization.text("status.group_min"));
             return;
         }
 
-        groupService.create(
-                new LinkedHashSet<>(state.selectedNeuronIds())
-        );
+        groupService.create(new LinkedHashSet<>(state.selectedNeuronIds()));
         save.run();
-        status.accept(
-                localization.text(
-                        "status.group_created",
-                        state.selectedNeuronIds().size()
-                )
-        );
+        status.accept(localization.text("status.group_created", state.selectedNeuronIds().size()));
     }
 
-    /**
-     * Прибирає групування для вибраних нейронів.
-     */
+    /** Прибирає групування для вибраних нейронів. */
     public void ungroupSelection() {
-        groupService.ungroup(
-                new HashSet<>(state.selectedNeuronIds())
-        );
+        groupService.ungroup(new HashSet<>(state.selectedNeuronIds()));
         save.run();
         status.accept(localization.text("status.ungrouped"));
     }

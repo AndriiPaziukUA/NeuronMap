@@ -40,10 +40,18 @@ final class ConnectionControllerLifecycleTest {
             scene.getRoot().layout();
             EditorState state = new EditorState(1.0, 0.0, 0.0);
             ConnectionService service = new ConnectionService(model);
-            ConnectionController controller = new ConnectionController(
-                    service, state, workspace,
-                    new HashMap<>(Map.of(sourceModel.id(), source, targetModel.id(), target)),
-                    () -> { }, () -> { }, ignored -> { }, new LocalizationService(Locale.ENGLISH));
+            ConnectionController controller = ConnectionControllerFactory.create(
+                    new ConnectionControllerFactory.Dependencies(
+                            service,
+                            state,
+                            workspace,
+                            new HashMap<>(Map.of(sourceModel.id(), source, targetModel.id(), target)),
+                            () -> { },
+                            () -> { },
+                            ignored -> { },
+                            new LocalizationService(Locale.ENGLISH)
+                    )
+            );
             controller.install();
             controller.install();
             controller.beginCreate(sourceModel.id());

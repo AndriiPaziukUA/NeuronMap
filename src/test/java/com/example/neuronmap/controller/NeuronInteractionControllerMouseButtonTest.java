@@ -67,7 +67,7 @@ final class NeuronInteractionControllerMouseButtonTest {
         });
     }
 
-    /** Перевіряє, що відкриття налаштувань прибирає контекстне меню та не повертає його після закриття накладки. */
+    /** Перевіряє, що відкриття налаштувань прибирає контекстне меню та приховує його після закриття накладки. */
     @Test
     void openingSettingsClosesContextMenuAndDoesNotRestoreItAfterCancel() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
@@ -115,6 +115,7 @@ final class NeuronInteractionControllerMouseButtonTest {
         GroupService groupService = new GroupService(model);
         ConnectionService connectionService = new ConnectionService(model);
         EditorState state = new EditorState(1.0, 0.0, 0.0);
+        LocalizationService localization = new LocalizationService(Locale.ENGLISH);
         WorkspaceView workspace = new WorkspaceView();
         Map<String, NeuronView> neuronViews = new HashMap<>();
         Map<String, ConnectionView> connectionViews = new HashMap<>();
@@ -125,7 +126,8 @@ final class NeuronInteractionControllerMouseButtonTest {
                 state,
                 () -> { },
                 () -> { },
-                ignored -> { }
+                ignored -> { },
+                localization
         );
         SimulationStepPresenter stepPresenter = new SimulationStepPresenter(
                 workspace,
@@ -143,19 +145,22 @@ final class NeuronInteractionControllerMouseButtonTest {
                 ignored -> { },
                 650.0,
                 50.0,
-                5000.0
+                5000.0,
+                localization
         );
-        ConnectionController connections = new ConnectionController(
-                connectionService,
-                state,
-                workspace,
-                neuronViews,
-                () -> { },
-                () -> { },
-                ignored -> { }
+        ConnectionController connections = ConnectionControllerFactory.create(
+                new ConnectionControllerFactory.Dependencies(
+                        connectionService,
+                        state,
+                        workspace,
+                        neuronViews,
+                        () -> { },
+                        () -> { },
+                        ignored -> { },
+                        localization
+                )
         );
 
-        LocalizationService localization = new LocalizationService(Locale.ENGLISH);
         HBox toolbar = new HBox();
         NeuronMenuView neuronMenuView = new NeuronMenuView(
                 toolbar,
@@ -169,23 +174,25 @@ final class NeuronInteractionControllerMouseButtonTest {
         NeuronSettingsOverlayCoordinator settingsCoordinator =
                 new NeuronSettingsOverlayCoordinator(overlayHost, mainMenu, localization);
 
-        NeuronInteractionController controller = new NeuronInteractionController(
-                neuronService,
-                groupService,
-                selectionController,
-                new NeuronClipboardService(neuronService, groupService),
-                state,
-                workspace,
-                neuronViews,
-                rotationHandles,
-                connections,
-                simulation,
-                () -> { },
-                () -> { },
-                ignored -> { },
-                neuronMenuView,
-                localization,
-                settingsCoordinator
+        NeuronInteractionController controller = NeuronInteractionControllerFactory.create(
+                new NeuronInteractionControllerFactory.Dependencies(
+                        neuronService,
+                        groupService,
+                        selectionController,
+                        new NeuronClipboardService(neuronService, groupService),
+                        state,
+                        workspace,
+                        neuronViews,
+                        rotationHandles,
+                        connections,
+                        simulation,
+                        () -> { },
+                        () -> { },
+                        ignored -> { },
+                        neuronMenuView,
+                        localization,
+                        settingsCoordinator
+                )
         );
         new MapPresentationCoordinator(
                 neuronService,

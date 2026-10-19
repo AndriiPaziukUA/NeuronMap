@@ -1,5 +1,6 @@
 package com.example.neuronmap.controller;
 
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.service.NeuronService;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -49,7 +51,7 @@ final class SimulationControllerModalPauseTest {
             SimulationController controller = new SimulationController(
                     new NeuronService(model), new SimulationService(), presenter,
                     () -> { }, ignored -> { }, publishedPausedStates::add, ignored -> { },
-                    100.0, 10.0, 500.0);
+                    100.0, 10.0, 500.0, new LocalizationService(Locale.ENGLISH));
             try {
                 controller.emitPulse(neuron.id());
                 int stateCountBeforeModal = publishedPausedStates.size();

@@ -1,5 +1,6 @@
 package com.example.neuronmap.controller;
 
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.service.NeuronService;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -53,7 +55,7 @@ final class SimulationControllerStopSignalsTest {
             SimulationController controller = new SimulationController(
                     new NeuronService(model), new SimulationService(), presenter,
                     saveCalls::incrementAndGet, latestStatus::set, pausedStates::add, activityStates::add,
-                    500.0, 10.0, 500.0);
+                    500.0, 10.0, 500.0, new LocalizationService(Locale.ENGLISH));
 
             try {
                 controller.emitPulse(neuron.id());

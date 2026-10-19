@@ -1,19 +1,14 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
-import com.example.neuronmap.i18n.LocalizationService;
-import com.example.neuronmap.service.ConnectionService;
 import com.example.neuronmap.view.connection.ConnectionView;
 import com.example.neuronmap.view.editor.WorkspaceView;
-import com.example.neuronmap.view.neuron.NeuronView;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 
-import java.util.Map;
 import java.util.Objects;
-import java.util.function.Consumer;
 
 /** Координує створення й видалення зв’язків на полотні та оновлення їхнього візуального стану. */
 public final class ConnectionController {
@@ -29,60 +24,25 @@ public final class ConnectionController {
     private boolean disposed;
 
     /**
-     * Створює контролер зв’язків зі стандартною українською локалізацією.
+     * Створює фасад керування зв’язками з уже складеними спеціалізованими контролерами.
+     * Створення підконтролерів залишається відповідальністю composition root.
      *
-     * @param connectionService служба операцій над зв’язками.
-     * @param state стан редактора.
+     * @param state спільний стан редактора.
      * @param workspace полотно редактора.
-     * @param neuronViews подання нейронів за ідентифікаторами.
-     * @param refresh дія оновлення інтерфейсу.
-     * @param save дія збереження змін.
-     * @param status дія показу повідомлення.
+     * @param creationController контролер створення зв’язків.
+     * @param deletionController контролер видалення зв’язків.
+     * @throws NullPointerException якщо обов’язкова залежність відсутня.
      */
-    public ConnectionController(
-            ConnectionService connectionService,
+    ConnectionController(
             EditorState state,
             WorkspaceView workspace,
-            Map<String, NeuronView> neuronViews,
-            Runnable refresh,
-            Runnable save,
-            Consumer<String> status
+            ConnectionCreationController creationController,
+            ConnectionDeletionController deletionController
     ) {
-        this(connectionService, state, workspace, neuronViews, refresh, save, status,
-                new LocalizationService(java.util.Locale.forLanguageTag("uk")));
-    }
-
-    /**
-     * Створює контролер зв’язків зі спільною службою локалізації застосунку.
-     *
-     * @param connectionService служба операцій над зв’язками.
-     * @param state стан редактора.
-     * @param workspace полотно редактора.
-     * @param neuronViews подання нейронів за ідентифікаторами.
-     * @param refresh дія оновлення інтерфейсу.
-     * @param save дія збереження змін.
-     * @param status дія показу повідомлення.
-     * @param localization служба локалізації інтерфейсу.
-     */
-    public ConnectionController(
-            ConnectionService connectionService,
-            EditorState state,
-            WorkspaceView workspace,
-            Map<String, NeuronView> neuronViews,
-            Runnable refresh,
-            Runnable save,
-            Consumer<String> status,
-            LocalizationService localization
-    ) {
-        Objects.requireNonNull(connectionService, "connectionService");
         this.state = Objects.requireNonNull(state, "state");
         this.workspace = Objects.requireNonNull(workspace, "workspace");
-        LocalizationService sharedLocalization = Objects.requireNonNull(localization, "localization");
-        deletionController = new ConnectionDeletionController(
-                connectionService, state, workspace, refresh, save, status, sharedLocalization);
-        creationController = new ConnectionCreationController(
-                connectionService, state, workspace, neuronViews, refresh, save, status,
-                deletionController::exitDelete, sharedLocalization);
+        this.creationController = Objects.requireNonNull(creationController, "creationController");
+        this.deletionController = Objects.requireNonNull(deletionController, "deletionController");
     }
 
     /**

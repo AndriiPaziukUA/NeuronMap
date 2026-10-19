@@ -1,5 +1,6 @@
 package com.example.neuronmap.view.editor;
 
+import com.example.neuronmap.i18n.LocalizationService;
 import javafx.application.Platform;
 import javafx.css.StyleOrigin;
 import javafx.css.StyleableProperty;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
@@ -25,9 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 final class ToolbarViewTest {
 
-    /**
-     * Запускає JavaFX перед тестами, які створюють і перевіряють компоненти інтерфейсу.
-     */
+    /** Запускає JavaFX перед тестами, які створюють і перевіряють компоненти інтерфейсу. */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -41,9 +41,7 @@ final class ToolbarViewTest {
         }
     }
 
-    /**
-     * Перевіряє числове введення й підтверджує, що вирівнювання задається CSS, а не inline-стилем.
-     */
+    /** Перевіряє числове введення й підтверджує, що вирівнювання задається CSS, а не inline-стилем. */
     @Test
     void speedFieldAcceptsOnlyNumericInputAndKeepsCssLeftAlignment() throws Exception {
         runOnFxThread(() -> {
@@ -71,12 +69,11 @@ final class ToolbarViewTest {
 
             field.replaceText(0, 4, "-50");
             assertEquals("12.5", field.getText());
+            toolbar.dispose();
         });
     }
 
-    /**
-     * Перевіряє, що застаріла кнопка виходу з режиму видалення зв'язків не додається до панелі.
-     */
+    /** Перевіряє, що застаріла кнопка виходу з режиму видалення зв'язків не додається до панелі. */
     @Test
     void doesNotIncludeObsoleteConnectionDeletionExitButton() throws Exception {
         runOnFxThread(() -> {
@@ -86,12 +83,11 @@ final class ToolbarViewTest {
                     .map(Button.class::cast)
                     .anyMatch(button -> button.getStyleClass().contains("tool-button-danger"));
             assertFalse(hasObsoleteButton);
+            toolbar.dispose();
         });
     }
 
-    /**
-     * Перевіряє, що поле швидкості розташовано перед динамічними елементами керування симуляцією.
-     */
+    /** Перевіряє, що поле швидкості розташовано перед динамічними елементами керування симуляцією. */
     @Test
     void speedFieldStaysBeforeDynamicSimulationControls() throws Exception {
         runOnFxThread(() -> {
@@ -104,12 +100,11 @@ final class ToolbarViewTest {
             assertTrue(stopIndex >= 0);
             assertTrue(speedIndex < pauseIndex);
             assertTrue(speedIndex < stopIndex);
+            toolbar.dispose();
         });
     }
 
-    /**
-     * Перевіряє відображення цілої, дробової та майже цілої тривалості такту в полі швидкості.
-     */
+    /** Перевіряє відображення цілої, дробової та майже цілої тривалості такту в полі швидкості. */
     @Test
     void speedFieldUsesSharedCompactNumberFormatting() throws Exception {
         runOnFxThread(() -> {
@@ -120,14 +115,11 @@ final class ToolbarViewTest {
             assertEquals("125.5", field.getText());
             toolbar.setSimulationSpeedMillis(125.00005);
             assertEquals("125", field.getText());
+            toolbar.dispose();
         });
     }
 
-    /**
-     * Створює панель інструментів із тестовими callback-ами без побічних ефектів.
-     *
-     * @return підготовлена панель.
-     */
+    /** Створює панель інструментів із тестовими callback-ами та явно переданою локалізацією. */
     private static ToolbarView toolbar() {
         return new ToolbarView(
                 ignored -> { },
@@ -136,7 +128,8 @@ final class ToolbarViewTest {
                 () -> { },
                 () -> { },
                 ignored -> { },
-                650.0
+                650.0,
+                new LocalizationService(Locale.forLanguageTag("uk"))
         );
     }
 
@@ -153,34 +146,17 @@ final class ToolbarViewTest {
                 .orElseThrow();
     }
 
-    /**
-     * Знаходить індекс текстового поля швидкості серед дочірніх вузлів панелі.
-     *
-     * @param toolbar панель інструментів.
-     * @return індекс або {@code -1}.
-     */
+    /** Знаходить індекс текстового поля швидкості серед дочірніх вузлів панелі. */
     private static int indexOfSpeedField(ToolbarView toolbar) {
         return indexOf(toolbar.node().getChildren(), node -> node instanceof TextField);
     }
 
-    /**
-     * Знаходить індекс кнопки з указаним текстом.
-     *
-     * @param toolbar панель інструментів.
-     * @param text текст кнопки.
-     * @return індекс або {@code -1}.
-     */
+    /** Знаходить індекс кнопки з указаним текстом. */
     private static int indexOfButton(ToolbarView toolbar, String text) {
         return indexOf(toolbar.node().getChildren(), node -> node instanceof Button button && text.equals(button.getText()));
     }
 
-    /**
-     * Повертає індекс першого вузла, що задовольняє умову.
-     *
-     * @param nodes список вузлів.
-     * @param predicate умова пошуку.
-     * @return індекс збігу або {@code -1}.
-     */
+    /** Повертає індекс першого вузла, що задовольняє умову. */
     private static int indexOf(List<Node> nodes, Predicate<Node> predicate) {
         for (int index = 0; index < nodes.size(); index++) {
             if (predicate.test(nodes.get(index))) {
@@ -190,12 +166,7 @@ final class ToolbarViewTest {
         return -1;
     }
 
-    /**
-     * Виконує дію в потоці JavaFX і передає помилки до потоку JUnit.
-     *
-     * @param action дія для JavaFX.
-     * @throws Exception якщо перевірка не завершується вчасно.
-     */
+    /** Виконує дію в потоці JavaFX і передає помилки до потоку JUnit. */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];

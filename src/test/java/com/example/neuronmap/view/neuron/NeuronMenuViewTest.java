@@ -14,16 +14,13 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Перевіряє створення кнопок контекстного меню та використання незалежних CSS-класів.
- */
+/** Перевіряє створення кнопок контекстного меню та використання незалежних CSS-класів. */
 final class NeuronMenuViewTest {
 
-    /**
-     * Запускає JavaFX toolkit перед перевірками графічних компонентів меню нейрона.
-     */
+    /** Запускає JavaFX toolkit перед перевірками графічних компонентів меню нейрона. */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -37,9 +34,7 @@ final class NeuronMenuViewTest {
         }
     }
 
-    /**
-     * Переконується, що спеціальні кнопки отримують CSS-класи замість inline-стилів і обробників наведення.
-     */
+    /** Переконується, що спеціальні кнопки отримують CSS-класи замість inline-стилів і обробників наведення. */
     @Test
     void customizeMenuButtonUsesCssClassesWithoutInlineStyles() throws Exception {
         runOnFxThread(() -> {
@@ -70,9 +65,7 @@ final class NeuronMenuViewTest {
         });
     }
 
-    /**
-     * Перевіряє, що кнопка напрямку використовує спільний клас меню та передає ідентифікатор через callback.
-     */
+    /** Перевіряє, що кнопка напрямку використовує спільний клас меню та передає ідентифікатор через callback. */
     @Test
     void directionButtonDelegatesSelectedNeuronIdToCallback() throws Exception {
         runOnFxThread(() -> {
@@ -93,23 +86,26 @@ final class NeuronMenuViewTest {
         });
     }
 
-    /**
-     * Перевіряє, що кнопка напрямку не створюється, якщо дію для неї не задано.
-     */
+    /** Перевіряє, що кнопка напрямку не створюється, якщо дію для неї не задано. */
     @Test
     void directionButtonIsOmittedWhenNoActionIsProvided() throws Exception {
         runOnFxThread(() -> {
-            NeuronMenuView view = new NeuronMenuView();
+            NeuronMenuView view = new NeuronMenuView(
+                    () -> null,
+                    null,
+                    new LocalizationService(Locale.forLanguageTag("uk"))
+            );
             assertNull(view.createDirectionButton());
         });
     }
 
-    /**
-     * Виконує дію в потоці JavaFX і передає помилки до потоку JUnit.
-     *
-     * @param action дія для JavaFX.
-     * @throws Exception якщо перевірка не завершується вчасно.
-     */
+    /** Перевіряє, що локалізація є обов'язковою залежністю, а не приводом створити окремий сервіс. */
+    @Test
+    void rejectsMissingLocalizationService() {
+        assertThrows(NullPointerException.class, () -> new NeuronMenuView(() -> null, null, null));
+    }
+
+    /** Виконує дію в потоці JavaFX і передає помилки до потоку JUnit. */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];

@@ -5,6 +5,7 @@ import com.example.neuronmap.view.support.TooltipFactory;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -18,35 +19,23 @@ public final class NeuronMenuView {
     private final LocalizationService localization;
 
     /**
-     * Створює меню нейрона з українською локалізацією та без дії зміни напрямку.
-     */
-    public NeuronMenuView() {
-        this(
-                () -> null,
-                null,
-                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
-        );
-    }
-
-    /**
-     * Створює подання меню з переданими залежностями та службою локалізації.
+     * Створює подання меню з переданими залежностями та спільною службою локалізації.
      *
      * @param selectedNeuronIdSupplier функція, що повертає ідентифікатор нейрона для контекстного меню.
-     * @param directionAction callback, який передає ідентифікатор нейрона контролеру для зміни напрямку.
-     * @param localization служба локалізації інтерфейсу.
+     * @param directionAction callback, який передає ідентифікатор нейрона контролеру для зміни напрямку; {@code null} приховує цю дію.
+     * @param localization обов'язкова спільна служба локалізації інтерфейсу.
+     * @throws NullPointerException якщо локалізацію не передано.
      */
     public NeuronMenuView(
             Supplier<String> selectedNeuronIdSupplier,
             Consumer<String> directionAction,
             LocalizationService localization
     ) {
+        this.localization = Objects.requireNonNull(localization, "localization");
         this.selectedNeuronIdSupplier = selectedNeuronIdSupplier == null
                 ? () -> null
                 : selectedNeuronIdSupplier;
         this.directionAction = directionAction;
-        this.localization = localization == null
-                ? new LocalizationService(java.util.Locale.forLanguageTag("uk"))
-                : localization;
     }
 
     /**
@@ -56,7 +45,8 @@ public final class NeuronMenuView {
      * @param ignoredToolbarRoot кореневий вузол панелі зі старого контракту; більше не використовується.
      * @param selectedNeuronIdSupplier функція, що повертає ідентифікатор нейрона для контекстного меню.
      * @param directionAction callback, який передає ідентифікатор нейрона контролеру для зміни напрямку.
-     * @param localization служба локалізації інтерфейсу.
+     * @param localization обов'язкова спільна служба локалізації інтерфейсу.
+     * @throws NullPointerException якщо локалізацію не передано.
      */
     public NeuronMenuView(
             Node ignoredToolbarRoot,

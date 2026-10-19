@@ -97,9 +97,10 @@ final class NeuronMenuControllerDirectionTest {
         AtomicInteger saves = new AtomicInteger();
         AtomicReference<String> status = new AtomicReference<>();
 
-        ConnectionController connections = new ConnectionController(
-                new ConnectionService(model), state, workspace, neuronViews,
-                () -> { }, () -> { }, message -> { }, localization);
+        ConnectionController connections = ConnectionControllerFactory.create(
+                new ConnectionControllerFactory.Dependencies(
+                        new ConnectionService(model), state, workspace, neuronViews,
+                        () -> { }, () -> { }, message -> { }, localization));
         SimulationStepPresenter stepPresenter = new SimulationStepPresenter(
                 workspace, neuronViews, () -> { }, new PulseAnimationController(workspace));
         SimulationController simulation = new SimulationController(
@@ -129,12 +130,15 @@ final class NeuronMenuControllerDirectionTest {
                 settingsCoordinator);
 
         return new Fixture(controller, neuronService, historyService, neuron,
-                visualRefreshes, connectionRefreshes, overlayRefreshes, saves, status, localization, mainMenu);
+                visualRefreshes, connectionRefreshes, overlayRefreshes, saves, status, localization, mainMenu,
+                simulation, connections);
     }
 
-    /** Звільняє ресурси контролера накладки та подання головного меню. */
+    /** Звільняє ресурси контролера накладки, симуляції, зв'язків і подання головного меню. */
     private static void dispose(Fixture fixture) {
         fixture.controller().dispose();
+        fixture.simulation().shutdown();
+        fixture.connections().dispose();
         fixture.mainMenu().dispose();
     }
 
@@ -150,6 +154,8 @@ final class NeuronMenuControllerDirectionTest {
             AtomicInteger saves,
             AtomicReference<String> status,
             LocalizationService localization,
-            MainMenuView mainMenu
+            MainMenuView mainMenu,
+            SimulationController simulation,
+            ConnectionController connections
     ) { }
 }

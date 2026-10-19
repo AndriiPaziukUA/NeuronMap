@@ -42,47 +42,6 @@ public final class SimulationController {
     private boolean modalSuspended;
 
     /**
-     * Створює контролер симуляції з українською локаллю за замовчуванням.
-     *
-     * @param neuronService служба операцій над нейронами.
-     * @param simulationService служба створення сеансів симуляції.
-     * @param stepPresenter компонент відображення результату такту.
-     * @param save дія збереження стану.
-     * @param status дія показу повідомлень.
-     * @param pausedStateConsumer отримувач стану ручної паузи для панелі інструментів.
-     * @param simulationActivityConsumer отримувач ознаки активності симуляції.
-     * @param initialTickMillis початкова тривалість такту в мілісекундах.
-     * @param minTickMillis мінімальна допустима тривалість такту.
-     * @param maxTickMillis максимальна допустима тривалість такту.
-     */
-    public SimulationController(
-            NeuronService neuronService,
-            SimulationService simulationService,
-            SimulationStepPresenter stepPresenter,
-            Runnable save,
-            Consumer<String> status,
-            Consumer<Boolean> pausedStateConsumer,
-            Consumer<Boolean> simulationActivityConsumer,
-            double initialTickMillis,
-            double minTickMillis,
-            double maxTickMillis
-    ) {
-        this(
-                neuronService,
-                simulationService,
-                stepPresenter,
-                save,
-                status,
-                pausedStateConsumer,
-                simulationActivityConsumer,
-                initialTickMillis,
-                minTickMillis,
-                maxTickMillis,
-                new LocalizationService(java.util.Locale.forLanguageTag("uk"))
-        );
-    }
-
-    /**
      * Створює контролер симуляції зі спільною службою локалізації та перевіреними часовими параметрами.
      *
      * @param neuronService служба операцій над нейронами.
@@ -95,7 +54,8 @@ public final class SimulationController {
      * @param initialTickMillis початкова тривалість такту в мілісекундах.
      * @param minTickMillis мінімальна допустима тривалість такту.
      * @param maxTickMillis максимальна допустима тривалість такту.
-     * @param localization служба локалізації інтерфейсу.
+     * @param localization обов'язкова спільна служба локалізації інтерфейсу.
+     * @throws NullPointerException якщо обов'язкова залежність відсутня.
      */
     public SimulationController(
             NeuronService neuronService,
@@ -110,6 +70,7 @@ public final class SimulationController {
             double maxTickMillis,
             LocalizationService localization
     ) {
+        this.localization = Objects.requireNonNull(localization, "localization");
         this.neuronService = Objects.requireNonNull(neuronService, "neuronService");
         this.simulationService = Objects.requireNonNull(simulationService, "simulationService");
         runtimeState = new SimulationRuntimeState(neuronService.model());
@@ -119,7 +80,6 @@ public final class SimulationController {
         this.pausedStateConsumer = Objects.requireNonNull(pausedStateConsumer, "pausedStateConsumer");
         this.simulationActivityConsumer = Objects.requireNonNull(
                 simulationActivityConsumer, "simulationActivityConsumer");
-        this.localization = Objects.requireNonNull(localization, "localization");
         this.minTickMillis = minTickMillis;
         this.maxTickMillis = maxTickMillis;
         tickMillis = SimulationSpeed.requireMillis(initialTickMillis, minTickMillis, maxTickMillis);

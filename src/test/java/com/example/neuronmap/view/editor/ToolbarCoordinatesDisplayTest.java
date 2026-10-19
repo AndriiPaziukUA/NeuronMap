@@ -1,5 +1,6 @@
 package com.example.neuronmap.view.editor;
 
+import com.example.neuronmap.i18n.LocalizationService;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.scene.control.Label;
@@ -7,6 +8,7 @@ import javafx.scene.control.TextField;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -41,7 +43,8 @@ final class ToolbarCoordinatesDisplayTest {
                     () -> { },
                     () -> { },
                     ignored -> { },
-                    650.0
+                    650.0,
+                    new LocalizationService(Locale.ENGLISH)
             );
             Label coordinates = toolbar.node().getChildren().stream()
                     .filter(Label.class::isInstance)
@@ -58,6 +61,7 @@ final class ToolbarCoordinatesDisplayTest {
 
             toolbar.setCameraCoordinates(10.0, 20.0);
             assertEquals("X: 10, Y: 20", coordinates.getText());
+            toolbar.dispose();
         });
     }
 
@@ -73,7 +77,8 @@ final class ToolbarCoordinatesDisplayTest {
                     () -> { },
                     () -> { },
                     ignored -> speedChanges.incrementAndGet(),
-                    650.0
+                    650.0,
+                    new LocalizationService(Locale.ENGLISH)
             );
             TextField speedField = toolbar.node().getChildren().stream()
                     .filter(TextField.class::isInstance)
@@ -95,6 +100,7 @@ final class ToolbarCoordinatesDisplayTest {
             speedField.setText("700");
             speedField.fireEvent(new ActionEvent());
             assertEquals(1, speedChanges.get());
+            toolbar.dispose();
         });
     }
 

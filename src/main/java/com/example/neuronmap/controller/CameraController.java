@@ -18,6 +18,7 @@ import javafx.scene.input.ScrollEvent;
 import javafx.util.Duration;
 
 import java.util.Locale;
+import java.util.Objects;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -80,7 +81,8 @@ public final class CameraController {
      * @param status дія показу повідомлення в рядку стану.
      * @param cursorWorldConsumer отримувач координат указівника у світовій системі.
      * @param zoomFactor коефіцієнт зміни масштабу за один крок прокручування.
-     * @param localization служба локалізації інтерфейсу; за відсутності використовується українська локаль.
+     * @param localization обов'язкова спільна служба локалізації інтерфейсу.
+     * @throws NullPointerException якщо локалізацію не передано.
      * @throws IllegalArgumentException якщо коефіцієнт масштабу не є скінченним числом, більшим за одиницю.
      */
     public CameraController(
@@ -95,6 +97,7 @@ public final class CameraController {
             double zoomFactor,
             LocalizationService localization
     ) {
+        this.localization = Objects.requireNonNull(localization, "localization");
         this.state = state;
         this.workspace = workspace;
         this.refreshOverlay = refreshOverlay;
@@ -103,9 +106,6 @@ public final class CameraController {
         this.interactiveTarget = interactiveTarget;
         this.status = status;
         this.cursorWorldConsumer = cursorWorldConsumer;
-        this.localization = localization == null
-                ? new LocalizationService(Locale.forLanguageTag("uk"))
-                : localization;
         if (!Double.isFinite(zoomFactor) || zoomFactor <= 1.0) {
             throw new IllegalArgumentException("zoomFactor must be > 1");
         }

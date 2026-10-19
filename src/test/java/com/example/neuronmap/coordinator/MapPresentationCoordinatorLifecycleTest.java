@@ -2,7 +2,9 @@ package com.example.neuronmap.coordinator;
 
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.controller.ConnectionController;
+import com.example.neuronmap.controller.ConnectionControllerFactory;
 import com.example.neuronmap.controller.NeuronInteractionController;
+import com.example.neuronmap.controller.NeuronInteractionControllerFactory;
 import com.example.neuronmap.controller.PulseAnimationController;
 import com.example.neuronmap.controller.SelectionController;
 import com.example.neuronmap.controller.SimulationController;
@@ -218,21 +220,23 @@ final class MapPresentationCoordinatorLifecycleTest {
 
         private final SelectionController selectionController = new SelectionController(
                 groupService, state, () -> { }, () -> { }, ignored -> { }, localization);
-        private final ConnectionController connectionController = new ConnectionController(
-                connectionService, state, workspace, neuronViews, this::refreshPresentation,
-                () -> { }, ignored -> { }, localization);
+        private final ConnectionController connectionController = ConnectionControllerFactory.create(
+                new ConnectionControllerFactory.Dependencies(
+                        connectionService, state, workspace, neuronViews, this::refreshPresentation,
+                        () -> { }, ignored -> { }, localization));
         private final SimulationController simulationController = new SimulationController(
                 neuronService, new SimulationService(),
                 new SimulationStepPresenter(workspace, neuronViews, () -> { }, new PulseAnimationController(workspace)),
                 () -> { }, ignored -> { }, ignored -> { }, ignored -> { },
                 100.0, 10.0, 1_000.0, localization);
-        private final NeuronInteractionController neuronController = new NeuronInteractionController(
-                neuronService, groupService, selectionController,
-                new NeuronClipboardService(neuronService, groupService), state, workspace,
-                neuronViews, rotationHandles, connectionController, simulationController,
-                () -> { }, this::refreshPresentation, ignored -> { },
-                new NeuronMenuView(new Pane(), state::selectedNeuronForMenu, ignored -> { }, localization),
-                localization, settingsOverlayCoordinator);
+        private final NeuronInteractionController neuronController = NeuronInteractionControllerFactory.create(
+                new NeuronInteractionControllerFactory.Dependencies(
+                        neuronService, groupService, selectionController,
+                        new NeuronClipboardService(neuronService, groupService), state, workspace,
+                        neuronViews, rotationHandles, connectionController, simulationController,
+                        () -> { }, this::refreshPresentation, ignored -> { },
+                        new NeuronMenuView(new Pane(), state::selectedNeuronForMenu, ignored -> { }, localization),
+                        localization, settingsOverlayCoordinator));
         private final MapPresentationCoordinator presentationCoordinator = new MapPresentationCoordinator(
                 neuronService, workspace, neuronViews, connectionViews, rotationHandles,
                 neuronController, connectionController,
@@ -258,7 +262,7 @@ final class MapPresentationCoordinatorLifecycleTest {
         private void dispose() {
             neuronController.dispose();
             simulationController.shutdown();
-            connectionController.clearDeleteHighlights();
+            connectionController.dispose();
             mainMenu.dispose();
         }
     }
