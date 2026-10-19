@@ -2,14 +2,12 @@ package com.example.neuronmap.view;
 
 import com.helger.css.ICSSWriteable;
 import com.helger.css.decl.AbstractHasTopLevelRules;
-import com.helger.css.decl.CSSDeclaration;
 import com.helger.css.decl.CSSImportRule;
 import com.helger.css.decl.CSSSelector;
 import com.helger.css.decl.CSSSelectorSimpleMember;
 import com.helger.css.decl.CSSStyleRule;
 import com.helger.css.decl.CascadingStyleSheet;
 import com.helger.css.decl.ICSSSelectorMember;
-import com.helger.css.decl.ICSSTopLevelRule;
 import com.helger.css.reader.CSSReader;
 import com.helger.css.reader.CSSReaderSettings;
 import com.helger.css.reader.errorhandler.ThrowingCSSParseErrorHandler;
@@ -20,12 +18,16 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Надає архітектурним тестам типізований доступ до CSS AST, побудованого повноцінним CSS-парсером.
- * Статичні перевірки власності компонентів доповнюють синтаксичний розбір, але не імітують каскад JavaFX.
+ * Надає архітектурним тестам типізований доступ до CSS AST, побудованого
+ * повноцінним CSS-парсером. Перевірки власності компонентів доповнюють
+ * синтаксичний розбір, але не імітують каскад JavaFX.
  */
 final class CssStylesheetParser {
 
-    /** Стандартні style classes JavaFX, які не можуть самостійно визначати власника компонента. */
+    /**
+     * Стандартні style classes JavaFX, які не можуть самі визначати
+     * власника компонента.
+     */
     private static final Set<String> JAVAFX_STYLE_CLASSES = Set.of(
             "accordion", "arrow", "button", "cell", "check-box", "choice-box",
             "color-picker", "column-header", "column-header-background", "combo-box",
@@ -40,12 +42,12 @@ final class CssStylesheetParser {
             "tree-view", "track", "thumb", "viewport", "virtual-flow", "root");
 
     /**
-     * Винятки для глобальних перевизначень класів JavaFX. Такі селектори мають явного власника,
-     * якщо не містять власнішого прикладного класу компонента.
+     * Винятки для глобальних перевизначень класів JavaFX. Такі селектори
+     * мають явного власника, якщо не містять власнішого класу компонента.
      */
     private static final Set<String> GLOBAL_JAVAFX_STYLE_OWNERS = Set.of("root", "menu-button");
 
-    /** Класи стану JavaFX, що уточнюють стиль, але не є окремими власниками компонента. */
+    /** Класи стану JavaFX, які уточнюють стиль, але не є власниками. */
     private static final Set<String> STATE_CLASS_MARKERS = Set.of(
             "active", "armed", "checked", "collapsed", "default", "disabled", "deselected",
             "determinate", "editable", "empty", "expanded", "filled", "focused", "hover",
@@ -56,11 +58,13 @@ final class CssStylesheetParser {
     }
 
     /**
-     * Розбирає CSS з відхиленням помилок парсингу, що інакше могли б бути пропущені як відновлювані.
+     * Розбирає CSS і відхиляє помилки парсингу, які інакше могли б
+     * бути пропущені як відновлювані.
      *
      * @param source повний текст таблиці стилів.
      * @return AST таблиці стилів з імпортами та правилами.
-     * @throws IllegalArgumentException якщо CSS має синтаксичну помилку або не вдалося створити AST.
+     * @throws IllegalArgumentException якщо CSS має синтаксичну помилку
+     *         або не вдалося створити AST.
      */
     static Stylesheet parse(String source) {
         if (source == null) {
@@ -84,10 +88,11 @@ final class CssStylesheetParser {
     }
 
     /**
-     * Повертає назви CSS-класів, що є кандидатами на власника оформлення для селектора.
+     * Повертає назви CSS-класів, які можуть бути власниками оформлення
+     * для селектора.
      *
      * @param selector AST одного CSS-селектора.
-     * @return власник за останнім специфічним класом, дозволений глобальний клас JavaFX
+     * @return останній специфічний клас, дозволений глобальний клас JavaFX
      *         або порожній рядок, якщо власника не визначено.
      */
     private static String componentOwner(CSSSelector selector) {
@@ -110,7 +115,7 @@ final class CssStylesheetParser {
     }
 
     /**
-     * Збирає стилеві правила також із вкладених @media, @supports та вкладених правил селекторів.
+     * Збирає правила з вкладених @media, @supports та правил селекторів.
      *
      * @param sourceRules правила поточного CSS-контейнера.
      * @param target список для накопичення знайдених правил.
@@ -145,11 +150,13 @@ final class CssStylesheetParser {
     }
 
     /**
-     * Повертає заголовок контейнерного at-rule без тіла, щоб не змішувати різні CSS-контексти.
+     * Повертає заголовок контейнерного at-rule без тіла, щоб не змішувати
+     * різні CSS-контексти.
      *
      * @param rule контейнерне правило.
      * @param writerSettings налаштування канонічної серіалізації.
-     * @return стабільний текст заголовка правила або назва типу, якщо серіалізація недоступна.
+     * @return стабільний текст заголовка або назва типу, якщо
+     *         серіалізація недоступна.
      */
     private static String ruleScope(Object rule, CSSWriterSettings writerSettings) {
         if (rule instanceof ICSSWriteable writeable) {
@@ -168,7 +175,7 @@ final class CssStylesheetParser {
     record Stylesheet(CascadingStyleSheet stylesheet) {
 
         /**
-         * Повертає посилання на локальні чи зовнішні ресурси з директив @import.
+         * Повертає посилання на локальні чи зовнішні ресурси з @import.
          *
          * @return імпорти в порядку їхнього оголошення.
          */
@@ -181,7 +188,7 @@ final class CssStylesheetParser {
         }
 
         /**
-         * Повертає всі стилеві правила, включно з правилами у вкладених контейнерах.
+         * Повертає всі стилеві правила, включно з вкладеними контейнерами.
          *
          * @return правила у порядку обходу AST.
          */
@@ -192,7 +199,8 @@ final class CssStylesheetParser {
         }
 
         /**
-         * Перевіряє, чи містить таблиця що-небудь крім імпортів: стилеві/at-rule або namespace.
+         * Перевіряє, чи є в таблиці щось крім імпортів: стилеві правила,
+         * at-rule або namespace.
          *
          * @return true, якщо присутні сторонні для агрегатора CSS-конструкції.
          */
@@ -211,7 +219,7 @@ final class CssStylesheetParser {
     }
 
     /**
-     * Один селектор зі стабільним CSS-представленням та визначеним класом-власником.
+     * Один селектор зі стабільним CSS-представленням і класом-власником.
      *
      * @param text серіалізований CSS-селектор.
      * @param componentOwner назва класу-власника або порожній рядок.

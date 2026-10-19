@@ -10,10 +10,10 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє CSS AST, сформований бібліотекою парсингу, та власність класів компонентів. */
+/** Перевіряє CSS AST і правила власності класів компонентів. */
 final class CssStylesheetParserTest {
 
-    /** Перевіряє розділення списку селекторів і збереження декларацій зі складними функціями. */
+    /** Перевіряє списки селекторів і декларації зі складними функціями. */
     @Test
     void parsesSelectorListsAndFunctionValues() {
         CssStylesheetParser.Stylesheet stylesheet = CssStylesheetParser.parse("""
@@ -59,7 +59,7 @@ final class CssStylesheetParserTest {
         assertNotEquals(stylesheet.rules().get(0).scope(), stylesheet.rules().get(1).scope());
     }
 
-    /** Переконується, що позначення коментаря в лапках лишається частиною значення властивості. */
+    /** Перевіряє маркери коментарів у лапках у значеннях властивостей. */
     @Test
     void preservesCommentMarkersInsideQuotedValues() {
         CssStylesheetParser.Stylesheet stylesheet = CssStylesheetParser.parse(
@@ -70,7 +70,7 @@ final class CssStylesheetParserTest {
         assertFalse(stylesheet.rules().getFirst().declarations().getFirst().contains("/* прибрати */"));
     }
 
-    /** Визначає власника за компонентним класом, а не за стандартними класами JavaFX або станами. */
+    /** Визначає клас-власник, ігноруючи класи JavaFX та стани. */
     @Test
     void detectsComponentOwnerFromCssAst() {
         assertEquals(
@@ -102,7 +102,7 @@ final class CssStylesheetParserTest {
         assertFalse(stylesheet.hasNonImportRules());
     }
 
-    /** Відхиляє синтаксично неповний CSS замість мовчки пропускати пошкоджений блок. */
+    /** Відхиляє неповний CSS замість пропускати пошкоджений блок. */
     @Test
     void rejectsMalformedCss() {
         assertThrows(IllegalArgumentException.class,
@@ -111,14 +111,14 @@ final class CssStylesheetParserTest {
                 () -> CssStylesheetParser.parse(".component { -fx-padding: 2px;"));
     }
 
-    /** Переконується, що список селекторів з порожнім елементом відхиляється парсером. */
+    /** Перевіряє відхилення списку селекторів із порожнім елементом. */
     @Test
     void rejectsEmptySelectorInSelectorList() {
         assertThrows(IllegalArgumentException.class,
                 () -> CssStylesheetParser.parse(".first, { -fx-padding: 1px; }"));
     }
 
-    /** Розбирає одиночний селектор і повертає визначений для нього компонентний клас. */
+    /** Розбирає селектор і повертає визначений для нього клас-власник. */
     private static String parseSingleSelectorOwner(String selector) {
         List<CssStylesheetParser.Selector> selectors = CssStylesheetParser.parse(
                 selector + " { -fx-padding: 1px; }").rules().getFirst().selectors();

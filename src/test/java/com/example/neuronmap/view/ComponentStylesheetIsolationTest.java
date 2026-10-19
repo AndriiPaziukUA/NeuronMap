@@ -21,22 +21,31 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє синтаксис CSS, імпорти та межі володіння стилями незалежних компонентів. */
+/**
+ * Перевіряє синтаксис CSS, імпорти та межі володіння стилями компонентів.
+ */
 final class ComponentStylesheetIsolationTest {
 
+    /** Каталог вихідних CSS-ресурсів застосунку. */
     private static final String RESOURCES_DIRECTORY = "src/main/resources";
+
+    /** Агрегатор, який підключає таблиці стилів компонентів. */
     private static final String AGGREGATE_STYLESHEET = "app.css";
+
+    /** CSS-файли з платформними варіантами заголовка вікна. */
     private static final Set<String> WINDOW_CHROME_STYLESHEETS = Set.of(
             "window-chrome.css", "window-chrome-linux.css", "window-chrome-macos.css");
+    /** Класи заголовка, які навмисно налаштовуються для різних платформ. */
     private static final Set<String> SHARED_WINDOW_CHROME_CLASSES = Set.of(
             "window-title-bar", "window-title-bar-host", "window-title", "window-control-group",
             "window-control-button", "window-control-minimize", "window-control-maximize",
             "window-control-close", "window-icon-stroke", "window-icon-outline");
+    /** Єдині дозволені власники для глобальних класів JavaFX. */
     private static final Map<String, String> GLOBAL_JAVAFX_STYLE_OWNER_RESOURCES = Map.of(
             "root", "editor-shell.css",
             "menu-button", "neuron.css");
 
-    /** Переконується, що кожен CSS-файл ресурсів присутній у зібраному classpath. */
+    /** Перевіряє, що кожен CSS-ресурс додано до зібраного classpath. */
     @Test
     void everyStylesheetResourceIsPackaged() throws IOException {
         for (StylesheetResource stylesheet : findStylesheets().values()) {
@@ -47,7 +56,9 @@ final class ComponentStylesheetIsolationTest {
         }
     }
 
-    /** Перевіряє всі CSS-файли CSS-парсером і виявляє відсутні імпорти та цикли залежностей. */
+    /**
+     * Перевіряє синтаксис CSS, доступність імпортів і відсутність циклів.
+     */
     @Test
     void stylesheetsParseAndImportsResolveWithoutCycles() throws IOException {
         Map<String, StylesheetResource> stylesheets = findStylesheets();
@@ -75,7 +86,7 @@ final class ComponentStylesheetIsolationTest {
         }
     }
 
-    /** Не дозволяє двом таблицям визначати стиль того самого компонентного класу. */
+    /** Забороняє визначати той самий клас компонента у різних CSS-файлах. */
     @Test
     void componentStyleOwnersDoNotOverlapAcrossStylesheets() throws IOException {
         Map<String, SelectorOwner> owners = new HashMap<>();
@@ -114,7 +125,9 @@ final class ComponentStylesheetIsolationTest {
         }
     }
 
-    /** Перевіряє, що кожен дозволений глобальний стиль JavaFX існує лише у своєму ресурсі-власнику. */
+    /**
+     * Перевіряє, що глобальні стилі JavaFX залишаються у файлах-власниках.
+     */
     @Test
     void designatedGlobalJavaFxOverridesRemainInTheirOwnerStylesheets() throws IOException {
         Map<String, StylesheetResource> stylesheets = findStylesheets();
@@ -134,7 +147,7 @@ final class ComponentStylesheetIsolationTest {
         }
     }
 
-    /** Переконується, що app.css лишається агрегатором без власних правил і сторонніх at-rule. */
+    /** Перевіряє, що app.css лишається лише агрегатором імпортів. */
     @Test
     void aggregateStylesheetContainsOnlyImports() throws IOException {
         StylesheetResource aggregate = findStylesheets().get(AGGREGATE_STYLESHEET);
@@ -146,7 +159,8 @@ final class ComponentStylesheetIsolationTest {
     }
 
     /**
-     * Забороняє точні дублікати селектора з тим самим списком декларацій в межах однієї таблиці.
+     * Забороняє повторювати селектор із тим самим списком декларацій
+     * у межах однієї таблиці стилів.
      *
      * @throws IOException якщо файл стилів неможливо прочитати.
      */
@@ -171,7 +185,8 @@ final class ComponentStylesheetIsolationTest {
     }
 
     /**
-     * Читає файл і будує AST, додаючи шлях ресурсу до діагностики синтаксичних помилок.
+     * Читає файл і будує AST. Шлях ресурсу додається до повідомлення
+     * про синтаксичну помилку.
      *
      * @param stylesheet опис CSS-ресурсу.
      * @return розібрана таблиця стилів.
@@ -189,7 +204,7 @@ final class ComponentStylesheetIsolationTest {
     }
 
     /**
-     * Знаходить CSS-файли рекурсивно, зберігаючи стабільні шляхи від каталогу ресурсів.
+     * Знаходить CSS-файли рекурсивно й зберігає стабільні відносні шляхи.
      *
      * @return CSS-ресурси, упорядковані за відносним шляхом.
      * @throws IOException якщо каталог ресурсів недоступний.
@@ -210,7 +225,7 @@ final class ComponentStylesheetIsolationTest {
     }
 
     /**
-     * Перевіряє безпечний шлях імпортованого ресурсу відносно каталогу ресурсів.
+     * Перевіряє, що імпортований ресурс лежить у межах каталогу ресурсів.
      *
      * @param importer таблиця стилів, що містить імпорт.
      * @param importedUri URI з директиви @import.
