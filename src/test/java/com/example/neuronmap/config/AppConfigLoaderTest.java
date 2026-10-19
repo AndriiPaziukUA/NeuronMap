@@ -12,13 +12,21 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє безпечне завантаження базової конфігурації та порядок застосування операційних перевизначень. */
+/** Перевіряє значення конфігурації, перевизначення, їхню діагностику та безпеку розбору XML. */
 class AppConfigLoaderTest {
 
     @TempDir
@@ -93,6 +101,48 @@ class AppConfigLoaderTest {
         AppConfig config = loadWithIsolatedSources();
 
         assertEquals(1400.0, config.window().defaultWidth());
+    }
+
+    /** Перевіряє, що невідомі перевизначення журналюються, а ефективні типові значення не пошкоджуються.
+     *
+     * @throws IOException якщо не вдається підготувати необов'язковий файл перевизначень.
+     */
+    @Test
+    void logsUnknownOptionalOverridesAndPreservesDefaults() throws IOException {
+        Files.writeString(
+                new ApplicationStorageLayout(temporaryDirectory).configurationOverrideFile(),
+                "notARealSetting=true\n",
+                StandardCharsets.UTF_8
+        );
+        Logger logger = Logger.getLogger(AppConfigLoader.class.getName());
+        CapturingHandler handler = new CapturingHandler();
+        Level previousLevel = logger.getLevel();
+        boolean previousParentHandlers = logger.getUseParentHandlers();
+        logger.addHandler(handler);
+        logger.setLevel(Level.WARNING);
+        logger.setUseParentHandlers(false);
+
+        try {
+            AppConfig config = AppConfigLoader.load(
+                    new ApplicationStorageLayout(temporaryDirectory),
+                    new Properties(),
+                    Map.of("NEURONMAP_CONFIG_UNRECOGNIZED_OPTION", "true")
+            );
+
+            assertEquals(1280.0, config.window().defaultWidth());
+            assertEquals(2, handler.records.size(), "Невідомий ключ кожного джерела має бути діагностований");
+            assertTrue(handler.records.stream().allMatch(record -> record.getLevel() == Level.WARNING));
+            List<String> messages = handler.records.stream()
+                    .map(record -> MessageFormat.format(record.getMessage(), record.getParameters()))
+                    .toList();
+            assertTrue(messages.stream().anyMatch(message -> message.contains("notARealSetting")));
+            assertTrue(messages.stream().anyMatch(
+                    message -> message.contains("NEURONMAP_CONFIG_UNRECOGNIZED_OPTION")));
+        } finally {
+            logger.removeHandler(handler);
+            logger.setLevel(previousLevel);
+            logger.setUseParentHandlers(previousParentHandlers);
+        }
     }
 
     /** Перевіряє відхилення шляху до файла вікна, який намагається вийти за межі каталогу зберігання. */
@@ -224,5 +274,28 @@ class AppConfigLoaderTest {
                 + "<camera zoomFactor=\"1.2\"/>"
                 + "<simulation defaultTickMs=\"500\" minTickMs=\"10\" maxTickMs=\"1000\"/>"
                 + "</app>";
+    }
+
+    /** Накопичує конфігураційні попередження, щоб перевірити їхній зміст без виведення в консоль. */
+    private static final class CapturingHandler extends Handler {
+        private final List<LogRecord> records = new ArrayList<>();
+
+        /** Зберігає запис журналу для подальшої перевірки тестом. */
+        @Override
+        public void publish(LogRecord record) {
+            records.add(record);
+        }
+
+        /** Не виконує додаткової дії, оскільки записи зберігаються лише в пам'яті. */
+        @Override
+        public void flush() {
+            // Внутрішній список не потребує скидання у зовнішній ресурс.
+        }
+
+        /** Закриває обробник без зовнішніх ресурсів. */
+        @Override
+        public void close() {
+            // Обробник утримує лише тестову колекцію в пам'яті.
+        }
     }
 }

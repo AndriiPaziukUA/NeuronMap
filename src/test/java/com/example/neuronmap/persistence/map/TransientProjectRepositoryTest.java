@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє відкладену матеріалізацію тимчасового проєкту та передачу роботи постійному репозиторію. */
+/** Перевіряє відкладену матеріалізацію, передавання стану та життєвий цикл тимчасового репозиторію. */
 final class TransientProjectRepositoryTest {
 
     /** Перевіряє, що порожній тимчасовий проєкт не створює каталог до появи даних. */
@@ -92,8 +92,8 @@ final class TransientProjectRepositoryTest {
     }
 
     /**
-     * Переконується, що постійний делегат створюється ін’єктованим постачальником після підготовки каталогу.
-     * Тест використовує тестовий делегат і не відкриває SQLite.
+     * Переконується, що постійний делегат створюється ін’єктованим постачальником після підготовки каталогу,
+     * а камера й відкладена швидкість передаються йому під час першого збереження.
      *
      * @param tempDir тимчасовий каталог тесту.
      * @throws Exception якщо не вдається підготувати тестові файли.
@@ -116,6 +116,7 @@ final class TransientProjectRepositoryTest {
         })) {
             assertEquals(0, factoryCalls.get());
             assertFalse(repository.isPersistent());
+            repository.saveSimulationTickMillis(275.0);
 
             NeuronMapModel model = new NeuronMapModel();
             model.createNeuron(NeuronType.EXCITATORY, 10.0, 15.0);
@@ -126,10 +127,41 @@ final class TransientProjectRepositoryTest {
             assertTrue(repository.isPersistent());
             assertSame(model, delegate.savedModel);
             assertEquals(camera, delegate.savedCameraState);
+            assertEquals(275.0, delegate.savedSimulationTickMillis, 0.0001);
             assertEquals(0, delegate.closeCalls);
         }
 
         assertEquals(1, delegate.closeCalls);
+    }
+
+    /** Перевіряє, що подвійне закриття звільняє делегат один раз і подальші записи відхиляються. */
+    @Test
+    void closeIsIdempotentAndRejectsSubsequentWrites(@TempDir Path tempDir) {
+        Path path = tempDir.resolve("ClosedProject").resolve("project.db");
+        RecordingMapRepository delegate = new RecordingMapRepository(path);
+        AtomicInteger factoryCalls = new AtomicInteger();
+
+        try (TransientProjectRepository repository = new TransientProjectRepository(path, tempDir, () -> {
+            factoryCalls.incrementAndGet();
+            return delegate;
+        })) {
+            NeuronMapModel model = new NeuronMapModel();
+            model.createNeuron(NeuronType.INHIBITORY, 5.0, 8.0);
+            repository.save(model, CameraState.defaultState());
+
+            repository.close();
+            repository.close();
+
+            assertEquals(1, factoryCalls.get());
+            assertEquals(1, delegate.closeCalls);
+            assertThrows(IllegalStateException.class, () -> repository.saveSimulationTickMillis(225.0));
+            assertThrows(
+                    IllegalStateException.class,
+                    () -> repository.save(new NeuronMapModel(), CameraState.defaultState())
+            );
+        }
+
+        assertEquals(1, delegate.closeCalls, "Повторний close не повинен повторно звільняти делегат");
     }
 
     /** Перевіряє, що файл бази даних, який існував до матеріалізації, не перезаписується. */
@@ -178,6 +210,7 @@ final class TransientProjectRepositoryTest {
         private final Path databasePath;
         private NeuronMapModel savedModel;
         private CameraState savedCameraState;
+        private double savedSimulationTickMillis = Double.NaN;
         private int closeCalls;
 
         /** Створює тестовий делегат для вказаного шляху. */
@@ -197,10 +230,10 @@ final class TransientProjectRepositoryTest {
             return CameraState.defaultState();
         }
 
-        /** Повертає резервну тривалість такту, оскільки цей тест не зберігає її. */
+        /** Повертає записану тривалість такту або резервне значення до її першого збереження. */
         @Override
         public double loadSimulationTickMillis(double fallbackMillis) {
-            return fallbackMillis;
+            return Double.isNaN(savedSimulationTickMillis) ? fallbackMillis : savedSimulationTickMillis;
         }
 
         /** Залишає модель без змін, оскільки тест перевіряє тільки передавання операцій запису. */
@@ -209,10 +242,10 @@ final class TransientProjectRepositoryTest {
             // Читання не потрібне для цього тестового делегата.
         }
 
-        /** Не зберігає налаштування симуляції, оскільки цей сценарій перевіряє лише запис карти. */
+        /** Запам’ятовує тривалість такту, передану тимчасовим репозиторієм після матеріалізації. */
         @Override
         public void saveSimulationTickMillis(double millis) {
-            // Налаштування симуляції не потрібне для цього тесту.
+            savedSimulationTickMillis = millis;
         }
 
         /** Запам’ятовує модель і стан камери, передані тимчасовим репозиторієм. */
