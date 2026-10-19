@@ -1,5 +1,8 @@
 package com.example.neuronmap.persistence.sqlite;
 
+import com.example.neuronmap.model.CameraState;
+import com.example.neuronmap.model.NeuronMapModel;
+import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.persistence.MapRepository;
 import com.example.neuronmap.persistence.MapRepositoryFactory;
 import com.example.neuronmap.persistence.map.TransientProjectRepository;
@@ -9,6 +12,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -16,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє створення фабрикою репозиторіїв для тимчасових і збережених проєктів.
+ * Перевіряє створення репозиторіїв фабрикою та використання її постійного делегата під час матеріалізації.
  */
 final class DefaultMapRepositoryFactoryTest {
 
@@ -44,7 +48,33 @@ final class DefaultMapRepositoryFactoryTest {
     }
 
     /**
-     * Перевіряє створення SQLite-репозиторію для збереженого проєкту.
+     * Перевіряє, що після появи даних фабрика створює постійний делегат і проєкт зберігається у SQLite.
+     *
+     * @param tempDir тимчасовий каталог тесту.
+     */
+    @Test
+    void materializesTransientProjectThroughFactoryDelegate(@TempDir Path tempDir) {
+        Path databasePath = tempDir.resolve("Project").resolve("project.db");
+        ProjectDescriptor project = new ProjectDescriptor(
+                "project-id",
+                "Project",
+                databasePath,
+                null
+        );
+        MapRepositoryFactory factory = new DefaultMapRepositoryFactory();
+        NeuronMapModel model = new NeuronMapModel();
+        model.createNeuron(NeuronType.EXCITATORY, 20.0, 30.0);
+
+        try (MapRepository repository = factory.createTransientProjectRepository(project)) {
+            repository.save(model, new CameraState(1.25, 10.0, -5.0));
+
+            assertTrue(repository.isPersistent());
+            assertTrue(Files.isRegularFile(databasePath));
+        }
+    }
+
+    /**
+     * Перевіряє створення SQLite-репозиторію для наявного збереженого проєкту.
      *
      * @param tempDir тимчасовий каталог тесту.
      */
@@ -55,7 +85,7 @@ final class DefaultMapRepositoryFactoryTest {
                 "project-id",
                 "Project",
                 databasePath,
-                java.time.Instant.now()
+                Instant.now()
         );
         MapRepositoryFactory factory = new DefaultMapRepositoryFactory();
 

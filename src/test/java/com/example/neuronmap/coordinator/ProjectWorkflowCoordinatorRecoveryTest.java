@@ -6,10 +6,10 @@ import com.example.neuronmap.persistence.project.FileSystemProjectCatalogReposit
 import com.example.neuronmap.persistence.settings.GlobalSettingsStore;
 import com.example.neuronmap.persistence.MapRepository;
 import com.example.neuronmap.persistence.MapRepositoryFactory;
-import com.example.neuronmap.persistence.map.TransientProjectRepository;
 import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.service.MapService;
 import com.example.neuronmap.service.ProjectCatalogService;
+import com.example.neuronmap.testsupport.TransientRepositoryTestSupport;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -54,7 +54,7 @@ final class ProjectWorkflowCoordinatorRecoveryTest {
         AtomicReference<ProjectDescriptor> currentProject = new AtomicReference<>(activeProject);
         MapService mapService = new MapService(
                 new NeuronMapModel(),
-                new TransientProjectRepository(temporaryDirectory.resolve("active/project.db"))
+                TransientRepositoryTestSupport.create(temporaryDirectory.resolve("active/project.db"))
         );
         RuntimeException originalFailure = new IllegalStateException("Project state update failed");
         RuntimeException recoveryFailure = new IllegalStateException("Repository recovery failed");
@@ -68,19 +68,19 @@ final class ProjectWorkflowCoordinatorRecoveryTest {
              */
             @Override
             public MapRepository createTransientProjectRepository(ProjectDescriptor project) {
-                return new TransientProjectRepository(project.databasePath());
+                return TransientRepositoryTestSupport.create(project.databasePath());
             }
 
             /**
              * Імітує помилку повторного підключення попереднього проєкту.
              *
              * @param project опис проєкту, сховище якого потрібно відновити.
-             * @return метод завжди завершується винятком, тому значення не повертається.
+             * @return перше створення повертає тестове сховище; наступне завершується заданою помилкою.
              */
             @Override
             public MapRepository createSavedProjectRepository(ProjectDescriptor project) {
                 if (savedRepositoryCreations.getAndIncrement() == 0) {
-                    return new TransientProjectRepository(project.databasePath());
+                    return TransientRepositoryTestSupport.create(project.databasePath());
                 }
                 throw recoveryFailure;
             }

@@ -7,10 +7,10 @@ import com.example.neuronmap.persistence.project.FileSystemProjectCatalogReposit
 import com.example.neuronmap.persistence.settings.GlobalSettingsStore;
 import com.example.neuronmap.persistence.MapRepository;
 import com.example.neuronmap.persistence.MapRepositoryFactory;
-import com.example.neuronmap.persistence.map.TransientProjectRepository;
 import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.service.MapService;
 import com.example.neuronmap.service.ProjectCatalogService;
+import com.example.neuronmap.testsupport.TransientRepositoryTestSupport;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -188,7 +188,7 @@ final class ProjectWorkflowCoordinatorRenameLifecycleTest {
      * @return відстежуваний репозиторій для тесту.
      */
     private TrackingRepository trackingRepository(Path databasePath) {
-        return new TrackingRepository(new TransientProjectRepository(databasePath));
+        return new TrackingRepository(TransientRepositoryTestSupport.create(databasePath));
     }
 
     /**
@@ -212,7 +212,7 @@ final class ProjectWorkflowCoordinatorRenameLifecycleTest {
          */
         @Override
         public MapRepository createTransientProjectRepository(ProjectDescriptor project) {
-            return new TrackingRepository(new TransientProjectRepository(project.databasePath()));
+            return new TrackingRepository(TransientRepositoryTestSupport.create(project.databasePath()));
         }
 
         /**
@@ -224,7 +224,7 @@ final class ProjectWorkflowCoordinatorRenameLifecycleTest {
         @Override
         public MapRepository createSavedProjectRepository(ProjectDescriptor project) {
             TrackingRepository repository = new TrackingRepository(
-                    new TransientProjectRepository(project.databasePath())
+                    TransientRepositoryTestSupport.create(project.databasePath())
             );
             savedRepositories.add(repository);
             return repository;

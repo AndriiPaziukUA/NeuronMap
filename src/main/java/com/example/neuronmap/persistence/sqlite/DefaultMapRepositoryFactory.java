@@ -14,6 +14,7 @@ public final class DefaultMapRepositoryFactory implements MapRepositoryFactory {
 
     /**
      * Створює репозиторій, який матеріалізує тимчасовий проєкт лише після появи даних для збереження.
+     * Фабрика постійного репозиторію передається як залежність, тому тимчасове сховище не керує вибором реалізації.
      *
      * @param project опис тимчасового проєкту.
      * @return репозиторій тимчасового проєкту.
@@ -21,17 +22,43 @@ public final class DefaultMapRepositoryFactory implements MapRepositoryFactory {
     @Override
     public MapRepository createTransientProjectRepository(ProjectDescriptor project) {
         Objects.requireNonNull(project, "project");
-        return new TransientProjectRepository(project.databasePath());
+        return new TransientProjectRepository(
+                project.databasePath(),
+                () -> createPersistentDelegate(project)
+        );
     }
 
     /**
      * Створює постійний SQLite-репозиторій для збереженого проєкту.
+     * Цей самий шлях створення використовується як делегат після матеріалізації тимчасового проєкту.
      *
      * @param project опис збереженого проєкту.
      * @return SQLite-репозиторій проєкту.
      */
     @Override
     public MapRepository createSavedProjectRepository(ProjectDescriptor project) {
+        return createSqliteRepository(project);
+    }
+
+    /**
+     * Створює постійний SQLite-делегат для матеріалізованого тимчасового проєкту.
+     *
+     * @param project опис проєкту, який матеріалізується.
+     * @return SQLite-репозиторій, що обслуговуватиме подальші операції збереження.
+     */
+    @Override
+    public MapRepository createPersistentDelegate(ProjectDescriptor project) {
+        return createSqliteRepository(project);
+    }
+
+    /**
+     * Централізує створення SQLite-репозиторіїв, щоб відкриття збереженого проєкту й матеріалізація
+     * використовували однаковий механізм ініціалізації сховища.
+     *
+     * @param project опис проєкту, для якого створюється репозиторій.
+     * @return новий SQLite-репозиторій.
+     */
+    private MapRepository createSqliteRepository(ProjectDescriptor project) {
         Objects.requireNonNull(project, "project");
         return new SqliteMapRepository(project.databasePath());
     }

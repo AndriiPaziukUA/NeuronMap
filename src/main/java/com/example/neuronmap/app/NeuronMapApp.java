@@ -97,7 +97,7 @@ public final class NeuronMapApp extends Application {
      */
     @Override
     public void stop() {
-        if (mainWindowController != null) {
+        if (Objects.nonNull(mainWindowController)) {
             mainWindowController.shutdown();
         }
     }

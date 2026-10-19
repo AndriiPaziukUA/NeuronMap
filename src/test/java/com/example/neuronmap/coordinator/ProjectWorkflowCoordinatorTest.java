@@ -10,6 +10,7 @@ import com.example.neuronmap.persistence.MapRepositoryFactory;
 import com.example.neuronmap.persistence.map.TransientProjectRepository;
 import com.example.neuronmap.service.MapService;
 import com.example.neuronmap.service.ProjectCatalogService;
+import com.example.neuronmap.testsupport.TransientRepositoryTestSupport;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -31,6 +32,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 final class ProjectWorkflowCoordinatorTest {
 
+    /**
+     * Перевіряє, що координатор редактора більше не оголошує сценарії CRUD для проєктів.
+     */
     @Test
     void editorCoordinatorNoLongerDeclaresProjectCrudWorkflows() {
         java.util.Set<String> methodNames = java.util.Arrays.stream(
@@ -43,6 +47,11 @@ final class ProjectWorkflowCoordinatorTest {
         assertFalse(methodNames.contains("deleteProject"));
     }
 
+    /**
+     * Перевіряє створення тимчасового проєкту й передавання його репозиторію активатору.
+     *
+     * @param tempDir тимчасовий каталог тесту.
+     */
     @Test
     void createsTransientProjectAndDelegatesActivation(@TempDir Path tempDir) {
         ProjectCatalogService catalog = catalog(tempDir.resolve("projects"));
@@ -83,6 +92,11 @@ final class ProjectWorkflowCoordinatorTest {
         mapService.close();
     }
 
+    /**
+     * Перевіряє, що null і повторне відкриття активного проєкту не запускають перемикання редактора.
+     *
+     * @param tempDir тимчасовий каталог тесту.
+     */
     @Test
     void ignoresNullAndAlreadyActiveProjects(@TempDir Path tempDir) {
         ProjectCatalogService catalog = catalog(tempDir.resolve("projects"));
@@ -116,6 +130,12 @@ final class ProjectWorkflowCoordinatorTest {
         mapService.close();
     }
 
+    /**
+     * Перевіряє перейменування неактивного проєкту без збереження поточної карти.
+     *
+     * @param tempDir тимчасовий каталог тесту.
+     * @throws Exception якщо не вдається підготувати тестові файли.
+     */
     @Test
     void renamesInactiveProjectThroughCatalog(@TempDir Path tempDir) throws Exception {
         Path root = tempDir.resolve("projects");
@@ -153,6 +173,12 @@ final class ProjectWorkflowCoordinatorTest {
         mapService.close();
     }
 
+    /**
+     * Перевіряє видалення неактивного проєкту без перемикання редактора.
+     *
+     * @param tempDir тимчасовий каталог тесту.
+     * @throws Exception якщо не вдається підготувати тестові файли.
+     */
     @Test
     void deletesInactiveProjectWithoutSwitchingEditor(@TempDir Path tempDir) throws Exception {
         Path root = tempDir.resolve("projects");
@@ -193,17 +219,29 @@ final class ProjectWorkflowCoordinatorTest {
     }
 
     /**
-     * Створює тестову фабрику, яка надає тимчасове сховище без запуску SQLite.
+     * Створює тестову фабрику, яка надає тимчасове сховище й не відкриває SQLite до матеріалізації.
      *
      * @return фабрика репозиторіїв для ізольованих тестів сценаріїв проєктів.
      */
     private static MapRepositoryFactory testRepositoryFactory() {
         return new MapRepositoryFactory() {
+            /**
+             * Створює відкладений репозиторій тимчасового проєкту.
+             *
+             * @param project опис тимчасового проєкту.
+             * @return тимчасовий репозиторій.
+             */
             @Override
             public MapRepository createTransientProjectRepository(ProjectDescriptor project) {
-                return new TransientProjectRepository(project.databasePath());
+                return TransientRepositoryTestSupport.create(project.databasePath());
             }
 
+            /**
+             * Відхиляє запит на збережений репозиторій, не потрібний у цьому тесті.
+             *
+             * @param project опис збереженого проєкту.
+             * @return метод не повертає значення, оскільки сценарій не підтримується цим тестом.
+             */
             @Override
             public MapRepository createSavedProjectRepository(ProjectDescriptor project) {
                 throw new UnsupportedOperationException("Saved repository is not needed in this test");
@@ -224,10 +262,16 @@ final class ProjectWorkflowCoordinatorTest {
         ));
     }
 
+    /**
+     * Створює службу карти з тимчасовим репозиторієм, який отримано через стандартну фабрику.
+     *
+     * @param databasePath шлях до бази даних активної карти.
+     * @return службу карти.
+     */
     private static MapService mapService(Path databasePath) {
         return new MapService(
                 new NeuronMapModel(),
-                new TransientProjectRepository(databasePath)
+                TransientRepositoryTestSupport.create(databasePath)
         );
     }
 }

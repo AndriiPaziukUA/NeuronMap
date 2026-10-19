@@ -7,10 +7,10 @@ import com.example.neuronmap.persistence.project.FileSystemProjectCatalogReposit
 import com.example.neuronmap.persistence.settings.GlobalSettingsStore;
 import com.example.neuronmap.persistence.MapRepository;
 import com.example.neuronmap.persistence.MapRepositoryFactory;
-import com.example.neuronmap.persistence.map.TransientProjectRepository;
 import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.service.MapService;
 import com.example.neuronmap.service.ProjectCatalogService;
+import com.example.neuronmap.testsupport.TransientRepositoryTestSupport;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -75,7 +75,7 @@ final class ProjectWorkflowCoordinatorActivationTest {
     @Test
     void closesDistinctRepositoryEvenWhenDatabasePathMatchesActiveProject() {
         Path sharedPath = temporaryDirectory.resolve("shared/project.db");
-        MapRepository activeRepository = new TransientProjectRepository(sharedPath);
+        MapRepository activeRepository = TransientRepositoryTestSupport.create(sharedPath);
         MapService mapService = new MapService(new NeuronMapModel(), activeRepository);
         AtomicReference<TrackingRepository> createdRepository = new AtomicReference<>();
         ProjectDescriptor current = new ProjectDescriptor("current", "Current", sharedPath, null);
@@ -266,13 +266,13 @@ final class ProjectWorkflowCoordinatorActivationTest {
     }
 
     /**
-     * Створює службу карти з простим тимчасовим репозиторієм.
+     * Створює службу карти з тимчасовим репозиторієм, який отримано через стандартну фабрику.
      *
      * @param databasePath тестовий шлях бази даних.
      * @return службу карти.
      */
     private static MapService mapService(Path databasePath) {
-        return new MapService(new NeuronMapModel(), new TransientProjectRepository(databasePath));
+        return new MapService(new NeuronMapModel(), TransientRepositoryTestSupport.create(databasePath));
     }
 
     /**
