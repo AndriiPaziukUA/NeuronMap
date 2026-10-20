@@ -1,14 +1,19 @@
 package com.example.neuronmap.view.editor;
 
 import javafx.beans.value.ChangeListener;
+import javafx.event.EventHandler;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
+import javafx.scene.control.Button;
+import javafx.scene.control.TextInputControl;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.transform.Scale;
 
-/** Збирає шари полотна карти й застосовує світове перетворення до координатної сітки, нейронів, зв’язків та накладок. */
+/** Збирає шари полотна карти, керує фокусом дошки та перемальовує координатну сітку. */
 public final class WorkspaceView {
 
     private final StackPane viewport = new StackPane();
@@ -28,12 +33,15 @@ public final class WorkspaceView {
             (observable, oldValue, newValue) -> redrawGrid();
     private final ChangeListener<Number> viewportHeightListener =
             (observable, oldValue, newValue) -> redrawGrid();
+    private final EventHandler<MouseEvent> focusRequestHandler = this::handleMousePressed;
     private boolean disposed;
 
-    /** Створює шари робочої області та реєструє слухачі розміру, необхідні для перемальовування сітки. */
+    /** Створює шари робочої області, налаштовує фокус дошки та реєструє слухачі розміру. */
     public WorkspaceView() {
         viewport.getStyleClass().add("canvas");
         viewport.setPickOnBounds(true);
+        viewport.setFocusTraversable(true);
+        viewport.addEventFilter(MouseEvent.MOUSE_PRESSED, focusRequestHandler);
 
         clip.widthProperty().bind(viewport.widthProperty());
         clip.heightProperty().bind(viewport.heightProperty());
@@ -71,7 +79,7 @@ public final class WorkspaceView {
     }
 
     /**
-     * Від'єднує слухачі розміру та внутрішні прив'язки робочої області.
+     * Від'єднує слухачі розміру, фільтр фокуса та внутрішні прив'язки робочої області.
      * Повторний виклик безпечний і не змінює поточне графічне представлення.
      */
     public void dispose() {
@@ -79,6 +87,7 @@ public final class WorkspaceView {
             return;
         }
         disposed = true;
+        viewport.removeEventFilter(MouseEvent.MOUSE_PRESSED, focusRequestHandler);
         viewport.widthProperty().removeListener(viewportWidthListener);
         viewport.heightProperty().removeListener(viewportHeightListener);
         clip.widthProperty().unbind();
@@ -104,18 +113,18 @@ public final class WorkspaceView {
     }
 
     /**
-     * Повертає шар полотна, на якому відображаються зв’язки між нейронами.
+     * Повертає шар полотна, на якому відображаються зв'язки між нейронами.
      *
-     * @return шар полотна, на якому відображаються зв’язки між нейронами.
+     * @return шар полотна, на якому відображаються зв'язки між нейронами.
      */
     public Pane edgeLayer() {
         return edgeLayer;
     }
 
     /**
-     * Повертає шар полотна для анімаційних імпульсів на зв’язках.
+     * Повертає шар полотна для анімаційних імпульсів на зв'язках.
      *
-     * @return шар полотна для анімаційних імпульсів на зв’язках.
+     * @return шар полотна для анімаційних імпульсів на зв'язках.
      */
     public Pane pulseLayer() {
         return pulseLayer;
@@ -163,6 +172,33 @@ public final class WorkspaceView {
      */
     public void redrawGrid(double zoom, double panX, double panY) {
         gridRenderer.redraw(viewport.getWidth(), viewport.getHeight(), zoom, panX, panY);
+    }
+
+    /** Переміщує клавіатурний фокус на дошку, не забираючи його в елементів введення чи кнопок. */
+    private void handleMousePressed(MouseEvent event) {
+        if (!disposed && !isInteractiveTarget(event.getTarget())) {
+            viewport.requestFocus();
+        }
+    }
+
+    /**
+     * Перевіряє, чи натиснули інтерактивний елемент, який має зберігати власний фокус.
+     *
+     * @param target ціль події миші.
+     * @return {@code true}, якщо ціль або її предок є кнопкою чи текстовим полем.
+     */
+    private boolean isInteractiveTarget(Object target) {
+        if (!(target instanceof Node targetNode)) {
+            return false;
+        }
+        Node current = targetNode;
+        while (current != null && current != viewport) {
+            if (current instanceof Button || current instanceof TextInputControl) {
+                return true;
+            }
+            current = current.getParent();
+        }
+        return false;
     }
 
     /** Перемальовує координатну сітку відповідно до поточних параметрів камери. */

@@ -162,6 +162,34 @@ final class LocalizationServiceTest {
     }
 
     /**
+     * Перевіряє точні підписи паузи, продовження та зупинки в кожному ресурсному наборі.
+     */
+    @Test
+    void simulationTooltipsAreConsistentAcrossSupportedLocales() {
+        assertSimulationTooltips(Locale.ROOT, "Pause", "Continue", "Stop");
+        assertSimulationTooltips(Locale.ENGLISH, "Pause", "Continue", "Stop");
+        assertSimulationTooltips(Locale.forLanguageTag("ru"), "Пауза", "Продолжить", "Стоп");
+        assertSimulationTooltips(Locale.forLanguageTag("uk"), "Пауза", "Продовжити", "Стоп");
+    }
+
+    /**
+     * Перевіряє три підказки керування симуляцією для вказаної локалі.
+     *
+     * @param locale локаль ресурсного набору.
+     * @param pause очікуваний текст паузи.
+     * @param resume очікуваний текст продовження.
+     * @param stop очікуваний текст зупинки.
+     */
+    private void assertSimulationTooltips(Locale locale, String pause, String resume, String stop) {
+        ResourceBundle bundle = ResourceBundle.getBundle(
+                "i18n.messages", locale,
+                ResourceBundle.Control.getNoFallbackControl(ResourceBundle.Control.FORMAT_PROPERTIES));
+        assertEquals(pause, bundle.getString("toolbar.pause.tooltip"));
+        assertEquals(resume, bundle.getString("toolbar.resume.tooltip"));
+        assertEquals(stop, bundle.getString("toolbar.stop.tooltip"));
+    }
+
+    /**
      * Перевіряє, що непідтримувані або порожні локалі замінюються англійською.
      */
     @Test

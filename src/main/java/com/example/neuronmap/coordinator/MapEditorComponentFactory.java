@@ -236,7 +236,11 @@ final class MapEditorComponentFactory {
                 historyCoordinator::undo,
                 historyCoordinator::redo,
                 base.neuronController()::deleteSelectedNeurons,
-                interaction.interaction()::cancelInteractions
+                interaction.interaction()::cancelInteractions,
+                base.simulationController()::pauseOrResume,
+                () -> base.simulationController().hasActiveSimulation()
+                        && !inputs.view().mainMenu().isMenuVisible(),
+                inputs.view().workspace().node()
         );
         CameraController cameraController = new CameraController(
                 inputs.state(),

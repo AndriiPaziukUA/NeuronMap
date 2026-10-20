@@ -2,8 +2,11 @@ package com.example.neuronmap.controller;
 
 import com.example.neuronmap.view.support.EditorKeyboardShortcutBoundary;
 import com.example.neuronmap.view.support.JavaFxNodeLookup;
+import com.example.neuronmap.view.support.SceneKeyboardModality;
 import javafx.event.EventHandler;
+import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -11,26 +14,30 @@ import javafx.scene.input.KeyEvent;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
 
-/**
- * Єдиний власник клавіатурних команд редактора та їхнього життєвого циклу.
- * Передає команди історії, видаленню й скасуванню взаємодії відповідним компонентам.
- */
+/** Єдиний власник клавіатурних команд редактора та їхнього життєвого циклу. */
 public final class EditorKeyboardController {
 
     private final BooleanSupplier undo;
     private final BooleanSupplier redo;
     private final BooleanSupplier deleteSelection;
     private final Runnable cancelInteractions;
+    private final Runnable toggleSimulationPause;
+    private final BooleanSupplier simulationPauseShortcutAvailable;
+    private final Node simulationPauseShortcutRoot;
     private final EventHandler<KeyEvent> keyHandler = this::handleKeyPressed;
+    private final EventHandler<KeyEvent> keyReleasedHandler = this::handleKeyReleased;
     private Scene scene;
+    private boolean spacePressed;
 
     /**
-     * Створює маршрутизатор гарячих клавіш із діями, які належать відповідним компонентам редактора.
+     * Створює маршрутизатор базових гарячих клавіш редактора без команди паузи симуляції.
+     * Цей конструктор збережений для компонентів, яким не потрібна клавіатурна команда симуляції.
      *
      * @param undo дія скасування останньої зміни.
      * @param redo дія повторення скасованої зміни.
      * @param deleteSelection дія видалення вибраних нейронів.
      * @param cancelInteractions дія скасування активної взаємодії.
+     * @throws NullPointerException якщо будь-яку залежність не задано.
      */
     public EditorKeyboardController(
             BooleanSupplier undo,
@@ -42,6 +49,41 @@ public final class EditorKeyboardController {
         this.redo = Objects.requireNonNull(redo, "redo");
         this.deleteSelection = Objects.requireNonNull(deleteSelection, "deleteSelection");
         this.cancelInteractions = Objects.requireNonNull(cancelInteractions, "cancelInteractions");
+        toggleSimulationPause = () -> { };
+        simulationPauseShortcutAvailable = () -> false;
+        simulationPauseShortcutRoot = null;
+    }
+
+    /**
+     * Створює маршрутизатор клавіатурних команд редактора, включно з умовною командою паузи симуляції.
+     *
+     * @param undo дія скасування останньої зміни.
+     * @param redo дія повторення скасованої зміни.
+     * @param deleteSelection дія видалення вибраних нейронів.
+     * @param cancelInteractions дія скасування активної взаємодії.
+     * @param toggleSimulationPause дія перемикання ручної паузи симуляції.
+     * @param simulationPauseShortcutAvailable перевірка доступності команди паузи, коли відповідні кнопки показані.
+     * @param simulationPauseShortcutRoot кореневий вузол дошки, усередині якого дозволено гарячу клавішу.
+     * @throws NullPointerException якщо будь-яку залежність не задано.
+     */
+    public EditorKeyboardController(
+            BooleanSupplier undo,
+            BooleanSupplier redo,
+            BooleanSupplier deleteSelection,
+            Runnable cancelInteractions,
+            Runnable toggleSimulationPause,
+            BooleanSupplier simulationPauseShortcutAvailable,
+            Node simulationPauseShortcutRoot
+    ) {
+        this.undo = Objects.requireNonNull(undo, "undo");
+        this.redo = Objects.requireNonNull(redo, "redo");
+        this.deleteSelection = Objects.requireNonNull(deleteSelection, "deleteSelection");
+        this.cancelInteractions = Objects.requireNonNull(cancelInteractions, "cancelInteractions");
+        this.toggleSimulationPause = Objects.requireNonNull(toggleSimulationPause, "toggleSimulationPause");
+        this.simulationPauseShortcutAvailable = Objects.requireNonNull(
+                simulationPauseShortcutAvailable, "simulationPauseShortcutAvailable");
+        this.simulationPauseShortcutRoot = Objects.requireNonNull(
+                simulationPauseShortcutRoot, "simulationPauseShortcutRoot");
     }
 
     /**
@@ -58,24 +100,33 @@ public final class EditorKeyboardController {
         dispose();
         scene = targetScene;
         scene.addEventHandler(KeyEvent.KEY_PRESSED, keyHandler);
+        scene.addEventFilter(KeyEvent.KEY_RELEASED, keyReleasedHandler);
     }
 
-    /** Знімає обробник клавіатурних подій із поточної сцени; повторний виклик безпечний. */
+    /** Знімає обробники клавіатурних подій із поточної сцени; повторний виклик безпечний. */
     public void dispose() {
         if (scene == null) {
             return;
         }
         scene.removeEventHandler(KeyEvent.KEY_PRESSED, keyHandler);
+        scene.removeEventFilter(KeyEvent.KEY_RELEASED, keyReleasedHandler);
         scene = null;
+        spacePressed = false;
     }
 
     /**
-     * Маршрутизує підтримувані гарячі клавіші та зберігає стандартне введення у текстових полях.
+     * Маршрутизує гарячі клавіші й зберігає стандартне введення у текстових та інтерактивних елементах.
      *
      * @param event подія натискання клавіші.
      */
     private void handleKeyPressed(KeyEvent event) {
-        if (isTextInputTarget(event.getTarget()) || EditorKeyboardShortcutBoundary.blocksShortcutsFor(event.getTarget())) {
+        if (event.getCode() == KeyCode.SPACE) {
+            handleSpacePressed(event);
+            return;
+        }
+        if (isTextInputTarget(event.getTarget())
+                || EditorKeyboardShortcutBoundary.blocksShortcutsFor(event.getTarget())
+                || SceneKeyboardModality.hasActiveBoundaryFor(event.getTarget())) {
             return;
         }
 
@@ -95,6 +146,70 @@ public final class EditorKeyboardController {
             cancelInteractions.run();
             event.consume();
         }
+    }
+
+    /**
+     * Виконує паузу лише для окремого натискання пробілу в доступному редакторі.
+     *
+     * @param event подія натискання пробілу.
+     */
+    private void handleSpacePressed(KeyEvent event) {
+        if (spacePressed) {
+            return;
+        }
+        spacePressed = true;
+        if (!isUnmodifiedSpace(event)
+                || isTextInputTarget(event.getTarget())
+                || JavaFxNodeLookup.findAncestor(event.getTarget(), Button.class) != null
+                || EditorKeyboardShortcutBoundary.blocksShortcutsFor(event.getTarget())
+                || SceneKeyboardModality.hasActiveBoundaryFor(event.getTarget())
+                || !isWithinSimulationPauseShortcutRoot(event.getTarget())
+                || !simulationPauseShortcutAvailable.getAsBoolean()) {
+            return;
+        }
+        toggleSimulationPause.run();
+        event.consume();
+    }
+
+    /**
+     * Скидає стан пробілу після відпускання, щоб автоповтор клавіші не перемикав паузу кілька разів.
+     *
+     * @param event подія відпускання клавіші.
+     */
+    private void handleKeyReleased(KeyEvent event) {
+        if (event.getCode() == KeyCode.SPACE) {
+            spacePressed = false;
+        }
+    }
+
+    /**
+     * Перевіряє, що ціль події розташована всередині дошки редактора.
+     *
+     * @param target ціль клавіатурної події.
+     * @return {@code true}, якщо ціль є дошкою або її нащадком.
+     */
+    private boolean isWithinSimulationPauseShortcutRoot(Object target) {
+        if (!(target instanceof Node targetNode)) {
+            return false;
+        }
+        Node current = targetNode;
+        while (current != null) {
+            if (current == simulationPauseShortcutRoot) {
+                return true;
+            }
+            current = current.getParent();
+        }
+        return false;
+    }
+
+    /**
+     * Перевіряє, що пробіл натиснуто без модифікаторів.
+     *
+     * @param event подія натискання клавіші.
+     * @return {@code true}, якщо пробіл натиснуто без Shift, Ctrl, Alt або Meta.
+     */
+    private boolean isUnmodifiedSpace(KeyEvent event) {
+        return !event.isShiftDown() && !event.isControlDown() && !event.isAltDown() && !event.isMetaDown();
     }
 
     /**
@@ -118,6 +233,4 @@ public final class EditorKeyboardController {
     private boolean isTextInputTarget(Object target) {
         return JavaFxNodeLookup.findAncestor(target, TextInputControl.class) != null;
     }
-
-
 }
