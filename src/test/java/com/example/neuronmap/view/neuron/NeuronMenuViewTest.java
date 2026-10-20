@@ -1,51 +1,40 @@
 package com.example.neuronmap.view.neuron;
 
 import com.example.neuronmap.i18n.LocalizationService;
-import javafx.application.Platform;
+import com.example.neuronmap.testsupport.JavaFxTestSupport;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
-import org.junit.jupiter.api.BeforeAll;
+import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.Test;
 
 import java.util.Locale;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє створення кнопок контекстного меню та використання незалежних CSS-класів. */
+/** Перевіряє створення кнопок контекстного меню, векторний значок напрямку та використання CSS-класів. */
 final class NeuronMenuViewTest {
 
-    /** Запускає JavaFX toolkit перед перевірками графічних компонентів меню нейрона. */
-    @BeforeAll
-    static void startJavaFx() throws Exception {
-        CountDownLatch latch = new CountDownLatch(1);
-        try {
-            Platform.startup(latch::countDown);
-        } catch (IllegalStateException alreadyStarted) {
-            latch.countDown();
-        }
-        if (!latch.await(5, TimeUnit.SECONDS)) {
-            throw new IllegalStateException("JavaFX startup timed out");
-        }
-    }
-
-    /** Переконується, що спеціальні кнопки отримують CSS-класи замість inline-стилів і обробників наведення. */
+    /** Переконується, що кнопки спеціальних дій оформлюються CSS-класами без inline-стилів та обробників наведення.
+     *
+     * @throws Exception якщо JavaFX-потік не виконав перевірку вчасно.
+     */
     @Test
     void customizeMenuButtonUsesCssClassesWithoutInlineStyles() throws Exception {
-        runOnFxThread(() -> {
+        JavaFxTestSupport.runAndWait(() -> {
             NeuronMenuView view = new NeuronMenuView(
                     () -> null,
                     null,
                     new LocalizationService(Locale.forLanguageTag("uk"))
             );
-            Button activation = new Button("⚡");
+            Button activation = new Button();
             activation.getStyleClass().add("neuron-menu-activate");
-            Button deletion = new Button("✕");
+            Button deletion = new Button();
             deletion.getStyleClass().add("neuron-menu-delete");
 
             view.customizeMenuButton(activation);
@@ -65,10 +54,13 @@ final class NeuronMenuViewTest {
         });
     }
 
-    /** Перевіряє, що кнопка напрямку використовує спільний клас меню та передає ідентифікатор через callback. */
+    /** Перевіряє, що кнопка напрямку має окремий векторний значок і передає ідентифікатор через callback.
+     *
+     * @throws Exception якщо JavaFX-потік не виконав перевірку вчасно.
+     */
     @Test
-    void directionButtonDelegatesSelectedNeuronIdToCallback() throws Exception {
-        runOnFxThread(() -> {
+    void directionButtonUsesVectorIconAndDelegatesSelectedNeuronIdToCallback() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
             AtomicReference<String> handledId = new AtomicReference<>();
             NeuronMenuView view = new NeuronMenuView(
                     () -> "neuron-42",
@@ -80,16 +72,26 @@ final class NeuronMenuViewTest {
             assertTrue(direction.getStyleClass().contains("menu-button"));
             assertTrue(direction.getStyleClass().contains("neuron-menu-direction"));
             assertTrue(direction.getStyle().isBlank());
+            assertTrue(direction.getText().isBlank(), "Значок напрямку не повинен бути текстовим символом");
             assertNotNull(direction.getTooltip());
+            assertEquals("Змінити напрямок", direction.getTooltip().getText());
+            Pane icon = assertInstanceOf(Pane.class, direction.getGraphic());
+            assertTrue(icon.getStyleClass().contains("neuron-menu-icon-direction"));
+            Node shape = icon.getChildren().getFirst();
+            assertTrue(shape.getStyleClass().contains("neuron-menu-icon-stroke"));
+
             direction.fire();
             assertEquals("neuron-42", handledId.get());
         });
     }
 
-    /** Перевіряє, що кнопка напрямку не створюється, якщо дію для неї не задано. */
+    /** Перевіряє, що кнопка напрямку не створюється, якщо дію для неї не задано.
+     *
+     * @throws Exception якщо JavaFX-потік не виконав перевірку вчасно.
+     */
     @Test
     void directionButtonIsOmittedWhenNoActionIsProvided() throws Exception {
-        runOnFxThread(() -> {
+        JavaFxTestSupport.runAndWait(() -> {
             NeuronMenuView view = new NeuronMenuView(
                     () -> null,
                     null,
@@ -99,30 +101,9 @@ final class NeuronMenuViewTest {
         });
     }
 
-    /** Перевіряє, що локалізація є обов'язковою залежністю, а не приводом створити окремий сервіс. */
+    /** Переконується, що локалізація залишається обов'язковою залежністю подання меню. */
     @Test
     void rejectsMissingLocalizationService() {
         assertThrows(NullPointerException.class, () -> new NeuronMenuView(() -> null, null, null));
-    }
-
-    /** Виконує дію в потоці JavaFX і передає помилки до потоку JUnit. */
-    private static void runOnFxThread(Runnable action) throws Exception {
-        CountDownLatch latch = new CountDownLatch(1);
-        Throwable[] failure = new Throwable[1];
-        Platform.runLater(() -> {
-            try {
-                action.run();
-            } catch (Throwable throwable) {
-                failure[0] = throwable;
-            } finally {
-                latch.countDown();
-            }
-        });
-        if (!latch.await(5, TimeUnit.SECONDS)) {
-            throw new IllegalStateException("JavaFX test timed out");
-        }
-        if (failure[0] != null) {
-            throw new AssertionError("JavaFX test failed", failure[0]);
-        }
     }
 }

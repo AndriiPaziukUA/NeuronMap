@@ -4,6 +4,7 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.view.support.TooltipFactory;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContentDisplay;
 
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -74,8 +75,8 @@ public final class NeuronMenuView {
     }
 
     /**
-     * Створює кнопку перемикання напрямку й передає дію контролеру через callback.
-     * Розмір і вирівнювання кнопки визначаються спільним CSS-класом меню.
+     * Створює кнопку перемикання напрямку з векторним значком і передає дію контролеру через callback.
+     * Розмір кнопки й значка визначається їхніми окремими CSS-обмеженнями.
      *
      * @return оформлена кнопка або {@code null}, якщо дію напрямку не передано.
      */
@@ -84,7 +85,11 @@ public final class NeuronMenuView {
             return null;
         }
 
-        Button directionButton = new Button("↔");
+        String tooltipText = localization.text("neuron.menu.direction");
+        Button directionButton = new Button();
+        directionButton.setGraphic(NeuronMenuIconFactory.createDirectionIcon());
+        directionButton.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+        directionButton.setAccessibleText(tooltipText);
         directionButton.getStyleClass().add("menu-button");
         directionButton.getStyleClass().add("neuron-menu-direction");
         directionButton.setOnAction(event -> {
@@ -94,10 +99,7 @@ public final class NeuronMenuView {
             }
             event.consume();
         });
-        TooltipFactory.install(
-                directionButton,
-                localization.text("neuron.menu.direction")
-        );
+        TooltipFactory.install(directionButton, tooltipText);
         return directionButton;
     }
 }

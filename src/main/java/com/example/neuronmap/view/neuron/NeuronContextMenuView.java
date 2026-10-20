@@ -2,7 +2,10 @@ package com.example.neuronmap.view.neuron;
 
 import com.example.neuronmap.i18n.LocalizationService;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
@@ -57,35 +60,35 @@ public final class NeuronContextMenuView {
         buttons.setAlignment(Pos.CENTER);
 
         Button fire = createButton(
-                "⚡",
+                NeuronMenuIconFactory.createFireIcon(),
                 localization.text("neuron.menu.fire"),
                 "neuron-menu-activate"
         );
         Button addConnection = createButton(
-                "↗",
+                NeuronMenuIconFactory.createAddConnectionIcon(),
                 localization.text("neuron.menu.add_connection"),
                 ""
         );
         Button deleteConnection = hasConnections
                 ? createButton(
-                        "⛓",
+                        NeuronMenuIconFactory.createDeleteConnectionIcon(),
                         localization.text("neuron.menu.delete_connection"),
                         ""
                 )
                 : null;
         Button direction = directionButtonSupplier.get();
         Button toggleType = createButton(
-                "⇄",
+                NeuronMenuIconFactory.createToggleTypeIcon(),
                 localization.text("neuron.menu.toggle_type"),
                 ""
         );
         Button settings = createButton(
-                "⚙",
+                NeuronMenuIconFactory.createSettingsIcon(),
                 localization.text("neuron.menu.settings"),
                 ""
         );
         Button deleteNeuron = createButton(
-                "✕",
+                NeuronMenuIconFactory.createDeleteIcon(),
                 localization.text("neuron.menu.delete"),
                 "neuron-menu-delete"
         );
@@ -130,20 +133,23 @@ public final class NeuronContextMenuView {
     }
 
     /**
-     * Створює кнопку меню, встановлює підказку, CSS-класи та передає кнопку на додаткове оформлення.
+     * Створює кнопку меню з векторним значком, доступною назвою, підказкою та CSS-класами.
      *
-     * @param text символ або текст кнопки.
-     * @param tooltipText текст підказки.
+     * @param icon векторний значок дії.
+     * @param tooltipText локалізована назва дії, що використовується в підказці й допоміжних технологіях.
      * @param styleClass додатковий CSS-клас або порожній рядок.
      * @return готова до показу кнопка меню.
      */
-    private Button createButton(String text, String tooltipText, String styleClass) {
-        Button button = new Button(text);
+    private Button createButton(Node icon, String tooltipText, String styleClass) {
+        Button button = new Button();
+        button.setGraphic(Objects.requireNonNull(icon, "icon"));
+        button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+        button.setAccessibleText(tooltipText);
         button.getStyleClass().add("menu-button");
         if (styleClass != null && !styleClass.isBlank()) {
             button.getStyleClass().add(styleClass);
         }
-        button.setTooltip(new javafx.scene.control.Tooltip(tooltipText));
+        button.setTooltip(new Tooltip(tooltipText));
         buttonCustomizer.accept(button);
         return button;
     }

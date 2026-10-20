@@ -76,6 +76,41 @@
     -fx-cursor: hand;
 }
 
+/* Векторні значки мають окрему геометрію; 1 px контролює лише товщину контуру. */
+.menu-button .neuron-menu-icon-stroke,
+.menu-button .neuron-menu-icon-fill {
+    -fx-stroke: #e8eaed;
+    -fx-stroke-width: 1;
+    -fx-stroke-line-cap: round;
+    -fx-stroke-line-join: round;
+}
+
+.menu-button .neuron-menu-icon-stroke {
+    -fx-fill: transparent;
+}
+
+.menu-button .neuron-menu-icon-fill {
+    -fx-fill: #e8eaed;
+}
+
+.neuron-menu-activate .neuron-menu-icon-stroke,
+.neuron-menu-activate .neuron-menu-icon-fill {
+    -fx-stroke: black;
+}
+
+.neuron-menu-activate .neuron-menu-icon-fill {
+    -fx-fill: black;
+}
+
+.neuron-menu-delete .neuron-menu-icon-stroke,
+.neuron-menu-delete .neuron-menu-icon-fill {
+    -fx-stroke: white;
+}
+
+.neuron-menu-delete .neuron-menu-icon-fill {
+    -fx-fill: white;
+}
+
 .menu-button:hover {
     -fx-background-color: #343943;
 }
