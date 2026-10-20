@@ -17,7 +17,7 @@ public final class TooltipFactory {
     }
 
     /**
-     * Створює підказку із заданим текстом і спільними часовими параметрами інтерфейсу.
+     * Створює підказку із заданим текстом і спільними параметрами її показу та обробки клавіатурних подій.
      *
      * @param text текст, який відображатиме підказка; {@code null} перетворюється на порожній рядок.
      * @return налаштована підказка JavaFX.
@@ -29,8 +29,8 @@ public final class TooltipFactory {
     }
 
     /**
-     * Застосовує єдині часові параметри відображення до вже створеної підказки.
-     * Цей метод потрібен, коли підказку створив інший компонент, але її показом керує менеджер інтерфейсу.
+     * Застосовує єдині часові параметри та політику клавіатурних подій до наявної підказки.
+     * Підказка закривається клавішею Escape, але подія не поглинається та може дійти до вікна-власника.
      *
      * @param tooltip підказка, яку потрібно налаштувати.
      * @throws NullPointerException якщо підказку не задано.
@@ -40,6 +40,7 @@ public final class TooltipFactory {
         tooltip.setShowDelay(UiTiming.TOOLTIP_SHOW_DELAY);
         tooltip.setShowDuration(UiTiming.TOOLTIP_VISIBLE_DURATION);
         tooltip.setHideDelay(UiTiming.TOOLTIP_HIDE_DELAY);
+        tooltip.setConsumeAutoHidingEvents(false);
     }
 
     /**

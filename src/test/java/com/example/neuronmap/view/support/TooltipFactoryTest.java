@@ -1,113 +1,75 @@
 package com.example.neuronmap.view.support;
 
-import javafx.application.Platform;
+import com.example.neuronmap.testsupport.JavaFxTestSupport;
+import javafx.scene.control.Button;
 import javafx.scene.control.Tooltip;
-import org.junit.jupiter.api.BeforeAll;
+import javafx.util.Duration;
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/**
- * Перевіряє, що фабрика встановлює однакові часові параметри підказок і нормалізує відсутній текст.
- */
+/** Перевіряє централізоване створення підказок, їхні часові параметри та передавання Escape вікну-власнику. */
 final class TooltipFactoryTest {
 
-    /**
-     * Запускає JavaFX toolkit перед тестами, що створюють елементи керування.
-     *
-     * @throws InterruptedException якщо очікування запуску toolkit перервано.
-     */
-    @BeforeAll
-    static void startJavaFx() throws InterruptedException {
-        CountDownLatch latch = new CountDownLatch(1);
-        try {
-            Platform.startup(latch::countDown);
-        } catch (IllegalStateException alreadyStarted) {
-            latch.countDown();
-        }
-        assertTrue(latch.await(5, TimeUnit.SECONDS));
-    }
-
-    /**
-     * Перевіряє текст і спільні часові параметри новоствореної підказки.
-     *
-     * @throws Exception якщо перевірку не вдалося виконати в JavaFX Application Thread.
-     */
+    /** Перевіряє текст, спільні часові параметри та непоглинання Escape новоствореною підказкою. */
     @Test
-    void createUsesSharedUiTimingValues() throws Exception {
-        runOnFxThread(() -> {
+    void createUsesSharedTimingAndDoesNotConsumeAutoHideEvents() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
             Tooltip tooltip = TooltipFactory.create("Підказка");
 
             assertEquals("Підказка", tooltip.getText());
             assertEquals(UiTiming.TOOLTIP_SHOW_DELAY.toMillis(), tooltip.getShowDelay().toMillis());
             assertEquals(UiTiming.TOOLTIP_VISIBLE_DURATION.toMillis(), tooltip.getShowDuration().toMillis());
             assertEquals(UiTiming.TOOLTIP_HIDE_DELAY.toMillis(), tooltip.getHideDelay().toMillis());
+            assertFalse(tooltip.getConsumeAutoHidingEvents());
         });
     }
 
-    /**
-     * Перевіряє, що фабрика перетворює відсутній текст на порожній рядок.
-     *
-     * @throws Exception якщо перевірку не вдалося виконати в JavaFX Application Thread.
-     */
+    /** Перевіряє, що відсутній текст підказки перетворюється на порожній рядок. */
     @Test
     void createNormalizesNullText() throws Exception {
-        runOnFxThread(() -> assertEquals("", TooltipFactory.create(null).getText()));
+        JavaFxTestSupport.runAndWait(() -> assertEquals("", TooltipFactory.create(null).getText()));
     }
 
-    /**
-     * Перевіряє, що ті самі часові параметри можна застосувати до вже створеної підказки.
-     *
-     * @throws Exception якщо перевірку не вдалося виконати в JavaFX Application Thread.
-     */
+    /** Перевіряє застосування спільної політики до вже створеної підказки з довільними параметрами. */
     @Test
-    void configureResetsExistingTooltipTiming() throws Exception {
-        runOnFxThread(() -> {
+    void configureResetsTimingAndAutoHideEventPolicy() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
             Tooltip tooltip = new Tooltip("Наявна підказка");
-            tooltip.setShowDelay(javafx.util.Duration.seconds(9));
-            tooltip.setShowDuration(javafx.util.Duration.seconds(10));
-            tooltip.setHideDelay(javafx.util.Duration.seconds(11));
+            tooltip.setShowDelay(Duration.seconds(9));
+            tooltip.setShowDuration(Duration.seconds(10));
+            tooltip.setHideDelay(Duration.seconds(11));
+            tooltip.setConsumeAutoHidingEvents(true);
 
             TooltipFactory.configure(tooltip);
 
             assertEquals(UiTiming.TOOLTIP_SHOW_DELAY.toMillis(), tooltip.getShowDelay().toMillis());
             assertEquals(UiTiming.TOOLTIP_VISIBLE_DURATION.toMillis(), tooltip.getShowDuration().toMillis());
             assertEquals(UiTiming.TOOLTIP_HIDE_DELAY.toMillis(), tooltip.getHideDelay().toMillis());
+            assertFalse(tooltip.getConsumeAutoHidingEvents());
         });
     }
 
-    /**
-     * Виконує перевірку в JavaFX Application Thread та передає винятки назад до тестового потоку.
-     *
-     * @param action перевірка, яку потрібно виконати.
-     * @throws Exception якщо JavaFX не виконав дію в межах установленого часу.
-     */
-    private static void runOnFxThread(Runnable action) throws Exception {
-        if (Platform.isFxApplicationThread()) {
-            action.run();
-            return;
-        }
+    /** Перевіряє, що встановлення підказки через фабрику одразу застосовує спільну клавіатурну політику. */
+    @Test
+    void installConfiguresTooltipBeforeItIsShown() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            Button button = new Button();
+            TooltipFactory.install(button, "Підказка кнопки");
 
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<Throwable> failure = new AtomicReference<>();
-        Platform.runLater(() -> {
-            try {
-                action.run();
-            } catch (Throwable exception) {
-                failure.set(exception);
-            } finally {
-                latch.countDown();
-            }
+            assertEquals("Підказка кнопки", button.getTooltip().getText());
+            assertFalse(button.getTooltip().getConsumeAutoHidingEvents());
         });
+    }
 
-        assertTrue(latch.await(5, TimeUnit.SECONDS));
-        if (failure.get() != null) {
-            throw new AssertionError("Перевірка JavaFX завершилася помилкою.", failure.get());
-        }
+    /** Перевіряє, що передача null замість елемента керування не приховується фабрикою. */
+    @Test
+    void installRejectsNullControl() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> assertThrows(
+                IllegalArgumentException.class,
+                () -> TooltipFactory.install(null, "Підказка")
+        ));
     }
 }
