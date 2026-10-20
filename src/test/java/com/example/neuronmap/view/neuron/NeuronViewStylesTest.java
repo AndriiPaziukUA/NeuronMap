@@ -3,47 +3,31 @@ package com.example.neuronmap.view.neuron;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.model.NeuronType;
-import javafx.application.Platform;
+import com.example.neuronmap.testsupport.JavaFxTestSupport;
 import javafx.scene.Scene;
 import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє, що кольори й стан вибору нейрона застосовуються його незалежною таблицею стилів.
+ * Перевіряє застосування CSS-стилів нейрона та стабільність його рамки під час зміни вибору.
  */
 final class NeuronViewStylesTest {
 
-    /**
-     * Запускає JavaFX toolkit перед перевірками CSS-властивостей графічних вузлів.
-     */
-    @BeforeAll
-    static void startJavaFx() throws Exception {
-        CountDownLatch latch = new CountDownLatch(1);
-        try {
-            Platform.startup(latch::countDown);
-        } catch (IllegalStateException alreadyStarted) {
-            latch.countDown();
-        }
-        if (!latch.await(5, TimeUnit.SECONDS)) {
-            throw new IllegalStateException("JavaFX startup timed out");
-        }
-    }
+    private static final double EPSILON = 0.001;
 
     /**
      * Переконується, що тип нейрона та вибір змінюють лише CSS-стан його власного графічного тіла.
+     *
+     * @throws Exception якщо JavaFX-потік не виконав перевірку вчасно.
      */
     @Test
     void cssControlsNeuronTypeAndSelectionColors() throws Exception {
-        runOnFxThread(() -> {
+        JavaFxTestSupport.runAndWait(() -> {
             NeuronView excitatory = createView("style-excitatory", NeuronType.EXCITATORY);
             NeuronView inhibitory = createView("style-inhibitory", NeuronType.INHIBITORY);
             HBox root = new HBox(excitatory, inhibitory);
@@ -59,14 +43,41 @@ final class NeuronViewStylesTest {
             assertEquals(Color.web("#328b55"), excitatoryBody.getFill());
             assertEquals(Color.web("#646971"), inhibitoryBody.getFill());
             assertEquals(Color.web("#25292f"), excitatoryBody.getStroke());
-            assertEquals(2.0, excitatoryBody.getStrokeWidth(), 0.001);
+            assertEquals(2.0, excitatoryBody.getStrokeWidth(), EPSILON);
+            assertBodyRemainsAtLocalOrigin(excitatoryBody);
 
             excitatory.refreshVisuals(true);
             root.applyCss();
             assertTrue(excitatoryBody.getStyleClass().contains("neuron-card-selected"));
             assertEquals(Color.WHITE, excitatoryBody.getStroke());
-            assertEquals(2.5, excitatoryBody.getStrokeWidth(), 0.001);
+            assertEquals(2.5, excitatoryBody.getStrokeWidth(), EPSILON);
+            assertBodyRemainsAtLocalOrigin(excitatoryBody);
+
+            // Повторюване оновлення імітує оновлення подань під час активної симуляції.
+            excitatory.refreshVisuals(true);
+            root.applyCss();
+            assertBodyRemainsAtLocalOrigin(excitatoryBody);
+
+            excitatory.refreshVisuals(false);
+            root.applyCss();
+            assertBodyRemainsAtLocalOrigin(excitatoryBody);
         });
+    }
+
+    /**
+     * Перевіряє, що CSS-рамка не зсуває прямокутник від незмінного локального початку координат.
+     *
+     * @param body графічне тіло нейрона.
+     */
+    private static void assertBodyRemainsAtLocalOrigin(Rectangle body) {
+        assertEquals(0.0, body.getLayoutX(), EPSILON,
+                "CSS-рамка не повинна змінювати горизонтальне розташування тіла");
+        assertEquals(0.0, body.getLayoutY(), EPSILON,
+                "CSS-рамка не повинна змінювати вертикальне розташування тіла");
+        assertEquals(0.0, body.getX(), EPSILON,
+                "Ліва межа тіла має залишатися в локальній координаті X = 0");
+        assertEquals(0.0, body.getY(), EPSILON,
+                "Верхня межа тіла має залишатися в локальній координаті Y = 0");
     }
 
     /**
@@ -79,31 +90,5 @@ final class NeuronViewStylesTest {
     private static NeuronView createView(String id, NeuronType type) {
         Neuron neuron = new Neuron(id, type, 0);
         return new NeuronView(new NeuronPresentation(neuron, 40.0, 50.0, 0.0));
-    }
-
-    /**
-     * Виконує дію в потоці JavaFX і передає винятки до потоку JUnit.
-     *
-     * @param action дія для JavaFX.
-     * @throws Exception якщо очікування JavaFX завершується помилкою або тайм-аутом.
-     */
-    private static void runOnFxThread(Runnable action) throws Exception {
-        CountDownLatch latch = new CountDownLatch(1);
-        Throwable[] failure = new Throwable[1];
-        Platform.runLater(() -> {
-            try {
-                action.run();
-            } catch (Throwable throwable) {
-                failure[0] = throwable;
-            } finally {
-                latch.countDown();
-            }
-        });
-        if (!latch.await(5, TimeUnit.SECONDS)) {
-            throw new IllegalStateException("JavaFX test timed out");
-        }
-        if (failure[0] != null) {
-            throw new AssertionError("Тест CSS подання нейрона завершився помилкою", failure[0]);
-        }
     }
 }

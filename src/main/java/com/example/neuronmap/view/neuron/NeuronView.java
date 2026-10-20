@@ -22,6 +22,9 @@ public final class NeuronView extends StackPane {
 
     /** Текстова позначка вхідного сигналу, коли тимчасове значення відсутнє. */
     private static final String NO_INPUT_SIGNAL_TEXT = "0";
+    private static final String EXCITATORY_BODY_STYLE_CLASS = "neuron-card-excitatory";
+    private static final String INHIBITORY_BODY_STYLE_CLASS = "neuron-card-inhibitory";
+    private static final String SELECTED_BODY_STYLE_CLASS = "neuron-card-selected";
     private static final double SIGNAL_LABEL_WIDTH = 48.0;
     private static final double SIGNAL_LABEL_HEIGHT = 28.0;
     private static final double SIGNAL_LABEL_SIDE_GAP = 10.0;
@@ -260,9 +263,12 @@ public final class NeuronView extends StackPane {
 
     /**
      * Оновлює положення графічних елементів усередині подання нейрона.
+     *
+     * <p>Тіло нейрона вже має незмінні локальні координати (0, 0). Його не можна повторно
+     * позиціонувати через {@code relocate}: цей метод спирається на {@code layoutBounds},
+     * які залежать від CSS-ширини рамки та могли б зрушувати тіло під час оновлень симуляції.</p>
      */
     private void positionFixedChildren() {
-        body.relocate(0.0, 0.0);
         double signalY = (HEIGHT - SIGNAL_LABEL_HEIGHT) / 2.0;
         double leftSignalX = SIGNAL_LABEL_SIDE_GAP;
         double rightSignalX = WIDTH - SIGNAL_LABEL_WIDTH - SIGNAL_LABEL_SIDE_GAP;
@@ -280,15 +286,29 @@ public final class NeuronView extends StackPane {
     /**
      * Синхронізує CSS-класи тіла нейрона з типом моделі та станом вибору.
      *
+     * <p>Класи змінюються лише тоді, коли фактичний тип або стан вибору відрізняється від
+     * бажаного. Це не спричиняє зайвого повторного CSS-проходу під час кожного такту симуляції.</p>
+     *
      * @param selected ознака вибраного нейрона.
      */
     private void refreshBodyStyleClasses(boolean selected) {
-        body.getStyleClass().removeAll("neuron-card-excitatory", "neuron-card-inhibitory", "neuron-card-selected");
-        body.getStyleClass().add(model().type() == NeuronType.EXCITATORY
-                ? "neuron-card-excitatory"
-                : "neuron-card-inhibitory");
-        if (selected) {
-            body.getStyleClass().add("neuron-card-selected");
+        String desiredTypeClass = model().type() == NeuronType.EXCITATORY
+                ? EXCITATORY_BODY_STYLE_CLASS
+                : INHIBITORY_BODY_STYLE_CLASS;
+        String otherTypeClass = desiredTypeClass.equals(EXCITATORY_BODY_STYLE_CLASS)
+                ? INHIBITORY_BODY_STYLE_CLASS
+                : EXCITATORY_BODY_STYLE_CLASS;
+
+        if (!body.getStyleClass().contains(desiredTypeClass)) {
+            body.getStyleClass().remove(otherTypeClass);
+            body.getStyleClass().add(desiredTypeClass);
+        }
+
+        boolean currentlySelected = body.getStyleClass().contains(SELECTED_BODY_STYLE_CLASS);
+        if (selected && !currentlySelected) {
+            body.getStyleClass().add(SELECTED_BODY_STYLE_CLASS);
+        } else if (!selected && currentlySelected) {
+            body.getStyleClass().remove(SELECTED_BODY_STYLE_CLASS);
         }
     }
 
