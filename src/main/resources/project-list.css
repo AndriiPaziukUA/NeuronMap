@@ -152,10 +152,6 @@
     -fx-border-color: #d95660;
 }
 
-.saved-project-row .saved-project-delete-button:hover .saved-project-delete-icon {
-    -fx-background-color: #ff6873;
-}
-
 .saved-project-row .saved-project-save-button:hover {
     -fx-background-color: #245b3a;
     -fx-border-color: #47ad70;

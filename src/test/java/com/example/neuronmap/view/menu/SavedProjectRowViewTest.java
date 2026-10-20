@@ -121,12 +121,22 @@ final class SavedProjectRowViewTest {
         });
     }
 
-    /** Перевіряє локальні CSS-правила наведення для видалення й збереження рядка проєкту. */
+    /** Перевіряє збереження білого кольору дефіса під час наведення та колір тла кнопок. */
     @Test
-    void stylesheetDefinesDeleteAndSaveHoverStates() throws Exception {
+    void stylesheetPreservesWhiteDeleteIconOnHover() throws Exception {
         try (InputStream stream = SavedProjectRowView.class.getResourceAsStream("/project-list.css")) {
             assertNotNull(stream, "Таблиця стилів списку проєктів має бути доступною в classpath");
             String css = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+            String deleteIconSelector = ".saved-project-row .saved-project-delete-icon";
+            int iconRuleStart = css.indexOf(deleteIconSelector);
+            assertTrue(iconRuleStart >= 0, "Має бути базове правило оформлення значка видалення");
+            int iconRuleEnd = css.indexOf('}', iconRuleStart);
+            assertTrue(iconRuleEnd > iconRuleStart, "Правило значка видалення має бути завершеним");
+            assertTrue(css.substring(iconRuleStart, iconRuleEnd).contains("-fx-background-color: #edf0f3;"),
+                    "Дефіс має зберігати білий базовий колір");
+            assertFalse(css.contains(
+                            ".saved-project-row .saved-project-delete-button:hover .saved-project-delete-icon"),
+                    "Наведення не повинно перевизначати колір дефіса");
             assertTrue(css.contains(".saved-project-row .saved-project-delete-button:hover"));
             assertTrue(css.contains("#642c30"));
             assertTrue(css.contains(".saved-project-row .saved-project-save-button:hover"));
