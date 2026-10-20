@@ -17,9 +17,15 @@
     -fx-stroke-width: 2;
 }
 
+.neuron-view:hover .neuron-card {
+    -fx-stroke: white;
+    -fx-stroke-width: 2;
+}
+
 .neuron-card-selected {
     -fx-stroke: white;
-    -fx-stroke-width: 2.5;
+    -fx-stroke-width: 2;
+    -fx-effect: dropshadow(gaussian, rgba(255, 255, 255, 0.45), 12, 0.25, 0, 0);
 }
 
 .neuron-activation {

@@ -12,16 +12,17 @@ import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
 
 /**
- * Відображає нейрон, його порти й напрямок сигналу та відстежує перетягування, вибір і показ вхідного сигналу.
+ * Відображає нейрон, його порти й напрямок сигналу, а також візуальні стани вибору та наведення.
  */
 public final class NeuronView extends StackPane {
 
     public static final double WIDTH = NeuronVisualGeometry.WIDTH;
     public static final double HEIGHT = NeuronVisualGeometry.HEIGHT;
-    public static final double SELECTED_STROKE_WIDTH = 2.5;
+    public static final double SELECTED_STROKE_WIDTH = 2.0;
 
     /** Текстова позначка вхідного сигналу, коли тимчасове значення відсутнє. */
     private static final String NO_INPUT_SIGNAL_TEXT = "0";
+    private static final String NEURON_VIEW_STYLE_CLASS = "neuron-view";
     private static final String EXCITATORY_BODY_STYLE_CLASS = "neuron-card-excitatory";
     private static final String INHIBITORY_BODY_STYLE_CLASS = "neuron-card-inhibitory";
     private static final String SELECTED_BODY_STYLE_CLASS = "neuron-card-selected";
@@ -57,6 +58,7 @@ public final class NeuronView extends StackPane {
         }
 
         this.presentation = presentation;
+        getStyleClass().add(NEURON_VIEW_STYLE_CLASS);
         setPrefSize(WIDTH, HEIGHT);
         setMinSize(WIDTH, HEIGHT);
         setMaxSize(WIDTH, HEIGHT);
@@ -287,7 +289,8 @@ public final class NeuronView extends StackPane {
      * Синхронізує CSS-класи тіла нейрона з типом моделі та станом вибору.
      *
      * <p>Класи змінюються лише тоді, коли фактичний тип або стан вибору відрізняється від
-     * бажаного. Це не спричиняє зайвого повторного CSS-проходу під час кожного такту симуляції.</p>
+     * бажаного. Це не спричиняє зайвого повторного CSS-проходу під час кожного такту симуляції.
+     * Стан наведення визначається CSS за псевдокласом {@code :hover} батьківського вузла.</p>
      *
      * @param selected ознака вибраного нейрона.
      */

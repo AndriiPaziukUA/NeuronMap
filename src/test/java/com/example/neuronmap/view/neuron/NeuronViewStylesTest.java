@@ -4,29 +4,32 @@ import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.testsupport.JavaFxTestSupport;
+import javafx.css.PseudoClass;
 import javafx.scene.Scene;
+import javafx.scene.effect.DropShadow;
 import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Перевіряє застосування CSS-стилів нейрона та стабільність його рамки під час зміни вибору.
- */
+/** Перевіряє кольори, підсвічування вибраного нейрона, рамку наведення та її незмінну товщину. */
 final class NeuronViewStylesTest {
 
     private static final double EPSILON = 0.001;
+    private static final PseudoClass HOVER_PSEUDO_CLASS = PseudoClass.getPseudoClass("hover");
 
     /**
-     * Переконується, що тип нейрона та вибір змінюють лише CSS-стан його власного графічного тіла.
+     * Переконується, що вибір додає світіння, наведення лише змінює колір рамки, а її товщина не змінюється.
      *
      * @throws Exception якщо JavaFX-потік не виконав перевірку вчасно.
      */
     @Test
-    void cssControlsNeuronTypeAndSelectionColors() throws Exception {
+    void cssControlsNeuronTypeSelectionGlowHoverBorderAndStableThickness() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
             NeuronView excitatory = createView("style-excitatory", NeuronType.EXCITATORY);
             NeuronView inhibitory = createView("style-inhibitory", NeuronType.INHIBITORY);
@@ -44,22 +47,45 @@ final class NeuronViewStylesTest {
             assertEquals(Color.web("#646971"), inhibitoryBody.getFill());
             assertEquals(Color.web("#25292f"), excitatoryBody.getStroke());
             assertEquals(2.0, excitatoryBody.getStrokeWidth(), EPSILON);
+            assertNull(excitatoryBody.getEffect(), "Невибраний нейрон не повинен світитися");
             assertBodyRemainsAtLocalOrigin(excitatoryBody);
 
             excitatory.refreshVisuals(true);
             root.applyCss();
             assertTrue(excitatoryBody.getStyleClass().contains("neuron-card-selected"));
             assertEquals(Color.WHITE, excitatoryBody.getStroke());
-            assertEquals(2.5, excitatoryBody.getStrokeWidth(), EPSILON);
+            assertEquals(2.0, excitatoryBody.getStrokeWidth(), EPSILON);
+            assertInstanceOf(DropShadow.class, excitatoryBody.getEffect(),
+                    "Вибраний нейрон має залишатися підсвіченим, поки активний вибір");
             assertBodyRemainsAtLocalOrigin(excitatoryBody);
 
-            // Повторюване оновлення імітує оновлення подань під час активної симуляції.
+            // Повторне оновлення імітує такти симуляції й не повинно прибирати світіння або змінювати геометрію.
             excitatory.refreshVisuals(true);
             root.applyCss();
+            assertInstanceOf(DropShadow.class, excitatoryBody.getEffect());
+            assertEquals(2.0, excitatoryBody.getStrokeWidth(), EPSILON);
             assertBodyRemainsAtLocalOrigin(excitatoryBody);
+
+            inhibitory.pseudoClassStateChanged(HOVER_PSEUDO_CLASS, true);
+            root.applyCss();
+            assertEquals(Color.WHITE, inhibitoryBody.getStroke(),
+                    "Наведення має показувати білу рамку навколо невибраного нейрона");
+            assertEquals(2.0, inhibitoryBody.getStrokeWidth(), EPSILON);
+            assertNull(inhibitoryBody.getEffect(), "Наведення не повинно підсвічувати тіло нейрона");
+            assertBodyRemainsAtLocalOrigin(inhibitoryBody);
+
+            inhibitory.pseudoClassStateChanged(HOVER_PSEUDO_CLASS, false);
+            root.applyCss();
+            assertEquals(Color.web("#25292f"), inhibitoryBody.getStroke(),
+                    "Після завершення наведення має відновитися звичайна рамка");
+            assertEquals(2.0, inhibitoryBody.getStrokeWidth(), EPSILON);
+            assertNull(inhibitoryBody.getEffect());
 
             excitatory.refreshVisuals(false);
             root.applyCss();
+            assertEquals(Color.web("#25292f"), excitatoryBody.getStroke());
+            assertEquals(2.0, excitatoryBody.getStrokeWidth(), EPSILON);
+            assertNull(excitatoryBody.getEffect(), "Після зняття вибору світіння має зникнути");
             assertBodyRemainsAtLocalOrigin(excitatoryBody);
         });
     }
