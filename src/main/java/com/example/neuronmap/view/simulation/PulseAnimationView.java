@@ -5,6 +5,8 @@ import javafx.animation.AnimationTimer;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.geometry.Point2D;
 import javafx.scene.layout.Pane;
 import javafx.scene.shape.Line;
@@ -15,20 +17,23 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
- * Анімує імпульс уздовж зв'язку, оновлює геометрію траєкторії та повідомляє про завершення анімації.
+ * Анімує короткий імпульс уздовж зв'язку незалежно від життєвого циклу самого подання зв'язку.
  */
 public final class PulseAnimationView extends Pane {
 
     private static final double TOTAL_MILLIS = 380.0;
-    private static final double FADE_MILLIS = 180.0;
+    private static final double MIDPOINT_MILLIS = 180.0;
+    private static final double MAX_PULSE_LENGTH = 32.0;
+    private static final double PULSE_LENGTH_RATIO = 0.22;
     private static final double ARROW_SIZE = 11.0;
     private static final double ARROW_HALF_WIDTH = 5.5;
     private static final double VISIBLE_OPACITY = 1.0;
-    private static final double DIMMED_OPACITY = 0.2;
+    private static final double HIDDEN_OPACITY = 0.0;
 
     private final Supplier<ConnectionPulseSnapshot> snapshotSupplier;
     private final Line line = new Line();
     private final Polygon arrow = new Polygon();
+    private final DoubleProperty progress = new SimpleDoubleProperty(0.0);
     private final Timeline timeline;
     private final AnimationTimer geometryUpdater;
     private final Runnable onFinished;
@@ -69,34 +74,36 @@ public final class PulseAnimationView extends Pane {
         setMouseTransparent(true);
         line.getStyleClass().add("pulse-animation-line");
         arrow.getStyleClass().add("pulse-animation-arrow");
-        applyGeometry(lastSnapshot.start(), lastSnapshot.end());
         line.setStroke(lastSnapshot.pulseColor());
         line.setMouseTransparent(true);
         arrow.setFill(lastSnapshot.pulseColor());
         arrow.setMouseTransparent(true);
         getChildren().addAll(line, arrow);
+        progress.addListener((observable, oldValue, newValue) -> updatePulsePosition(newValue.doubleValue()));
+        updatePulsePosition(0.0);
 
         timeline = new Timeline(
                 new KeyFrame(
                         Duration.ZERO,
+                        new KeyValue(progress, 0.0),
                         new KeyValue(line.strokeProperty(), lastSnapshot.pulseColor()),
                         new KeyValue(arrow.fillProperty(), lastSnapshot.pulseColor()),
                         new KeyValue(line.opacityProperty(), VISIBLE_OPACITY),
                         new KeyValue(arrow.opacityProperty(), VISIBLE_OPACITY)
                 ),
                 new KeyFrame(
-                        Duration.millis(FADE_MILLIS),
-                        new KeyValue(line.strokeProperty(), lastSnapshot.pulseColor()),
-                        new KeyValue(arrow.fillProperty(), lastSnapshot.pulseColor()),
-                        new KeyValue(line.opacityProperty(), DIMMED_OPACITY),
-                        new KeyValue(arrow.opacityProperty(), DIMMED_OPACITY)
+                        Duration.millis(MIDPOINT_MILLIS),
+                        new KeyValue(progress, 0.5),
+                        new KeyValue(line.opacityProperty(), VISIBLE_OPACITY),
+                        new KeyValue(arrow.opacityProperty(), VISIBLE_OPACITY)
                 ),
                 new KeyFrame(
                         Duration.millis(TOTAL_MILLIS),
+                        new KeyValue(progress, 1.0),
                         new KeyValue(line.strokeProperty(), lastSnapshot.normalColor()),
                         new KeyValue(arrow.fillProperty(), lastSnapshot.normalColor()),
-                        new KeyValue(line.opacityProperty(), VISIBLE_OPACITY),
-                        new KeyValue(arrow.opacityProperty(), VISIBLE_OPACITY)
+                        new KeyValue(line.opacityProperty(), HIDDEN_OPACITY),
+                        new KeyValue(arrow.opacityProperty(), HIDDEN_OPACITY)
                 )
         );
         timeline.setOnFinished(event -> finish());
@@ -113,9 +120,7 @@ public final class PulseAnimationView extends Pane {
         };
     }
 
-    /**
-     * Запускає анімацію вздовж поточної геометрії зв'язку.
-     */
+    /** Запускає анімацію уздовж поточної геометрії зв'язку. */
     public void play() {
         if (!finished) {
             geometryUpdater.start();
@@ -123,9 +128,7 @@ public final class PulseAnimationView extends Pane {
         }
     }
 
-    /**
-     * Призупиняє анімацію, зберігаючи її поточний прогрес.
-     */
+    /** Призупиняє анімацію, зберігаючи її поточний прогрес. */
     public void pause() {
         if (!finished) {
             geometryUpdater.stop();
@@ -133,9 +136,7 @@ public final class PulseAnimationView extends Pane {
         }
     }
 
-    /**
-     * Відновлює призупинену анімацію імпульсу.
-     */
+    /** Відновлює призупинену анімацію імпульсу. */
     public void resume() {
         if (!finished) {
             geometryUpdater.start();
@@ -143,9 +144,7 @@ public final class PulseAnimationView extends Pane {
         }
     }
 
-    /**
-     * Зупиняє анімацію та прибирає її візуальний елемент.
-     */
+    /** Зупиняє анімацію та прибирає її візуальний елемент. */
     public void stop() {
         if (finished) {
             return;
@@ -163,23 +162,45 @@ public final class PulseAnimationView extends Pane {
         return finished;
     }
 
-    /**
-     * Оновлює траєкторію імпульсу, якщо положення кінців зв'язку змінилося.
-     */
+    /** Оновлює траєкторію імпульсу, якщо положення кінців зв'язку змінилося. */
     void refreshGeometry() {
         ConnectionPulseSnapshot currentSnapshot = snapshotSupplier.get();
         if (currentSnapshot == null) {
             return;
         }
         lastSnapshot = currentSnapshot;
-        applyGeometry(currentSnapshot.start(), currentSnapshot.end());
+        updatePulsePosition(progress.get());
     }
 
     /**
-     * Встановлює точки лінії й стрілки за переданою геометрією зв'язку.
+     * Розташовує короткий імпульс на відповідній частині траєкторії зв'язку.
      *
-     * @param start початкова точка.
-     * @param end кінцева точка.
+     * @param value частка пройденого шляху в діапазоні від нуля до одиниці.
+     */
+    void updatePulsePosition(double value) {
+        Point2D start = lastSnapshot.start();
+        Point2D end = lastSnapshot.end();
+        Point2D direction = end.subtract(start);
+        double length = direction.magnitude();
+        if (length == 0.0) {
+            applyGeometry(start, start);
+            return;
+        }
+
+        double fraction = Double.isFinite(value) ? Math.max(0.0, Math.min(1.0, value)) : 0.0;
+        Point2D unitDirection = direction.normalize();
+        double pulseLength = Math.min(MAX_PULSE_LENGTH, length * PULSE_LENGTH_RATIO);
+        double travelDistance = (length - pulseLength) * fraction;
+        Point2D pulseStart = start.add(unitDirection.multiply(travelDistance));
+        Point2D pulseEnd = pulseStart.add(unitDirection.multiply(pulseLength));
+        applyGeometry(pulseStart, pulseEnd);
+    }
+
+    /**
+     * Встановлює кінцеві точки короткої лінії та стрілки імпульсу.
+     *
+     * @param start початкова точка видимого імпульсу.
+     * @param end кінцева точка видимого імпульсу.
      */
     private void applyGeometry(Point2D start, Point2D end) {
         line.setStartX(start.getX());
@@ -193,10 +214,12 @@ public final class PulseAnimationView extends Pane {
         }
         Point2D normalized = direction.normalize();
         Point2D perpendicular = new Point2D(-normalized.getY(), normalized.getX());
+        double arrowLength = Math.min(ARROW_SIZE, direction.magnitude());
+        double arrowHalfWidth = Math.min(ARROW_HALF_WIDTH, arrowLength / 2.0);
         Point2D tip = end;
-        Point2D back = tip.subtract(normalized.multiply(ARROW_SIZE));
-        Point2D left = back.add(perpendicular.multiply(ARROW_HALF_WIDTH));
-        Point2D right = back.subtract(perpendicular.multiply(ARROW_HALF_WIDTH));
+        Point2D back = tip.subtract(normalized.multiply(arrowLength));
+        Point2D left = back.add(perpendicular.multiply(arrowHalfWidth));
+        Point2D right = back.subtract(perpendicular.multiply(arrowHalfWidth));
         arrow.getPoints().setAll(
                 tip.getX(), tip.getY(),
                 left.getX(), left.getY(),
@@ -204,9 +227,7 @@ public final class PulseAnimationView extends Pane {
         );
     }
 
-    /**
-     * Завершує анімацію, прибирає графічний вузол і викликає обробник завершення.
-     */
+    /** Завершує анімацію, прибирає графічний вузол і викликає обробник завершення. */
     private void finish() {
         if (finished) {
             return;

@@ -5,8 +5,9 @@ import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.view.connection.ConnectionView;
-import com.example.neuronmap.view.neuron.NeuronView;
 import com.example.neuronmap.view.editor.WorkspaceView;
+import com.example.neuronmap.view.neuron.NeuronView;
+import com.example.neuronmap.view.simulation.PulseAnimationView;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import org.junit.jupiter.api.BeforeAll;
@@ -17,13 +18,14 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Перевіряє керування активними анімаціями імпульсів, включно з їхнім завершенням і очищенням.
- */
+/** Перевіряє життєвий цикл активних імпульсів під час видалення нейронів і зв'язків. */
 class PulseAnimationControllerTest {
 
+    /** Запускає JavaFX перед тестами, що працюють із графічними вузлами. */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -35,26 +37,17 @@ class PulseAnimationControllerTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
     }
 
-    /** Перевіряє, що імпульс продовжує анімацію після видалення початкового подання зв’язку. */
+    /** Перевіряє, що анімація негайно зупиняється після вилучення подання зв'язку. */
     @Test
-    void pulseSurvivesRemovalOfOriginalConnectionView() throws Exception {
+    void activePulseStopsImmediatelyWhenConnectionViewIsRemoved() throws Exception {
         runOnFxThread(() -> {
             NeuronMapModel model = new NeuronMapModel();
-            Neuron source = model.createNeuron(
-                    NeuronType.EXCITATORY,
-                    50,
-                    50
-            );
-            Neuron target = model.createNeuron(
-                    NeuronType.EXCITATORY,
-                    250,
-                    50
-            );
+            Neuron source = model.createNeuron(NeuronType.EXCITATORY, 50, 50);
+            Neuron target = model.createNeuron(NeuronType.EXCITATORY, 250, 50);
             assertTrue(model.createConnection(source.id(), target.id()));
 
             WorkspaceView workspace = new WorkspaceView();
             new Scene(workspace.node(), 800, 600);
-
             HashMap<String, NeuronView> views = new HashMap<>();
             NeuronView sourceView = new NeuronView(model.presentation(source.id()));
             NeuronView targetView = new NeuronView(model.presentation(target.id()));
@@ -63,31 +56,40 @@ class PulseAnimationControllerTest {
             workspace.nodeLayer().getChildren().addAll(sourceView, targetView);
 
             Connection connection = model.connections().iterator().next();
-            ConnectionView connectionView = new ConnectionView(
-                    connection,
-                    views::get,
-                    model::neuron
-            );
+            ConnectionView connectionView = new ConnectionView(connection, views::get, model::neuron);
             workspace.edgeLayer().getChildren().add(connectionView);
-
             PulseAnimationController controller = new PulseAnimationController(workspace);
-            controller.play(connectionView);
+            try {
+                controller.play(connectionView);
+                assertEquals(1, controller.activeAnimationCountForTest());
+                assertEquals(1, workspace.pulseLayer().getChildren().size());
+                PulseAnimationView activePulse = (PulseAnimationView) workspace.pulseLayer().getChildren().get(0);
 
-            assertEquals(1, controller.activeAnimationCountForTest());
-            workspace.edgeLayer().getChildren().remove(connectionView);
+                assertNotNull(model.removeNeuron(source.id()));
+                assertTrue(model.connections().isEmpty());
+                assertFalse(model.neurons().stream().anyMatch(neuron -> neuron.id().equals(source.id())));
 
-            assertEquals(1, controller.activeAnimationCountForTest());
-            assertEquals(1, workspace.pulseLayer().getChildren().size());
+                // Імітує синхронізацію подань, яка відбувається відразу після зміни моделі.
+                workspace.edgeLayer().getChildren().remove(connectionView);
+                workspace.nodeLayer().getChildren().remove(sourceView);
+                views.remove(source.id());
 
-            controller.stopAll();
+                assertFalse(workspace.edgeLayer().getChildren().contains(connectionView));
+                assertFalse(workspace.nodeLayer().getChildren().contains(sourceView));
+                assertTrue(activePulse.isFinished());
+                assertEquals(0, controller.activeAnimationCountForTest());
+                assertEquals(0, workspace.pulseLayer().getChildren().size());
+            } finally {
+                controller.stopAll();
+            }
             assertEquals(0, workspace.pulseLayer().getChildren().size());
         });
     }
 
+    /** Виконує дію в JavaFX-потоці та передає помилки виконання до потоку JUnit. */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];
-
         Platform.runLater(() -> {
             try {
                 action.run();

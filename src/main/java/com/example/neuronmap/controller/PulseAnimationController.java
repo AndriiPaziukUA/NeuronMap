@@ -1,23 +1,24 @@
 package com.example.neuronmap.controller;
 
+import com.example.neuronmap.model.Connection;
 import com.example.neuronmap.view.connection.ConnectionPulseSnapshot;
 import com.example.neuronmap.view.connection.ConnectionView;
+import com.example.neuronmap.view.editor.WorkspaceView;
 import com.example.neuronmap.view.simulation.PulseAnimationView;
 import com.example.neuronmap.view.simulation.PulseAnimator;
-import com.example.neuronmap.view.editor.WorkspaceView;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import javafx.beans.value.ChangeListener;
+import javafx.scene.Parent;
 
-/**
- * Керує запуском, призупиненням, відновленням і зупиненням анімацій імпульсів на зв’язках.
- */
+/** Керує запуском, призупиненням, відновленням і зупиненням анімацій імпульсів на зв'язках. */
 public final class PulseAnimationController implements PulseAnimator {
 
     private final WorkspaceView workspace;
     private final Runnable activityChanged;
-    private final List<PulseAnimationView> activeAnimations = new ArrayList<>();
+    private final List<ActiveAnimation> activeAnimations = new ArrayList<>();
 
     /**
      * Створює контролер анімацій імпульсів.
@@ -39,16 +40,13 @@ public final class PulseAnimationController implements PulseAnimator {
             Runnable activityChanged
     ) {
         this.workspace = Objects.requireNonNull(workspace, "workspace");
-        this.activityChanged = Objects.requireNonNull(
-                activityChanged,
-                "activityChanged"
-        );
+        this.activityChanged = Objects.requireNonNull(activityChanged, "activityChanged");
     }
 
     /**
-     * Створює та запускає анімацію імпульсу для заданого подання зв’язку.
+     * Створює та запускає анімацію імпульсу для заданого подання зв'язку.
      *
-     * @param connectionView візуальне подання зв’язку.
+     * @param connectionView візуальне подання зв'язку.
      */
     @Override
     public void play(ConnectionView connectionView) {
@@ -61,6 +59,7 @@ public final class PulseAnimationController implements PulseAnimator {
             return;
         }
 
+        Connection connection = connectionView.model();
         PulseAnimationView animation = new PulseAnimationView(
                 snapshot,
                 connectionView::capturePulseSnapshot,
@@ -68,44 +67,70 @@ public final class PulseAnimationController implements PulseAnimator {
         );
 
         workspace.pulseLayer().getChildren().add(animation);
-        activeAnimations.add(animation);
+        ActiveAnimation activeAnimation = new ActiveAnimation(
+                animation,
+                connectionView,
+                connection.sourceId(),
+                connection.targetId()
+        );
+        ChangeListener<Parent> parentListener = (observable, oldParent, newParent) -> {
+            if (oldParent != null && newParent == null) {
+                animation.stop();
+            }
+        };
+        activeAnimation.setParentListener(parentListener);
+        connectionView.parentProperty().addListener(parentListener);
+        activeAnimations.add(activeAnimation);
         animation.play();
         pruneFinished();
         activityChanged.run();
     }
 
-    /**
-     * Призупиняє всі активні анімації імпульсів.
-     */
+    /** Призупиняє всі активні анімації імпульсів. */
     @Override
     public void pauseAll() {
         pruneFinished();
-        for (PulseAnimationView animation : activeAnimations) {
-            animation.pause();
+        for (ActiveAnimation activeAnimation : activeAnimations) {
+            activeAnimation.view().pause();
         }
     }
 
-    /**
-     * Відновлює всі призупинені анімації імпульсів.
-     */
+    /** Відновлює всі призупинені анімації імпульсів. */
     @Override
     public void resumeAll() {
         pruneFinished();
-        for (PulseAnimationView animation : activeAnimations) {
-            animation.resume();
+        for (ActiveAnimation activeAnimation : activeAnimations) {
+            activeAnimation.view().resume();
         }
     }
 
-    /**
-     * Зупиняє всі активні анімації імпульсів і очищає їхнє відображення.
-     */
+    /** Зупиняє всі активні анімації імпульсів і очищає їхнє відображення. */
     @Override
     public void stopAll() {
-        for (PulseAnimationView animation : List.copyOf(activeAnimations)) {
-            animation.stop();
+        for (ActiveAnimation activeAnimation : List.copyOf(activeAnimations)) {
+            activeAnimation.view().stop();
         }
         activeAnimations.clear();
         activityChanged.run();
+    }
+
+    /**
+     * Негайно прибирає лише ті імпульси, що належать зв'язкам зазначеного нейрона.
+     *
+     * @param neuronId ідентифікатор нейрона, пов'язані з яким анімації слід зупинити.
+     */
+    @Override
+    public void stopForNeuron(String neuronId) {
+        if (neuronId == null || neuronId.isBlank()) {
+            return;
+        }
+
+        pruneFinished();
+        for (ActiveAnimation activeAnimation : List.copyOf(activeAnimations)) {
+            if (activeAnimation.isRelatedTo(neuronId)) {
+                activeAnimation.view().stop();
+            }
+        }
     }
 
     /**
@@ -129,18 +154,67 @@ public final class PulseAnimationController implements PulseAnimator {
         return activeAnimations.size();
     }
 
-    /**
-     * Обробляє завершення анімації та повідомляє про зміну активності.
-     */
+    /** Обробляє завершення анімації та повідомляє про зміну активності. */
     private void handleAnimationFinished() {
         pruneFinished();
         activityChanged.run();
     }
 
-    /**
-     * Видаляє зі списку керування анімації, які вже завершилися.
-     */
+    /** Видаляє зі списку керування анімації, які вже завершилися. */
     private void pruneFinished() {
-        activeAnimations.removeIf(PulseAnimationView::isFinished);
+        activeAnimations.removeIf(activeAnimation -> {
+            if (!activeAnimation.view().isFinished()) {
+                return false;
+            }
+            activeAnimation.connectionView().parentProperty().removeListener(activeAnimation.parentListener());
+            return true;
+        });
+    }
+
+    /** Зберігає незмінну інформацію про кінці зв'язку, щоб зупинити його імпульс після видалення моделі. */
+    private static final class ActiveAnimation {
+        private final PulseAnimationView view;
+        private final ConnectionView connectionView;
+        private final String sourceNeuronId;
+        private final String targetNeuronId;
+        private ChangeListener<Parent> parentListener;
+
+        /** Зберігає анімацію та її зв'язок для узгодженого керування життєвим циклом. */
+        private ActiveAnimation(
+                PulseAnimationView view,
+                ConnectionView connectionView,
+                String sourceNeuronId,
+                String targetNeuronId
+        ) {
+            this.view = view;
+            this.connectionView = connectionView;
+            this.sourceNeuronId = sourceNeuronId;
+            this.targetNeuronId = targetNeuronId;
+        }
+
+        /** Повертає кероване графічне подання імпульсу. */
+        private PulseAnimationView view() {
+            return view;
+        }
+
+        /** Повертає подання зв'язку, від якого залежить анімація. */
+        private ConnectionView connectionView() {
+            return connectionView;
+        }
+
+        /** Зберігає слухач видалення подання зв'язку для контрольованого життєвого циклу. */
+        private void setParentListener(ChangeListener<Parent> parentListener) {
+            this.parentListener = parentListener;
+        }
+
+        /** Повертає слухач, який потрібно від'єднати після завершення анімації. */
+        private ChangeListener<Parent> parentListener() {
+            return parentListener;
+        }
+
+        /** Перевіряє, чи проходить зв'язок через нейрон, який зараз видаляють. */
+        private boolean isRelatedTo(String neuronId) {
+            return sourceNeuronId.equals(neuronId) || targetNeuronId.equals(neuronId);
+        }
     }
 }

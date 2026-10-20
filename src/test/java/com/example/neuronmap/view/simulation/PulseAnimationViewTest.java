@@ -15,9 +15,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє геометрію лінії анімації імпульсу за заданим знімком зв’язку. */
+/** Перевіряє геометрію рухомого імпульсу та незалежність його траєкторії від зв'язку. */
 class PulseAnimationViewTest {
 
+    /** Запускає JavaFX перед тестами, що працюють із графічними вузлами. */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -29,28 +30,63 @@ class PulseAnimationViewTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
     }
 
-    /** Перевіряє, що оновлення подання імпульсу бере геометрію з актуального знімка зв’язку. */
+    /** Перевіряє, що імпульс оновлює свою геометрію за актуальним знімком, не малюючи повну лінію зв'язку. */
     @Test
     void pulseRefreshesGeometryFromCurrentSnapshot() throws Exception {
         runOnFxThread(() -> {
-            ConnectionPulseSnapshot initial = snapshot(10, 20, 100, 120);
+            ConnectionPulseSnapshot initial = snapshot(10, 20, 210, 20);
             AtomicReference<ConnectionPulseSnapshot> current = new AtomicReference<>(initial);
-
             PulseAnimationView pulse = new PulseAnimationView(initial, current::get);
             Line line = (Line) pulse.getChildren().get(0);
 
-            assertLineMatches(line, initial);
+            assertEquals(10.0, line.getStartX());
+            assertEquals(42.0, line.getEndX());
+            assertEquals(20.0, line.getStartY());
+            assertEquals(20.0, line.getEndY());
 
-            ConnectionPulseSnapshot moved = snapshot(210, 220, 300, 320);
+            ConnectionPulseSnapshot moved = snapshot(210, 220, 410, 220);
             current.set(moved);
             pulse.refreshGeometry();
 
-            assertLineMatches(line, moved);
+            assertEquals(210.0, line.getStartX());
+            assertEquals(242.0, line.getEndX());
+            assertEquals(220.0, line.getStartY());
+            assertEquals(220.0, line.getEndY());
             pulse.stop();
         });
     }
 
-    /** Створює знімок геометрії зв’язку з указаними кінцевими точками та тестовими кольорами. */
+    /** Перевіряє рух короткого імпульсу від початку до кінця зв'язку та обмеження прогресу. */
+    @Test
+    void pulseMovesAlongConnectionWithoutDrawingItsFullLength() throws Exception {
+        runOnFxThread(() -> {
+            ConnectionPulseSnapshot initial = snapshot(10, 20, 210, 20);
+            PulseAnimationView pulse = new PulseAnimationView(initial, () -> initial);
+            Line line = (Line) pulse.getChildren().get(0);
+
+            pulse.updatePulsePosition(0.5);
+            assertEquals(94.0, line.getStartX());
+            assertEquals(126.0, line.getEndX());
+            assertEquals(20.0, line.getStartY());
+            assertEquals(20.0, line.getEndY());
+            assertTrue(line.getEndX() - line.getStartX() < initial.end().distance(initial.start()));
+
+            pulse.updatePulsePosition(1.0);
+            assertEquals(178.0, line.getStartX());
+            assertEquals(210.0, line.getEndX());
+
+            pulse.updatePulsePosition(-1.0);
+            assertEquals(10.0, line.getStartX());
+            assertEquals(42.0, line.getEndX());
+
+            pulse.updatePulsePosition(2.0);
+            assertEquals(178.0, line.getStartX());
+            assertEquals(210.0, line.getEndX());
+            pulse.stop();
+        });
+    }
+
+    /** Створює знімок геометрії зв'язку з указаними кінцевими точками та тестовими кольорами. */
     private static ConnectionPulseSnapshot snapshot(
             double startX,
             double startY,
@@ -65,18 +101,10 @@ class PulseAnimationViewTest {
         );
     }
 
-    /** Перевіряє, що початок і кінець графічної лінії відповідають координатам знімка. */
-    private static void assertLineMatches(Line line, ConnectionPulseSnapshot snapshot) {
-        assertEquals(snapshot.start().getX(), line.getStartX());
-        assertEquals(snapshot.start().getY(), line.getStartY());
-        assertEquals(snapshot.end().getX(), line.getEndX());
-        assertEquals(snapshot.end().getY(), line.getEndY());
-    }
-
+    /** Виконує перевірку в JavaFX-потоці та передає помилки до потоку JUnit. */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];
-
         Platform.runLater(() -> {
             try {
                 action.run();
