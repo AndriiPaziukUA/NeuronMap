@@ -5,6 +5,7 @@ import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.model.NeuronType;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Circle;
@@ -12,7 +13,7 @@ import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
 
 /**
- * Відображає нейрон, його порти й напрямок сигналу, а також візуальні стани вибору та наведення.
+ * Відображає нейрон, його порти й напрямок сигналу, а також візуальні стани вибору, наведення та передачі сигналу.
  */
 public final class NeuronView extends StackPane {
 
@@ -26,6 +27,10 @@ public final class NeuronView extends StackPane {
     private static final String EXCITATORY_BODY_STYLE_CLASS = "neuron-card-excitatory";
     private static final String INHIBITORY_BODY_STYLE_CLASS = "neuron-card-inhibitory";
     private static final String SELECTED_BODY_STYLE_CLASS = "neuron-card-selected";
+    private static final String INPUT_SIGNAL_INSUFFICIENT_STYLE_CLASS = "port-input-insufficient";
+    private static final String INPUT_SIGNAL_SUFFICIENT_STYLE_CLASS = "port-input-sufficient";
+    private static final String OUTPUT_SIGNAL_EXCITATORY_STYLE_CLASS = "port-output-signal-excitatory";
+    private static final String OUTPUT_SIGNAL_INHIBITORY_STYLE_CLASS = "port-output-signal-inhibitory";
     private static final double SIGNAL_LABEL_WIDTH = 48.0;
     private static final double SIGNAL_LABEL_HEIGHT = 28.0;
     private static final double SIGNAL_LABEL_SIDE_GAP = 10.0;
@@ -38,6 +43,7 @@ public final class NeuronView extends StackPane {
     private final Label outputSignalLabel = new Label();
 
     private Integer displayedInputSignal;
+    private boolean outputSignalActive;
     private boolean dragging;
     private boolean wasDragged;
     private boolean dragGroup;
@@ -84,6 +90,8 @@ public final class NeuronView extends StackPane {
         inputSignalLabel.setText(NO_INPUT_SIGNAL_TEXT);
         outputSignalLabel.setText(Integer.toString(model().signalWeight()));
         getChildren().addAll(body, inputSignalLabel, outputSignalLabel, inputPort, outputPort);
+        refreshInputPortStyleClass();
+        refreshOutputPortStyleClass();
         refreshVisuals(false);
     }
 
@@ -194,21 +202,23 @@ public final class NeuronView extends StackPane {
     }
 
     /**
-     * Показує на нейроні індикатор із величиною отриманого вхідного сигналу.
+     * Показує величину запланованого вхідного сигналу й забарвлює порт за порогом активації.
      *
-     * @param signal величина вхідного сигналу.
+     * @param signal уже обчислена сума сигналів, спрямованих до нейрона.
      */
     public void showInputSignal(int signal) {
         displayedInputSignal = signal;
         inputSignalLabel.setText(Integer.toString(signal));
+        refreshInputPortStyleClass();
     }
 
     /**
-     * Приховує індикатор вхідного сигналу.
+     * Приховує індикатор вхідного сигналу й повертає вхідний порт до нейтрального кольору.
      */
     public void hideInputSignal() {
         displayedInputSignal = null;
         inputSignalLabel.setText(NO_INPUT_SIGNAL_TEXT);
+        refreshInputPortStyleClass();
     }
 
     /**
@@ -216,6 +226,16 @@ public final class NeuronView extends StackPane {
      */
     public void clearDisplayedInputSignal() {
         hideInputSignal();
+    }
+
+    /**
+     * Встановлює, чи передає нейрон вихідний сигнал, із кольором відповідно до його типу.
+     *
+     * @param active {@code true}, якщо нейрон надсилає сигнал; інакше {@code false}.
+     */
+    public void setOutputSignalActive(boolean active) {
+        outputSignalActive = active;
+        refreshOutputPortStyleClass();
     }
 
     /**
@@ -237,6 +257,8 @@ public final class NeuronView extends StackPane {
         setLayoutY(presentation.y());
         setRotate(presentation.rotationDegrees());
         refreshBodyStyleClasses(selected);
+        refreshInputPortStyleClass();
+        refreshOutputPortStyleClass();
 
         inputSignalLabel.setText(displayedInputSignal == null ? NO_INPUT_SIGNAL_TEXT : Integer.toString(displayedInputSignal));
         outputSignalLabel.setText(Integer.toString(model().signalWeight()));
@@ -312,6 +334,75 @@ public final class NeuronView extends StackPane {
             body.getStyleClass().add(SELECTED_BODY_STYLE_CLASS);
         } else if (!selected && currentlySelected) {
             body.getStyleClass().remove(SELECTED_BODY_STYLE_CLASS);
+        }
+    }
+
+    /**
+     * Визначає колір вхідного порту за вже відображеною сумою сигналів і порогом нейрона.
+     */
+    private void refreshInputPortStyleClass() {
+        String desiredClass = null;
+        if (displayedInputSignal != null) {
+            desiredClass = displayedInputSignal >= model().activationThreshold()
+                    ? INPUT_SIGNAL_SUFFICIENT_STYLE_CLASS
+                    : INPUT_SIGNAL_INSUFFICIENT_STYLE_CLASS;
+        }
+        updateExclusivePortStyleClass(
+                inputPort,
+                INPUT_SIGNAL_INSUFFICIENT_STYLE_CLASS,
+                INPUT_SIGNAL_SUFFICIENT_STYLE_CLASS,
+                desiredClass
+        );
+    }
+
+    /**
+     * Визначає колір вихідного порту за активністю передачі й типом нейрона.
+     */
+    private void refreshOutputPortStyleClass() {
+        String desiredClass = null;
+        if (outputSignalActive) {
+            desiredClass = model().type() == NeuronType.EXCITATORY
+                    ? OUTPUT_SIGNAL_EXCITATORY_STYLE_CLASS
+                    : OUTPUT_SIGNAL_INHIBITORY_STYLE_CLASS;
+        }
+        updateExclusivePortStyleClass(
+                outputPort,
+                OUTPUT_SIGNAL_EXCITATORY_STYLE_CLASS,
+                OUTPUT_SIGNAL_INHIBITORY_STYLE_CLASS,
+                desiredClass
+        );
+    }
+
+    /**
+     * Залишає на графічному порту не більше одного класу з заданої пари.
+     *
+     * @param port графічний вузол порту.
+     * @param firstClass перший взаємовиключний клас.
+     * @param secondClass другий взаємовиключний клас.
+     * @param desiredClass потрібний клас або {@code null}, щоб прибрати обидва.
+     */
+    private void updateExclusivePortStyleClass(
+            Node port,
+            String firstClass,
+            String secondClass,
+            String desiredClass
+    ) {
+        if (desiredClass == null) {
+            if (port.getStyleClass().contains(firstClass)) {
+                port.getStyleClass().remove(firstClass);
+            }
+            if (port.getStyleClass().contains(secondClass)) {
+                port.getStyleClass().remove(secondClass);
+            }
+            return;
+        }
+
+        String otherClass = desiredClass.equals(firstClass) ? secondClass : firstClass;
+        if (port.getStyleClass().contains(otherClass)) {
+            port.getStyleClass().remove(otherClass);
+        }
+        if (!port.getStyleClass().contains(desiredClass)) {
+            port.getStyleClass().add(desiredClass);
         }
     }
 

@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Відображає результати такту симуляції через індикатори вхідних сигналів та анімації зв’язків.
+ * Відображає результати такту симуляції через індикатори вхідних сигналів, порти нейронів та анімації зв’язків.
  */
 public class SimulationStepPresenter {
 
@@ -40,23 +40,26 @@ public class SimulationStepPresenter {
     }
 
     /**
-     * Відображає суми вхідних сигналів і запускає анімацію вихідних сигналів для обробленого такту.
+     * Відображає суми вхідних сигналів, підсвічує активні виходи й запускає анімації обробленого такту.
      *
      * @param step результат одного такту симуляції.
      */
     public void apply(SimulationStep step) {
         Objects.requireNonNull(step, "step");
         clearDisplayedInputSignals();
+        clearOutputSignalHighlights();
         showIncomingSignals(step.nextInputSums());
         refreshNeuronViews.run();
         for (String neuronId : step.activatedNeuronIds()) {
+            highlightOutputSignal(neuronId);
             animateOutgoingConnections(neuronId);
         }
     }
 
-    /** Прибирає індикатори сигналів і тимчасові анімації завершеного сеансу симуляції. */
+    /** Прибирає індикатори сигналів, підсвічування виходів і тимчасові анімації завершеного сеансу. */
     public void clearRuntime() {
         clearDisplayedInputSignals();
+        clearOutputSignalHighlights();
         pulseAnimations.stopAll();
     }
 
@@ -88,7 +91,7 @@ public class SimulationStepPresenter {
         pulseAnimations.pauseAll();
     }
 
-    /** Відновлює анімації імпульсів після призупинення. */
+    /** Відновлює призупинені анімації імпульсів. */
     public void resumeAnimations() {
         pulseAnimations.resumeAll();
     }
@@ -111,6 +114,25 @@ public class SimulationStepPresenter {
     private void clearDisplayedInputSignals() {
         for (NeuronView neuronView : neuronViews.values()) {
             neuronView.clearDisplayedInputSignal();
+        }
+    }
+
+    /** Повертає всі вихідні порти до нейтрального стану перед відображенням нового такту. */
+    private void clearOutputSignalHighlights() {
+        for (NeuronView neuronView : neuronViews.values()) {
+            neuronView.setOutputSignalActive(false);
+        }
+    }
+
+    /**
+     * Позначає вихід нейрона активним упродовж поточного такту симуляції.
+     *
+     * @param neuronId ідентифікатор нейрона, який активувався.
+     */
+    private void highlightOutputSignal(String neuronId) {
+        NeuronView neuronView = neuronViews.get(neuronId);
+        if (neuronView != null) {
+            neuronView.setOutputSignalActive(true);
         }
     }
 

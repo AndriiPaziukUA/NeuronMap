@@ -1,25 +1,39 @@
 package com.example.neuronmap.view.neuron;
 
+import com.example.neuronmap.controller.PulseAnimationController;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.model.NeuronType;
+import com.example.neuronmap.simulation.SimulationStep;
+import com.example.neuronmap.view.editor.WorkspaceView;
+import com.example.neuronmap.view.simulation.SimulationStepPresenter;
 import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.layout.HBox;
+import javafx.scene.paint.Color;
 import javafx.scene.shape.Polygon;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigInteger;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє вирівнювання вихідного трикутника нейрона для звичайного й розвернутого напрямків. */
+/** Перевіряє геометрію вихідного трикутника та кольори під час передавання сигналів. */
 final class NeuronOutputTriangleAlignmentTest {
 
     private static final double EPSILON = 0.0001;
+    private static final Color NEUTRAL_PORT_COLOR = Color.web("#d6d9de");
+    private static final Color EXCITATORY_SIGNAL_COLOR = Color.web("#facc15");
+    private static final Color INHIBITORY_SIGNAL_COLOR = Color.web("#ef4444");
 
+    /** Запускає JavaFX перед тестами, що працюють із графічними вузлами. */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -65,6 +79,92 @@ final class NeuronOutputTriangleAlignmentTest {
         });
     }
 
+    /**
+     * Перевіряє, що під час такту трикутник збуджувального нейрона жовтий, гальмівного — червоний,
+     * а після такту або очищення runtime повертається нейтральний колір.
+     *
+     * @throws Exception якщо JavaFX-потік не виконає перевірку вчасно.
+     */
+    @Test
+    void outputTriangleColorFollowsNeuronTypeDuringSignalTransmission() throws Exception {
+        runOnFxThread(() -> {
+            WorkspaceView workspace = new WorkspaceView();
+            NeuronView excitatoryView = new NeuronView(new NeuronPresentation(
+                    new Neuron("output-color-excitatory", NeuronType.EXCITATORY, 0),
+                    40.0,
+                    50.0,
+                    0.0
+            ));
+            NeuronView inhibitoryView = new NeuronView(new NeuronPresentation(
+                    new Neuron("output-color-inhibitory", NeuronType.INHIBITORY, 0),
+                    300.0,
+                    50.0,
+                    0.0
+            ));
+            HBox root = new HBox(excitatoryView, inhibitoryView, workspace.node());
+            Scene scene = new Scene(root, 900.0, 300.0);
+            scene.getStylesheets().add(
+                    NeuronOutputTriangleAlignmentTest.class.getResource("/app.css").toExternalForm());
+            root.applyCss();
+
+            PulseAnimationController pulseAnimations = new PulseAnimationController(workspace);
+            SimulationStepPresenter presenter = new SimulationStepPresenter(
+                    workspace,
+                    Map.of(
+                            excitatoryView.model().id(), excitatoryView,
+                            inhibitoryView.model().id(), inhibitoryView
+                    ),
+                    () -> {
+                        excitatoryView.refreshVisuals(false);
+                        inhibitoryView.refreshVisuals(false);
+                    },
+                    pulseAnimations
+            );
+            Polygon excitatoryTriangle = outputTriangle(excitatoryView);
+            Polygon inhibitoryTriangle = outputTriangle(inhibitoryView);
+
+            try {
+                presenter.apply(new SimulationStep(
+                        BigInteger.ZERO,
+                        Map.of(),
+                        Set.of(excitatoryView.model().id(), inhibitoryView.model().id()),
+                        Map.of()
+                ));
+                root.applyCss();
+
+                assertEquals(EXCITATORY_SIGNAL_COLOR, excitatoryTriangle.getFill());
+                assertEquals(INHIBITORY_SIGNAL_COLOR, inhibitoryTriangle.getFill());
+
+                presenter.apply(new SimulationStep(
+                        BigInteger.ONE,
+                        Map.of(),
+                        Set.of(),
+                        Map.of()
+                ));
+                root.applyCss();
+
+                assertEquals(NEUTRAL_PORT_COLOR, excitatoryTriangle.getFill());
+                assertEquals(NEUTRAL_PORT_COLOR, inhibitoryTriangle.getFill());
+
+                presenter.apply(new SimulationStep(
+                        BigInteger.TWO,
+                        Map.of(),
+                        Set.of(excitatoryView.model().id(), inhibitoryView.model().id()),
+                        Map.of()
+                ));
+                root.applyCss();
+                presenter.clearRuntime();
+                root.applyCss();
+
+                assertEquals(NEUTRAL_PORT_COLOR, excitatoryTriangle.getFill());
+                assertEquals(NEUTRAL_PORT_COLOR, inhibitoryTriangle.getFill());
+            } finally {
+                presenter.clearRuntime();
+                workspace.dispose();
+            }
+        });
+    }
+
     /** Створює подання нейрона з указаним напрямком і розміщує його в тестовій сцені. */
     private static NeuronView neuronView(boolean reversed) {
         Neuron neuron = new Neuron("triangle-alignment-test", NeuronType.EXCITATORY, 0);
@@ -104,6 +204,7 @@ final class NeuronOutputTriangleAlignmentTest {
         return (minX + maxX) / 2.0 + triangle.getTranslateX();
     }
 
+    /** Виконує перевірку в JavaFX-потоці та передає помилки до потоку JUnit. */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];

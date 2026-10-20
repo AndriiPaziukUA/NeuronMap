@@ -45,6 +45,17 @@
     -fx-stroke-width: 1.5;
 }
 
+/* Вхідний порт показує результат порівняння вже обчисленої суми з порогом нейрона. */
+.port-input-insufficient,
+.port-output-signal-inhibitory {
+    -fx-fill: #ef4444;
+}
+
+.port-input-sufficient,
+.port-output-signal-excitatory {
+    -fx-fill: #facc15;
+}
+
 .menu-button {
     -fx-min-width: 32px;
     -fx-pref-width: 32px;
