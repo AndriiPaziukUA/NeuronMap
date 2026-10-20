@@ -75,7 +75,7 @@ public final class NeuronMenuView {
 
     /**
      * Створює кнопку перемикання напрямку й передає дію контролеру через callback.
-     * Кнопка використовує спільний CSS-клас меню без окремого inline-оформлення.
+     * Розмір і вирівнювання кнопки визначаються спільним CSS-класом меню.
      *
      * @return оформлена кнопка або {@code null}, якщо дію напрямку не передано.
      */
@@ -87,9 +87,6 @@ public final class NeuronMenuView {
         Button directionButton = new Button("↔");
         directionButton.getStyleClass().add("menu-button");
         directionButton.getStyleClass().add("neuron-menu-direction");
-        directionButton.setMinSize(32.0, 32.0);
-        directionButton.setPrefSize(32.0, 32.0);
-        directionButton.setMaxSize(32.0, 32.0);
         directionButton.setOnAction(event -> {
             String neuronId = selectedNeuronIdSupplier.get();
             if (neuronId != null) {

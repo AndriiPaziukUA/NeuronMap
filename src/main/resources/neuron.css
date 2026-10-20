@@ -40,12 +40,22 @@
 }
 
 .menu-button {
+    -fx-min-width: 32px;
+    -fx-pref-width: 32px;
+    -fx-max-width: 32px;
+    -fx-min-height: 32px;
+    -fx-pref-height: 32px;
+    -fx-max-height: 32px;
+    -fx-alignment: center;
+    -fx-padding: 0;
     -fx-background-color: #242830;
+    -fx-background-insets: 1;
+    -fx-background-radius: 4;
     -fx-text-fill: #e8eaed;
     -fx-border-color: #454b55;
+    -fx-border-width: 1;
+    -fx-border-insets: 0;
     -fx-border-radius: 5;
-    -fx-background-radius: 5;
-    -fx-padding: 5 8 5 8;
     -fx-cursor: hand;
 }
 
@@ -72,4 +82,3 @@
     -fx-background-color: #d64545;
     -fx-text-fill: white;
 }
-
