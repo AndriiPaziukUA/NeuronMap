@@ -1,10 +1,13 @@
 package com.example.neuronmap.view.simulation;
 
 import com.example.neuronmap.view.connection.ConnectionPulseSnapshot;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.geometry.Point2D;
+import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Line;
+import javafx.scene.shape.Polygon;
+import javafx.util.Duration;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -16,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє геометрію імпульсу та залежність його тривалості від такту симуляції. */
+/** Перевіряє геометрію окремого наконечника, його видимість і тривалість анімації. */
 class PulseAnimationViewTest {
 
     /** Запускає JavaFX перед тестами, що працюють із графічними вузлами. */
@@ -31,59 +34,102 @@ class PulseAnimationViewTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
     }
 
-    /** Перевіряє, що імпульс оновлює свою геометрію за актуальним знімком, не малюючи повну лінію зв'язку. */
+    /** Перевіряє оновлення геометрії наконечника за актуальним знімком без створення лінії. */
     @Test
     void pulseRefreshesGeometryFromCurrentSnapshot() throws Exception {
         runOnFxThread(() -> {
             ConnectionPulseSnapshot initial = snapshot(10, 20, 210, 20);
             AtomicReference<ConnectionPulseSnapshot> current = new AtomicReference<>(initial);
             PulseAnimationView pulse = new PulseAnimationView(initial, current::get);
-            Line line = (Line) pulse.getChildren().get(0);
+            Polygon arrow = (Polygon) pulse.getChildren().get(0);
 
-            assertEquals(10.0, line.getStartX());
-            assertEquals(42.0, line.getEndX());
-            assertEquals(20.0, line.getStartY());
-            assertEquals(20.0, line.getEndY());
+            assertEquals(1, pulse.getChildren().size());
+            assertEquals(42.0, arrow.getPoints().get(0));
+            assertEquals(20.0, arrow.getPoints().get(1));
 
             ConnectionPulseSnapshot moved = snapshot(210, 220, 410, 220);
             current.set(moved);
             pulse.refreshGeometry();
 
-            assertEquals(210.0, line.getStartX());
-            assertEquals(242.0, line.getEndX());
-            assertEquals(220.0, line.getStartY());
-            assertEquals(220.0, line.getEndY());
+            assertEquals(242.0, arrow.getPoints().get(0));
+            assertEquals(220.0, arrow.getPoints().get(1));
+            assertEquals(Color.RED, arrow.getFill());
             pulse.stop();
         });
     }
 
-    /** Перевіряє рух короткого імпульсу від початку до кінця зв'язку та обмеження прогресу. */
+    /** Перевіряє рух наконечника від початку до кінця зв'язку та обмеження прогресу. */
     @Test
-    void pulseMovesAlongConnectionWithoutDrawingItsFullLength() throws Exception {
+    void arrowMovesAlongConnectionWithoutDrawingATrailingLine() throws Exception {
         runOnFxThread(() -> {
             ConnectionPulseSnapshot initial = snapshot(10, 20, 210, 20);
             PulseAnimationView pulse = new PulseAnimationView(initial, () -> initial);
-            Line line = (Line) pulse.getChildren().get(0);
+            Polygon arrow = (Polygon) pulse.getChildren().get(0);
 
             pulse.updatePulsePosition(0.5);
-            assertEquals(94.0, line.getStartX());
-            assertEquals(126.0, line.getEndX());
-            assertEquals(20.0, line.getStartY());
-            assertEquals(20.0, line.getEndY());
-            assertTrue(line.getEndX() - line.getStartX() < initial.end().distance(initial.start()));
+            assertEquals(126.0, arrow.getPoints().get(0));
+            assertEquals(20.0, arrow.getPoints().get(1));
+            assertEquals(115.0, arrow.getPoints().get(2));
+            assertEquals(25.5, arrow.getPoints().get(3));
+            assertEquals(115.0, arrow.getPoints().get(4));
+            assertEquals(14.5, arrow.getPoints().get(5));
+            assertEquals(1, pulse.getChildren().size());
 
             pulse.updatePulsePosition(1.0);
-            assertEquals(178.0, line.getStartX());
-            assertEquals(210.0, line.getEndX());
+            assertEquals(210.0, arrow.getPoints().get(0));
 
             pulse.updatePulsePosition(-1.0);
-            assertEquals(10.0, line.getStartX());
-            assertEquals(42.0, line.getEndX());
+            assertEquals(42.0, arrow.getPoints().get(0));
 
             pulse.updatePulsePosition(2.0);
-            assertEquals(178.0, line.getStartX());
-            assertEquals(210.0, line.getEndX());
+            assertEquals(210.0, arrow.getPoints().get(0));
             pulse.stop();
+        });
+    }
+
+    /** Перевіряє, що наконечник не згасає під час руху й вилучається після завершення анімації. */
+    @Test
+    void arrowRemainsOpaqueUntilItDisappearsAtAnimationEnd() throws Exception {
+        CountDownLatch sampled = new CountDownLatch(1);
+        CountDownLatch animationFinished = new CountDownLatch(1);
+        AtomicReference<Pane> layerReference = new AtomicReference<>();
+        AtomicReference<PulseAnimationView> pulseReference = new AtomicReference<>();
+        AtomicReference<Double> sampledOpacity = new AtomicReference<>();
+        AtomicReference<Color> sampledFill = new AtomicReference<>();
+
+        runOnFxThread(() -> {
+            ConnectionPulseSnapshot initial = snapshot(10, 20, 210, 20);
+            Pane layer = new Pane();
+            PulseAnimationView pulse = new PulseAnimationView(
+                    initial,
+                    () -> initial,
+                    350.0,
+                    animationFinished::countDown
+            );
+            Polygon arrow = (Polygon) pulse.getChildren().get(0);
+            layer.getChildren().add(pulse);
+            layerReference.set(layer);
+            pulseReference.set(pulse);
+            pulse.play();
+
+            PauseTransition sample = new PauseTransition(Duration.millis(290.0));
+            sample.setOnFinished(event -> {
+                sampledOpacity.set(arrow.getOpacity());
+                sampledFill.set((Color) arrow.getFill());
+                sampled.countDown();
+            });
+            sample.play();
+        });
+
+        assertTrue(sampled.await(5, TimeUnit.SECONDS));
+        assertEquals(1.0, sampledOpacity.get().doubleValue());
+        assertEquals(Color.RED, sampledFill.get());
+        assertTrue(animationFinished.await(5, TimeUnit.SECONDS));
+
+        runOnFxThread(() -> {
+            assertTrue(pulseReference.get().isFinished());
+            assertTrue(layerReference.get().getChildren().isEmpty());
+            assertEquals(1, pulseReference.get().getChildren().size());
         });
     }
 
