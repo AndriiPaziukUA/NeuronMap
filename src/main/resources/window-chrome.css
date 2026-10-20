@@ -33,17 +33,20 @@
 }
 
 .window-control-button {
-    -fx-min-width: 46px;
-    -fx-pref-width: 46px;
-    -fx-max-width: 46px;
-    -fx-min-height: 30px;
-    -fx-pref-height: 30px;
-    -fx-max-height: 30px;
+    -fx-min-width: 36px;
+    -fx-pref-width: 36px;
+    -fx-max-width: 36px;
+    -fx-min-height: 36px;
+    -fx-pref-height: 36px;
+    -fx-max-height: 36px;
     -fx-padding: 0;
     -fx-background-color: transparent;
+    -fx-background-insets: 0;
     -fx-background-radius: 0;
     -fx-border-color: transparent;
+    -fx-border-insets: 0;
     -fx-border-width: 0;
+    -fx-effect: null;
     -fx-text-fill: #e8eaed;
     -fx-alignment: center;
     -fx-cursor: default;

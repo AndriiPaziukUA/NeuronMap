@@ -106,7 +106,7 @@ public final class WindowChromeView extends BorderPane {
         titleBar.setMinHeight(TITLE_BAR_HEIGHT);
         titleBar.setPrefHeight(TITLE_BAR_HEIGHT);
         titleBar.setMaxHeight(TITLE_BAR_HEIGHT);
-        titleBar.setPadding(new Insets(3.0, 6.0, 3.0, 12.0));
+        titleBar.setPadding(new Insets(0.0, 6.0, 0.0, 12.0));
         titleBar.setFillHeight(true);
 
         titleLabel.getStyleClass().add("window-title");
@@ -197,6 +197,7 @@ public final class WindowChromeView extends BorderPane {
 
     /**
      * Передає системну взаємодію заголовка API JavaFX та задає семантичні ролі трьом кнопкам.
+     * У Windows і Linux кнопки займають усю висоту заголовка; macOS зберігає компактні круглі індикатори.
      * Інтерактивні кнопки явно виключено з успадкованої перетягуваної області.
      *
      * @throws IllegalStateException якщо подання очищено, Stage не використовує {@link StageStyle#EXTENDED}
@@ -226,8 +227,8 @@ public final class WindowChromeView extends BorderPane {
         HeaderBar.setDragType(closeButton, HeaderDragType.NONE);
 
         titleBar.setPadding(platformStyle.controlsOnLeadingEdge()
-                ? new Insets(3.0, 6.0, 3.0, 6.0)
-                : new Insets(3.0, 0.0, 3.0, 12.0));
+                ? new Insets(0.0, 6.0, 0.0, 6.0)
+                : new Insets(0.0, 0.0, 0.0, 12.0));
         titleBar.setMaxWidth(Double.MAX_VALUE);
         setTop(null);
         headerBar.setCenter(titleBar);

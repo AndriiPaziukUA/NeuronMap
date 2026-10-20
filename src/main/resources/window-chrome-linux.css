@@ -9,12 +9,6 @@
 }
 
 .window-chrome-linux .window-control-button {
-    -fx-min-width: 40px;
-    -fx-pref-width: 40px;
-    -fx-max-width: 40px;
-    -fx-min-height: 30px;
-    -fx-pref-height: 30px;
-    -fx-max-height: 30px;
     -fx-background-radius: 4px;
 }
 
