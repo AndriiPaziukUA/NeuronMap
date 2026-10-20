@@ -11,6 +11,8 @@ import javafx.scene.shape.Circle;
 
 /**
  * Відображає інтерактивну ручку обертання та встановлює її положення й візуальний кут.
+ *
+ * <p>Область натискання обмежена круглою поверхнею, а не прямокутними межами кнопки.</p>
  */
 public final class RotationHandleView extends Button {
 
@@ -22,6 +24,7 @@ public final class RotationHandleView extends Button {
     private final Circle background = new Circle(SIZE / 2.0);
     private final Label glyph = new Label("↻");
 
+    /** Створює круглу ручку та обмежує її інтерактивну область видимою формою кола. */
     public RotationHandleView() {
         getStyleClass().add("rotation-handle-button");
 
@@ -35,7 +38,7 @@ public final class RotationHandleView extends Button {
         setAlignment(Pos.CENTER);
         setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
         setFocusTraversable(false);
-        setPickOnBounds(true);
+        setPickOnBounds(false);
         setMouseTransparent(false);
 
         background.getStyleClass().add("rotation-handle");
@@ -55,6 +58,25 @@ public final class RotationHandleView extends Button {
         );
 
         setGraphic(graphicPane);
+    }
+
+    /**
+     * Перевіряє, чи лежить точка у видимій круглій поверхні кнопки.
+     *
+     * <p>Перевірка спирається на геометрію кола та його рамку, а не на прямокутні межі кнопки.
+     * Візуальні ефекти не розширюють інтерактивну область.</p>
+     *
+     * @param localX горизонтальна координата точки в локальній системі кнопки.
+     * @param localY вертикальна координата точки в локальній системі кнопки.
+     * @return {@code true}, якщо точка перетинає видиме коло.
+     */
+    @Override
+    public boolean contains(double localX, double localY) {
+        double center = SIZE / 2.0;
+        double hitRadius = background.getRadius() + background.getStrokeWidth() / 2.0;
+        double offsetX = localX - center;
+        double offsetY = localY - center;
+        return offsetX * offsetX + offsetY * offsetY <= hitRadius * hitRadius;
     }
 
     /**

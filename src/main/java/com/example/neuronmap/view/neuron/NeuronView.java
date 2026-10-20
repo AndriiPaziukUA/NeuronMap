@@ -14,6 +14,9 @@ import javafx.scene.shape.Rectangle;
 
 /**
  * Відображає нейрон, його порти й напрямок сигналу, а також візуальні стани вибору, наведення та передачі сигналу.
+ *
+ * <p>Область взаємодії визначається геометрією тіла з округленими кутами та видимими портами;
+ * тінь і прямокутні межі контейнера не розширюють її.</p>
  */
 public final class NeuronView extends StackPane {
 
@@ -68,22 +71,22 @@ public final class NeuronView extends StackPane {
         setPrefSize(WIDTH, HEIGHT);
         setMinSize(WIDTH, HEIGHT);
         setMaxSize(WIDTH, HEIGHT);
-        setPickOnBounds(true);
+        setPickOnBounds(false);
         setRotate(presentation.rotationDegrees());
 
         body.getStyleClass().add("neuron-card");
         body.setArcWidth(28);
         body.setArcHeight(28);
-        body.setMouseTransparent(true);
+        body.setMouseTransparent(false);
         body.setManaged(false);
 
         configureSignalLabel(inputSignalLabel);
         configureSignalLabel(outputSignalLabel);
         inputPort.getStyleClass().add("port");
-        inputPort.setMouseTransparent(true);
+        inputPort.setMouseTransparent(false);
         inputPort.setManaged(false);
         outputPort.getStyleClass().add("port");
-        outputPort.setMouseTransparent(true);
+        outputPort.setMouseTransparent(false);
         outputPort.setManaged(false);
         inputSignalLabel.setManaged(false);
         outputSignalLabel.setManaged(false);
@@ -93,6 +96,20 @@ public final class NeuronView extends StackPane {
         refreshInputPortStyleClass();
         refreshOutputPortStyleClass();
         refreshVisuals(false);
+    }
+
+    /**
+     * Перевіряє точку за геометрією видимих частин нейрона, не враховуючи ефекти та прямокутні межі контейнера.
+     *
+     * @param localX горизонтальна координата точки в локальній системі нейрона.
+     * @param localY вертикальна координата точки в локальній системі нейрона.
+     * @return {@code true}, якщо точка перетинає тіло, вхідний порт або вихідний трикутник.
+     */
+    @Override
+    public boolean contains(double localX, double localY) {
+        return body.contains(body.parentToLocal(localX, localY))
+                || inputPort.contains(inputPort.parentToLocal(localX, localY))
+                || outputPort.contains(outputPort.parentToLocal(localX, localY));
     }
 
     /**
