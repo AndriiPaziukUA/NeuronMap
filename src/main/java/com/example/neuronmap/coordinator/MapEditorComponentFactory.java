@@ -207,9 +207,10 @@ final class MapEditorComponentFactory {
 
     /**
      * Створює компоненти історії, клавіатури й камери після появи координатора взаємодії.
+     * Під час undo/redo історія очищує лише попередній перегляд інструмента, не завершуючи життєвий цикл взаємодії.
      *
      * @param inputs залежності складання редактора.
-     * @param base базові контролери редактора.
+     * @param base базові компоненти контролерів.
      * @param interaction координатори синхронізації та взаємодії.
      * @return повний набір компонентів, потрібний головному координатору редактора.
      */
@@ -225,7 +226,7 @@ final class MapEditorComponentFactory {
                 base.neuronController(),
                 inputs.state(),
                 inputs.view().workspace(),
-                interaction.interaction()::dispose,
+                interaction.interaction()::clearDragPreview,
                 interaction.presentation(),
                 inputs.actions().save(),
                 inputs.actions().updateStatus(),
@@ -370,7 +371,7 @@ final class MapEditorComponentFactory {
     /**
      * Координатори, які зв'язують графічні подання зі сценаріями взаємодії.
      *
-     * @param presentation єдиний власник синхронізації подань карти.
+     * @param presentation єдиний власник синхронізації подань.
      * @param interaction координатор подій полотна й кнопок інструментів.
      */
     private record InteractionComponents(

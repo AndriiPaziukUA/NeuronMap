@@ -118,13 +118,23 @@ public final class MapInteractionCoordinator {
         if (disposed) {
             return;
         }
-        toolDragController.clearPreview();
+        clearDragPreview();
         connectionController.cancelCreate();
         connectionController.exitDelete();
         neuronController.hideMenu();
         state.resetToIdle();
         workspace.node().setCursor(Cursor.DEFAULT);
         status.accept(localization.text("status.ready"));
+    }
+
+    /**
+     * Прибирає лише попередній перегляд перетягування інструмента, не від'єднуючи обробники редактора.
+     * Використовується під час скасування історії, коли життєвий цикл взаємодії має залишатися активним.
+     */
+    void clearDragPreview() {
+        if (!disposed) {
+            toolDragController.clearPreview();
+        }
     }
 
     /** Створює нейрон у заданих координатах і синхронізує карту одним викликом координатора презентації. */
