@@ -6,8 +6,8 @@ import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.simulation.SimulationService;
-import com.example.neuronmap.view.simulation.SimulationStepPresenter;
 import com.example.neuronmap.view.editor.WorkspaceView;
+import com.example.neuronmap.view.simulation.SimulationStepPresenter;
 import javafx.application.Platform;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє форматування локалізованого повідомлення контролера після зміни швидкості активної симуляції.
+ * Перевіряє форматування повідомлення про швидкість та передавання тривалості такту до анімацій.
  */
 final class SimulationControllerSpeedFormattingTest {
 
@@ -41,7 +41,7 @@ final class SimulationControllerSpeedFormattingTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
     }
 
-    /** Перевіряє, що локалізоване повідомлення використовує спільний стабільний формат швидкості. */
+    /** Перевіряє, що швидкість передається анімаціям і повідомлення використовує спільний формат тривалості. */
     @Test
     void speedChangedStatusUsesSharedDurationFormatting() throws Exception {
         AtomicReference<String> status = new AtomicReference<>();
@@ -54,12 +54,20 @@ final class SimulationControllerSpeedFormattingTest {
             assertTrue(model.createConnection(source.id(), target.id()));
 
             WorkspaceView workspace = new WorkspaceView();
+            AtomicReference<Double> appliedTickDuration = new AtomicReference<>();
             SimulationStepPresenter presenter = new SimulationStepPresenter(
                     workspace,
                     Map.of(),
                     () -> { },
                     new PulseAnimationController(workspace)
-            );
+            ) {
+                /** Фіксує тривалість, передану контролером, і зберігає штатну поведінку подання. */
+                @Override
+                public void setTickDurationMillis(double tickDurationMillis) {
+                    appliedTickDuration.set(tickDurationMillis);
+                    super.setTickDurationMillis(tickDurationMillis);
+                }
+            };
             SimulationController controller = new SimulationController(
                     new NeuronService(model),
                     new SimulationService(),
@@ -75,9 +83,11 @@ final class SimulationControllerSpeedFormattingTest {
             );
 
             try {
+                assertEquals(100.0, appliedTickDuration.get());
                 controller.emitPulse(source.id());
                 controller.setTickDurationMillis(125.5);
 
+                assertEquals(125.5, appliedTickDuration.get());
                 assertEquals(
                         "Швидкість імпульсів: 125.5 мс/такт.",
                         status.get()

@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє життєвий цикл активних імпульсів під час видалення нейронів і зв'язків. */
+/** Перевіряє життєвий цикл активних імпульсів і зміну їхньої швидкості разом із тактом. */
 class PulseAnimationControllerTest {
 
     /** Запускає JavaFX перед тестами, що працюють із графічними вузлами. */
@@ -37,9 +37,9 @@ class PulseAnimationControllerTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
     }
 
-    /** Перевіряє, що анімація негайно зупиняється після вилучення подання зв'язку. */
+    /** Перевіряє, що активна анімація змінює тривалість разом із тактом і зупиняється після вилучення зв'язку. */
     @Test
-    void activePulseStopsImmediatelyWhenConnectionViewIsRemoved() throws Exception {
+    void activePulseTracksTickDurationAndStopsWhenConnectionViewIsRemoved() throws Exception {
         runOnFxThread(() -> {
             NeuronMapModel model = new NeuronMapModel();
             Neuron source = model.createNeuron(NeuronType.EXCITATORY, 50, 50);
@@ -64,6 +64,10 @@ class PulseAnimationControllerTest {
                 assertEquals(1, controller.activeAnimationCountForTest());
                 assertEquals(1, workspace.pulseLayer().getChildren().size());
                 PulseAnimationView activePulse = (PulseAnimationView) workspace.pulseLayer().getChildren().get(0);
+                assertEquals(PulseAnimationView.DEFAULT_TICK_DURATION_MILLIS, activePulse.getTickDurationMillis());
+
+                controller.setTickDurationMillis(75.0);
+                assertEquals(75.0, activePulse.getTickDurationMillis());
 
                 assertNotNull(model.removeNeuron(source.id()));
                 assertTrue(model.connections().isEmpty());

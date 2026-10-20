@@ -13,9 +13,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє геометрію рухомого імпульсу та незалежність його траєкторії від зв'язку. */
+/** Перевіряє геометрію імпульсу та залежність його тривалості від такту симуляції. */
 class PulseAnimationViewTest {
 
     /** Запускає JavaFX перед тестами, що працюють із графічними вузлами. */
@@ -83,6 +84,31 @@ class PulseAnimationViewTest {
             assertEquals(178.0, line.getStartX());
             assertEquals(210.0, line.getEndX());
             pulse.stop();
+        });
+    }
+
+    /** Перевіряє зміну тривалості імпульсу та відхилення некоректних часових значень. */
+    @Test
+    void tickDurationControlsAnimationDurationAndRejectsInvalidValues() throws Exception {
+        runOnFxThread(() -> {
+            ConnectionPulseSnapshot snapshot = snapshot(10, 20, 210, 20);
+            PulseAnimationView pulse = new PulseAnimationView(snapshot, () -> snapshot, 125.0, () -> { });
+            try {
+                assertEquals(125.0, pulse.getTickDurationMillis());
+
+                pulse.setTickDurationMillis(250.0);
+                assertEquals(250.0, pulse.getTickDurationMillis());
+
+                assertThrows(IllegalArgumentException.class, () -> pulse.setTickDurationMillis(0.0));
+                assertThrows(IllegalArgumentException.class, () -> pulse.setTickDurationMillis(Double.NaN));
+                assertThrows(IllegalArgumentException.class,
+                        () -> pulse.setTickDurationMillis(Double.POSITIVE_INFINITY));
+                assertThrows(IllegalArgumentException.class,
+                        () -> pulse.setTickDurationMillis(Double.MIN_VALUE));
+                assertEquals(250.0, pulse.getTickDurationMillis());
+            } finally {
+                pulse.stop();
+            }
         });
     }
 

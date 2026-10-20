@@ -34,4 +34,11 @@ public interface PulseAnimator {
      * @param connectionView візуальне подання зв'язку.
      */
     void play(ConnectionView connectionView);
+
+    /**
+     * Застосовує тривалість такту симуляції до нових і вже активних анімацій імпульсів.
+     *
+     * @param tickDurationMillis тривалість одного такту в мілісекундах.
+     */
+    void setTickDurationMillis(double tickDurationMillis);
 }

@@ -18,10 +18,13 @@ import java.util.function.Supplier;
 
 /**
  * Анімує короткий імпульс уздовж зв'язку незалежно від життєвого циклу самого подання зв'язку.
+ * Тривалість руху відповідає тривалості поточного такту симуляції.
  */
 public final class PulseAnimationView extends Pane {
 
-    private static final double TOTAL_MILLIS = 380.0;
+    /** Тривалість для використання подання окремо від симуляції. */
+    public static final double DEFAULT_TICK_DURATION_MILLIS = 380.0;
+
     private static final double MIDPOINT_MILLIS = 180.0;
     private static final double MAX_PULSE_LENGTH = 32.0;
     private static final double PULSE_LENGTH_RATIO = 0.22;
@@ -34,10 +37,12 @@ public final class PulseAnimationView extends Pane {
     private final Line line = new Line();
     private final Polygon arrow = new Polygon();
     private final DoubleProperty progress = new SimpleDoubleProperty(0.0);
-    private final Timeline timeline;
     private final AnimationTimer geometryUpdater;
     private final Runnable onFinished;
+
+    private Timeline timeline;
     private ConnectionPulseSnapshot lastSnapshot;
+    private double tickDurationMillis;
     private boolean finished;
 
     /**
@@ -50,7 +55,7 @@ public final class PulseAnimationView extends Pane {
             ConnectionPulseSnapshot initialSnapshot,
             Supplier<ConnectionPulseSnapshot> snapshotSupplier
     ) {
-        this(initialSnapshot, snapshotSupplier, () -> { });
+        this(initialSnapshot, snapshotSupplier, DEFAULT_TICK_DURATION_MILLIS, () -> { });
     }
 
     /**
@@ -65,9 +70,29 @@ public final class PulseAnimationView extends Pane {
             Supplier<ConnectionPulseSnapshot> snapshotSupplier,
             Runnable onFinished
     ) {
+        this(initialSnapshot, snapshotSupplier, DEFAULT_TICK_DURATION_MILLIS, onFinished);
+    }
+
+    /**
+     * Створює анімацію імпульсу, тривалість якої відповідає заданому такту симуляції.
+     *
+     * @param initialSnapshot початкова геометрія й кольори імпульсу.
+     * @param snapshotSupplier постачальник актуальної геометрії зв'язку.
+     * @param tickDurationMillis тривалість такту в мілісекундах.
+     * @param onFinished callback після завершення або зупинки анімації.
+     * @throws NullPointerException якщо обов'язкову залежність не задано.
+     * @throws IllegalArgumentException якщо тривалість такту не є скінченним додатним числом або не дає коректної швидкості.
+     */
+    public PulseAnimationView(
+            ConnectionPulseSnapshot initialSnapshot,
+            Supplier<ConnectionPulseSnapshot> snapshotSupplier,
+            double tickDurationMillis,
+            Runnable onFinished
+    ) {
         lastSnapshot = Objects.requireNonNull(initialSnapshot, "initialSnapshot");
         this.snapshotSupplier = Objects.requireNonNull(snapshotSupplier, "snapshotSupplier");
         this.onFinished = Objects.requireNonNull(onFinished, "onFinished");
+        this.tickDurationMillis = requireTickDurationMillis(tickDurationMillis);
 
         setManaged(false);
         setPickOnBounds(false);
@@ -81,32 +106,9 @@ public final class PulseAnimationView extends Pane {
         getChildren().addAll(line, arrow);
         progress.addListener((observable, oldValue, newValue) -> updatePulsePosition(newValue.doubleValue()));
         updatePulsePosition(0.0);
+        timeline = createTimeline();
+        timeline.setRate(animationRate(tickDurationMillis));
 
-        timeline = new Timeline(
-                new KeyFrame(
-                        Duration.ZERO,
-                        new KeyValue(progress, 0.0),
-                        new KeyValue(line.strokeProperty(), lastSnapshot.pulseColor()),
-                        new KeyValue(arrow.fillProperty(), lastSnapshot.pulseColor()),
-                        new KeyValue(line.opacityProperty(), VISIBLE_OPACITY),
-                        new KeyValue(arrow.opacityProperty(), VISIBLE_OPACITY)
-                ),
-                new KeyFrame(
-                        Duration.millis(MIDPOINT_MILLIS),
-                        new KeyValue(progress, 0.5),
-                        new KeyValue(line.opacityProperty(), VISIBLE_OPACITY),
-                        new KeyValue(arrow.opacityProperty(), VISIBLE_OPACITY)
-                ),
-                new KeyFrame(
-                        Duration.millis(TOTAL_MILLIS),
-                        new KeyValue(progress, 1.0),
-                        new KeyValue(line.strokeProperty(), lastSnapshot.normalColor()),
-                        new KeyValue(arrow.fillProperty(), lastSnapshot.normalColor()),
-                        new KeyValue(line.opacityProperty(), HIDDEN_OPACITY),
-                        new KeyValue(arrow.opacityProperty(), HIDDEN_OPACITY)
-                )
-        );
-        timeline.setOnFinished(event -> finish());
         geometryUpdater = new AnimationTimer() {
             /**
              * Оновлює геометрію імпульсу на кожному кадрі JavaFX.
@@ -154,6 +156,34 @@ public final class PulseAnimationView extends Pane {
     }
 
     /**
+     * Змінює тривалість анімації, не скидаючи вже пройдений шлях імпульсу.
+     * Якщо анімація виконувалася або була призупинена, її стан зберігається.
+     *
+     * @param millis нова тривалість такту в мілісекундах.
+     * @throws IllegalArgumentException якщо значення не є скінченним додатним числом або не дає коректної швидкості.
+     */
+    public void setTickDurationMillis(double millis) {
+        double validatedMillis = requireTickDurationMillis(millis);
+        double rate = animationRate(validatedMillis);
+        if (Double.compare(tickDurationMillis, validatedMillis) == 0) {
+            return;
+        }
+        tickDurationMillis = validatedMillis;
+        if (!finished) {
+            timeline.setRate(rate);
+        }
+    }
+
+    /**
+     * Повертає тривалість, до якої узгоджується рух імпульсу.
+     *
+     * @return поточна тривалість такту в мілісекундах.
+     */
+    public double getTickDurationMillis() {
+        return tickDurationMillis;
+    }
+
+    /**
      * Перевіряє, чи анімація завершена.
      *
      * @return {@code true}, якщо анімація більше не активна.
@@ -194,6 +224,68 @@ public final class PulseAnimationView extends Pane {
         Point2D pulseStart = start.add(unitDirection.multiply(travelDistance));
         Point2D pulseEnd = pulseStart.add(unitDirection.multiply(pulseLength));
         applyGeometry(pulseStart, pulseEnd);
+    }
+
+    /**
+     * Створює часову шкалу руху імпульсу зі збереженням наявного ритму та згасання.
+     *
+     * @return часова шкала руху, зміни кольору й прозорості імпульсу.
+     */
+    private Timeline createTimeline() {
+        Timeline result = new Timeline(
+                new KeyFrame(
+                        Duration.ZERO,
+                        new KeyValue(progress, 0.0),
+                        new KeyValue(line.strokeProperty(), lastSnapshot.pulseColor()),
+                        new KeyValue(arrow.fillProperty(), lastSnapshot.pulseColor()),
+                        new KeyValue(line.opacityProperty(), VISIBLE_OPACITY),
+                        new KeyValue(arrow.opacityProperty(), VISIBLE_OPACITY)
+                ),
+                new KeyFrame(
+                        Duration.millis(MIDPOINT_MILLIS),
+                        new KeyValue(progress, 0.5),
+                        new KeyValue(line.opacityProperty(), VISIBLE_OPACITY),
+                        new KeyValue(arrow.opacityProperty(), VISIBLE_OPACITY)
+                ),
+                new KeyFrame(
+                        Duration.millis(DEFAULT_TICK_DURATION_MILLIS),
+                        new KeyValue(progress, 1.0),
+                        new KeyValue(line.strokeProperty(), lastSnapshot.normalColor()),
+                        new KeyValue(arrow.fillProperty(), lastSnapshot.normalColor()),
+                        new KeyValue(line.opacityProperty(), HIDDEN_OPACITY),
+                        new KeyValue(arrow.opacityProperty(), HIDDEN_OPACITY)
+                )
+        );
+        result.setOnFinished(event -> finish());
+        return result;
+    }
+
+    /**
+     * Обчислює коефіцієнт відтворення так, щоб рух імпульсу тривав рівно один такт.
+     *
+     * @param millis тривалість такту в мілісекундах.
+     * @return коефіцієнт швидкості часової шкали.
+     */
+    private static double animationRate(double millis) {
+        double rate = DEFAULT_TICK_DURATION_MILLIS / millis;
+        if (!Double.isFinite(rate) || rate <= 0.0) {
+            throw new IllegalArgumentException("tick duration produces an invalid animation rate");
+        }
+        return rate;
+    }
+
+    /**
+     * Перевіряє, що тривалість анімації є скінченною та додатною.
+     *
+     * @param millis тривалість такту в мілісекундах.
+     * @return перевірене значення.
+     * @throws IllegalArgumentException якщо тривалість некоректна.
+     */
+    private static double requireTickDurationMillis(double millis) {
+        if (!Double.isFinite(millis) || millis <= 0.0) {
+            throw new IllegalArgumentException("tick duration must be finite and positive");
+        }
+        return millis;
     }
 
     /**

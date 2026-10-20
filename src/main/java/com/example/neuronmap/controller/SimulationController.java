@@ -83,6 +83,7 @@ public final class SimulationController {
         this.minTickMillis = minTickMillis;
         this.maxTickMillis = maxTickMillis;
         tickMillis = SimulationSpeed.requireMillis(initialTickMillis, minTickMillis, maxTickMillis);
+        stepPresenter.setTickDurationMillis(tickMillis);
         finishDelay = new PauseTransition(Duration.millis(tickMillis));
 
         finishDelay.setOnFinished(event -> {
@@ -206,6 +207,7 @@ public final class SimulationController {
     /** Перевіряє та застосовує тривалість одного такту симуляції в мілісекундах. */
     public void setTickDurationMillis(double millis) {
         tickMillis = SimulationSpeed.requireMillis(millis, minTickMillis, maxTickMillis);
+        stepPresenter.setTickDurationMillis(tickMillis);
         if (timeline == null) {
             finishDelay.setDuration(Duration.millis(tickMillis));
             return;

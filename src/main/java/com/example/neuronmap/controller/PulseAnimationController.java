@@ -19,6 +19,7 @@ public final class PulseAnimationController implements PulseAnimator {
     private final WorkspaceView workspace;
     private final Runnable activityChanged;
     private final List<ActiveAnimation> activeAnimations = new ArrayList<>();
+    private double tickDurationMillis = PulseAnimationView.DEFAULT_TICK_DURATION_MILLIS;
 
     /**
      * Створює контролер анімацій імпульсів.
@@ -63,6 +64,7 @@ public final class PulseAnimationController implements PulseAnimator {
         PulseAnimationView animation = new PulseAnimationView(
                 snapshot,
                 connectionView::capturePulseSnapshot,
+                tickDurationMillis,
                 this::handleAnimationFinished
         );
 
@@ -130,6 +132,29 @@ public final class PulseAnimationController implements PulseAnimator {
             if (activeAnimation.isRelatedTo(neuronId)) {
                 activeAnimation.view().stop();
             }
+        }
+    }
+
+    /**
+     * Застосовує нову тривалість такту до всіх активних імпульсів і майбутніх анімацій.
+     * Поточний прогрес активних імпульсів зберігається.
+     *
+     * @param millis тривалість одного такту в мілісекундах.
+     * @throws IllegalArgumentException якщо тривалість не є скінченним додатним числом.
+     */
+    @Override
+    public void setTickDurationMillis(double millis) {
+        if (!Double.isFinite(millis) || millis <= 0.0) {
+            throw new IllegalArgumentException("tick duration must be finite and positive");
+        }
+        if (Double.compare(tickDurationMillis, millis) == 0) {
+            return;
+        }
+
+        tickDurationMillis = millis;
+        pruneFinished();
+        for (ActiveAnimation activeAnimation : List.copyOf(activeAnimations)) {
+            activeAnimation.view().setTickDurationMillis(millis);
         }
     }
 

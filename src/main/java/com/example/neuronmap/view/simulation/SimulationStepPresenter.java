@@ -2,8 +2,8 @@ package com.example.neuronmap.view.simulation;
 
 import com.example.neuronmap.simulation.SimulationStep;
 import com.example.neuronmap.view.connection.ConnectionView;
-import com.example.neuronmap.view.neuron.NeuronView;
 import com.example.neuronmap.view.editor.WorkspaceView;
+import com.example.neuronmap.view.neuron.NeuronView;
 import javafx.scene.Node;
 
 import java.util.Map;
@@ -63,6 +63,15 @@ public class SimulationStepPresenter {
     /** Оновлює подання нейронів і зв’язків після зміни моделі. */
     public void refresh() {
         refreshNeuronViews.run();
+    }
+
+    /**
+     * Оновлює тривалість анімацій відповідно до поточної тривалості такту симуляції.
+     *
+     * @param tickDurationMillis тривалість одного такту в мілісекундах.
+     */
+    public void setTickDurationMillis(double tickDurationMillis) {
+        pulseAnimations.setTickDurationMillis(tickDurationMillis);
     }
 
     /**
