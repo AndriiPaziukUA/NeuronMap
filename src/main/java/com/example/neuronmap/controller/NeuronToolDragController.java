@@ -36,6 +36,7 @@ public final class NeuronToolDragController {
     private final EventHandler<DragEvent> dragExitedHandler = this::handleDragExited;
     private final EventHandler<DragEvent> droppedHandler = this::handleDrop;
     private final EventHandler<MouseEvent> mouseMovedHandler = this::handleMouseMoved;
+    private final EventHandler<MouseEvent> mouseExitedHandler = this::handleMouseExited;
     private final Map<Button, DragSourceRegistration> dragSources = new IdentityHashMap<>();
     private final Map<NeuronType, Button> toolbarButtons = new EnumMap<>(NeuronType.class);
 
@@ -81,6 +82,7 @@ public final class NeuronToolDragController {
         workspace.node().addEventHandler(DragEvent.DRAG_EXITED, dragExitedHandler);
         workspace.node().addEventHandler(DragEvent.DRAG_DROPPED, droppedHandler);
         workspace.node().addEventFilter(MouseEvent.MOUSE_MOVED, mouseMovedHandler);
+        workspace.node().addEventFilter(MouseEvent.MOUSE_EXITED_TARGET, mouseExitedHandler);
         installed = true;
     }
 
@@ -201,6 +203,7 @@ public final class NeuronToolDragController {
             workspace.node().removeEventHandler(DragEvent.DRAG_EXITED, dragExitedHandler);
             workspace.node().removeEventHandler(DragEvent.DRAG_DROPPED, droppedHandler);
             workspace.node().removeEventFilter(MouseEvent.MOUSE_MOVED, mouseMovedHandler);
+            workspace.node().removeEventFilter(MouseEvent.MOUSE_EXITED_TARGET, mouseExitedHandler);
             installed = false;
         }
         dragSources.forEach((button, registration) -> {
@@ -269,17 +272,13 @@ public final class NeuronToolDragController {
         event.consume();
     }
 
-    /** Відновлює активний інструмент після виходу drag-and-drop-події з полотна. */
+    /** Приховує прев'ю після виходу drag-and-drop за межі полотна, не скасовуючи режим розміщення. */
     private void handleDragExited(DragEvent event) {
-        if (disposed) {
+        if (disposed || event.getTarget() != workspace.node()) {
             return;
         }
-        rememberPointer(event.getSceneX(), event.getSceneY());
-        if (activePlacementType == null) {
-            clearPreview();
-        } else {
-            restorePlacementPreview();
-        }
+        clearPreview();
+        hasLastPointerPosition = false;
     }
 
     /** Створює нейрон у точці полотна, на яку відпустили інструмент перетягування. */
@@ -319,6 +318,15 @@ public final class NeuronToolDragController {
         if (activePlacementType != null) {
             updateDragPreview(activePlacementType, event.getSceneX(), event.getSceneY());
         }
+    }
+
+    /** Приховує будь-яке прев'ю, коли вказівник залишає полотно, але ігнорує вихід із дочірніх вузлів. */
+    private void handleMouseExited(MouseEvent event) {
+        if (disposed || event.getTarget() != workspace.node()) {
+            return;
+        }
+        clearPreview();
+        hasLastPointerPosition = false;
     }
 
     /** Зберігає останню позицію вказівника для відновлення попереднього перегляду після перетягування. */

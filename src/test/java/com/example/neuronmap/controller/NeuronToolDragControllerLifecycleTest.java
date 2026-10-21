@@ -71,7 +71,44 @@ final class NeuronToolDragControllerLifecycleTest {
         });
     }
 
-    /** Перевіряє стійкість попереднього перегляду й взаємовиключне виділення кнопок для довільного набору типів. */
+    /** Перевіряє, що прев'ю зникає за межами полотна й знову з'являється після повернення вказівника. */
+    @Test
+    void placementPreviewIsHiddenOutsideWorkspaceAndRestoredWhenPointerReturns() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            WorkspaceView workspace = new WorkspaceView();
+            new Scene(workspace.node(), 500.0, 400.0);
+            NeuronToolDragController controller = new NeuronToolDragController(
+                    new EditorState(1.0, 0.0, 0.0),
+                    workspace,
+                    (NeuronType ignored, Point2D point) -> { }
+            );
+            Button excitatory = new Button("Excitatory");
+            controller.configureToolbarButtons(excitatory, null);
+            controller.install();
+            try {
+                controller.setPlacementMode(NeuronType.EXCITATORY);
+                Event.fireEvent(workspace.node(), mouseMoved(100.0, 120.0));
+                assertEquals(1, workspace.overlayLayer().getChildren().size());
+
+                Event.fireEvent(workspace.node(), mouseExited(100.0, 120.0));
+
+                assertTrue(workspace.overlayLayer().getChildren().isEmpty(),
+                        "Прев'ю не повинно залишатися на полотні після виходу вказівника за його межі");
+                assertTrue(excitatory.getStyleClass().contains("tool-button-active"),
+                        "Вихід з полотна не повинен скасовувати режим додавання нейронів");
+
+                Event.fireEvent(workspace.node(), mouseMoved(180.0, 220.0));
+
+                assertEquals(1, workspace.overlayLayer().getChildren().size(),
+                        "Прев'ю має з'явитися знову, коли вказівник повертається на полотно");
+            } finally {
+                controller.dispose();
+                workspace.dispose();
+            }
+        });
+    }
+
+    /** Перевіряє, що прев'ю переміщується за вказівником і кнопки інструментів виділяються взаємовиключно. */
     @Test
     void placementPreviewPersistsAndOnlyTheSelectedButtonIsHighlighted() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
@@ -122,6 +159,16 @@ final class NeuronToolDragControllerLifecycleTest {
         return new MouseEvent(
                 MouseEvent.MOUSE_RELEASED, 0.0, 0.0, 0.0, 0.0,
                 MouseButton.PRIMARY, 1,
+                false, false, false, false,
+                false, false, false, false, false, true, null
+        );
+    }
+
+    /** Створює подію виходу вказівника для перевірки приховування попереднього перегляду. */
+    private static MouseEvent mouseExited(double x, double y) {
+        return new MouseEvent(
+                MouseEvent.MOUSE_EXITED_TARGET, x, y, x, y,
+                MouseButton.NONE, 0,
                 false, false, false, false,
                 false, false, false, false, false, true, null
         );
