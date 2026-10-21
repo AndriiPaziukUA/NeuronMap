@@ -18,9 +18,11 @@ import com.example.neuronmap.view.neuron.NeuronView;
 import javafx.event.Event;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.VBox;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -33,8 +35,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє зняття фільтра сцени та звільнення ресурсів між повторними сеансами редактора. */
+/** Перевіряє життєвий цикл фільтра сцени й коректність порядку шарів нейронів. */
 final class MapEditorCoordinatorSceneLifecycleTest {
 
     /** Перевіряє, що фільтр переднього плану діє до завершення й не реагує після двох циклів відкриття/закриття.
@@ -93,6 +96,71 @@ final class MapEditorCoordinatorSceneLifecycleTest {
                 } finally {
                     coordinator.shutdown();
                 }
+            }
+        });
+    }
+
+    /** Перевіряє, що правий клік у режимі створення зв’язку не змінює порядок шарів і не відкриває меню.
+     *
+     * @param tempDir тимчасовий каталог для ізольованого тестового проєкту.
+     * @throws Exception якщо не вдається підготувати проєкт або виконати перевірку JavaFX.
+     */
+    @Test
+    void rightClickDuringConnectionCreationDoesNotBringNeuronToFront(@TempDir Path tempDir) throws Exception {
+        Path storageRoot = tempDir.resolve("connection-creation");
+        Path projectDirectory = storageRoot.resolve("Project");
+        Files.createDirectories(projectDirectory);
+        Files.writeString(projectDirectory.resolve("project.db"), "test repository marker");
+
+        JavaFxTestSupport.runAndWait(() -> {
+            Fixture fixture = createFixture(storageRoot);
+            MapEditorCoordinator coordinator = fixture.coordinator;
+            try {
+                Scene scene = coordinator.createScene(800.0, 600.0);
+                scene.getRoot().applyCss();
+                scene.getRoot().layout();
+
+                NeuronView source = findNeuronView(scene, fixture.firstNeuronId);
+                NeuronView target = findNeuronView(scene, fixture.secondNeuronId);
+                assertNotNull(source);
+                assertNotNull(target);
+                Pane nodeLayer = (Pane) source.getParent();
+                assertSame(nodeLayer, target.getParent());
+
+                Event.fireEvent(source, mousePressedEvent(MouseButton.SECONDARY));
+                Event.fireEvent(source, mouseClickedEvent(MouseButton.SECONDARY));
+                scene.getRoot().applyCss();
+                VBox contextMenu = scene.getRoot().lookupAll(".connection-menu").stream()
+                        .filter(VBox.class::isInstance)
+                        .map(VBox.class::cast)
+                        .findFirst()
+                        .orElseThrow(() -> new AssertionError("Контекстне меню нейрона не відкрилося"));
+                String addConnectionLabel = new LocalizationService(Locale.ENGLISH)
+                        .text("neuron.menu.add_connection");
+                Button addConnectionButton = contextMenu.lookupAll(".menu-button").stream()
+                        .filter(Button.class::isInstance)
+                        .map(Button.class::cast)
+                        .filter(button -> button.getTooltip() != null
+                                && addConnectionLabel.equals(button.getTooltip().getText()))
+                        .findFirst()
+                        .orElseThrow(() -> new AssertionError("Не знайдено дію створення зв’язку"));
+                addConnectionButton.fire();
+
+                assertTrue(scene.getRoot().lookupAll(".connection-menu").isEmpty(),
+                        "Після активації створення зв’язку контекстне меню має бути приховане");
+                int targetIndexBefore = nodeLayer.getChildren().indexOf(target);
+                assertNotEquals(nodeLayer.getChildren().size() - 1, targetIndexBefore,
+                        "Перед правим кліком ціль не повинна бути на передньому плані");
+
+                Event.fireEvent(target, mousePressedEvent(MouseButton.SECONDARY));
+                Event.fireEvent(target, mouseClickedEvent(MouseButton.SECONDARY));
+
+                assertEquals(targetIndexBefore, nodeLayer.getChildren().indexOf(target),
+                        "Правий клік у режимі створення зв’язку не повинен змінювати порядок шарів");
+                assertTrue(scene.getRoot().lookupAll(".connection-menu").isEmpty(),
+                        "Правий клік у режимі створення зв’язку не повинен відкривати контекстне меню");
+            } finally {
+                coordinator.shutdown();
             }
         });
     }
@@ -166,12 +234,46 @@ final class MapEditorCoordinatorSceneLifecycleTest {
      * @return подія натискання, яка спрямовується до графічного подання нейрона.
      */
     private static MouseEvent mousePressedEvent() {
+        return mousePressedEvent(MouseButton.PRIMARY);
+    }
+
+    /** Створює подію натискання вказаної кнопки миші.
+     *
+     * @param button кнопка миші, для якої формується подія.
+     * @return подія натискання з відповідним станом кнопок.
+     */
+    private static MouseEvent mousePressedEvent(MouseButton button) {
+        return mouseEvent(MouseEvent.MOUSE_PRESSED, button);
+    }
+
+    /** Створює подію клацання вказаною кнопкою миші.
+     *
+     * @param button кнопка миші, для якої формується подія.
+     * @return подія клацання з відповідним станом кнопок.
+     */
+    private static MouseEvent mouseClickedEvent(MouseButton button) {
+        return mouseEvent(MouseEvent.MOUSE_CLICKED, button);
+    }
+
+    /** Формує подію миші з узгодженими прапорцями натиснутої кнопки для тестового вузла.
+     *
+     * @param eventType тип події миші.
+     * @param button кнопка, що спричинила подію.
+     * @return сформована подія JavaFX.
+     */
+    private static MouseEvent mouseEvent(
+            javafx.event.EventType<MouseEvent> eventType,
+            MouseButton button
+    ) {
         return new MouseEvent(
-                MouseEvent.MOUSE_PRESSED,
+                eventType,
                 10.0, 10.0, 10.0, 10.0,
-                MouseButton.PRIMARY, 1,
+                button, 1,
                 false, false, false, false,
-                true, false, false, false, false, true, null
+                button == MouseButton.PRIMARY,
+                button == MouseButton.MIDDLE,
+                button == MouseButton.SECONDARY,
+                false, false, true, null
         );
     }
 

@@ -29,6 +29,7 @@ import com.example.neuronmap.view.neuron.RotationHandleView;
 import com.example.neuronmap.view.support.ImmediateTooltipManager;
 import javafx.event.EventHandler;
 import javafx.scene.Scene;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 
 import java.util.HashMap;
@@ -228,8 +229,17 @@ public final class MapEditorCoordinator {
         return scene;
     }
 
-    /** Переміщує клацнутий нейрон на передній план, делегуючи зміну координатору презентації. */
+    /**
+     * Піднімає клацнутий нейрон на передній план, не змінюючи порядок шарів через правий клік
+     * у режимі створення зв’язку.
+     *
+     * @param event подія натискання кнопки миші на сцені.
+     */
     private void handleSceneMousePressed(MouseEvent event) {
+        if (state.mode() == EditorState.Mode.CREATE_CONNECTION
+                && event.getButton() == MouseButton.SECONDARY) {
+            return;
+        }
         presentation.bringClickedNeuronToFront(event);
     }
 
