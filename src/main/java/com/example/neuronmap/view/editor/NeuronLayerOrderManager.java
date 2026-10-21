@@ -65,21 +65,15 @@ public final class NeuronLayerOrderManager {
     }
 
     /**
-     * Переміщує вузол у кінець списку дочірніх вузлів батьківської панелі, якщо він у ній розміщений.
+     * Переміщує вузол на передній план без зміни його належності до батьківського контейнера.
+     * Це зберігає активні анімації, які залежать від життєвого циклу подання зв’язку.
      *
-     * @param node вузол JavaFX, який потрібно перемістити.
+     * @param node вузол JavaFX, який потрібно показати поверх інших дочірніх вузлів.
      */
     private static void moveToEnd(Node node) {
-        if (node == null || !(node.getParent() instanceof Pane layer)) {
+        if (node == null || !(node.getParent() instanceof Pane)) {
             return;
         }
-
-        var children = layer.getChildren();
-        if (children.size() <= 1 || children.get(children.size() - 1) == node) {
-            return;
-        }
-
-        children.remove(node);
-        children.add(node);
+        node.toFront();
     }
 }

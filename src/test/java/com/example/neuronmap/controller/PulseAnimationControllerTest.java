@@ -5,6 +5,7 @@ import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.view.connection.ConnectionView;
+import com.example.neuronmap.view.editor.NeuronLayerOrderManager;
 import com.example.neuronmap.view.editor.WorkspaceView;
 import com.example.neuronmap.view.neuron.NeuronView;
 import com.example.neuronmap.view.simulation.PulseAnimationView;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -37,9 +39,9 @@ class PulseAnimationControllerTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
     }
 
-    /** Перевіряє, що активна анімація змінює тривалість разом із тактом і зупиняється після вилучення зв'язку. */
+    /** Перевіряє, що активний імпульс зберігається при зміні порядку шарів і зупиняється після видалення зв’язку. */
     @Test
-    void activePulseTracksTickDurationAndStopsWhenConnectionViewIsRemoved() throws Exception {
+    void activePulseSurvivesNeuronBringToFrontAndStopsWhenConnectionViewIsRemoved() throws Exception {
         runOnFxThread(() -> {
             NeuronMapModel model = new NeuronMapModel();
             Neuron source = model.createNeuron(NeuronType.EXCITATORY, 50, 50);
@@ -68,6 +70,18 @@ class PulseAnimationControllerTest {
 
                 controller.setTickDurationMillis(75.0);
                 assertEquals(75.0, activePulse.getTickDurationMillis());
+
+                NeuronLayerOrderManager layerOrderManager = new NeuronLayerOrderManager(
+                        views,
+                        Map.of(connection.id(), connectionView),
+                        model::connections);
+                layerOrderManager.bringNeuronToFront(source.id());
+
+                assertFalse(activePulse.isFinished());
+                assertEquals(1, controller.activeAnimationCountForTest());
+                assertEquals(1, workspace.pulseLayer().getChildren().size());
+                assertEquals(workspace.edgeLayer(), connectionView.getParent());
+                assertEquals(workspace.nodeLayer(), sourceView.getParent());
 
                 assertNotNull(model.removeNeuron(source.id()));
                 assertTrue(model.connections().isEmpty());
