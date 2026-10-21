@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє, що скасування створення зв’язку клавішею Esc залишає правильне повідомлення в рядку стану. */
+/** Перевіряє, що скасування додавання нейрона й створення зв’язку зберігає відповідні повідомлення стану. */
 final class MapInteractionCoordinatorConnectionCancellationTest {
 
     /** Перевіряє повний клавіатурний маршрут і захищає повідомлення про скасування від перезапису статусом ready. */
@@ -56,6 +56,32 @@ final class MapInteractionCoordinatorConnectionCancellationTest {
                 assertEquals(fixture.localization.text("status.connection_create_cancelled"),
                         fixture.lastStatus.get(),
                         "Загальне повідомлення ready не має перезаписувати повідомлення про скасування зв’язку");
+            } finally {
+                fixture.dispose();
+            }
+        });
+    }
+
+    /**
+     * Перевіряє, що Esc під час додавання нейрона показує повідомлення скасування замість загального статусу готовності.
+     *
+     * @throws Exception якщо виконання на потоці JavaFX завершується помилкою.
+     */
+    @Test
+    void escapeCancellationKeepsNeuronAdditionCancellationStatusVisible() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            Fixture fixture = new Fixture();
+            try {
+                fixture.install();
+                fixture.components.interaction().beginAddNeuronMode(NeuronType.EXCITATORY);
+
+                Event.fireEvent(fixture.scene.getRoot(), keyPressedEvent(KeyCode.ESCAPE));
+
+                assertEquals(EditorState.Mode.IDLE, fixture.state.mode());
+                assertEquals(Cursor.DEFAULT, fixture.view.workspace().node().getCursor());
+                assertEquals(fixture.localization.text("status.add_neuron_cancelled"),
+                        fixture.lastStatus.get(),
+                        "Загальне повідомлення ready не має перезаписувати скасування додавання нейрона");
             } finally {
                 fixture.dispose();
             }

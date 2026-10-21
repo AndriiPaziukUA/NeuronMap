@@ -130,13 +130,14 @@ public final class MapInteractionCoordinator {
 
     /**
      * Скасовує активні режими взаємодії, прев’ю та підсвічування інструмента.
-     * Якщо користувач скасовує створення зв’язку, залишає в рядку стану саме повідомлення про це,
-     * а не замінює його загальним повідомленням про готовність редактора.
+     * Для скасування додавання нейрона або створення зв’язку показує відповідне повідомлення,
+     * не замінюючи його загальним повідомленням про готовність редактора.
      */
     public void cancelInteractions() {
         if (disposed) {
             return;
         }
+        boolean cancellingNeuronAddition = state.mode() == EditorState.Mode.ADD_NEURON;
         boolean cancellingConnectionCreation = state.mode() == EditorState.Mode.CREATE_CONNECTION;
         toolDragController.setPlacementMode(null);
         if (cancellingConnectionCreation) {
@@ -148,7 +149,9 @@ public final class MapInteractionCoordinator {
         neuronController.hideMenu();
         state.resetToIdle();
         workspace.node().setCursor(Cursor.DEFAULT);
-        if (!cancellingConnectionCreation) {
+        if (cancellingNeuronAddition) {
+            status.accept(localization.text("status.add_neuron_cancelled"));
+        } else if (!cancellingConnectionCreation) {
             status.accept(localization.text("status.ready"));
         }
     }
