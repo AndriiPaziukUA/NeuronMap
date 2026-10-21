@@ -82,9 +82,19 @@ public final class ConnectionController {
         creationController.beginCreate(sourceNeuronId);
     }
 
-    /** Скасовує незавершене створення зв’язку та прибирає його попередній перегляд. */
+    /** Скасовує незавершене створення зв’язку без повідомлення, для переходів між інструментами та очищення. */
     public void cancelCreate() {
         creationController.cancelCreate();
+    }
+
+    /**
+     * Скасовує режим створення зв’язків на вимогу користувача та показує повідомлення про скасування.
+     *
+     * @throws IllegalStateException якщо контролер уже звільнив свої ресурси.
+     */
+    public void cancelCreateByUser() {
+        ensureNotDisposed();
+        creationController.cancelCreateByUser();
     }
 
     /** Вмикає режим вибору зв’язку для видалення від указаного нейрона. */

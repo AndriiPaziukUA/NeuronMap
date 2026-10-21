@@ -17,7 +17,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * Обробляє створення зв’язку: відстежує нейрон-джерело, передає координати курсора поданню прев’ю та завершує операцію після клацання по цілі.
+ * Керує режимом створення зв’язків, прев’ю лінії та завершенням або скасуванням взаємодії.
  */
 final class ConnectionCreationController {
 
@@ -72,9 +72,9 @@ final class ConnectionCreationController {
     }
 
     /**
-     * Починає режим створення зв’язку та показує прев’ю від вихідного порту вибраного нейрона.
+     * Починає режим створення зв’язків і показує прев’ю від вихідного порту вибраного нейрона.
      *
-     * @param sourceNeuronId ідентифікатор початкового нейрона.
+     * @param sourceNeuronId ідентифікатор початкового нейрона для зв’язків, що створюватимуться в режимі.
      */
     void beginCreate(String sourceNeuronId) {
         exitDelete.run();
@@ -82,8 +82,7 @@ final class ConnectionCreationController {
 
         NeuronView source = neuronViews.get(sourceNeuronId);
         if (source == null) {
-            cancelCreate();
-            status.accept(localization.text("status.connection_create_cancelled"));
+            cancelCreateByUser();
             return;
         }
 
@@ -93,7 +92,7 @@ final class ConnectionCreationController {
     }
 
     /**
-     * Скасовує незавершене створення зв’язку та доручає поданню прибрати графічне прев’ю.
+     * Скасовує незавершене створення зв’язку та прибирає його графічне прев’ю й спеціальний курсор.
      */
     void cancelCreate() {
         previewView.hide();
@@ -103,6 +102,18 @@ final class ConnectionCreationController {
         }
 
         workspace.node().setCursor(Cursor.DEFAULT);
+    }
+
+    /**
+     * Скасовує активне створення на вимогу користувача й показує локалізоване повідомлення.
+     * Повторний виклик у неактивному режимі лише очищує тимчасове подання без зайвого повідомлення.
+     */
+    void cancelCreateByUser() {
+        boolean creationActive = state.mode() == EditorState.Mode.CREATE_CONNECTION;
+        cancelCreate();
+        if (creationActive) {
+            status.accept(localization.text("status.connection_create_cancelled"));
+        }
     }
 
     /**
@@ -124,7 +135,8 @@ final class ConnectionCreationController {
     }
 
     /**
-     * Обробляє клацання під час створення зв’язку та перевіряє вибрану ціль.
+     * Створює зв’язок із цільовим нейроном, не вимикаючи інструмент після успішного додавання.
+     * Клік по порожньому полотну скасовує режим; некоректна ціль або повторний зв’язок залишають його активним.
      *
      * @param event подія клацання миші.
      */
@@ -135,8 +147,7 @@ final class ConnectionCreationController {
 
         NeuronView target = JavaFxNodeLookup.findAncestor(event.getTarget(), NeuronView.class);
         if (target == null) {
-            cancelCreate();
-            status.accept(localization.text("status.connection_create_cancelled"));
+            cancelCreateByUser();
             event.consume();
             return;
         }
@@ -158,7 +169,6 @@ final class ConnectionCreationController {
             status.accept(localization.text("status.connection_exists"));
         }
 
-        cancelCreate();
         event.consume();
     }
 

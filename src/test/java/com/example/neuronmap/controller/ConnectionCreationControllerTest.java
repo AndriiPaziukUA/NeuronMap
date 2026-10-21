@@ -24,9 +24,11 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -73,9 +75,9 @@ final class ConnectionCreationControllerTest {
         });
     }
 
-    /** Перевіряє, що валідна ціль передається службі, а успіх зберігає й оновлює карту. */
+    /** Перевіряє, що валідна ціль створює зв’язок, зберігає зміни та залишає режим активним. */
     @Test
-    void validTargetCreatesConnectionAndRunsRefreshAndSaveCallbacks() throws Exception {
+    void validTargetCreatesConnectionAndKeepsCreationModeActive() throws Exception {
         runOnFxThread(() -> {
             Fixture fixture = createFixture();
             fixture.controller().beginCreate(fixture.source().model().id());
@@ -90,7 +92,78 @@ final class ConnectionCreationControllerTest {
             ));
             assertEquals(1, fixture.refreshCalls().get());
             assertEquals(1, fixture.saveCalls().get());
+            assertEquals(EditorState.Mode.CREATE_CONNECTION, fixture.state().mode());
+            assertEquals(fixture.source().model().id(), fixture.state().connectionSourceId());
+            assertEquals(Cursor.CROSSHAIR, fixture.workspace().node().getCursor());
+            assertEquals(1, fixture.workspace().overlayLayer().getChildren().size());
+            fixture.controller().cancelCreate();
+        });
+    }
+
+    /** Перевіряє послідовне створення кількох зв’язків від одного джерела в одному режимі. */
+    @Test
+    void createsMultipleConnectionsWithoutLeavingCreationMode() throws Exception {
+        runOnFxThread(() -> {
+            Fixture fixture = createFixture();
+            String sourceId = fixture.source().model().id();
+            fixture.controller().beginCreate(sourceId);
+
+            fixture.controller().handleCreateClick(mouseEvent(
+                    fixture.target(), MouseEvent.MOUSE_CLICKED, MouseButton.PRIMARY,
+                    12.0, 12.0
+            ));
+            fixture.controller().handleCreateClick(mouseEvent(
+                    fixture.secondTarget(), MouseEvent.MOUSE_CLICKED, MouseButton.PRIMARY,
+                    12.0, 12.0
+            ));
+
+            assertTrue(fixture.connectionService().contains(sourceId, fixture.target().model().id()));
+            assertTrue(fixture.connectionService().contains(sourceId, fixture.secondTarget().model().id()));
+            assertEquals(2, fixture.refreshCalls().get());
+            assertEquals(2, fixture.saveCalls().get());
+            assertEquals(EditorState.Mode.CREATE_CONNECTION, fixture.state().mode());
+            assertEquals(sourceId, fixture.state().connectionSourceId());
+            assertEquals(1, fixture.workspace().overlayLayer().getChildren().size());
+            fixture.controller().cancelCreate();
+        });
+    }
+
+    /** Перевіряє, що скасування з боку користувача показує повідомлення лише для активного режиму. */
+    @Test
+    void userCancellationReportsStatusOnceAndDoesNotReportWhenAlreadyIdle() throws Exception {
+        runOnFxThread(() -> {
+            Fixture fixture = createFixture();
+            fixture.controller().beginCreate(fixture.source().model().id());
+
+            fixture.controller().cancelCreateByUser();
+
+            LocalizationService localization = new LocalizationService(Locale.ENGLISH);
+            assertEquals(localization.text("status.connection_create_cancelled"), fixture.lastStatus().get());
             assertEquals(EditorState.Mode.IDLE, fixture.state().mode());
+            assertTrue(fixture.workspace().overlayLayer().getChildren().isEmpty());
+            assertEquals(Cursor.DEFAULT, fixture.workspace().node().getCursor());
+
+            fixture.lastStatus().set(null);
+            fixture.controller().cancelCreateByUser();
+            assertNull(fixture.lastStatus().get(), "Повторне скасування не має показувати зайве повідомлення");
+        });
+    }
+
+    /** Перевіряє, що клік по порожньому полотну використовує спільний сценарій скасування режиму. */
+    @Test
+    void clickingBlankCanvasReportsConnectionCreationCancellation() throws Exception {
+        runOnFxThread(() -> {
+            Fixture fixture = createFixture();
+            fixture.controller().beginCreate(fixture.source().model().id());
+
+            fixture.controller().handleCreateClick(mouseEvent(
+                    fixture.workspace().node(), MouseEvent.MOUSE_CLICKED, MouseButton.PRIMARY,
+                    600.0, 400.0
+            ));
+
+            assertEquals(EditorState.Mode.IDLE, fixture.state().mode());
+            assertEquals(new LocalizationService(Locale.ENGLISH).text("status.connection_create_cancelled"),
+                    fixture.lastStatus().get());
             assertTrue(fixture.workspace().overlayLayer().getChildren().isEmpty());
         });
     }
@@ -118,7 +191,7 @@ final class ConnectionCreationControllerTest {
     }
 
     /**
-     * Створює мінімальне полотно з двома нейронами та реальними службою і станом редактора.
+     * Створює мінімальне полотно з трьома нейронами та реальними службою і станом редактора.
      *
      * @return залежності тестового сценарію зі створеним контролером.
      */
@@ -126,10 +199,12 @@ final class ConnectionCreationControllerTest {
         NeuronMapModel model = new NeuronMapModel();
         Neuron sourceModel = model.createNeuron(NeuronType.EXCITATORY, 100.0, 80.0);
         Neuron targetModel = model.createNeuron(NeuronType.INHIBITORY, 340.0, 180.0);
+        Neuron secondTargetModel = model.createNeuron(NeuronType.EXCITATORY, 520.0, 300.0);
         NeuronView source = new NeuronView(model.presentation(sourceModel.id()));
         NeuronView target = new NeuronView(model.presentation(targetModel.id()));
+        NeuronView secondTarget = new NeuronView(model.presentation(secondTargetModel.id()));
         WorkspaceView workspace = new WorkspaceView();
-        workspace.nodeLayer().getChildren().addAll(source, target);
+        workspace.nodeLayer().getChildren().addAll(source, target, secondTarget);
         Scene scene = new Scene(workspace.node(), 800.0, 600.0);
         scene.getRoot().applyCss();
         scene.getRoot().layout();
@@ -138,14 +213,19 @@ final class ConnectionCreationControllerTest {
         ConnectionService connectionService = new ConnectionService(model);
         AtomicInteger refreshCalls = new AtomicInteger();
         AtomicInteger saveCalls = new AtomicInteger();
+        AtomicReference<String> lastStatus = new AtomicReference<>();
         ConnectionCreationController controller = new ConnectionCreationController(
                 connectionService,
                 state,
                 workspace,
-                new HashMap<>(Map.of(sourceModel.id(), source, targetModel.id(), target)),
+                new HashMap<>(Map.of(
+                        sourceModel.id(), source,
+                        targetModel.id(), target,
+                        secondTargetModel.id(), secondTarget
+                )),
                 refreshCalls::incrementAndGet,
                 saveCalls::incrementAndGet,
-                ignored -> { },
+                lastStatus::set,
                 () -> { },
                 new LocalizationService(Locale.ENGLISH)
         );
@@ -157,8 +237,10 @@ final class ConnectionCreationControllerTest {
                 workspace,
                 source,
                 target,
+                secondTarget,
                 refreshCalls,
                 saveCalls,
+                lastStatus,
                 scene
         );
     }
@@ -169,8 +251,8 @@ final class ConnectionCreationControllerTest {
      * @param target ціль події JavaFX.
      * @param eventType тип події миші.
      * @param button натиснута кнопка миші.
-     * @param x координата X у локальній системі цілі.
-     * @param y координата Y у локальній системі цілі.
+     * @param x координата X у локальній системі координат цілі.
+     * @param y координата Y у локальній системі координат цілі.
      * @return подія миші з заданими параметрами.
      */
     private static MouseEvent mouseEvent(
@@ -223,7 +305,7 @@ final class ConnectionCreationControllerTest {
         }
     }
 
-    /** Містить компоненти та лічильники, які дозволяють ізолювати сценарії створення зв’язку. */
+    /** Містить компоненти та лічильники, потрібні для ізольованих сценаріїв створення зв’язків. */
     private record Fixture(
             ConnectionCreationController controller,
             EditorState state,
@@ -231,8 +313,10 @@ final class ConnectionCreationControllerTest {
             WorkspaceView workspace,
             NeuronView source,
             NeuronView target,
+            NeuronView secondTarget,
             AtomicInteger refreshCalls,
             AtomicInteger saveCalls,
+            AtomicReference<String> lastStatus,
             Scene scene
     ) {
     }

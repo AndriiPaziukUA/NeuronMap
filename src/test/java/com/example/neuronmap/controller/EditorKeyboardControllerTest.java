@@ -1,5 +1,6 @@
 package com.example.neuronmap.controller;
 
+import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.view.support.EditorKeyboardShortcutBoundary;
 import com.example.neuronmap.view.support.SceneKeyboardModality;
 import com.example.neuronmap.view.editor.WorkspaceView;
@@ -98,7 +99,7 @@ final class EditorKeyboardControllerTest {
         });
     }
 
-    /** Перевіряє, що Esc у режимі додавання скасовує його перед передаванням події фільтру меню. */
+    /** Перевіряє, що Esc у режимі додавання нейрона скасовує його перед передаванням події фільтру меню. */
     @Test
     void prioritizesAddModeCancellationOverMenuEscapeHandler() throws Exception {
         runOnFxThread(() -> {
@@ -134,6 +135,47 @@ final class EditorKeyboardControllerTest {
 
             assertEquals(1, cancelCalls.get());
             assertEquals(0, menuCalls.get(), "Esc у режимі розміщення не має відкривати головне меню");
+            controller.dispose();
+        });
+    }
+
+    /** Перевіряє, що Esc із активного режиму створення зв’язків також має пріоритет над обробником меню. */
+    @Test
+    void prioritizesConnectionCreationCancellationOverMenuEscapeHandler() throws Exception {
+        runOnFxThread(() -> {
+            EditorState state = new EditorState(1.0, 0.0, 0.0);
+            state.enterCreateConnectionMode("source-neuron");
+            StackPane root = new StackPane();
+            Scene scene = new Scene(root);
+            AtomicInteger cancelCalls = new AtomicInteger();
+            AtomicInteger menuCalls = new AtomicInteger();
+            EditorKeyboardController controller = new EditorKeyboardController(
+                    () -> false,
+                    () -> false,
+                    () -> false,
+                    () -> {
+                        cancelCalls.incrementAndGet();
+                        state.resetToIdle();
+                    },
+                    () -> { },
+                    () -> false,
+                    root,
+                    () -> state.mode() == EditorState.Mode.ADD_NEURON
+                            || state.mode() == EditorState.Mode.CREATE_CONNECTION
+            );
+            controller.install(scene);
+            scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+                if (!event.isConsumed() && event.getCode() == KeyCode.ESCAPE) {
+                    menuCalls.incrementAndGet();
+                    event.consume();
+                }
+            });
+
+            fireKey(root, KeyCode.ESCAPE, false);
+
+            assertEquals(1, cancelCalls.get());
+            assertEquals(EditorState.Mode.IDLE, state.mode());
+            assertEquals(0, menuCalls.get(), "Esc не має передаватися меню, поки створення зв’язків активне");
             controller.dispose();
         });
     }

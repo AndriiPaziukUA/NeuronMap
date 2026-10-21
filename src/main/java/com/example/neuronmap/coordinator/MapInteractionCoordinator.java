@@ -58,7 +58,7 @@ public final class MapInteractionCoordinator {
      * @param presentation координатор візуальних подань.
      * @param save дія збереження поточного стану.
      * @param status дія показу повідомлень стану.
-     * @param localization служба локалізації інтерфейсу.
+     * @param localization служба перекладів інтерфейсу.
      * @throws NullPointerException якщо обов'язкову залежність не задано.
      */
     public MapInteractionCoordinator(
@@ -128,18 +128,29 @@ public final class MapInteractionCoordinator {
         status.accept(localization.text("status.add_neuron_hint"));
     }
 
-    /** Скасовує активні режими взаємодії, попередній перегляд та підсвічування інструмента. */
+    /**
+     * Скасовує активні режими взаємодії, прев’ю та підсвічування інструмента.
+     * Якщо користувач скасовує створення зв’язку, залишає в рядку стану саме повідомлення про це,
+     * а не замінює його загальним повідомленням про готовність редактора.
+     */
     public void cancelInteractions() {
         if (disposed) {
             return;
         }
+        boolean cancellingConnectionCreation = state.mode() == EditorState.Mode.CREATE_CONNECTION;
         toolDragController.setPlacementMode(null);
-        connectionController.cancelCreate();
+        if (cancellingConnectionCreation) {
+            connectionController.cancelCreateByUser();
+        } else {
+            connectionController.cancelCreate();
+        }
         connectionController.exitDelete();
         neuronController.hideMenu();
         state.resetToIdle();
         workspace.node().setCursor(Cursor.DEFAULT);
-        status.accept(localization.text("status.ready"));
+        if (!cancellingConnectionCreation) {
+            status.accept(localization.text("status.ready"));
+        }
     }
 
     /**

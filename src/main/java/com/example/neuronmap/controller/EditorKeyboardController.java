@@ -24,9 +24,9 @@ public final class EditorKeyboardController {
     private final Runnable toggleSimulationPause;
     private final BooleanSupplier simulationPauseShortcutAvailable;
     private final Node simulationPauseShortcutRoot;
-    private final BooleanSupplier addNeuronModeActive;
+    private final BooleanSupplier priorityEscapeModeActive;
     private final EventHandler<KeyEvent> keyHandler = this::handleKeyPressed;
-    private final EventHandler<KeyEvent> addModeEscapeFilter = this::handleAddModeEscape;
+    private final EventHandler<KeyEvent> priorityEscapeFilter = this::handlePriorityEscape;
     private final EventHandler<KeyEvent> keyReleasedHandler = this::handleKeyReleased;
     private Scene scene;
     private boolean spacePressed;
@@ -54,7 +54,7 @@ public final class EditorKeyboardController {
         toggleSimulationPause = () -> { };
         simulationPauseShortcutAvailable = () -> false;
         simulationPauseShortcutRoot = null;
-        addNeuronModeActive = () -> false;
+        priorityEscapeModeActive = () -> false;
     }
 
     /**
@@ -83,8 +83,8 @@ public final class EditorKeyboardController {
     }
 
     /**
-     * Створює маршрутизатор команд із пріоритетним обробленням Esc у режимі додавання нейронів.
-     * Пріоритетний фільтр реєструється перед фільтром головного меню, щоб Esc спершу вимикав режим розміщення.
+     * Створює маршрутизатор команд із пріоритетним обробленням Esc для активного інструмента створення.
+     * Фільтр скасовує додавання нейронів або створення зв’язків до того, як Esc отримає головне меню.
      *
      * @param undo дія скасування останньої зміни.
      * @param redo дія повторення скасованої зміни.
@@ -93,7 +93,7 @@ public final class EditorKeyboardController {
      * @param toggleSimulationPause дія перемикання ручної паузи симуляції.
      * @param simulationPauseShortcutAvailable перевірка доступності команди паузи симуляції.
      * @param simulationPauseShortcutRoot кореневий вузол дошки для команди паузи.
-     * @param addNeuronModeActive перевірка того, чи активний режим додавання нейрона.
+     * @param priorityEscapeModeActive перевірка, чи активний режим із пріоритетним скасуванням через Esc.
      * @throws NullPointerException якщо обов'язкову залежність не задано.
      */
     public EditorKeyboardController(
@@ -104,7 +104,7 @@ public final class EditorKeyboardController {
             Runnable toggleSimulationPause,
             BooleanSupplier simulationPauseShortcutAvailable,
             Node simulationPauseShortcutRoot,
-            BooleanSupplier addNeuronModeActive
+            BooleanSupplier priorityEscapeModeActive
     ) {
         this.undo = Objects.requireNonNull(undo, "undo");
         this.redo = Objects.requireNonNull(redo, "redo");
@@ -115,7 +115,8 @@ public final class EditorKeyboardController {
                 simulationPauseShortcutAvailable, "simulationPauseShortcutAvailable");
         this.simulationPauseShortcutRoot = Objects.requireNonNull(
                 simulationPauseShortcutRoot, "simulationPauseShortcutRoot");
-        this.addNeuronModeActive = Objects.requireNonNull(addNeuronModeActive, "addNeuronModeActive");
+        this.priorityEscapeModeActive = Objects.requireNonNull(
+                priorityEscapeModeActive, "priorityEscapeModeActive");
     }
 
     /**
@@ -131,7 +132,7 @@ public final class EditorKeyboardController {
         }
         dispose();
         scene = targetScene;
-        scene.addEventFilter(KeyEvent.KEY_PRESSED, addModeEscapeFilter);
+        scene.addEventFilter(KeyEvent.KEY_PRESSED, priorityEscapeFilter);
         scene.addEventHandler(KeyEvent.KEY_PRESSED, keyHandler);
         scene.addEventFilter(KeyEvent.KEY_RELEASED, keyReleasedHandler);
     }
@@ -141,7 +142,7 @@ public final class EditorKeyboardController {
         if (scene == null) {
             return;
         }
-        scene.removeEventFilter(KeyEvent.KEY_PRESSED, addModeEscapeFilter);
+        scene.removeEventFilter(KeyEvent.KEY_PRESSED, priorityEscapeFilter);
         scene.removeEventHandler(KeyEvent.KEY_PRESSED, keyHandler);
         scene.removeEventFilter(KeyEvent.KEY_RELEASED, keyReleasedHandler);
         scene = null;
@@ -149,12 +150,12 @@ public final class EditorKeyboardController {
     }
 
     /**
-     * Перехоплює Esc до фільтра меню лише тоді, коли активний режим додавання нейрона.
+     * Перехоплює Esc до фільтра меню, коли активний інструмент потребує пріоритетного скасування.
      *
      * @param event подія натискання клавіші.
      */
-    private void handleAddModeEscape(KeyEvent event) {
-        if (event.getCode() != KeyCode.ESCAPE || !addNeuronModeActive.getAsBoolean()) {
+    private void handlePriorityEscape(KeyEvent event) {
+        if (event.getCode() != KeyCode.ESCAPE || !priorityEscapeModeActive.getAsBoolean()) {
             return;
         }
         cancelInteractions.run();
@@ -252,7 +253,7 @@ public final class EditorKeyboardController {
     /**
      * Перевіряє, що пробіл натиснуто без модифікаторів.
      *
-     * @param event подія натискання клавіші.
+     * @param event подія натискання пробілу.
      * @return {@code true}, якщо пробіл натиснуто без Shift, Ctrl, Alt або Meta.
      */
     private boolean isUnmodifiedSpace(KeyEvent event) {

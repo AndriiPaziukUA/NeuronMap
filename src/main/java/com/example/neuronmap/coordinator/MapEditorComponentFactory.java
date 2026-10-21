@@ -243,6 +243,7 @@ final class MapEditorComponentFactory {
                         && !inputs.view().mainMenu().isMenuVisible(),
                 inputs.view().workspace().node(),
                 () -> inputs.state().mode() == EditorState.Mode.ADD_NEURON
+                        || inputs.state().mode() == EditorState.Mode.CREATE_CONNECTION
         );
         CameraController cameraController = new CameraController(
                 inputs.state(),
