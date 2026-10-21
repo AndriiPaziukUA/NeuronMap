@@ -7,13 +7,14 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.StackPane;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє, що менеджер застосовує політику Escape до всіх підказок дерева сцени впродовж його життєвого циклу. */
+/** Перевіряє, що менеджер застосовує спільний шрифт і політику Escape до підказок дерева сцени протягом життєвого циклу. */
 final class ImmediateTooltipManagerTest {
 
-    /** Перевіряє налаштування підказок, які вже були встановлені до реєстрації менеджера. */
+    /** Перевіряє налаштування шрифту й політики подій для підказок, створених до реєстрації менеджера. */
     @Test
     void configuresTooltipsAlreadyPresentInScene() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
@@ -21,6 +22,7 @@ final class ImmediateTooltipManagerTest {
             Scene scene = new Scene(new StackPane(button));
             ImmediateTooltipManager manager = ImmediateTooltipManager.install(scene);
 
+            assertEquals(14.0, button.getTooltip().getFont().getSize(), 0.001);
             assertFalse(button.getTooltip().getConsumeAutoHidingEvents());
             manager.dispose();
         });
@@ -37,12 +39,13 @@ final class ImmediateTooltipManagerTest {
 
             root.getChildren().add(button);
 
+            assertEquals(14.0, button.getTooltip().getFont().getSize(), 0.001);
             assertFalse(button.getTooltip().getConsumeAutoHidingEvents());
             manager.dispose();
         });
     }
 
-    /** Перевіряє негайне налаштування підказки, яку призначено вже відстежуваному елементу. */
+    /** Перевіряє негайне налаштування шрифту й політики для підказки, призначеної відстежуваному елементу пізніше. */
     @Test
     void configuresTooltipAssignedAfterControlWasAdded() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
@@ -53,6 +56,7 @@ final class ImmediateTooltipManagerTest {
 
             button.setTooltip(tooltip);
 
+            assertEquals(14.0, tooltip.getFont().getSize(), 0.001);
             assertFalse(tooltip.getConsumeAutoHidingEvents());
             manager.dispose();
         });
@@ -68,6 +72,7 @@ final class ImmediateTooltipManagerTest {
 
             scene.setRoot(new StackPane(button));
 
+            assertEquals(14.0, button.getTooltip().getFont().getSize(), 0.001);
             assertFalse(button.getTooltip().getConsumeAutoHidingEvents());
             manager.dispose();
         });
