@@ -1,9 +1,9 @@
 {
-  "baselineCommit": "8f3a88a832a23a8cd6e1ff4b02253283d796736b",
-  "baselineDate": "2026-10-19",
+  "baselineCommit": "c8f9bb2511723d0569a68824a90d97662f399f35",
+  "baselineDate": "2026-10-21",
   "pmdVersion": "7.17.0",
-  "totalFindings": 2822,
-  "findingBuckets": 580,
+  "totalFindings": 3002,
+  "findingBuckets": 593,
   "findings": {
     "src/main/java/com/example/neuronmap/ApplicationMetadata.java": {
       "CommentSize": [
@@ -390,22 +390,40 @@
     },
     "src/main/java/com/example/neuronmap/controller/EditorKeyboardController.java": {
       "CommentRequired": [
+        "0081cf523dbd22fdfb4055be3419443a54faa52dbbdabe6aae31740c185a23a1",
         "0165cc4586b5c33ec7de0242f1481faf29817f5421584cd109196e355fe5b909",
         "0a02e2ead97ec7fd92062454f178864782bc17853ff108a994dcdb793974a54c",
         "0a02e2ead97ec7fd92062454f178864782bc17853ff108a994dcdb793974a54c",
         "2476e9b93fa338e7654d0d475911b61ce1dd2f255bd98348e2b67150df1a6fc6",
+        "7914274afa0f2fa467bb0c698ab2ada509df8b234cd95def334a20d9dec1c312",
+        "8a02029c48c0952a5f36c6c99359bba0b67e1fe167015abbf51854acb72045b4",
+        "980c02a1ebf38af1d74bb71e0830c0ba46d065ed87bf16a7b70f0bf818bf11dd",
         "adee2e663d103009a1c8f74c07bf3c0c500bb82d728f36cb7e1c4075b7d329a1",
-        "e5360d1ca7e91ab27b28d292af35ddde1a6edf4042c4ea471ceb7aa63ae11fcf"
+        "b982a0c82f51acce150fd1611118e1b0faeedba3506623baf8323712d506556d",
+        "d3b81468736f8bc37ae467f22414b56018ed40c0612699a21589eb170e653051",
+        "e5360d1ca7e91ab27b28d292af35ddde1a6edf4042c4ea471ceb7aa63ae11fcf",
+        "fa4f06351a478678111f3e0006e86d958ab4035b0588cfa3e08bc99869b8c971"
       ],
       "CommentSize": [
         "0beab89f55d76459085671d12e647ef2964792a03a2d3dc4c12d0ed7f5009c56",
-        "1738836c92a80d66654b289fe5053a733011c90b8fb959f5634b8d96c218be60",
         "481280e7ea62ea7c27e63e4195979dadec850b9dfa9cc55bec461b014396f73d",
         "59b53403e4a2cdb9cd0f6bc12870af614bd93fdd871a790d968a81d4852489b8",
-        "e81eb20c9d0fd31fc71c453a45b7776c012d7d6365de2317b5296209fcfc0b6a"
+        "59b53403e4a2cdb9cd0f6bc12870af614bd93fdd871a790d968a81d4852489b8",
+        "59b53403e4a2cdb9cd0f6bc12870af614bd93fdd871a790d968a81d4852489b8",
+        "59b53403e4a2cdb9cd0f6bc12870af614bd93fdd871a790d968a81d4852489b8",
+        "59b53403e4a2cdb9cd0f6bc12870af614bd93fdd871a790d968a81d4852489b8",
+        "59b53403e4a2cdb9cd0f6bc12870af614bd93fdd871a790d968a81d4852489b8",
+        "59b53403e4a2cdb9cd0f6bc12870af614bd93fdd871a790d968a81d4852489b8",
+        "59b53403e4a2cdb9cd0f6bc12870af614bd93fdd871a790d968a81d4852489b8",
+        "cd5936beddf95302b39b22abbcc7d7ccf715e307f0007880ff96c16a6711ed14",
+        "cd5936beddf95302b39b22abbcc7d7ccf715e307f0007880ff96c16a6711ed14",
+        "cd5936beddf95302b39b22abbcc7d7ccf715e307f0007880ff96c16a6711ed14",
+        "e81eb20c9d0fd31fc71c453a45b7776c012d7d6365de2317b5296209fcfc0b6a",
+        "f97387022186f91e055ba3d8aaebd86d34a605c3d83def3e7cc594370f2dc7ce"
       ],
       "CompareObjectsWithEquals": [
-        "c8107805b053f29f02796a1450069720a6d3252da24a91777970a34e36ed30b1"
+        "c8107805b053f29f02796a1450069720a6d3252da24a91777970a34e36ed30b1",
+        "f3a6d4c3ffddd6c6e58feea23771202886db36552487452976ee8a21253252f2"
       ]
     },
     "src/main/java/com/example/neuronmap/controller/MainMenuController.java": {
@@ -493,6 +511,7 @@
       "CommentSize": [
         "29e77562687f3195932f67b38fde6664209bec033c247b3e99692bd31b982029",
         "4efb4e5aa6c838104e3f88b62060ded1e69f2678f690263787a7cca8a89a1f11",
+        "f0a702bb65b7feee130fdaabbd0a177a1e30c962157763b89c3694f7792ed2ee",
         "f0a702bb65b7feee130fdaabbd0a177a1e30c962157763b89c3694f7792ed2ee",
         "f28677a1ac8703c68b2c4a5f226bcefcbba7b79e652358c11b688857cce1755b"
       ],
@@ -649,24 +668,47 @@
         "2f292089d99eed575ae0491a9a94e41ba7607130d81e58b244ef2d83d587f4d8",
         "399c87169f54599250e0b64a99b72d74177e2c97fd85195a9c409b74b92cfd43",
         "3f0ddaf4d127c57a121db3d466131b5c3812a4655ee4d2173d2ea8b1bbb29de9",
+        "3f0ddaf4d127c57a121db3d466131b5c3812a4655ee4d2173d2ea8b1bbb29de9",
         "439799088ef8990257e3d55df22d17d66c0ddf885245b16d927bf96af273cedd",
+        "5a07b8e4b3ebd0d33e20a1fcf40d77d88438fa4cdd465d52c5f0c9276e8071aa",
+        "684ac651b84e6e97cbbcdda423eda658207fbd312a3fd0a6ca5279546be9842c",
         "7b6f2634849bae739677d61f3c1c534a933a7b750289b8a69e09248ddd45d5bb",
+        "7fbac86d9078c2eaa528620709a30cb4f4fe1d5cd8f6d72bc1ce16d28b5e1f8e",
         "821a43001995d68d6a8a4ac00d3bebe5958ab3765ea54d4b4376f6a963a4d7f7",
         "8883e7a4a845f2965a8205101f159bdea53fac7537e1139d4f30664ec9f19fb4",
         "a6184b955194893c6b96d795f2e0a61056ee02490913901d015cce4de2095ac1",
+        "add3e3d322e39ec8e4172ad4263259a984d54dafb3b01821ab4dd76688bdf07b",
+        "add3e3d322e39ec8e4172ad4263259a984d54dafb3b01821ab4dd76688bdf07b",
+        "b1da1b517eeef0d7c3c987fe50a5c75604beff67500ffca436c49ae83e8c411f",
         "c3ab1c804e17fc394ce8f4eb535f67abd93aa7d1b1af050232ff6182ff33f373",
         "c716d9dea9069157312d92af171b4d42474fad6468b9fc5a14ed9b9dffc11cdd",
         "fac0e641decab3580963da347c05667730f7549a3d28f0715563d1b04be69ca5"
       ],
       "CommentSize": [
+        "06acce8bcb95f2ed7e11c6aa88581872ef219a06e80cad8a9ed03e9da828ce27",
         "0938ad8f7c652163643d3683f3dfac50537366d8e48e3519fde9dbde554507f6",
+        "1567c7c0234bd2ceca668c5986039f5a6f706064f0e3bbeaeeb1f90f42f5bc8b",
+        "2a68162e3c8f1cc072531e718015f5a9e94a97084e2b9659cc0335cf8fe741d7",
         "4eba5917ea777a4268eb3d288e9e36716e419817e8f89fc86527f55012eeb479",
         "52a1068295b5bacaa5d60336efc85380b2d10c2d8d2257a451bbcbc625e5ef78",
         "6ad1a257f6324ad3fb97ad38192440c2fc13003ad8db7cac64c8f1afebb706ff",
-        "6d543a80abad9aeb4fe5dd2656cd6faf6bd6544afc5d9feea2ce1b2e9ca2fb14",
         "85b04fc7bfd4da8a743a730aa083154d90bb579fa4092e6f3e5b06928576437d",
+        "ae8f21861b6bcace580877d4dcb26ada02063106367d23d4d40b84b9ed5d0208",
+        "ae8f21861b6bcace580877d4dcb26ada02063106367d23d4d40b84b9ed5d0208",
+        "ae8f21861b6bcace580877d4dcb26ada02063106367d23d4d40b84b9ed5d0208",
+        "b16bafafcfbb0a98026527c71f434481e7a0d2f49cbc2b4bb5b7e4d3d9057d6c",
+        "bad19cf76454fd670cb7d3d1110984be2629e718d8cef21d8f68809ba3205730",
+        "c6ff0a6b1758199688020cd4a8a50cddb7077be3a41a524cbaa27764a259c448",
+        "c6ff0a6b1758199688020cd4a8a50cddb7077be3a41a524cbaa27764a259c448",
+        "c6ff0a6b1758199688020cd4a8a50cddb7077be3a41a524cbaa27764a259c448",
+        "d1d6b1140aace2503b00774f43fe053da359138793c6f590b218e47ccef5ef4a",
         "d54870eebb3a238e137b7d20c01ecb4287487720e3c8c590d10d88b1c69da61d",
-        "daf803773893c3bfd161661e7165c88e309341285a5ef3fc424d8dee436e9ea5"
+        "daf803773893c3bfd161661e7165c88e309341285a5ef3fc424d8dee436e9ea5",
+        "dba0acd16eacb044a927ec2ef83425a9844fb7256dd5eb607873fb13234fa5da"
+      ],
+      "CompareObjectsWithEquals": [
+        "714439d30c10a38e293885811b68cd885e0dea210abdd6b9dbe97b93607ffb1d",
+        "f5800026b210494b07a59491a33a431f69bba4af1fc333393d7dd8ea139c863e"
       ],
       "LooseCoupling": [
         "1b6ce03b188443dd88a1e9120ecf97e15ea472a30a5fb3c439b154e07aaa8028"
@@ -675,11 +717,20 @@
     "src/main/java/com/example/neuronmap/controller/PulseAnimationController.java": {
       "CommentRequired": [
         "163b31ed7db59a880c5466594133f5204f1c3024c8d53078b9cc87684f248ffa",
+        "216ebaac8b162af68b46270189d23c347ee07eafd45598670e8352ab40246429",
+        "216ebaac8b162af68b46270189d23c347ee07eafd45598670e8352ab40246429",
+        "28b6b52aeadcc9608b864c49fd6c9e8ac1ddcb4aba521de6098fa49d46e44bb3",
+        "3156d9c37fb47439e6fed4a4b2e12e4b870eafe1ad37a5d32fedeb0546a2fed0",
+        "3e3bfaea4dbfa77812fcc0e8330aa757e7bcc1541d7011989ae62dc794b1fea4",
         "5c9f1d5b4c90f607d07429fa7d9c95c2bc5e1f3e72759818b8021decf90468f7",
-        "7800bfe7b04ba6ee940b004249e172283e3cb71b8a37b2b3d2a3e0a646cbc71c"
+        "6205d60234b9477bd3ac626d1ef0fde01368901168918e6421a3ca47f7653e0f",
+        "7f09a69381d12ffc622087ee081ae028efa7e6ca8a68fc999455d92b40168e71"
       ],
       "CommentSize": [
-        "a1cc471755041bb3580bbe64c3cfc5ebe61a2114985506800d49c813feda9a5a"
+        "15c00be02c16c217f6c6d793723d611cfe9630ba995a98eead33fe70900c9b64",
+        "a1cc471755041bb3580bbe64c3cfc5ebe61a2114985506800d49c813feda9a5a",
+        "cfcebafed004ac7b74d7547c2db9b612cff4dcb0bf9ac40ae1d6f7a6a7d39bda",
+        "cfcebafed004ac7b74d7547c2db9b612cff4dcb0bf9ac40ae1d6f7a6a7d39bda"
       ]
     },
     "src/main/java/com/example/neuronmap/controller/SelectionController.java": {
@@ -739,9 +790,9 @@
         "6fed49bf67835033a6f4f11aa544a7440ca3ef2d24fa415976793c03277765f1",
         "7b919f16c6c3d4697b79448cb707036fadb460f614e01841d6bd70e4c7c3bb29",
         "7b919f16c6c3d4697b79448cb707036fadb460f614e01841d6bd70e4c7c3bb29",
-        "9a6cf26d680e9a714c07e7527175a2a5c0349e3484e0cb53c0b707a5f840eff6",
         "a71f1b7ea5958bbf938990aa10dde518f6066002323471912ad4611ea4c03476",
         "baf900460b5afaea4babe8b1548ec5294c371ccad5fb2e7ac4f19209473b10bb",
+        "cacba1c375e81edd20ed0446d8509b138ec4189aa76d26c928c1e5bd61b77e7c",
         "eab9d1a110182a67b72c49452e41b9d43d354b4183563fe201e091a01bd07770",
         "fea598dffbe9c8cba178587c520699e583a10af20076c2f1cabd2c42f4c588ce"
       ],
@@ -749,10 +800,8 @@
         "02d366f2a76e5b708c943621f1f9bfba7fe38d0ea2dabcaf79d9ae17d29cdcc2",
         "50f8b8a14b4885fd6bedfbf369626221cab76a6749cb4d8692ad17c9289b2548",
         "50f8b8a14b4885fd6bedfbf369626221cab76a6749cb4d8692ad17c9289b2548",
-        "50f8b8a14b4885fd6bedfbf369626221cab76a6749cb4d8692ad17c9289b2548",
-        "50f8b8a14b4885fd6bedfbf369626221cab76a6749cb4d8692ad17c9289b2548",
-        "50f8b8a14b4885fd6bedfbf369626221cab76a6749cb4d8692ad17c9289b2548",
-        "8a20b95d4a98ab1eda91a5bd4de41c1a73bfba732ee628321503a85e6cdc3421"
+        "8a20b95d4a98ab1eda91a5bd4de41c1a73bfba732ee628321503a85e6cdc3421",
+        "db697b18c992a1acb3d47daab184594125cdf15ec93343bd695de161236622c7"
       ]
     },
     "src/main/java/com/example/neuronmap/coordinator/EditorProjectSessionCoordinator.java": {
@@ -842,6 +891,8 @@
         "78d29e48f17af4cd9817c156a067e33c89af79df46a1f7e2f2d87b5f09df8251",
         "85367ea198eee6a39b8cfa427f3ea75549211c1a5cdb09b316f52631dc5b16b7",
         "95de2d6ada26f4ea1566c90b1530be88a23368db14f3b544db8b1d221aebc2dc",
+        "c35f46e0d2a3769af87012cf9e2b8602f81ebd82e50c006507980bf7243d6bbb",
+        "d8b68d96109e32d9185618d78d359005d7f67dc039733ef50664903c0b863c84",
         "d8b68d96109e32d9185618d78d359005d7f67dc039733ef50664903c0b863c84",
         "ea386de2c22c7e4cfa3c2da8abec629ee32476341597d51219c227dd762a73f5"
       ]
@@ -917,11 +968,15 @@
         "f09b50523534ec8007a9acd29968764f2fbca37c2031cac919d62d5e6a96106e"
       ],
       "CommentSize": [
+        "23373be62d2834ed9261f31ca0c632214454237afb72f7e47471ccda3da326fa",
+        "23373be62d2834ed9261f31ca0c632214454237afb72f7e47471ccda3da326fa",
         "2c2d25d96e70f9fb710dbfb7710bc6d8e8f98fb5d445fc6307534da76786dffe",
         "8bf755437f27448cb8e83760f50af8a48f696719219a036cd4e71c36e4a9ca93",
         "b28710e2cbd94068f001e56f5ae771731d388ad888bcc8939f47a3352a419cfb",
+        "c027e253bbf2d14bd760e32a94ff8e6ce51c37c4015ee2e52ff5a61861580f3c",
         "c5c99c9b2d24384811740521a39fb9d371b447308422b45bcfcfcf17cc69a8ab",
-        "d62f878e87203a114398485f1836a22272f80c8a7739a8497516f2cb8514aded",
+        "dfc11eabd9c1efb8aa9bd643cf9035ae3bd7f28c7fccf20df5eda9ed1b1eee72",
+        "dfc11eabd9c1efb8aa9bd643cf9035ae3bd7f28c7fccf20df5eda9ed1b1eee72",
         "dfc11eabd9c1efb8aa9bd643cf9035ae3bd7f28c7fccf20df5eda9ed1b1eee72"
       ]
     },
@@ -2042,9 +2097,6 @@
         "4b4c939746dcc546f4371bd5843a9822414b2723a010c600cd9550a489854a60",
         "4bb29616e8db3f3fc3075d2af84dace855bc2925963fef2062eefdb84ccc234a",
         "d314cf6576db10ec2e4e4ae36b2764be4018aa1ce15a086607764df5a36e4c53"
-      ],
-      "CompareObjectsWithEquals": [
-        "9bfd3e6eebb2fe9f4f6e71a5130eb6ab3816b53abc123303ece6a1ff3f4c3fdb"
       ]
     },
     "src/main/java/com/example/neuronmap/view/editor/ToolbarView.java": {
@@ -2112,13 +2164,18 @@
         "688303aea2eede0b2fc0b5616014034a3e3f525b0e0e9b488fecc13004f4b7ce",
         "7f08b151086fccf8af1d39fb75836abab5c5fcd412aec59fcf98974b4bed4a34",
         "8447ad646a8c1ca0c9af828d8f372372e4c00eb620fec644b0136759aa4746be",
+        "e82cfd51ca1cfca0268a72045963d47f7434ddc80f09d0e3b533fae97003f675",
         "f5a7e86bb65db17fa5e070433da240dce9e64aab905a3d7003b6c233a7c25e5d"
       ],
       "CommentSize": [
         "22cf6d597f81857c92aa48717ef4fda529f65c5600551d78e49efa7f3533c29a",
+        "7184366869af2e83cb2b98d69f032c4ccbace272cf520ce907d99ef59ce617f8",
         "9fe55a0e817b696e9e67950ec723feb5ce2bec4d8b60831b616b86bc97956dcc",
         "aa90a79123ef1d3c79999310464aaaf4d834cd73a59366bb36b6aafa83fef204",
         "aa90a79123ef1d3c79999310464aaaf4d834cd73a59366bb36b6aafa83fef204"
+      ],
+      "CompareObjectsWithEquals": [
+        "ec70458aa99d344a79633a8686298e3dbc2a5609d5f42670d801b6c3f9bc7167"
       ]
     },
     "src/main/java/com/example/neuronmap/view/group/GroupView.java": {
@@ -2393,6 +2450,7 @@
         "34dc8bc9cda11f54168fea53f97918564142a9c8793af77fb4428463f47155b1",
         "67bffe23d14836be49ed46a1acb03ce32ed6329c2a6d3b442ab31833f46aec2d",
         "75f075ee8f6184142150848a35606c612b72976eafa6a482582cb7dab3abc837",
+        "ae6d767c340d4e4affea6e109da2bb3b534fc51a127d03a0e201c89ddf40eb3a",
         "ae6d767c340d4e4affea6e109da2bb3b534fc51a127d03a0e201c89ddf40eb3a"
       ],
       "DanglingJavadoc": [
@@ -2424,6 +2482,17 @@
         "2e2504d7b7971a4be5554f4dc4fc26206bbbe127aa9119645d62e741a51b07a5"
       ]
     },
+    "src/main/java/com/example/neuronmap/view/neuron/NeuronMenuIconFactory.java": {
+      "CommentSize": [
+        "0ef83cba898e8ee1d7f35041f557f1b84277c14fc7538d9e71e297455d85ea77",
+        "2f16d03afe04f3f7be9d3f6f7d0019b4be49ac2bb4095301f5c7f0aea22623be",
+        "2f16d03afe04f3f7be9d3f6f7d0019b4be49ac2bb4095301f5c7f0aea22623be",
+        "32a542f8af328e4b90a247341f3766de72c75d3918f865bcfc908f961d5e3ee7",
+        "3792eb5e2fa9364db4097a9344cc40b96cd538757deffe6bcc425686d32f6efc",
+        "3792eb5e2fa9364db4097a9344cc40b96cd538757deffe6bcc425686d32f6efc",
+        "53ec990743d69f21cab74449677a0c539bda4199f61c565c41400075c6ae73b7"
+      ]
+    },
     "src/main/java/com/example/neuronmap/view/neuron/NeuronMenuView.java": {
       "CommentRequired": [
         "1e9bf7567e199a1dad25783536506866ab81a9f46d5203b00502c640cbe863de",
@@ -2433,6 +2502,7 @@
       "CommentSize": [
         "2584a5ef0c39729a7527b0b4466770c93f1ab4a42e7a5cac3e3de8efc18a156f",
         "2584a5ef0c39729a7527b0b4466770c93f1ab4a42e7a5cac3e3de8efc18a156f",
+        "66fdfd35e0fe088a0364c128f2a57e0b4b43a03ec011751a96fa3f8fa4124667",
         "99e7b84e32e4990573df1bc0f7b21236ac533ca551b1da5925d98aceab7cf92b",
         "99e7b84e32e4990573df1bc0f7b21236ac533ca551b1da5925d98aceab7cf92b",
         "99e7b84e32e4990573df1bc0f7b21236ac533ca551b1da5925d98aceab7cf92b",
@@ -2558,9 +2628,13 @@
     "src/main/java/com/example/neuronmap/view/neuron/NeuronView.java": {
       "CommentRequired": [
         "006934ef88975e33f51de656b5234af9c8eafc6e23ef1b7d0706caa58a96de48",
+        "02d99632db1e4cf5f2476f24f9598f0e2c6b4fe0ee257948cdb817d2dec5c1d9",
         "04382fb2d53735026a7c63b7f6859a19c23b552877e922b3f690d4f1d8e996ae",
         "0b715aba0865594bcffab3a676ebdc195fab4f9b89b36e4d478d8e73629d1c41",
+        "3fd1d918b9fc54ec40b2ade90123209c44fa3833d1e72c07ce7b03f0b02a639b",
         "4659cf5b471917bfe89c095bd4f9b295f2a5e051b11f60c8000a2eda8ef31cd2",
+        "4b21e7549290738508b2de31cbc27a5a32a3a20e6dc1f9a15ef2b9591dc9f701",
+        "4b21e7549290738508b2de31cbc27a5a32a3a20e6dc1f9a15ef2b9591dc9f701",
         "505ade4caa22d917560a04a2e43c8a2df7984e6e47a82e559a9e48c5e751b6b1",
         "567647ca25854f870ceb22c7f31f78ceeea8cf84038cb0f228bb85942161510d",
         "5bef7cf2f2919802c3585f1e4a07b106dd27585981ce861084a73e2c96c31a14",
@@ -2569,17 +2643,39 @@
         "9dc3a5948132219c27d8d954c86e79d174ca8a85ccdfbf50c7de321e5ceef6b5",
         "9fbebd4c5736854bc9b7ee4ab0dffd6bf33294faf0db42eff3ab04141515c67e",
         "a6c883681b29df6332fac7188eaefb1b1bdb59e7b1dcf203a76cbbfd1ea39673",
+        "b5661d89cf58bf18f6d6e9912b34cdba70f08a496f42e0caa4fab958925f4674",
         "bd28359b26b64b6f8cf8f91c912635a334e74745a397be38ca4a156b9cd1e9c0",
         "c787ff494c0e715b1bcb3848d276a2aa468e520311d4c89d02d2826b10648458",
         "c7b8fe918e7e527d90c4fe3e81ed3944f4f69b085c093e63b8673296ce6af2e6",
         "c7b8fe918e7e527d90c4fe3e81ed3944f4f69b085c093e63b8673296ce6af2e6",
+        "cdc64f5f4a6c15b49d03ecaa58e90b131bb0f7c265cacc374e5bfdffc2e54f41",
+        "cdc64f5f4a6c15b49d03ecaa58e90b131bb0f7c265cacc374e5bfdffc2e54f41",
         "e338d743f0e755381342a331bf35ef6b850187cefb3ce99bc8e40799bb40d600",
+        "e5f8d76d4b432542139cb2c6ce0dc16c2923ff3647e262a974a5c50b78932428",
+        "e7b4cc788ae3006445de631bcc4b82cb0c90f85c0b4bf7fbdb0173f8baa2a7a6",
         "f5af0f26c4cc9a23e2b8fdaeabe48d61d5fa2158c3e4e98a65da442e1fae7bb2",
         "f5af0f26c4cc9a23e2b8fdaeabe48d61d5fa2158c3e4e98a65da442e1fae7bb2",
         "fbb6fb3e4f36a7dc895aeae0aa5b5d2877479a56eba9fd3076b7bbfaf047746b"
       ],
       "CommentSize": [
+        "1daefe424559f77fdde3dc70513be358b6a9a1a249d35d4715ca69834ae57743",
+        "21ef9606cdcb5a6bc676c1e57caff0e6cbd30b1926ba735c29e9c53bf429ceae",
+        "2ee1dd7934d89307b899acf0ba152ab92078ab5f6ad480c4f9b282ff23dea880",
+        "423dc8e61efdf47c5fb38e3c90f63abb16f3b0322637902da8217b8af0111c3b",
+        "423dc8e61efdf47c5fb38e3c90f63abb16f3b0322637902da8217b8af0111c3b",
+        "423dc8e61efdf47c5fb38e3c90f63abb16f3b0322637902da8217b8af0111c3b",
+        "44e60ee94c95b69c6ffaf7354558f10b681c3b363dacce26d18942a17b1f8a28",
+        "629795bd1199c2981fef1d7e0365de4bbda265a7951ed34bafcc3a8575773e11",
+        "629795bd1199c2981fef1d7e0365de4bbda265a7951ed34bafcc3a8575773e11",
+        "629795bd1199c2981fef1d7e0365de4bbda265a7951ed34bafcc3a8575773e11",
+        "7e5d174e0172c43dc81d0ca8a993f5af3eafe21abf9368083c02774844bfdad8",
+        "7e5d174e0172c43dc81d0ca8a993f5af3eafe21abf9368083c02774844bfdad8",
+        "862575f7f5c1660579b7af9ab12d928566ffe2d1659cd21b8447393dc644debf",
+        "effe6b313dce14272bff8549e6af25e4285fe46cecc577b2f82fa87dcfea2421",
         "effe6b313dce14272bff8549e6af25e4285fe46cecc577b2f82fa87dcfea2421"
+      ],
+      "LiteralsFirstInComparisons": [
+        "c1ceb27ff5ed275290a83736da4a3ef13e08f6ed05fd01149026aee1a944eefc"
       ]
     },
     "src/main/java/com/example/neuronmap/view/neuron/NeuronVisualGeometry.java": {
@@ -2599,41 +2695,50 @@
     "src/main/java/com/example/neuronmap/view/neuron/RotationHandleView.java": {
       "CommentRequired": [
         "05fc6d24d5512b4da58e60c64f280bd3195ab375c94e50b078a62079376161d6",
-        "12939ea8de566ac4700232421bba9562f1f03d51bda9cd5c8992639a8bcf3d3c",
         "4219f1478aa409cd60cd9820f70c6f46e7cd0ef0991539c8fb50d577b46c1f95",
         "b6caeec83b61b7e5db25fe5eb2de772db5ff975593eb2221e94551d7859a19e3",
         "df2a95d053bb40f2a49c017a5ad89a9cbfbbea8e59f72e33cd9e964b16d50ff3"
       ],
       "CommentSize": [
         "02bd4287a7db74ecf8efbdfa9ce77f615ba42759f47741102ad41d68bad8f40b",
+        "127ccb3cbeb84b2c7bc3c4f06efd0d857418cb08b09b2929c43a99154bdb65b4",
         "3207b232558cbf71ff7be8a43ac734520acf39a7a074adc247f1736be3b27842",
         "3207b232558cbf71ff7be8a43ac734520acf39a7a074adc247f1736be3b27842",
+        "3207b232558cbf71ff7be8a43ac734520acf39a7a074adc247f1736be3b27842",
+        "a5e36288ca09632679067dfacd18d10fbdc7070255c294df1c78c37dfe1df04e",
         "b1f869243b0680f006cc86ae24ffb10f8bea9d40645746a4fe8b17a0133b8f76",
         "b1f869243b0680f006cc86ae24ffb10f8bea9d40645746a4fe8b17a0133b8f76"
       ]
     },
     "src/main/java/com/example/neuronmap/view/simulation/PulseAnimationView.java": {
       "CommentRequired": [
+        "012ff85b4c91e3f8b4fab96abe28cfe2b7066ae320d4f62b886d46aee90f9e73",
         "01588fe39149197d17b37c88fbddd004b4bdc080e7e17242ee80004a6cde2f6d",
-        "103fae5a48e89e26cb58ed0369ad817f9fcfefd30d80687ed6b9e7c1cc6287aa",
         "193582d786fabf755efceaabcf03071ffcb264ba53d0e777bf221a5a2941fff7",
+        "3e8fa223ab82db2732805f778ba7b1edbd22c2bce713ada795edea8848e61d57",
         "4290b40b238b477f912bd078c6d434060837175788b1875cea4a9d8b0c7cbbd6",
-        "64bce8b9ea09b982d0401711cbfdd02eae9ec921eb26cdbd385f4ef239929e70",
         "9708978acd1c186b7a5f64ee46cf9cb37cae23985a6e13dde28f5b33962e1114",
+        "9868a63b6b328c9b01a4266ff7558d3796e5bf9e728de0bec731ff2415ef3e2f",
         "9b3fc68fc17693233a6bd07259850a34ed0aa8adcc6b745c8fa89eaa55c8cede",
-        "a8265fb10767eb2f2fd60cfc7578a301816379bcafe6cf6f227eb661cbaefe7a",
         "b47a31f727db53fa7b536a67ba25848b45ec35a5297223835dabad1071a4ab1a",
-        "b6952695bfac3f744de3677dfee6b5fd6356af0c3c19cd801551b97c6b3a21a6",
+        "b8962babac7c38c94f214fab60f659e1f0d948576c466c34025eb28ce8525c1f",
         "b8962babac7c38c94f214fab60f659e1f0d948576c466c34025eb28ce8525c1f",
         "b9cad762988351d7b871a0114e6f34709b7b403cc4fb574d901311fe4b10e130",
-        "f338624f4f78cc2b68fcd41a099815bdb93a938b66c1296b9b0c52623e662552",
-        "f9cb5ff9e635f313d6c2d8464cbffaa0e0009695478e979cdc00c734085790cd"
+        "d1335fb23cd76d6ae1b08ee22752b56a2bf75ceae2f4048975a4c4e5c5e13396",
+        "f338624f4f78cc2b68fcd41a099815bdb93a938b66c1296b9b0c52623e662552"
       ],
       "CommentSize": [
-        "107b1904d230027b929af20d8fe4e63dabfc61a8c0341f5f6a89fefb8d26d138"
-      ],
-      "SingularField": [
-        "58a01397b310f42a5a0e6e1e97de982cb894002d83aa3ccb29d7404bae1cc8ea"
+        "0bebf5b8e9abdcf60bac00eb9897df2e4cbe57fb122a97c0bf575169b6ba11a4",
+        "107b1904d230027b929af20d8fe4e63dabfc61a8c0341f5f6a89fefb8d26d138",
+        "457590a01a08fdeacf954a29eb1ab65313c7b79b76b4ed1de3deb45346773eda",
+        "ce64492afbde071340e8d248820c7364e0de18b40e5e61fcba06df79df6dbdd0",
+        "ec8bde87534300d2aae649ec02b3f57b6ff7726ef6d3567f49bf75ee6673aabc"
+      ]
+    },
+    "src/main/java/com/example/neuronmap/view/simulation/PulseAnimator.java": {
+      "CommentSize": [
+        "03512bce43b5ac745523dcdf6196c42214b2acd8fb8c32c39e56c25b279e2fd7",
+        "a7fbc0eb76db6a71e086735a8d87535a16b7f061fec086e9bdfd54cff640f9ca"
       ]
     },
     "src/main/java/com/example/neuronmap/view/simulation/SimulationStepPresenter.java": {
@@ -2644,7 +2749,9 @@
         "cdd3e8d51300ae8726c291e3b2907f9c5c5c85420236ccc953e488661a4f1e88"
       ],
       "CommentSize": [
+        "0bc88e3012aef2471a5e8e71a485e3df03a396522e41eff42fb1799f2cde66b2",
         "2732b96e9491883ab066336e3540d6977ebd777709cfd597c95ae121d195ee69",
+        "8277f49a5a4f4f5d2650ac828292f07f227830349ebf148c4017197c2ba1926e",
         "a41df81a79dca521e61fe65215aceaaed4a5de71ac5681f754f212c62e081d17"
       ]
     },
@@ -2716,18 +2823,30 @@
         "33d3c0f0d82a03813ea81a52a5a28d30045ebc6e77e96eb02a5a079834f4e1de",
         "6768fe343ab3d097ae54b41faa2d1024627695843043702bb59bfc705a52ca65",
         "69a5b9c743a26e92eae83cef40c4cb5c250d853e4b5b77f9a07f6e051fa1179a",
+        "a0e55f231d18be44f4a7e5b2f50314a7f4c0b77a507c5248cbcb6e10112975b7",
         "c12c1df58a2357ff9dd036b4130a3939ba917a8135d633d0aa3100b3519b3d8f",
-        "e03a09535a293c3a2557b6343ccaa26f8bb67fcb3c25c487ec619a93ac429ae6"
+        "def51a04b150fd9c44e1c1e2537734bfd5f14f187e92ff372ccd3fdf8506564d",
+        "e03a09535a293c3a2557b6343ccaa26f8bb67fcb3c25c487ec619a93ac429ae6",
+        "f56cf29140bc1b3f751ada34df375f79ce7e6b64112038da62fd12715d3e77b6"
       ],
       "CommentSize": [
+        "0f250db4a4975e1ad84b797f8c5ef4bd834dc3a90c37e1686dfb56841bf4cc67",
         "211cac1e3980a1356e1d11c6fd040ac89ac63caeba36e247e0e72db2e1bc8474",
-        "396a5c9cc9f1ca2128f52e1789fa167a6cb5f168a108ca36a614e66f5fb8c246",
+        "3fc08ada3af9852b0656c24d8dd7b3288d057f38f976b988ffc233d61c623bad",
         "84aaa2d2e2eb57567dc48873fba9eeb23aef1b056f3d45053d901fc247614f85",
+        "8d3c963d368dc6b1c8ce5ac8f31e0f068996483167aaee119e367f2a72006d07",
         "97cfe4aa49d30757276b2b5374d765599ce2163a5a265345ffbe6fff84db5a9f",
-        "a748214d51d8792fa3fe83e799554d423561ce50a65ed8d7658b93842229582e"
+        "a748214d51d8792fa3fe83e799554d423561ce50a65ed8d7658b93842229582e",
+        "b00c806906ea546addc6febb8dfd0f22c9f2ceb3e9e1d892f0cdc900fc621c3f",
+        "bb5a93f46e1a2c82e212c096f9ec989f9d4d2a4f3dc1c293c8c7e8dfef76077b"
       ],
       "CompareObjectsWithEquals": [
+        "28709509af7a1049520dc1a22c79386d90b629a6a6b8df857950475f3ba73b46",
+        "9c641c0eee962be9c33bb6ac8fbd390bc42884392dccee91d95a66ca1d7c2508",
         "b0d0481c4b41f2f2fbfa0a492942b4cb7a3525e05a8e72a979f1fa6aa36619e3"
+      ],
+      "UnusedFormalParameter": [
+        "ea6f7acbeff1eee964cf83cb976b35751c5d3178f72f91364bdc4fe82b1052e6"
       ]
     },
     "src/main/java/com/example/neuronmap/view/support/JavaFxNodeLookup.java": {
@@ -2766,6 +2885,9 @@
     "src/main/java/com/example/neuronmap/view/support/TooltipFactory.java": {
       "CommentSize": [
         "0987bce2c8b467fa0e629742e05308277527bb2480566aad6e0e6c401ba8e8a3",
+        "0987bce2c8b467fa0e629742e05308277527bb2480566aad6e0e6c401ba8e8a3",
+        "1cf5476a1283538e2d1ea047d36f7d245ced880e5913ea334b9d3f322ce4d6b7",
+        "6a364de1ea2034ca450cdecc2f563d24f7414881cbab1d145579f4b3449a9cbe",
         "6a364de1ea2034ca450cdecc2f563d24f7414881cbab1d145579f4b3449a9cbe",
         "bcc138ef57bef9243e648974ae5fd651be79174cd0bed04e6b9f6ff70cbfe6ad",
         "db2defb22c1be9b179a84c90725ac3f447d75652f68c814a78d7ff7510ef7129"
@@ -2843,6 +2965,7 @@
         "0c9a54a3d3e681ccc988965a7bb1d2a9e77ab6ee7385b55c3d518a9bf7350200",
         "5ca80beb64e3c62f085ed29bbcb588ebe50ab21f605f0926bab67b9784d79682",
         "5f783f49a1452cd2c9ffaa0b3273c86996630497a7a538367644557204f095cf",
+        "6409b38dc88c83f5f8b725beee93d3b25e548a1f90e7e8f19708d5475fa800bc",
         "6409b38dc88c83f5f8b725beee93d3b25e548a1f90e7e8f19708d5475fa800bc",
         "6409b38dc88c83f5f8b725beee93d3b25e548a1f90e7e8f19708d5475fa800bc",
         "9040913ee8f1b4f46d88e8271f205c6b246e1764d48687b3da4a3ef33184da4e",
@@ -3067,11 +3190,28 @@
         "3f5ceac6589d611fe44f23f9ffcd848848e16b2c3b86a901d48be4eb83c0b347"
       ],
       "CommentSize": [
+        "51a516913cc06736b9efbc1ac9c3bb177644df55f28637e2eca47b3d233c817e",
         "94f7e5865fc05e961f6cea8b52bb24f9edc5a8e11aa99066c439b522ef77485b",
         "b3741e75b5d37340e6a2e0f28bbca2638866181316789e01e3ced131e96552a2",
+        "ca46b176ea4b25718fed61e5d15624da0847616dc025964aacffb0cee1eb0913",
+        "d2eb24ba6263f67f5006ede037b6fb66ac1352ceb71ff46e07b011ed38c8e91c",
         "d67dbb611f6a6cdec147253c8ab1756e245dfa55b1421125f733b28ab23cbd11",
         "dd7e020ca07e0d3fd22160b198037303bbada422c6b669de986c69b91a8ee424",
+        "e94f85208e9ddc2efd17578f09e02acfbfc655bcc9a869844a56f671e2b9c414",
         "f9b79e46747bdd23a73ad3806b2c0d8e9b71a16f068f5d01d0ba8808edaeff8b"
+      ]
+    },
+    "src/test/java/com/example/neuronmap/controller/MainMenuControllerConsumedEscapeTest.java": {
+      "AvoidCatchingThrowable": [
+        "4c88fb06c3ad196f781f4b04d588220e7bc44ffaf5fe261bc9130e0347c54046"
+      ],
+      "CommentSize": [
+        "592a09cf645211056aa76f69e7a8b7b373d7f766a79af5e93bf7c52befd508b9",
+        "edb3aac620d9871ba22a9e23fef47451e8a3ee81c75b37c64b86f8b303b5395e",
+        "eff26fb43f5bf872fb40453591e8c6a4b8b30611eec0aae9fdf7b2cb0c190b96"
+      ],
+      "LambdaCanBeMethodReference": [
+        "40fe1d72f292cae7021862ac84c8cfd076172eaa5c65ade2adc529b04c06c26b"
       ]
     },
     "src/test/java/com/example/neuronmap/controller/MainMenuControllerSceneLifecycleTest.java": {
@@ -3166,7 +3306,9 @@
     "src/test/java/com/example/neuronmap/controller/NeuronToolDragControllerLifecycleTest.java": {
       "CommentSize": [
         "20a11a34577fbbe52fdd23e643be40c2b9a0eeb5be6c65927b426d9171516aa5",
-        "8e5e9848d314bde6995c689175a7cb52174a599ece158ae7a5e499b7bfca73f4"
+        "328fa825c76873e6a55afc068fe4903d2c0f9de3dd0c6847163c19353f1075bd",
+        "8e5e9848d314bde6995c689175a7cb52174a599ece158ae7a5e499b7bfca73f4",
+        "bcba14442f5be7a7ea320fc857f53e28fa1831ee0f7d249c97f276afa2ef0938"
       ]
     },
     "src/test/java/com/example/neuronmap/controller/PulseAnimationControllerTest.java": {
@@ -3174,11 +3316,11 @@
         "2b834eed8ccae705d120b9d1391f3e5f657ac2921b1803804c9e32f41d1224b3"
       ],
       "CommentSize": [
-        "1de1b50dcd69a7826b8842ee5f22ca91c7347df2145f0bba54b73f8ec2910992",
-        "33f275a74b459b78c22f6fbfd65cf2683c972c63722486cfa6cde7e0a97a6a5e"
+        "33f275a74b459b78c22f6fbfd65cf2683c972c63722486cfa6cde7e0a97a6a5e",
+        "5bc8e63685ec45b855bcbc04520dacb93ea7fde9b0c4d1b283c55501d9418010"
       ],
       "LooseCoupling": [
-        "089356a4aa858a0c717c90e551952fa18d899d3be9d26273c3b940f93c6706f5"
+        "9a0eeddf51a8e897d3677ed30e4d6ecc33e74e01e88c8af55d5f6dd7db136726"
       ]
     },
     "src/test/java/com/example/neuronmap/controller/RequiredLocalizationDependencyTest.java": {
@@ -3310,6 +3452,49 @@
         "36cc45131a67b4f331e99e333bba82dde0cd3b6f4cc1b4be9e3fc25b91259fc4",
         "bf9448c2694df755d111500a4285ab8b8c042bacc5a167dca21eed80c3aec01a",
         "e7901eaed94cf948adbd8ed2aee2ce30b130856574dab3162226e88284663dfa"
+      ]
+    },
+    "src/test/java/com/example/neuronmap/coordinator/MapEditorComponentFactoryUndoInteractionTest.java": {
+      "CommentRequired": [
+        "051c7fb563f780508f3fed9cb3f75fecc543a58502351a00b63bd7db17321587",
+        "111fad3b897de558a243c3851bc52467442ba32a05dd2d6d05a85eccb544baf2",
+        "13a1a3b5a81e0ebac0590d4ff934c71eb3de3ba51fcb5b968d4ccc6c77cb7a1e",
+        "13d15ebe8d3ee6e0599e057d5dca14d19504513fe94ec610ab639e9649fb6067",
+        "172542ba37f48d064fd35cad2b7197dcbd73cccc10864d25e2d24c28550ca539",
+        "1bb2ee8b05de12ab7e3c226c31d55c2d7583df6ce014606e0e151a60cd2ac4fb",
+        "2c508b6afce46b78e705086fff408ca31db882b6c433f1a94d2058203580234c",
+        "45a72e240611491c23b3d768961df0f148814ff027749822242170c442ab06e6",
+        "4c7f0a48982e1316a59baf7cb9de97bf081bdb9783e8bd26f194f3c9527d8141",
+        "4f8b2239711bc10b657f889afb592e86ca5761d5bb241209ec017f7b58727c44",
+        "5d56539d5bf93e1e5d11d197efaaa192d0905aa02b74fb77e7f8df5644434d9f",
+        "9304788484808ffbfd5b4bea8480e348ce57a939b9522498e115df79ffd50cc1",
+        "a9041537ab8d4ade5f186a9a50b5bccc0389905bd14736a56396489c9c722eb5",
+        "b001ff97333477e6c4ff1e9f9c4e809dc6342a0788fa520a04c91cfda5cbc46a",
+        "b4672d1129831b1b2e908125bc4f702fef7b963136b4fce15c26ac2e901c4053",
+        "bb280b933f200385e901e6421a76b3abe30f82311692614338facca8ab620542",
+        "bf5e8f36160907af266d459e4be9bc1ed57cc55cbef48da98c0b695538cc8312",
+        "dd8b6676421eedad5ab1c727ccf6f198930d7d3628a554efca9e8aa5b435c883"
+      ],
+      "CommentSize": [
+        "065068bec37d5f8018c8d8e346af3eae61cde2e6338e69e2293a9a5431384d59",
+        "0ead43bea48e612eff6c670fd22819d21e07e767fa7c8626d6cfe1bf463d7648",
+        "1020b7438f1e0bcf69f65e6efee67d52389ca8c3d40287a832f8f0859fb7c935",
+        "2d6a9ab6b55fbe0755d986fa1dc434efa895cfb4383066d133ee42c88462f6eb",
+        "55481a5b8ca17a71c73d3a237a4bdbb5afca95ca896aaa082cf7a1345d438031",
+        "81a24dc606d938dd9b2e66556a52c1b5db61cd9d37274fdcb8d3ba40da16ac9b",
+        "c3e4c5f3623999d0789601853e056d7ed16c8f7c7fc23f142400b2567ed9c8ab",
+        "c8652d67166fec3c1f537e4a72898cb403777288f81d4ae211e44c6143fbb564",
+        "cd6ab70a4c1230360f4b40c41cd218d8ba1476579c51a5871eb302ffc74c9a68",
+        "da10236e03a0309bb75fde32dbb46057d6b6578d27b2abe4c8eae361b60a0ee5",
+        "e9c03e05338e8a5c5be55ef8739e2f46a6833a6f02c77b19dadd82d2d12cf395"
+      ],
+      "UncommentedEmptyMethodBody": [
+        "1808f4e67076a5ce35c1bcabc0918afae5f98560a8dccc10cfc60e33337413ce",
+        "1808f4e67076a5ce35c1bcabc0918afae5f98560a8dccc10cfc60e33337413ce",
+        "a1951260e32d548fefeb3336029ff8cb1fe29ac00308565f5b321ab86fd212f2",
+        "a1951260e32d548fefeb3336029ff8cb1fe29ac00308565f5b321ab86fd212f2",
+        "d704b4a8177f35e36f2534e42c856d37a69af1ee74115c41d220b7181c8d1861",
+        "d704b4a8177f35e36f2534e42c856d37a69af1ee74115c41d220b7181c8d1861"
       ]
     },
     "src/test/java/com/example/neuronmap/coordinator/MapEditorCoordinatorSceneLifecycleTest.java": {
@@ -3624,6 +3809,7 @@
         "482d56aa07ed1271e10596821d7b3c3f752cb70a73d5604ee47b4fcf794f9745",
         "5418aa3e6717ee77444f86cf9d3e6d893261f2564aacdd0f6f5b4ba0c190780e",
         "8f4aa893d437302b62ec0b603aef62cae79ab744a4bc1f614be0c5c7a9b5a58a",
+        "a74a5a9b05bcb6dd575382813bf1a83471e6b6c093c574fd7654beb929e262a6",
         "c22ade3daa779a8a544efce8fa33db55891a222c0e7285c1ad8801c7fd4ccfab",
         "d47e9b8b889c680b0af11c035d512058e3461af79d93a0472775484b99588c26",
         "fe96ac6bba6b4774d2c9dc1145ad08cc04b212e83a29a61795b17f13a517cfdd"
@@ -4117,8 +4303,6 @@
     "src/test/java/com/example/neuronmap/view/IndependentStylesheetArchitectureTest.java": {
       "CommentSize": [
         "23446f48dacfc19eff32e55fa5135d59cf9278ea57aa2a00c3baca6fc02763dd",
-        "3a832747d27e93fb68beb0b39ea57ba22a71e956cac98b69aef7b6e005123769",
-        "448b59d665903b90e7ce825a96e363ffa845045e38c40471453f7a61863013b0",
         "4c86691bce73cb2503f4deda0823d127855d5d85b8c030f8bb4258410be8153a",
         "9e49a44fd3e3bf225f90b583eeaccdc6750063c06598110710d5a25cab8ef088",
         "b50f06d8969d89319fe0ed1bc56d0529bdc7bb10d0ef803e4542a6214e8d63aa"
@@ -4313,7 +4497,7 @@
         "854ce0c21aed8f1f5fc6a388ed9212da3ee071652df749c9f4309748e7c97961",
         "9fbfbc28517c667028fd5eb082f0a18d08293e765d08a6336055b34a37a61d1c",
         "a46287bfad1546239e84eb49749f113e3aae56423d900756fea2d72d0f549ede",
-        "b95f7268df4192b660dec64bfd38e2856b70657395a7aa99a30f4e0b085697da",
+        "c44c9d623bae9991178f54c137fd85092ac5eebe1368d45fc0f4ea51aabcee60",
         "d85c020b176024ada33f8b6755de3816362b9194447c00a6a548eca64f55422a"
       ]
     },
@@ -4322,12 +4506,11 @@
         "b62cdf11ee1aff1c03e8262987fa5094dd5f99aced941a08793d7a4ed738ba92"
       ],
       "CommentSize": [
+        "00cb985e63ca111fc0571a7e299ee2d50f72199e6e105ea79797795f1396aa78",
         "05670f2cfbeef81eb59f546ed7ff5834ec79574e731ecd5838b2845efb2bd6e7",
-        "240b9305cb32542051502fe3d192646bf3614407db6386b32ef70a5b94cc4ffe",
-        "3f6a19d01d63b271272e53c98cbbb728dc9a8f617ebb8716ad8a6e858af79e95",
+        "47d6cc40811933c19a34138ce9fc8257feaf89f67e73835860576b5c50047810",
         "730e6cee839003e59c18490ddc9159787e8e72c598869baf5b0483c09e5c93ed",
-        "730e6cee839003e59c18490ddc9159787e8e72c598869baf5b0483c09e5c93ed",
-        "b16eb9bca1a377075bf61eec94b49e8834a584a6d08823b0d4afdeb7a19a57a6",
+        "a2366ce1cfff59ccdd49e595ad6b3d1201efcd940b90c2deb9c82685d6950fdd",
         "f77d745ea93cc8e3572ad8e5a8e135a54a4a8357bb66b2b60c1153926b6b48a6"
       ]
     },
@@ -4336,19 +4519,25 @@
         "1e4bf2aa30c0273c6481aefbf8d28786e80f56abbdd58d5504dcac2b2aa07482"
       ],
       "CommentSize": [
+        "02758ace093050e0f243cdc8458c7cb830d1129dec945b750279c59c7f99c88f",
         "69037835e18655e0d07725ceb605435cb74a58b9ef93ed686c20d8e25ef3bfba",
         "d00e5d0fad32ecf611a0bb5b2b9e9698518437382f165e9c558076ab9b41e8d8"
       ]
     },
+    "src/test/java/com/example/neuronmap/view/neuron/NeuronMenuButtonStyleTest.java": {
+      "CommentSize": [
+        "2830319bd81a03074c99308f38fa2b77a000d68606dd075a86891aeb54e474d0",
+        "716673b7c9276243890d973c21b42877b100447ece2f8b6102bc37b6c20ef5ff",
+        "cd88f48e125a9e8c9463a12e28d853dfe7e14200c1e651e55dd7c658322f0f45",
+        "eee0a836aa784180fef3d58fb0f01dc772d4fd8349ebc88ff47a298371d0457d",
+        "fe9a591b29db444e24647c84563bcfced8bf27a95b54027daf74fdebcdb52f0c"
+      ]
+    },
     "src/test/java/com/example/neuronmap/view/neuron/NeuronMenuViewTest.java": {
-      "AvoidCatchingThrowable": [
-        "822965c85df01edcd231916615e2422a5429671fb7d077bb1b4d9d4cdaee62ee"
-      ],
       "CommentSize": [
         "0edbee5b2716a79122bc59ac8929c3bb65e6c2da87715fbbfd05eb27492bcfde",
-        "4bcbb3029b427a53d5952c6f2639c33e852935c9ac435834491fdf8037dfffaf",
         "a1864c897b8ec066e1f3186e3f92a7e3b464310514c86720407dcc6f814eb89b",
-        "cce435139d7eeadf10a41dc40777dd014bfa9087b5828cdebf8e2ed68e111fc2"
+        "fd85e1b31c020da6ce82159b79b620f09291d896bf71930b9299e2905c501e8b"
       ]
     },
     "src/test/java/com/example/neuronmap/view/neuron/NeuronOutputTriangleAlignmentTest.java": {
@@ -4356,6 +4545,9 @@
         "3f15bebd1727d864caf1c471c8ffb63ee5dbde13a8072ce02ef6424e1cb47b95"
       ],
       "CommentRequired": [
+        "a10497ded5b108e9890317fae898e76b7aa148f565df07b59410dddab5afae90",
+        "a10497ded5b108e9890317fae898e76b7aa148f565df07b59410dddab5afae90",
+        "bb347feb2ef9b7ea86a07be31e299898261e1935eb096416d329de5526392812",
         "dcda8ee88052f2e687fd2f2d2c85c475c9e3f871d9e20a8a1a064561e2356cb9"
       ],
       "CommentSize": [
@@ -4363,7 +4555,11 @@
         "b929c89bbf531363537a18cd8f628e07184835294cefd35d0b715ad2fe2b954e",
         "cdc8bced9a6a01e834d802651b174f0d0f91500753ebe26156d24b6ad5ef3fdb",
         "d16518c103ea4fefc8c2d6ec676cf85f8a6a1040bb44d034121abc775da3e0aa",
+        "e39fcbca59c9c9094a6c687f8f969df5348a3d997ba47f752622a760b4551da9",
         "fcf390fb061aed6a158cb98931369103792fecf365fd3f8388a908f873f57b45"
+      ],
+      "UnnecessaryImport": [
+        "8c2ca1bb5322131ca0068a62a820a049a3032245f171fbf8ac8a3dbd692959ef"
       ]
     },
     "src/test/java/com/example/neuronmap/view/neuron/NeuronOverlayPositionerTest.java": {
@@ -4411,12 +4607,15 @@
       ]
     },
     "src/test/java/com/example/neuronmap/view/neuron/NeuronViewStylesTest.java": {
-      "AvoidCatchingThrowable": [
-        "679d1713fd94b7fd533408620f3a854df4063a5ab78e81fea152c86dd87292af"
+      "CommentRequired": [
+        "46c34e1ef0bfb41e57d1d5f11eb737f85fd58b41431113bfa8858bf694b352f3",
+        "6ff96eb810dcb0c07faa4bffc5bfa6cbbcf8f6f5ef7d4cec4b18da2ddfa134a6"
       ],
       "CommentSize": [
         "04aaaee042cb82c6a84257d867e176b10284cef254a18ec5956a602fdace39c5",
-        "3f15eb9ffebe91b1e08303f31c24ed4f126a7d6fdbf77047bd9918da7494faa9"
+        "5512eba9fcf1d44402cb8ddf5a8490ff7eb1068ed3d7053661ddaa7f9625cf58",
+        "e95b6ed1faddf53ae7e590b83a3574326740f0ddbc043986bbb605eebd68e658",
+        "e95b6ed1faddf53ae7e590b83a3574326740f0ddbc043986bbb605eebd68e658"
       ]
     },
     "src/test/java/com/example/neuronmap/view/neuron/NeuronVisualGeometryTest.java": {
@@ -4450,13 +4649,22 @@
         "e701598a79d3a3522150fcedc445565e57ed7c0ffd756b65aa93a764668dc6e6"
       ]
     },
+    "src/test/java/com/example/neuronmap/view/neuron/VisualHitAreaTest.java": {
+      "CommentSize": [
+        "0081635b953b637df64ee17cc3e7f305b8e66441d23c4723e3f612c65b833ba0",
+        "22cfc1c252b95bd1e58096fcc0ce422fa7e720c456af5e82055fd6719b0fb8b4",
+        "8432b3dfdcc9fd9d3f05c82e8dac96f3985a2e4769f06393a0ddf258b77c14c1",
+        "b174f06c25016f2f167de3e17e650a7c0627de865216a2a25cd1b0c9a97e55e0"
+      ]
+    },
     "src/test/java/com/example/neuronmap/view/simulation/PulseAnimationViewTest.java": {
       "AvoidCatchingThrowable": [
         "a20ce26b55c3905afad4e79c63ef4bf5a92742f305c54bcaf0e092d60e389c5e"
       ],
       "CommentSize": [
         "520144bb6dfd66bc583c0a0e70624d0b40c0668538e897ffa80c618410cc9bbe",
-        "68ea066949da4b11df46c29559afae78472bec70c856a1c6a2dc2d592e5fda59"
+        "68ea066949da4b11df46c29559afae78472bec70c856a1c6a2dc2d592e5fda59",
+        "c7673d6d712e918125bf1278237eb29866d869cc18662337055bbb981205974f"
       ]
     },
     "src/test/java/com/example/neuronmap/view/status/StatusMessageLifecyclePauseTest.java": {
@@ -4486,6 +4694,16 @@
         "e6c79a32df2da7fd2746ae8883ca567c23da01538a351cd803f501dc7aeb3be8"
       ]
     },
+    "src/test/java/com/example/neuronmap/view/support/ImmediateTooltipManagerTest.java": {
+      "CommentSize": [
+        "15d8f01b6bc653bb7598143edfca938f23f7f3657b3962e3073a427ab10bfe73",
+        "19d64f51af397a629d74f930c9b179ba387cb7e61d66fd3b41037990ac68f043",
+        "2118cd436470efac87e5f83c84101ed1185eb0c7821d66c71b5f11f70f01f185",
+        "c5587f67f216adc7a6cb9b0d780bd0e2c3b13d6c170b1e75b88576bc2bfdca86",
+        "ebb32bf6c0e3f24e79349adecf8a0a832d0e737c777b004aa112f03a7f48c3ac",
+        "f0c051ea24eabc171a5b93ffe42e53b7176744002bd5dfbf80ca776d51194be6"
+      ]
+    },
     "src/test/java/com/example/neuronmap/view/support/JavaFxNodeLookupTest.java": {
       "CommentSize": [
         "5c4b646de3a792e40929bf539b1524b845134f926c21ae5af6a9c76440bfc1f4",
@@ -4494,16 +4712,20 @@
       ]
     },
     "src/test/java/com/example/neuronmap/view/support/TooltipFactoryTest.java": {
-      "AvoidCatchingThrowable": [
-        "791d916f207815a1a757d9642092a5cf9eb328f0d83abdff98caade14c11bf76"
-      ],
       "CommentSize": [
-        "4b2de8e7f250402a5e97eb60d69017f9e7363d3e3f9bfb597780bf7e8b646f62",
+        "30a9cae6aeb5dc16079c4eb53d5e7bd1921ec00ea4e3d2f233dc97470115a6e0",
         "7f1ae8496ec05b003466711557c7a9f2e4be55bf509d6898290e27aed40c1a56",
-        "a30ac6c7bffeba8c4bb22961fc68d38278d0538be099f582f25b96e516d78e46",
-        "b5cd6fb80fbfee76e94e4b592c8ae435a7f73f93707290847165af9ef61def5c",
-        "b5cd6fb80fbfee76e94e4b592c8ae435a7f73f93707290847165af9ef61def5c",
-        "c7e1661d465e1d278303ec4739f5935bc2ae2cb397473e80cf133a54be1724bc"
+        "c82b41e6a0a00691f221bc80eb5d7edb3e457136c3e0ca0dc4026858c521b743",
+        "efa7cace4e90ff282c40089f96fce35ea1da7fbc08f41a3d9eb39d71d9c23b37"
+      ]
+    },
+    "src/test/java/com/example/neuronmap/view/window/WindowChromeControlGeometryTest.java": {
+      "CommentSize": [
+        "1894deb145c3178117c652ef9b079a5fc2a4c6e5e68371890448af2816ead1f5",
+        "4a7ca658bb06000a34abd8b9c29baff347d4acf18a09858430e4290e6a1a7fa4",
+        "4b2a760cf19de4719f0ebda94ca33752f7adcc9e2a33a749ec1ba0bfb632b228",
+        "dbbf0d8304a394d1d03a83c1d2fd691795dced98e4e38d2abfee4b8c1627f90a",
+        "e91545622b3470c1067aae98f6a98b5f2de26ef7b781a44ef39d29f7492f4800"
       ]
     },
     "src/test/java/com/example/neuronmap/view/window/WindowChromeIconFactoryTest.java": {
