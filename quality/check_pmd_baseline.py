@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Перевіряє незмінність набору PMD-знахідок відносно затвердженого baseline."""
+"""Перевіряє нові PMD-знахідки високого пріоритету відносно затвердженого baseline."""
 
 from __future__ import annotations
 
@@ -15,6 +15,8 @@ from xml.etree import ElementTree as ET
 
 FindingKey = tuple[str, str, str]
 FINGERPRINT_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+VALID_PRIORITIES = frozenset(range(1, 6))
+DEFAULT_MAX_PRIORITY = 2
 
 
 def normalize_source_path(path: str) -> str:
@@ -63,15 +65,26 @@ def finding_fingerprint(violation: ET.Element) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def load_findings(report_path: Path) -> tuple[Counter[FindingKey], str | None]:
-    """Зчитує PMD XML і рахує відбитки окремих знахідок.
+def load_findings(
+    report_path: Path,
+    max_priority: int | None = None,
+) -> tuple[Counter[FindingKey], str | None]:
+    """Зчитує PMD XML та рахує відбитки всіх або лише заданих за пріоритетом знахідок.
+
+    Нижче числове значення пріоритету PMD означає менш критичну знахідку.
+    Фільтрація використовується лише для quality gate: повний XML-звіт зберігається
+    окремо й залишається доступним як CI artifact.
 
     @param report_path шлях до XML-звіту Maven PMD Plugin.
+    @param max_priority максимальний номер пріоритету, який потрібно включити; `None` означає всі.
     @return лічильник за ключем «шлях + правило + відбиток» і версія PMD.
     @raises OSError якщо звіт недоступний.
     @raises ET.ParseError якщо XML некоректний.
-    @raises ValueError якщо звіт має неочікувану структуру.
+    @raises ValueError якщо звіт має неочікувану структуру або некоректний пріоритет.
     """
+    if max_priority is not None and max_priority not in VALID_PRIORITIES:
+        raise ValueError(f"Некоректний максимальний пріоритет PMD: {max_priority}; допустимо 1–5")
+
     root = ET.parse(report_path).getroot()
     if root.tag.split("}")[-1] != "pmd":
         raise ValueError(f"Очікувався кореневий елемент PMD у звіті: {report_path}")
@@ -87,9 +100,29 @@ def load_findings(report_path: Path) -> tuple[Counter[FindingKey], str | None]:
             rule = violation.attrib.get("rule", "").strip()
             if not rule:
                 raise ValueError(f"PMD-порушення без назви правила у файлі {source_path}")
+            if max_priority is not None and _priority(violation, source_path) > max_priority:
+                continue
             findings[(source_path, rule, finding_fingerprint(violation))] += 1
 
     return findings, root.attrib.get("version")
+
+
+def _priority(violation: ET.Element, source_path: str) -> int:
+    """Перевіряє пріоритет знахідки, щоб помилкові дані не обійшли quality gate.
+
+    @param violation XML-елемент одного PMD-порушення.
+    @param source_path нормалізований шлях до файла зі звіту.
+    @return числовий пріоритет PMD від 1 до 5.
+    @raises ValueError якщо пріоритет відсутній або виходить за межі PMD.
+    """
+    raw_priority = violation.attrib.get("priority", "").strip()
+    try:
+        priority = int(raw_priority)
+    except ValueError as error:
+        raise ValueError(f"Некоректний пріоритет PMD у файлі {source_path}: {raw_priority!r}") from error
+    if priority not in VALID_PRIORITIES:
+        raise ValueError(f"Пріоритет PMD має бути в діапазоні 1–5 у файлі {source_path}: {priority}")
+    return priority
 
 
 def load_baseline(baseline_path: Path) -> tuple[Counter[FindingKey], dict[str, object]]:
@@ -169,19 +202,33 @@ def parse_arguments(arguments: Iterable[str] | None = None) -> argparse.Namespac
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--baseline", type=Path, default=Path("quality/pmd-baseline.json"))
     parser.add_argument("--report", type=Path, default=Path("target/pmd.xml"))
+    parser.add_argument(
+        "--max-priority",
+        type=int,
+        choices=sorted(VALID_PRIORITIES),
+        default=DEFAULT_MAX_PRIORITY,
+        help="максимальний номер пріоритету, який блокує CI (1 — найвищий; типовий: 2)",
+    )
     return parser.parse_args(arguments)
 
 
 def main(arguments: Iterable[str] | None = None) -> int:
-    """Порівнює звіт із baseline та завершує процес помилкою за нових знахідок.
+    """Порівнює baseline і блокує CI лише за приросту знахідок високого пріоритету.
+
+    Повний звіт залишається доступним, але пріоритети нижче за встановлений поріг
+    не блокують звичайні коміти. Це дає змогу поступово покращувати код без ігнорування
+    нових критичних проблем.
 
     @param arguments явний список аргументів або `None` для системного CLI.
-    @return код завершення 0 за відсутності приросту, 1 за нових знахідок, 2 за помилки входу.
+    @return код завершення 0 за відсутності приросту, 1 за нових знахідок високого пріоритету, 2 за помилки входу.
     """
     options = parse_arguments(arguments)
     try:
         baseline, metadata = load_baseline(options.baseline)
-        current, report_version = load_findings(options.report)
+        blocking_current, report_version = load_findings(
+            options.report,
+            max_priority=options.max_priority,
+        )
     except (OSError, json.JSONDecodeError, ET.ParseError, ValueError) as error:
         print(f"Помилка перевірки PMD baseline: {error}", file=sys.stderr)
         return 2
@@ -196,13 +243,13 @@ def main(arguments: Iterable[str] | None = None) -> int:
         )
         return 2
 
-    increases = find_increases(baseline, current)
-    baseline_total = sum(baseline.values())
-    current_total = sum(current.values())
+    increases = find_increases(baseline, blocking_current)
+    blocking_total = sum(blocking_current.values())
     if increases:
         print(
             f"PMD quality gate: виявлено {len(increases)} нових/збільшених відбитків "
-            f"({baseline_total} базових, {current_total} поточних знахідок):",
+            f"пріоритету P1–P{options.max_priority} "
+            f"({blocking_total} знахідок P1–P{options.max_priority} у поточному звіті):",
             file=sys.stderr,
         )
         for path, rule, fingerprint, previous, actual in increases:
@@ -211,14 +258,18 @@ def main(arguments: Iterable[str] | None = None) -> int:
                 f"(+{actual - previous})",
                 file=sys.stderr,
             )
-        print("Виправте нові знахідки або перегляньте baseline окремим обґрунтованим комітом.", file=sys.stderr)
+        print(
+            "Виправте нові знахідки високого пріоритету або перегляньте baseline "
+            "окремим обґрунтованим комітом.",
+            file=sys.stderr,
+        )
         return 1
 
-    reductions = sum(max(0, baseline[key] - current[key]) for key in baseline)
     print(
-        "PMD quality gate пройдено: "
-        f"поточних знахідок {current_total}, базових {baseline_total}; "
-        f"приросту відбитків немає, вилучено {reductions}."
+        f"PMD quality gate пройдено (P1–P{options.max_priority}): "
+        f"нових/збільшених блокувальних знахідок немає; "
+        f"перевірено {blocking_total} знахідок P1–P{options.max_priority}; "
+        "повний перелік інших знахідок збережено в PMD artifact."
     )
     return 0
 

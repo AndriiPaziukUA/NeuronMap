@@ -1,6 +1,8 @@
 """Автоматизовані перевірки відбитків PMD для сценаріїв CI."""
 
 from collections import Counter
+import contextlib
+import io
 import json
 from pathlib import Path
 import tempfile
@@ -12,6 +14,7 @@ from check_pmd_baseline import (
     finding_fingerprint,
     load_baseline,
     load_findings,
+    main,
     normalize_source_path,
 )
 
@@ -168,6 +171,107 @@ class PmdBaselineTest(unittest.TestCase):
             ],
             find_increases(baseline, current),
         )
+
+    def test_priority_filter_keeps_only_findings_at_or_above_selected_severity(self) -> None:
+        """Quality gate зберігає пріоритети P1–P2, не блокуючись на P3–P5."""
+        xml = ET.Element("pmd", {"version": "7.17.0"})
+        file_element = ET.SubElement(
+            xml,
+            "file",
+            {"name": "/runner/project/src/main/java/example/Editor.java"},
+        )
+        for priority in ("1", "2", "3", "4", "5"):
+            violation = ET.SubElement(
+                file_element,
+                "violation",
+                {
+                    "rule": f"Rule{priority}",
+                    "ruleset": "Test",
+                    "priority": priority,
+                    "class": "Editor",
+                    "method": "run",
+                    "begincolumn": priority,
+                    "endcolumn": priority,
+                },
+            )
+            violation.text = f"Test rule with priority {priority}"
+
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / "pmd.xml"
+            ET.ElementTree(xml).write(report, encoding="utf-8", xml_declaration=True)
+            all_findings, _ = load_findings(report)
+            blocking_findings, version = load_findings(report, max_priority=2)
+
+        self.assertEqual("7.17.0", version)
+        self.assertEqual(5, sum(all_findings.values()))
+        self.assertEqual(2, sum(blocking_findings.values()))
+        self.assertEqual({"Rule1", "Rule2"}, {rule for _, rule, _ in blocking_findings})
+
+    def test_priority_filter_rejects_missing_or_invalid_priority(self) -> None:
+        """Звіт без коректного пріоритету не можна використати для обходу quality gate."""
+        xml = ET.Element("pmd", {"version": "7.17.0"})
+        file_element = ET.SubElement(
+            xml,
+            "file",
+            {"name": "/runner/project/src/main/java/example/Editor.java"},
+        )
+        violation = ET.SubElement(file_element, "violation", {"rule": "MissingPriority"})
+        violation.text = "Missing priority"
+
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / "pmd.xml"
+            ET.ElementTree(xml).write(report, encoding="utf-8", xml_declaration=True)
+            with self.assertRaisesRegex(ValueError, "Некоректний пріоритет PMD"):
+                load_findings(report, max_priority=2)
+
+    def test_quality_gate_ignores_new_low_priority_findings_but_blocks_priority_two(self) -> None:
+        """Нові P3 не перешкоджають комітам, а нові P2 залишаються блокувальними."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            baseline_path = root / "pmd-baseline.json"
+            report_path = root / "pmd.xml"
+            baseline_path.write_text(
+                json.dumps({
+                    "pmdVersion": "7.17.0",
+                    "totalFindings": 0,
+                    "findingBuckets": 0,
+                    "findings": {},
+                }),
+                encoding="utf-8",
+            )
+            xml = ET.Element("pmd", {"version": "7.17.0"})
+            file_element = ET.SubElement(
+                xml,
+                "file",
+                {"name": "/runner/project/src/main/java/example/Editor.java"},
+            )
+            low_priority = ET.SubElement(
+                file_element,
+                "violation",
+                {"rule": "CommentSize", "priority": "3", "class": "Editor", "method": "run"},
+            )
+            low_priority.text = "Comment is too large"
+            ET.ElementTree(xml).write(report_path, encoding="utf-8", xml_declaration=True)
+
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(
+                    0,
+                    main(["--baseline", str(baseline_path), "--report", str(report_path)]),
+                )
+
+            high_priority = ET.SubElement(
+                file_element,
+                "violation",
+                {"rule": "NullDereference", "priority": "2", "class": "Editor", "method": "run"},
+            )
+            high_priority.text = "Potential null dereference"
+            ET.ElementTree(xml).write(report_path, encoding="utf-8", xml_declaration=True)
+
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(
+                    1,
+                    main(["--baseline", str(baseline_path), "--report", str(report_path)]),
+                )
 
 
 if __name__ == "__main__":
