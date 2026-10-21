@@ -106,12 +106,22 @@ public final class ConnectionController {
         deletionController.beginDelete(sourceNeuronId);
     }
 
+    /**
+     * Скасовує активний режим видалення зв’язків на вимогу користувача й повідомляє про це в рядку стану.
+     *
+     * @throws IllegalStateException якщо контролер уже звільнив свої ресурси.
+     */
+    public void cancelDeleteByUser() {
+        ensureNotDisposed();
+        deletionController.cancelDeleteByUser();
+    }
+
     /** Перевіряє, чи має нейрон зв’язки, доступні для дії в поточному режимі. */
     public boolean hasConnections(String neuronId) {
         return deletionController.hasConnections(neuronId);
     }
 
-    /** Завершує режим видалення зв’язку та прибирає його підсвічування. */
+    /** Завершує режим видалення зв’язку та прибирає його підсвічування без повідомлення. */
     public void exitDelete() {
         deletionController.exitDelete();
     }
@@ -183,7 +193,7 @@ public final class ConnectionController {
             cancelCreateByUser();
             event.consume();
         } else if (state.mode() == EditorState.Mode.DELETE_CONNECTION) {
-            exitDelete();
+            cancelDeleteByUser();
             event.consume();
         }
     }

@@ -242,8 +242,7 @@ final class MapEditorComponentFactory {
                 () -> base.simulationController().hasActiveSimulation()
                         && !inputs.view().mainMenu().isMenuVisible(),
                 inputs.view().workspace().node(),
-                () -> inputs.state().mode() == EditorState.Mode.ADD_NEURON
-                        || inputs.state().mode() == EditorState.Mode.CREATE_CONNECTION
+                () -> requiresPriorityEscapeCancellation(inputs.state())
         );
         CameraController cameraController = new CameraController(
                 inputs.state(),
@@ -269,6 +268,20 @@ final class MapEditorComponentFactory {
                 interaction.interaction(),
                 keyboardController
         );
+    }
+
+    /**
+     * Визначає режими, скасування яких через Esc має відбутися до обробника головного меню.
+     *
+     * @param state поточний стан редактора.
+     * @return {@code true}, якщо активний режим додавання нейрона, створення або видалення зв'язків.
+     * @throws NullPointerException якщо стан редактора не задано.
+     */
+    static boolean requiresPriorityEscapeCancellation(EditorState state) {
+        Objects.requireNonNull(state, "state");
+        return state.mode() == EditorState.Mode.ADD_NEURON
+                || state.mode() == EditorState.Mode.CREATE_CONNECTION
+                || state.mode() == EditorState.Mode.DELETE_CONNECTION;
     }
 
     /**

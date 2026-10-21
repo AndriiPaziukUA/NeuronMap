@@ -33,12 +33,13 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє, що скасування додавання нейрона й створення зв’язку зберігає відповідні повідомлення стану. */
+/** Перевіряє повідомлення стану для скасування інтерактивних режимів редактора. */
 final class MapInteractionCoordinatorConnectionCancellationTest {
 
-    /** Перевіряє повний клавіатурний маршрут і захищає повідомлення про скасування від перезапису статусом ready. */
+    /** Перевіряє повний клавіатурний маршрут і захищає повідомлення створення зв’язку від перезапису статусом ready. */
     @Test
     void escapeCancellationKeepsConnectionCancellationStatusVisible() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
@@ -62,11 +63,7 @@ final class MapInteractionCoordinatorConnectionCancellationTest {
         });
     }
 
-    /**
-     * Перевіряє, що Esc під час додавання нейрона показує повідомлення скасування замість загального статусу готовності.
-     *
-     * @throws Exception якщо виконання на потоці JavaFX завершується помилкою.
-     */
+    /** Перевіряє, що Esc під час додавання нейрона показує повідомлення скасування замість загального статусу готовності. */
     @Test
     void escapeCancellationKeepsNeuronAdditionCancellationStatusVisible() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
@@ -86,6 +83,70 @@ final class MapInteractionCoordinatorConnectionCancellationTest {
                 fixture.dispose();
             }
         });
+    }
+
+    /** Перевіряє, що Esc скасовує видалення зв’язків і залишає відповідне повідомлення у статус-барі. */
+    @Test
+    void escapeCancellationKeepsConnectionDeletionCancellationStatusVisible() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            Fixture fixture = new Fixture();
+            try {
+                Neuron source = fixture.neurons.create(NeuronType.EXCITATORY, 80.0, 60.0);
+                Neuron target = fixture.neurons.create(NeuronType.INHIBITORY, 180.0, 120.0);
+                assertTrue(fixture.connections.create(source.id(), target.id()));
+                fixture.history.initialize();
+                fixture.install();
+                fixture.components.connectionController().beginDelete(source.id());
+
+                Event.fireEvent(fixture.scene.getRoot(), keyPressedEvent(KeyCode.ESCAPE));
+
+                assertEquals(EditorState.Mode.IDLE, fixture.state.mode());
+                assertEquals(Cursor.DEFAULT, fixture.view.workspace().node().getCursor());
+                assertEquals(fixture.localization.text("status.connection_delete_cancelled"),
+                        fixture.lastStatus.get(),
+                        "Загальне повідомлення ready не має перезаписувати повідомлення про скасування видалення зв’язків");
+                assertFalse(fixture.connectionViews.values().stream().anyMatch(ConnectionView::isDeleteHighlighted));
+            } finally {
+                fixture.dispose();
+            }
+        });
+    }
+
+    /** Перевіряє, що ручне скасування видалення показує повідомлення лише для активного режиму. */
+    @Test
+    void userCancellationReportsConnectionDeletionStatusOnlyWhenActive() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            Fixture fixture = new Fixture();
+            try {
+                Neuron source = fixture.neurons.create(NeuronType.EXCITATORY, 80.0, 60.0);
+                Neuron target = fixture.neurons.create(NeuronType.INHIBITORY, 180.0, 120.0);
+                assertTrue(fixture.connections.create(source.id(), target.id()));
+                fixture.history.initialize();
+                fixture.install();
+                fixture.components.connectionController().beginDelete(source.id());
+
+                fixture.components.connectionController().cancelDeleteByUser();
+
+                String cancellationMessage = fixture.localization.text("status.connection_delete_cancelled");
+                assertEquals(cancellationMessage, fixture.lastStatus.get());
+                fixture.components.connectionController().cancelDeleteByUser();
+                assertEquals(cancellationMessage, fixture.lastStatus.get(),
+                        "Повторне скасування не має змінювати повідомлення статус-бару");
+            } finally {
+                fixture.dispose();
+            }
+        });
+    }
+
+    /** Перевіряє локалізований текст скасування видалення зв’язків для всіх підтримуваних мов. */
+    @Test
+    void connectionDeletionCancellationMessageIsLocalized() {
+        assertEquals("Connection deletion cancelled.",
+                new LocalizationService(Locale.ENGLISH).text("status.connection_delete_cancelled"));
+        assertEquals("Видалення зв'язків скасовано.",
+                new LocalizationService(Locale.forLanguageTag("uk")).text("status.connection_delete_cancelled"));
+        assertEquals("Удаление связей отменено.",
+                new LocalizationService(Locale.forLanguageTag("ru")).text("status.connection_delete_cancelled"));
     }
 
     /** Створює клавіатурну подію Esc для проходження реального маршруту обробки сцени JavaFX. */

@@ -17,9 +17,7 @@ import javafx.scene.input.MouseEvent;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-/**
- * Обробляє вибір і видалення зв’язку та підсвічує доступні для видалення зв’язки.
- */
+/** Обробляє вибір і видалення зв’язку та підсвічує доступні для видалення зв’язки. */
 final class ConnectionDeletionController {
 
     private final ConnectionService connectionService;
@@ -80,17 +78,25 @@ final class ConnectionDeletionController {
     }
 
     /**
-     * Завершує вибір зв’язку для видалення та очищує тимчасове підсвічування.
+     * Завершує режим видалення зв’язків на вимогу користувача та показує повідомлення про скасування.
+     * Якщо режим не активний, очищення не створює зайвого повідомлення.
      */
+    void cancelDeleteByUser() {
+        if (state.mode() != EditorState.Mode.DELETE_CONNECTION) {
+            return;
+        }
+        exitDelete();
+        status.accept(localization.text("status.connection_delete_cancelled"));
+    }
+
+    /** Завершує вибір зв’язку для видалення та очищує тимчасове підсвічування. */
     void exitDelete() {
         state.resetToIdle();
         clearDeleteHighlights();
         workspace.node().setCursor(Cursor.DEFAULT);
     }
 
-    /**
-     * Підсвічує зв’язки поточного початкового нейрона, які можна видалити.
-     */
+    /** Підсвічує зв’язки поточного початкового нейрона, які можна видалити. */
     void refreshDeleteHighlights() {
         String sourceId = state.deleteConnectionNeuronId();
 
@@ -114,9 +120,7 @@ final class ConnectionDeletionController {
         }
     }
 
-    /**
-     * Очищає тимчасове підсвічування зв’язків.
-     */
+    /** Очищає тимчасове підсвічування зв’язків. */
     void clearDeleteHighlights() {
         for (Node node : workspace.edgeLayer().getChildren()) {
             if (node instanceof ConnectionView connectionView) {
