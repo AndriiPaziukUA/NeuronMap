@@ -32,14 +32,14 @@ public record ConnectionStyle(
         double arrowHalfWidth
 ) {
     /**
-     * Стандартний стиль зв'язків; інші компоненти не використовують цю палітру.
+     * Стандартний стиль зв'язків; кольори імпульсів налаштовуються окремо від кольорів самих зв'язків.
      */
     public static final ConnectionStyle DEFAULT = new ConnectionStyle(
             Color.web("#55bf78"),
             Color.web("#8b929c"),
             Color.web("#8b929c"),
-            Color.web("#74ef9a"),
-            Color.web("#ef8e8e"),
+            Color.web("#facc15"),
+            Color.web("#ef4444"),
             Color.web("#ffe25a"),
             2.3,
             18.0,
@@ -81,6 +81,7 @@ public record ConnectionStyle(
 
     /**
      * Повертає колір імпульсу відповідно до типу джерела.
+     * Колір задається незалежно від основного кольору зв'язку та стилю вихідного порту нейрона.
      *
      * @param sourceType тип нейрона-джерела.
      * @return колір імпульсу.

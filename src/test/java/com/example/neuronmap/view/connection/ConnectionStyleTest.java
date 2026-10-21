@@ -22,8 +22,32 @@ final class ConnectionStyleTest {
         assertEquals(Color.web("#55bf78"), style.sourceColor(NeuronType.EXCITATORY));
         assertEquals(Color.web("#8b929c"), style.sourceColor(NeuronType.INHIBITORY));
         assertEquals(Color.web("#8b929c"), style.sourceColor(null));
-        assertEquals(Color.web("#74ef9a"), style.pulseColor(NeuronType.EXCITATORY));
-        assertEquals(Color.web("#ef8e8e"), style.pulseColor(NeuronType.INHIBITORY));
+        assertEquals(Color.web("#facc15"), style.pulseColor(NeuronType.EXCITATORY));
+        assertEquals(Color.web("#ef4444"), style.pulseColor(NeuronType.INHIBITORY));
+    }
+
+    /**
+     * Перевіряє, що кольори рухомих імпульсів можна налаштовувати незалежно від основних кольорів зв'язків.
+     */
+    @Test
+    void configuresPulseColorsIndependentlyFromConnectionColors() {
+        ConnectionStyle style = new ConnectionStyle(
+                Color.GREEN,
+                Color.GRAY,
+                Color.BLACK,
+                Color.YELLOW,
+                Color.RED,
+                Color.ORANGE,
+                2.3,
+                18.0,
+                11.0,
+                5.5
+        );
+
+        assertEquals(Color.GREEN, style.sourceColor(NeuronType.EXCITATORY));
+        assertEquals(Color.YELLOW, style.pulseColor(NeuronType.EXCITATORY));
+        assertEquals(Color.GRAY, style.sourceColor(NeuronType.INHIBITORY));
+        assertEquals(Color.RED, style.pulseColor(NeuronType.INHIBITORY));
     }
 
     /**
@@ -37,7 +61,7 @@ final class ConnectionStyleTest {
     }
 
     /**
-     * Вимагає наявності всіх кольорів стилю.
+     * Вимагає наявності всіх кольорів.
      */
     @Test
     void requiresAllStyleColors() {
