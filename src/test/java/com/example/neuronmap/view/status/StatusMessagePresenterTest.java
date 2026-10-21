@@ -1,6 +1,7 @@
 package com.example.neuronmap.view.status;
 
 import com.example.neuronmap.i18n.LocalizationService;
+import com.example.neuronmap.i18n.SupportedLanguage;
 import com.example.neuronmap.view.editor.MainView;
 import javafx.application.Platform;
 import javafx.scene.Scene;
@@ -21,9 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Перевіряє прив’язку життєвого циклу повідомлень до власного рядка стану та звільнення його ресурсів.
- */
+/** Перевіряє прив’язку повідомлень до рядка стану, оновлення їхньої локалі та звільнення ресурсів. */
 final class StatusMessagePresenterTest {
 
     /**
@@ -44,9 +43,7 @@ final class StatusMessagePresenterTest {
         }
     }
 
-    /**
-     * Переконується, що для створення презентера обов’язково потрібне конкретне подання рядка стану.
-     */
+    /** Переконується, що для створення презентера обов’язково потрібне конкретне подання рядка стану. */
     @Test
     void rejectsNullStatusBar() {
         assertThrows(IllegalArgumentException.class, () -> new StatusMessagePresenter(null));
@@ -65,7 +62,7 @@ final class StatusMessagePresenterTest {
             Label actualStatusLabel = statusBar.messageLabel();
             Label unrelatedLabel = new Label("Зміни збережено");
             VBox root = new VBox(statusBarNode, unrelatedLabel);
-            Scene scene = new Scene(root, 300.0, 100.0);
+            new Scene(root, 300.0, 100.0);
             StatusMessagePresenter presenter = new StatusMessagePresenter(statusBar);
             presenter.show("Зміни збережено");
 
@@ -91,7 +88,7 @@ final class StatusMessagePresenterTest {
     }
 
     /**
-     * Перевіряє передавання повідомлень з MainView до вбудованого StatusBarView і завершення його життєвого циклу.
+     * Перевіряє, що MainView передає повідомлення до власного рядка стану й завершує його життєвий цикл.
      *
      * @throws Exception якщо виконання на потоці JavaFX завершується помилкою.
      */
@@ -100,7 +97,6 @@ final class StatusMessagePresenterTest {
         runOnFxThread(() -> {
             MainView view = new MainView(
                     ignored -> { },
-                    () -> { },
                     () -> { },
                     () -> { },
                     () -> { },
@@ -126,6 +122,60 @@ final class StatusMessagePresenterTest {
             assertEquals(0.0, statusLabel.getOpacity(), 0.0001);
             assertNull(statusBarNode.getOnMouseEntered());
             assertNull(statusBarNode.getOnMouseExited());
+        });
+    }
+
+    /**
+     * Перевіряє, що вже показане локалізоване повідомлення оновлюється під час preview та rollback,
+     * включно з аргументами, без перезапуску життєвого циклу показу.
+     *
+     * @throws Exception якщо виконання на потоці JavaFX завершується помилкою.
+     */
+    @Test
+    void displayedLocalizedMessageTracksPreviewAndRollback() throws Exception {
+        runOnFxThread(() -> {
+            LocalizationService localization = new LocalizationService(Locale.ENGLISH);
+            StatusBarView statusBar = new StatusBarView();
+            StatusMessagePresenter presenter = new StatusMessagePresenter(statusBar, localization);
+
+            presenter.show(localization.text("status.group_created", 3));
+
+            assertEquals("Created a group of 3 neurons.", statusBar.messageLabel().getText());
+            assertTrue(statusBar.messageLabel().isVisible());
+            assertEquals(1.0, statusBar.messageLabel().getOpacity(), 0.0001);
+
+            localization.previewLanguage(SupportedLanguage.UKRAINIAN);
+
+            assertEquals("Створено групу з 3 нейронів.", statusBar.messageLabel().getText());
+            assertTrue(statusBar.messageLabel().isVisible());
+            assertEquals(1.0, statusBar.messageLabel().getOpacity(), 0.0001);
+
+            localization.discardLanguagePreview();
+
+            assertEquals("Created a group of 3 neurons.", statusBar.messageLabel().getText());
+            assertTrue(statusBar.messageLabel().isVisible());
+            assertEquals(1.0, statusBar.messageLabel().getOpacity(), 0.0001);
+            presenter.dispose();
+        });
+    }
+
+    /**
+     * Перевіряє, що довільний рядок, який не походить зі служби локалізації, не змінюється разом із мовою.
+     *
+     * @throws Exception якщо виконання на потоці JavaFX завершується помилкою.
+     */
+    @Test
+    void literalStatusMessageIsNotRewrittenDuringLocaleChange() throws Exception {
+        runOnFxThread(() -> {
+            LocalizationService localization = new LocalizationService(Locale.ENGLISH);
+            StatusBarView statusBar = new StatusBarView();
+            StatusMessagePresenter presenter = new StatusMessagePresenter(statusBar, localization);
+            presenter.show("Custom status message");
+
+            localization.previewLanguage(SupportedLanguage.UKRAINIAN);
+
+            assertEquals("Custom status message", statusBar.messageLabel().getText());
+            presenter.dispose();
         });
     }
 

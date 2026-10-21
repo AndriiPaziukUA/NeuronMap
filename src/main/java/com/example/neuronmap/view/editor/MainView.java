@@ -23,7 +23,7 @@ public final class MainView {
     private final ToolbarView toolbar;
     private final WorkspaceView workspace = new WorkspaceView();
     private final StatusBarView statusBar = new StatusBarView();
-    private final StatusMessagePresenter statusMessagePresenter = new StatusMessagePresenter(statusBar);
+    private final StatusMessagePresenter statusMessagePresenter;
     private final MainMenuView mainMenu;
     private boolean normalizingRootLayerOrder;
     private boolean disposed;
@@ -42,6 +42,7 @@ public final class MainView {
             double initialSpeedMillis,
             LocalizationService localization
     ) {
+        statusMessagePresenter = new StatusMessagePresenter(statusBar, localization);
         toolbar = new ToolbarView(addNeuron, group, ungroup, pauseResume, stopSignals,
                 speedChanged, initialSpeedMillis, localization);
         mainMenu = new MainMenuView(localization, this::setMainMenuVisualState);
@@ -127,9 +128,7 @@ public final class MainView {
         removeOwnedStylesheet();
     }
 
-    /**
-     * Прибирає зі сцени лише таблицю стилів, яку додало це подання, не втручаючись у зовнішні таблиці.
-     */
+    /** Прибирає зі сцени лише таблицю стилів, яку додало це подання, не втручаючись у зовнішні таблиці. */
     private void removeOwnedStylesheet() {
         if (createdScene != null && ownedStylesheetUrl != null) {
             createdScene.getStylesheets().remove(ownedStylesheetUrl);

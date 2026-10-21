@@ -17,6 +17,7 @@ public final class LocalizationService {
 
     private final LanguagePreferenceStore languagePreferenceStore;
     private final List<Consumer<Locale>> listeners = new ArrayList<>();
+    private final ThreadLocal<LocalizedMessageContext> pendingLocalizedMessage = new ThreadLocal<>();
 
     private Locale locale;
     private ResourceBundle bundle;
@@ -90,15 +91,20 @@ public final class LocalizationService {
 
     /**
      * Повертає переклад за ключем або сам ключ, якщо переклад відсутній.
+     * Зберігає походження повернутого рядка до наступного локалізаційного виклику на цьому потоці,
+     * щоб рядковий callback міг передати його далі без втрати ключа.
      *
      * @param key ключ повідомлення в основному ресурсному наборі.
      * @return перекладений текст або ключ, якщо перекладу немає чи ключ порожній.
      */
     public String text(String key) {
         if (key == null || key.isBlank()) {
+            pendingLocalizedMessage.remove();
             return "";
         }
-        return bundle.containsKey(key) ? bundle.getString(key) : key;
+        String renderedText = bundle.containsKey(key) ? bundle.getString(key) : key;
+        rememberLocalizedMessage(renderedText, new LocalizedMessage(key));
+        return renderedText;
     }
 
     /**
@@ -124,13 +130,39 @@ public final class LocalizationService {
 
     /**
      * Повертає перекладене повідомлення з підставленими аргументами.
+     * Ключ і незмінений знімок аргументів зберігаються разом із результатом для подальшого оновлення локалі.
      *
      * @param key ключ шаблону повідомлення.
      * @param arguments значення, що підставляються в шаблон.
      * @return відформатоване локалізоване повідомлення.
      */
     public String text(String key, Object... arguments) {
-        return MessageFormat.format(text(key), arguments);
+        if (key == null || key.isBlank()) {
+            pendingLocalizedMessage.remove();
+            return "";
+        }
+        Object[] safeArguments = arguments == null ? new Object[0] : arguments.clone();
+        String pattern = bundle.containsKey(key) ? bundle.getString(key) : key;
+        String renderedText = MessageFormat.format(pattern, safeArguments);
+        rememberLocalizedMessage(renderedText, new LocalizedMessage(key, safeArguments));
+        return renderedText;
+    }
+
+    /**
+     * Забирає ключ і аргументи останнього локалізованого рядка, якщо передано саме той екземпляр рядка.
+     * Використовується синхронними рядковими callback-ами, щоб зберегти їхній чинний контракт.
+     * Виклик одноразовий: метадані видаляються незалежно від результату перевірки.
+     *
+     * @param renderedText рядок, отриманий від методу {@link #text(String)} або {@link #text(String, Object...)}.
+     * @return опис локалізованого повідомлення або {@code null}, якщо рядок не має відповідного походження.
+     */
+    public LocalizedMessage consumeLocalizedMessage(String renderedText) {
+        LocalizedMessageContext context = pendingLocalizedMessage.get();
+        pendingLocalizedMessage.remove();
+        if (context == null || context.renderedText() != renderedText) {
+            return null;
+        }
+        return context.message();
     }
 
     /**
@@ -218,6 +250,16 @@ public final class LocalizationService {
     }
 
     /**
+     * Запам'ятовує походження відображуваного рядка для сумісного рядкового callback-а.
+     *
+     * @param renderedText результат локалізації.
+     * @param message ключ повідомлення та його аргументи.
+     */
+    private void rememberLocalizedMessage(String renderedText, LocalizedMessage message) {
+        pendingLocalizedMessage.set(new LocalizedMessageContext(renderedText, message));
+    }
+
+    /**
      * Нормалізує локаль, завантажує основний ресурсний набір і сповіщає слухачів лише за фактичної зміни мови.
      *
      * @param newLocale локаль, яку потрібно застосувати.
@@ -277,5 +319,49 @@ public final class LocalizationService {
                 ? Locale.ROOT
                 : locale;
         return ResourceBundle.getBundle(bundleBaseName, bundleLocale);
+    }
+
+    /** Зберігає ключ і аргументи повідомлення, щоб його можна було відобразити повторно після зміни мови. */
+    public static final class LocalizedMessage {
+
+        private final String key;
+        private final Object[] arguments;
+
+        /**
+         * Створює опис повідомлення, відокремлюючи аргументи від масиву, переданого викликачем.
+         *
+         * @param key ключ повідомлення у ресурсному наборі.
+         * @param arguments аргументи шаблону повідомлення.
+         * @throws IllegalArgumentException якщо ключ порожній.
+         */
+        public LocalizedMessage(String key, Object... arguments) {
+            if (key == null || key.isBlank()) {
+                throw new IllegalArgumentException("key must not be blank");
+            }
+            this.key = key;
+            this.arguments = arguments == null ? new Object[0] : arguments.clone();
+        }
+
+        /**
+         * Повертає ключ повідомлення.
+         *
+         * @return ключ ресурсного набору.
+         */
+        public String key() {
+            return key;
+        }
+
+        /**
+         * Повертає копію аргументів шаблону, щоб зовнішній код не міг змінити збережене повідомлення.
+         *
+         * @return копія аргументів.
+         */
+        public Object[] arguments() {
+            return arguments.clone();
+        }
+    }
+
+    /** Поєднує точний екземпляр рядка з його ключем і аргументами для одноразового передавання callback-ом. */
+    private record LocalizedMessageContext(String renderedText, LocalizedMessage message) {
     }
 }
