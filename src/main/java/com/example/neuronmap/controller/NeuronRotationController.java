@@ -1,6 +1,7 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.util.NeuronRotationMath;
 import com.example.neuronmap.view.editor.WorkspaceView;
@@ -25,6 +26,7 @@ public final class NeuronRotationController {
     private final WorkspaceView workspace;
     private final Map<String, NeuronView> neuronViews;
     private final Map<String, RotationHandleView> rotationHandles;
+    private final LocalizationService localization;
     private final NeuronOverlayPositioner overlayPositioner;
     private final Runnable hideMenu;
     private final Runnable refreshVisuals;
@@ -40,13 +42,29 @@ public final class NeuronRotationController {
     private double rotationStartDegrees;
     private boolean disposed;
 
-    /** Створює контролер обертання та зберігає залежності для керування жестами й оновлення редактора. */
+    /**
+     * Створює контролер жестів обертання та налаштовує локалізовані підказки ручок під час підключення їхніх обробників.
+     *
+     * @param neuronService служба зміни кута нейрона.
+     * @param state спільний стан взаємодії редактора.
+     * @param workspace полотно, координати якого використовуються під час обертання.
+     * @param neuronViews актуальні графічні подання нейронів.
+     * @param rotationHandles ручки обертання за ідентифікаторами нейронів.
+     * @param localization спільна служба перекладів і сповіщень про зміну мови.
+     * @param hideMenu дія приховування контекстного меню.
+     * @param refreshVisuals дія оновлення вигляду нейронів.
+     * @param refreshConnections дія оновлення геометрії зв'язків.
+     * @param refreshOverlays дія оновлення положення накладок.
+     * @param save дія збереження змін карти.
+     * @throws NullPointerException якщо будь-яку обов'язкову залежність не задано.
+     */
     public NeuronRotationController(
             NeuronService neuronService,
             EditorState state,
             WorkspaceView workspace,
             Map<String, NeuronView> neuronViews,
             Map<String, RotationHandleView> rotationHandles,
+            LocalizationService localization,
             Runnable hideMenu,
             Runnable refreshVisuals,
             Runnable refreshConnections,
@@ -58,6 +76,7 @@ public final class NeuronRotationController {
         this.workspace = Objects.requireNonNull(workspace, "workspace");
         this.neuronViews = Objects.requireNonNull(neuronViews, "neuronViews");
         this.rotationHandles = Objects.requireNonNull(rotationHandles, "rotationHandles");
+        this.localization = Objects.requireNonNull(localization, "localization");
         overlayPositioner = new NeuronOverlayPositioner(workspace);
         this.hideMenu = Objects.requireNonNull(hideMenu, "hideMenu");
         this.refreshVisuals = Objects.requireNonNull(refreshVisuals, "refreshVisuals");
@@ -67,8 +86,8 @@ public final class NeuronRotationController {
     }
 
     /**
-     * Під'єднує стабільні обробники жесту обертання до ручки конкретного нейрона.
-     * Повторний виклик для тієї самої ручки не створює додаткових обробників.
+     * Під'єднує обробники жесту обертання й локалізовану підказку до ручки конкретного нейрона.
+     * Повторний виклик для тієї самої ручки не створює додаткових обробників або слухачів локалізації.
      *
      * @param neuronView нейрон, для якого виконується обертання.
      * @param handle ручка обертання, до якої приєднуються обробники.
@@ -82,6 +101,8 @@ public final class NeuronRotationController {
         if (handleHandlers.containsKey(handle)) {
             return;
         }
+
+        handle.bindLocalizedTooltip(localization);
         String neuronId = neuronView.model().id();
         EventHandler<MouseEvent> pressed = event -> beginRotation(neuronId, event);
         EventHandler<MouseEvent> dragged = event -> dragRotation(neuronId, event);
@@ -92,18 +113,20 @@ public final class NeuronRotationController {
         handleHandlers.put(handle, new HandleHandlers(pressed, dragged, released));
     }
 
-    /** Знімає всі обробники вказаної ручки та скидає жест, якщо він був активний на ній. */
+    /** Знімає обробники й локалізовану підказку ручки, а також скидає активний жест за потреби. */
     public void uninstallHandleHandlers(RotationHandleView handle) {
         if (handle == null) {
             return;
         }
         HandleHandlers handlers = handleHandlers.remove(handle);
         if (handlers == null) {
+            handle.unbindLocalizedTooltip();
             return;
         }
         handle.removeEventHandler(MouseEvent.MOUSE_PRESSED, handlers.pressedHandler());
         handle.removeEventHandler(MouseEvent.MOUSE_DRAGGED, handlers.draggedHandler());
         handle.removeEventHandler(MouseEvent.MOUSE_RELEASED, handlers.releasedHandler());
+        handle.unbindLocalizedTooltip();
         if (activeNeuronId != null && rotationHandles.get(activeNeuronId) == handle) {
             activeNeuronId = null;
         }
@@ -140,7 +163,7 @@ public final class NeuronRotationController {
         resetRotationGesture();
     }
 
-    /** Остаточно знімає обробники ручок і відновлює стан курсора. */
+    /** Остаточно знімає обробники ручок, від'єднує слухачів локалізації та відновлює стан курсора. */
     public void dispose() {
         if (disposed) {
             return;

@@ -117,7 +117,7 @@ public final class NeuronInteractionControllerFactory {
         );
     }
 
-    /** Створює контролер обертання, використовуючи callback-и власника для синхронізації подань. */
+    /** Створює контролер обертання, використовуючи локалізацію й callback-и власника презентації. */
     private static NeuronRotationController createRotationController(
             Dependencies dependencies,
             NeuronInteractionController owner
@@ -128,6 +128,7 @@ public final class NeuronInteractionControllerFactory {
                 dependencies.workspace(),
                 dependencies.neuronViews(),
                 dependencies.rotationHandles(),
+                dependencies.localization(),
                 owner::hideMenu,
                 owner::refreshVisuals,
                 owner::refreshRelatedViews,
