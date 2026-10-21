@@ -117,13 +117,15 @@ final class ConnectionCreationController {
     }
 
     /**
-     * Запам’ятовує позицію курсора та передає поданню команду оновити кінець прев’ю.
+     * Запам’ятовує позицію курсора в координатах полотна та оновлює кінець прев’ю.
+     * Координати сцени дають змогу коректно відстежувати курсор і під час перетягування полотна.
      *
-     * @param event подія переміщення миші.
+     * @param event подія переміщення або перетягування миші.
      */
     void handleMouseMoved(MouseEvent event) {
-        lastCursorX = event.getX();
-        lastCursorY = event.getY();
+        Point2D cursorPosition = workspace.node().sceneToLocal(event.getSceneX(), event.getSceneY());
+        lastCursorX = cursorPosition.getX();
+        lastCursorY = cursorPosition.getY();
         updatePreview(lastCursorX, lastCursorY);
     }
 
@@ -136,7 +138,7 @@ final class ConnectionCreationController {
 
     /**
      * Створює зв’язок із цільовим нейроном, не вимикаючи інструмент після успішного додавання.
-     * Клік по порожньому полотну скасовує режим; некоректна ціль або повторний зв’язок залишають його активним.
+     * Лівий клік по порожньому полотну нічого не змінює, а скасування виконується окремим обробником правої кнопки.
      *
      * @param event подія клацання миші.
      */
@@ -147,7 +149,6 @@ final class ConnectionCreationController {
 
         NeuronView target = JavaFxNodeLookup.findAncestor(event.getTarget(), NeuronView.class);
         if (target == null) {
-            cancelCreateByUser();
             event.consume();
             return;
         }

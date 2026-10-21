@@ -149,22 +149,26 @@ final class ConnectionCreationControllerTest {
         });
     }
 
-    /** Перевіряє, що клік по порожньому полотну використовує спільний сценарій скасування режиму. */
+    /** Перевіряє, що лівий клік по порожньому полотну залишає режим створення активним. */
     @Test
-    void clickingBlankCanvasReportsConnectionCreationCancellation() throws Exception {
+    void clickingBlankCanvasKeepsConnectionCreationActive() throws Exception {
         runOnFxThread(() -> {
             Fixture fixture = createFixture();
-            fixture.controller().beginCreate(fixture.source().model().id());
+            String sourceId = fixture.source().model().id();
+            fixture.controller().beginCreate(sourceId);
 
             fixture.controller().handleCreateClick(mouseEvent(
                     fixture.workspace().node(), MouseEvent.MOUSE_CLICKED, MouseButton.PRIMARY,
                     600.0, 400.0
             ));
 
-            assertEquals(EditorState.Mode.IDLE, fixture.state().mode());
-            assertEquals(new LocalizationService(Locale.ENGLISH).text("status.connection_create_cancelled"),
-                    fixture.lastStatus().get());
-            assertTrue(fixture.workspace().overlayLayer().getChildren().isEmpty());
+            assertEquals(EditorState.Mode.CREATE_CONNECTION, fixture.state().mode());
+            assertEquals(sourceId, fixture.state().connectionSourceId());
+            assertEquals(Cursor.CROSSHAIR, fixture.workspace().node().getCursor());
+            assertEquals(1, fixture.workspace().overlayLayer().getChildren().size());
+            assertEquals(0, fixture.refreshCalls().get());
+            assertEquals(0, fixture.saveCalls().get());
+            fixture.controller().cancelCreate();
         });
     }
 

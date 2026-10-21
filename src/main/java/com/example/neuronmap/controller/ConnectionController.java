@@ -18,6 +18,7 @@ public final class ConnectionController {
     private final ConnectionCreationController creationController;
     private final ConnectionDeletionController deletionController;
     private final EventHandler<MouseEvent> mouseMovedHandler = this::handleMouseMoved;
+    private final EventHandler<MouseEvent> mouseDraggedHandler = this::handleMouseMoved;
     private final EventHandler<MouseEvent> canvasClickHandler = this::handleCanvasClick;
 
     private boolean installed;
@@ -56,6 +57,7 @@ public final class ConnectionController {
             return;
         }
         workspace.node().addEventFilter(MouseEvent.MOUSE_MOVED, mouseMovedHandler);
+        workspace.node().addEventFilter(MouseEvent.MOUSE_DRAGGED, mouseDraggedHandler);
         workspace.node().addEventFilter(MouseEvent.MOUSE_CLICKED, canvasClickHandler);
         installed = true;
     }
@@ -68,6 +70,7 @@ public final class ConnectionController {
         disposed = true;
         if (installed) {
             workspace.node().removeEventFilter(MouseEvent.MOUSE_MOVED, mouseMovedHandler);
+            workspace.node().removeEventFilter(MouseEvent.MOUSE_DRAGGED, mouseDraggedHandler);
             workspace.node().removeEventFilter(MouseEvent.MOUSE_CLICKED, canvasClickHandler);
             installed = false;
         }
@@ -146,23 +149,20 @@ public final class ConnectionController {
         }
     }
 
-    /** Передає рух миші контролеру попереднього перегляду лише протягом активного життєвого циклу. */
+    /** Оновлює координати кінця прев’ю під час руху й перетягування миші. */
     private void handleMouseMoved(MouseEvent event) {
         if (!disposed) {
             creationController.handleMouseMoved(event);
         }
     }
 
-    /** Обробляє клацання полотна відповідно до активного режиму редактора. */
+    /** Обробляє кнопки миші й передає ліві кліки активному інструменту зв’язків. */
     private void handleCanvasClick(MouseEvent event) {
         if (disposed) {
             return;
         }
         if (event.getButton() == MouseButton.SECONDARY) {
-            if (state.mode() == EditorState.Mode.DELETE_CONNECTION) {
-                exitDelete();
-                event.consume();
-            }
+            handleSecondaryClick(event);
             return;
         }
         if (event.getButton() != MouseButton.PRIMARY) {
@@ -174,6 +174,17 @@ public final class ConnectionController {
         }
         if (state.mode() == EditorState.Mode.DELETE_CONNECTION) {
             deletionController.handleDeleteClick(event);
+        }
+    }
+
+    /** Завершує активний режим зв’язків правою кнопкою миші, не змінюючи інші режими редактора. */
+    private void handleSecondaryClick(MouseEvent event) {
+        if (state.mode() == EditorState.Mode.CREATE_CONNECTION) {
+            cancelCreateByUser();
+            event.consume();
+        } else if (state.mode() == EditorState.Mode.DELETE_CONNECTION) {
+            exitDelete();
+            event.consume();
         }
     }
 

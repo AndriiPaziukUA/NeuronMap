@@ -277,12 +277,12 @@ public final class CameraController {
         return false;
     }
 
-    /** Обробляє початок панорамування, якщо подію не адресовано іншому режиму чи елементу керування. */
+    /** Обробляє початок панорамування, не блокуючи його в режимах створення або видалення зв'язків. */
     private void handlePressed(MouseEvent event) {
         updateCursorCoordinates(event.getSceneX(), event.getSceneY());
         if (disposed || suspended
                 || event.getButton() != MouseButton.PRIMARY
-                || interactionActive.getAsBoolean()
+                || (interactionActive.getAsBoolean() && !connectionModeActive())
                 || interactiveTarget.test(event.getTarget())) {
             return;
         }
@@ -317,17 +317,23 @@ public final class CameraController {
         event.consume();
     }
 
-    /** Завершує панорамування та планує збереження лише за зміненого кінцевого положення камери. */
+    /** Завершує панорамування та відновлює курсор активного режиму, зберігаючи відкладене збереження. */
     private void handleReleased(MouseEvent event) {
         if (disposed || suspended || !panning) {
             return;
         }
         boolean cameraMoved = hasPanChanged();
         panning = false;
-        workspace.node().setCursor(Cursor.DEFAULT);
+        workspace.node().setCursor(connectionModeActive() ? Cursor.CROSSHAIR : Cursor.DEFAULT);
         if (cameraMoved) {
             scheduleSave();
         }
+    }
+
+    /** Повертає ознаку активності режимів зв'язків, у яких після панорамування потрібен курсор-приціл. */
+    private boolean connectionModeActive() {
+        return state.mode() == EditorState.Mode.CREATE_CONNECTION
+                || state.mode() == EditorState.Mode.DELETE_CONNECTION;
     }
 
     /** Змінює масштаб із прив'язкою до позиції курсора та показує локалізоване повідомлення. */
