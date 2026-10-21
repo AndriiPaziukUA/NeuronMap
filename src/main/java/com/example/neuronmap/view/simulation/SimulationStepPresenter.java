@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Відображає результати такту симуляції через індикатори вхідних сигналів, порти нейронів та анімації зв’язків.
+ * Відображає результати такту симуляції через індикатори вхідних сигналів, порти нейронів та анімації зв'язків.
  */
 public class SimulationStepPresenter {
 
@@ -20,7 +20,7 @@ public class SimulationStepPresenter {
     private final PulseAnimator pulseAnimations;
 
     /**
-     * Створює подання результатів симуляції та пов’язує його з елементами редактора.
+     * Створює подання результатів симуляції та пов'язує його з елементами редактора.
      *
      * @param workspace полотно редактора.
      * @param neuronViews візуальні подання нейронів за їхніми ідентифікаторами.
@@ -40,11 +40,27 @@ public class SimulationStepPresenter {
     }
 
     /**
-     * Відображає суми вхідних сигналів, підсвічує активні виходи й запускає анімації обробленого такту.
+     * Відображає результати такту та запускає анімації вихідних зв'язків активованих нейронів.
      *
      * @param step результат одного такту симуляції.
+     * @throws NullPointerException якщо результат такту не задано.
      */
     public void apply(SimulationStep step) {
+        Objects.requireNonNull(step, "step");
+        restoreVisualState(step);
+        for (String neuronId : step.activatedNeuronIds()) {
+            animateOutgoingConnections(neuronId);
+        }
+    }
+
+    /**
+     * Відновлює індикатори поточного такту без запуску нових імпульсів.
+     * Використовується після відновлення моделі, коли вже наявні анімації мають продовжуватися з поточного прогресу.
+     *
+     * @param step останній оброблений такт симуляції.
+     * @throws NullPointerException якщо результат такту не задано.
+     */
+    public void restoreVisualState(SimulationStep step) {
         Objects.requireNonNull(step, "step");
         clearDisplayedInputSignals();
         clearOutputSignalHighlights();
@@ -52,7 +68,6 @@ public class SimulationStepPresenter {
         refreshNeuronViews.run();
         for (String neuronId : step.activatedNeuronIds()) {
             highlightOutputSignal(neuronId);
-            animateOutgoingConnections(neuronId);
         }
     }
 
@@ -63,7 +78,7 @@ public class SimulationStepPresenter {
         pulseAnimations.stopAll();
     }
 
-    /** Оновлює подання нейронів і зв’язків після зміни моделі. */
+    /** Оновлює подання нейронів і зв'язків після зміни моделі. */
     public void refresh() {
         refreshNeuronViews.run();
     }
@@ -80,7 +95,7 @@ public class SimulationStepPresenter {
     /**
      * Перевіряє, чи відображаються анімації імпульсів, які ще не завершилися.
      *
-     * @return {@code true}, якщо є активні анімації; інакше {@code false}.
+     * @return {@code true}, якщо хоча б один імпульс ще анімується.
      */
     public boolean hasActiveAnimations() {
         return pulseAnimations.hasActiveAnimations();
@@ -96,11 +111,7 @@ public class SimulationStepPresenter {
         pulseAnimations.resumeAll();
     }
 
-    /**
-     * Показує на нейронах суми сигналів, запланованих для наступного такту.
-     *
-     * @param inputSums суми вхідних сигналів для нейронів наступного такту.
-     */
+    /** Показує суми сигналів, запланованих для наступного такту. */
     private void showIncomingSignals(Map<String, Integer> inputSums) {
         inputSums.forEach((neuronId, sum) -> {
             NeuronView neuronView = neuronViews.get(neuronId);
@@ -124,11 +135,7 @@ public class SimulationStepPresenter {
         }
     }
 
-    /**
-     * Позначає вихід нейрона активним упродовж поточного такту симуляції.
-     *
-     * @param neuronId ідентифікатор нейрона, який активувався.
-     */
+    /** Позначає вихід нейрона активним у поточному такті симуляції. */
     private void highlightOutputSignal(String neuronId) {
         NeuronView neuronView = neuronViews.get(neuronId);
         if (neuronView != null) {
@@ -136,11 +143,7 @@ public class SimulationStepPresenter {
         }
     }
 
-    /**
-     * Запускає анімацію імпульсів на вихідних зв’язках указаного нейрона.
-     *
-     * @param neuronId ідентифікатор нейрона.
-     */
+    /** Запускає анімації на поточних вихідних зв'язках указаного нейрона. */
     private void animateOutgoingConnections(String neuronId) {
         for (Node node : workspace.edgeLayer().getChildren()) {
             if (node instanceof ConnectionView connectionView

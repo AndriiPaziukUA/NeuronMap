@@ -1,7 +1,6 @@
 package com.example.neuronmap.view.simulation;
 
 import com.example.neuronmap.view.connection.ConnectionPulseSnapshot;
-import javafx.animation.AnimationTimer;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
@@ -16,8 +15,8 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
- * Анімує трикутний наконечник сигналу вздовж зв'язку незалежно від життєвого циклу самого подання зв'язку.
- * Наконечник залишається повністю видимим і зникає одразу після завершення руху.
+ * Анімує трикутний наконечник сигналу вздовж актуальної геометрії зв'язку.
+ * Прогрес руху має одне джерело часу — {@link Timeline}, а зміни геометрії надходять окремими подіями.
  */
 public final class PulseAnimationView extends Pane {
 
@@ -33,7 +32,6 @@ public final class PulseAnimationView extends Pane {
     private final Supplier<ConnectionPulseSnapshot> snapshotSupplier;
     private final Polygon arrow = new Polygon();
     private final DoubleProperty progress = new SimpleDoubleProperty(0.0);
-    private final AnimationTimer geometryUpdater;
     private final Runnable onFinished;
 
     private Timeline timeline;
@@ -101,24 +99,11 @@ public final class PulseAnimationView extends Pane {
         updatePulsePosition(0.0);
         timeline = createTimeline();
         timeline.setRate(animationRate(tickDurationMillis));
-
-        geometryUpdater = new AnimationTimer() {
-            /**
-             * Оновлює геометрію наконечника на кожному кадрі JavaFX.
-             *
-             * @param now час кадру у наносекундах.
-             */
-            @Override
-            public void handle(long now) {
-                refreshGeometry();
-            }
-        };
     }
 
-    /** Запускає анімацію уздовж поточної геометрії зв'язку. */
+    /** Запускає анімацію, не скидаючи вже накопичений прогрес. */
     public void play() {
         if (!finished) {
-            geometryUpdater.start();
             timeline.play();
         }
     }
@@ -126,7 +111,6 @@ public final class PulseAnimationView extends Pane {
     /** Призупиняє анімацію, зберігаючи її поточний прогрес. */
     public void pause() {
         if (!finished) {
-            geometryUpdater.stop();
             timeline.pause();
         }
     }
@@ -134,7 +118,6 @@ public final class PulseAnimationView extends Pane {
     /** Відновлює призупинену анімацію імпульсу. */
     public void resume() {
         if (!finished) {
-            geometryUpdater.start();
             timeline.play();
         }
     }
@@ -185,10 +168,13 @@ public final class PulseAnimationView extends Pane {
         return finished;
     }
 
-    /** Оновлює траєкторію та колір наконечника, якщо стан зв'язку змінився. */
-    void refreshGeometry() {
+    /**
+     * Оновлює траєкторію й колір наконечника після подієвого повідомлення про зміну зв'язку.
+     * Не змінює прогрес або тривалість часової шкали.
+     */
+    public void refreshGeometry() {
         ConnectionPulseSnapshot currentSnapshot = snapshotSupplier.get();
-        if (currentSnapshot == null) {
+        if (currentSnapshot == null || currentSnapshot.equals(lastSnapshot)) {
             return;
         }
         lastSnapshot = currentSnapshot;
@@ -221,7 +207,7 @@ public final class PulseAnimationView extends Pane {
 
     /**
      * Створює часову шкалу руху наконечника без зміни його кольору чи прозорості.
-     * Наконечник видаляється з полотна після досягнення кінцевої точки.
+     * Наконечник видаляється з полотна після завершення руху.
      *
      * @return часова шкала руху наконечника.
      */
@@ -245,7 +231,7 @@ public final class PulseAnimationView extends Pane {
     }
 
     /**
-     * Обчислює коефіцієнт відтворення так, щоб рух імпульсу тривав рівно один такт.
+     * Обчислює коефіцієнт відтворення так, щоб рух імпульсу тривав один такт.
      *
      * @param millis тривалість такту в мілісекундах.
      * @return коефіцієнт швидкості часової шкали.
@@ -277,7 +263,7 @@ public final class PulseAnimationView extends Pane {
      *
      * @param tip вершина наконечника.
      * @param unitDirection нормалізований напрямок руху.
-     * @param pulseLength довжина імпульсу, потрібна для збереження попереднього масштабу наконечника.
+     * @param pulseLength довжина імпульсу, потрібна для збереження масштабу наконечника.
      */
     private void applyArrowGeometry(Point2D tip, Point2D unitDirection, double pulseLength) {
         Point2D perpendicular = new Point2D(-unitDirection.getY(), unitDirection.getX());
@@ -299,7 +285,6 @@ public final class PulseAnimationView extends Pane {
             return;
         }
         finished = true;
-        geometryUpdater.stop();
         Pane parent = getParent() instanceof Pane pane ? pane : null;
         if (parent != null) {
             parent.getChildren().remove(this);

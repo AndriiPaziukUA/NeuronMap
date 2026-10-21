@@ -121,11 +121,23 @@ public final class MapPresentationCoordinator {
         connectionController.refreshDeleteHighlights();
     }
 
-    /** Оновлює геометрію зв'язків і прибирає подання зв'язків, яких більше немає в моделі. */
+    /**
+     * Оновлює геометрію зв'язків, створює відсутні подання та вилучає неактуальні.
+     * Наявне подання з тим самим ідентифікатором і кінцями зберігається, щоб його активні анімації
+     * продовжували роботу без перезапуску після відновлення історії.
+     */
     public void refreshConnections() {
         for (Connection connection : neuronService.model().connections()) {
+            ConnectionView existingView = connectionViews.get(connection.id());
+            if (existingView != null && !hasSameEndpoints(existingView.model(), connection)) {
+                existingView.stopDeleteHighlight();
+                workspace.edgeLayer().getChildren().remove(existingView);
+                connectionViews.remove(connection.id());
+            }
+
             ConnectionView connectionView = connectionViews.computeIfAbsent(
                     connection.id(), id -> createConnectionView(connection));
+            connectionView.updateModel(connection);
             connectionView.updateGeometry();
         }
         connectionViews.entrySet().removeIf(entry -> {
@@ -150,7 +162,20 @@ public final class MapPresentationCoordinator {
         return connectionView;
     }
 
-    /** Повністю перебудовує подання після заміни або відновлення моделі карти. */
+    /**
+     * Узгоджує подання після undo/redo, зберігаючи анімації зв'язків, які залишаються в поточній карті.
+     * Зв'язки, видалені відновленим станом, буде вилучено звичайним механізмом синхронізації.
+     */
+    public void synchronizeViewsAfterHistoryChange() {
+        neuronController.hideMenu();
+        synchronizeNeuronViews();
+        refreshNeuronVisuals();
+        refreshRelatedGeometry();
+        refreshOverlayPositions();
+        bringRotationHandlesToFront();
+    }
+
+    /** Повністю перебудовує подання після заміни активного проєкту або іншої повної заміни моделі. */
     public void synchronizeViewsWithModel() {
         neuronController.hideMenu();
         for (String neuronId : List.copyOf(neuronViews.keySet())) {
@@ -223,6 +248,18 @@ public final class MapPresentationCoordinator {
         workspace.groupLayer().getChildren().clear();
         neuronService.model().groups().forEach(group ->
                 workspace.groupLayer().getChildren().add(new GroupView(group, neuronViews)));
+    }
+
+    /**
+     * Перевіряє ідентичність кінців зв'язку для безпечного повторного використання його подання.
+     *
+     * @param current зв'язок, на який наразі посилається графічне подання.
+     * @param restored зв'язок із відновленої моделі.
+     * @return {@code true}, якщо ідентифікатор джерела та цілі збігаються.
+     */
+    private static boolean hasSameEndpoints(Connection current, Connection restored) {
+        return current.sourceId().equals(restored.sourceId())
+                && current.targetId().equals(restored.targetId());
     }
 
     /** Вилучає графічний вузол із батьківського контейнера, якщо вузол до нього приєднаний. */

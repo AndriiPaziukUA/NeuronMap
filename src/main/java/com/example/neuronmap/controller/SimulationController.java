@@ -37,6 +37,7 @@ public final class SimulationController {
 
     private Timeline timeline;
     private SimulationSession session;
+    private SimulationStep lastAppliedStep;
     private double tickMillis;
     private boolean paused;
     private boolean modalSuspended;
@@ -93,6 +94,7 @@ public final class SimulationController {
             }
             runtimeState.clear();
             stepPresenter.clearRuntime();
+            lastAppliedStep = null;
             session = null;
             timeline = null;
             stepPresenter.refresh();
@@ -191,6 +193,28 @@ public final class SimulationController {
                 || timeline != null
                 || finishDelay.getStatus() != Animation.Status.STOPPED
                 || stepPresenter.hasActiveAnimations();
+    }
+
+    /**
+     * Відновлює індикатори останнього обробленого такту після відновлення моделі карти.
+     * Не перезапускає наявні анімації та не створює імпульси для зв'язків, яких не було під час цього такту.
+     * Сеанс, черги сигналів, часову шкалу й стан паузи залишає без змін.
+     */
+    public void refreshPresentationAfterMapHistoryChange() {
+        if (lastAppliedStep == null) {
+            runtimeState.clear();
+            stepPresenter.clearRuntime();
+            stepPresenter.refresh();
+            updateSimulationControlsVisibility();
+            return;
+        }
+
+        runtimeState.apply(lastAppliedStep);
+        stepPresenter.restoreVisualState(lastAppliedStep);
+        if (paused || modalSuspended) {
+            stepPresenter.pauseAnimations();
+        }
+        updateSimulationControlsVisibility();
     }
 
     /** Зупиняє поширення сигналів, очищує тимчасовий стан симуляції та оновлює індикатори без збереження карти. */
@@ -299,9 +323,11 @@ public final class SimulationController {
         }
         SimulationStep step = session.nextStep();
         if (step == null) {
+            lastAppliedStep = null;
             finishSimulation();
             return;
         }
+        lastAppliedStep = step;
         runtimeState.apply(step);
         stepPresenter.apply(step);
         status.accept(localization.text("status.tick", step.tick().add(BigInteger.ONE)));
@@ -332,6 +358,7 @@ public final class SimulationController {
         runtimeState.clear();
         timeline = null;
         session = null;
+        lastAppliedStep = null;
         stepPresenter.clearRuntime();
     }
 

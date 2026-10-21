@@ -8,6 +8,8 @@ import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
+import javafx.beans.property.ReadOnlyLongProperty;
+import javafx.beans.property.ReadOnlyLongWrapper;
 import javafx.geometry.Point2D;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
@@ -26,13 +28,14 @@ public final class ConnectionView extends Pane {
     private static final Color HIT_TEST_STROKE_COLOR = Color.rgb(255, 255, 255, 0.001);
     private static final double DELETE_BLINK_MILLIS = 500.0;
 
-    private final Connection model;
+    private Connection model;
     private final Function<String, NeuronView> viewLookup;
     private final Function<String, Neuron> neuronLookup;
     private final ConnectionStyle style;
     private final Line line = new Line();
     private final Line hitLine = new Line();
     private final Polygon arrow = new Polygon();
+    private final ReadOnlyLongWrapper geometryRevision = new ReadOnlyLongWrapper(this, "geometryRevision");
 
     private Timeline blinkTimeline;
     private boolean deleteHighlighted;
@@ -96,6 +99,37 @@ public final class ConnectionView extends Pane {
     }
 
     /**
+     * Повертає властивість, що змінюється після оновлення геометрії зв'язку.
+     * Активні імпульси використовують її, щоб синхронно оновлювати траєкторію без окремого циклу опитування.
+     *
+     * @return властивість версії геометрії.
+     */
+    public ReadOnlyLongProperty geometryRevisionProperty() {
+        return geometryRevision.getReadOnlyProperty();
+    }
+
+    /**
+     * Оновлює посилання на модель після відновлення стану історії, не замінюючи сумісне графічне подання.
+     *
+     * @param restoredModel відновлена модель того самого напрямленого зв'язку.
+     * @throws IllegalArgumentException якщо ідентифікатор або кінці зв'язку відрізняються.
+     */
+    public void updateModel(Connection restoredModel) {
+        Objects.requireNonNull(restoredModel, "restoredModel");
+        if (!model.id().equals(restoredModel.id())
+                || !model.sourceId().equals(restoredModel.sourceId())
+                || !model.targetId().equals(restoredModel.targetId())) {
+            throw new IllegalArgumentException("A connection view can only be rebound to the same connection");
+        }
+        model = restoredModel;
+        if (!deleteHighlighted) {
+            Color normal = baseColor();
+            line.setStroke(normal);
+            arrow.setFill(normal);
+        }
+    }
+
+    /**
      * Перевіряє стан підсвічування видалення.
      *
      * @return {@code true}, якщо анімація видалення активна.
@@ -104,9 +138,7 @@ public final class ConnectionView extends Pane {
         return deleteHighlighted;
     }
 
-    /**
-     * Перераховує кінцеві точки зв'язку за поточними положеннями нейронів.
-     */
+    /** Перераховує кінцеві точки зв'язку за поточними положеннями нейронів. */
     public void updateGeometry() {
         NeuronView source = viewLookup.apply(model.sourceId());
         NeuronView target = viewLookup.apply(model.targetId());
@@ -124,6 +156,7 @@ public final class ConnectionView extends Pane {
         hitLine.setEndX(end.getX());
         hitLine.setEndY(end.getY());
         updateArrow(start, end);
+        geometryRevision.set(geometryRevision.get() + 1L);
     }
 
     /**
@@ -147,10 +180,14 @@ public final class ConnectionView extends Pane {
 
     /**
      * Установлює або скасовує анімоване підсвічування зв'язку для режиму видалення.
+     * Повторне встановлення активного підсвічування не перезапускає його часову шкалу.
      *
      * @param highlighted {@code true}, щоб запустити підсвічування; {@code false}, щоб прибрати його.
      */
     public void setDeleteHighlight(boolean highlighted) {
+        if (highlighted && deleteHighlighted && blinkTimeline != null) {
+            return;
+        }
         deleteHighlighted = highlighted;
         stopDeleteHighlight();
         if (!highlighted) {
@@ -172,18 +209,14 @@ public final class ConnectionView extends Pane {
         blinkTimeline.play();
     }
 
-    /**
-     * Призупиняє підсвічування видалення, зберігаючи можливість відновлення.
-     */
+    /** Призупиняє підсвічування видалення, зберігаючи можливість відновлення. */
     public void pauseDeleteHighlight() {
         if (blinkTimeline != null && blinkTimeline.getStatus() == Animation.Status.RUNNING) {
             blinkTimeline.pause();
         }
     }
 
-    /**
-     * Відновлює анімацію підсвічування видалення після паузи.
-     */
+    /** Відновлює анімацію підсвічування видалення після паузи. */
     public void resumeDeleteHighlight() {
         if (blinkTimeline != null && blinkTimeline.getStatus() == Animation.Status.PAUSED) {
             blinkTimeline.play();

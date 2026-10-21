@@ -6,14 +6,14 @@ import com.example.neuronmap.view.connection.ConnectionView;
 import com.example.neuronmap.view.editor.WorkspaceView;
 import com.example.neuronmap.view.simulation.PulseAnimationView;
 import com.example.neuronmap.view.simulation.PulseAnimator;
+import javafx.beans.value.ChangeListener;
+import javafx.scene.Parent;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import javafx.beans.value.ChangeListener;
-import javafx.scene.Parent;
 
-/** Керує запуском, призупиненням, відновленням і зупиненням анімацій імпульсів на зв'язках. */
+/** Керує запуском, призупиненням, відновленням і зупиненням анімацій імпульсів. */
 public final class PulseAnimationController implements PulseAnimator {
 
     private final WorkspaceView workspace;
@@ -46,6 +46,7 @@ public final class PulseAnimationController implements PulseAnimator {
 
     /**
      * Створює та запускає анімацію імпульсу для заданого подання зв'язку.
+     * Геометрія активного імпульсу оновлюється через подію зв'язку, а не через окремий цикл кадрів.
      *
      * @param connectionView візуальне подання зв'язку.
      */
@@ -80,8 +81,11 @@ public final class PulseAnimationController implements PulseAnimator {
                 animation.stop();
             }
         };
+        ChangeListener<Number> geometryListener = (observable, oldValue, newValue) -> animation.refreshGeometry();
         activeAnimation.setParentListener(parentListener);
+        activeAnimation.setGeometryListener(geometryListener);
         connectionView.parentProperty().addListener(parentListener);
+        connectionView.geometryRevisionProperty().addListener(geometryListener);
         activeAnimations.add(activeAnimation);
         animation.play();
         pruneFinished();
@@ -185,26 +189,29 @@ public final class PulseAnimationController implements PulseAnimator {
         activityChanged.run();
     }
 
-    /** Видаляє зі списку керування анімації, які вже завершилися. */
+    /** Видаляє зі списку керування завершені анімації та від'єднує їхні слухачі. */
     private void pruneFinished() {
         activeAnimations.removeIf(activeAnimation -> {
             if (!activeAnimation.view().isFinished()) {
                 return false;
             }
             activeAnimation.connectionView().parentProperty().removeListener(activeAnimation.parentListener());
+            activeAnimation.connectionView().geometryRevisionProperty()
+                    .removeListener(activeAnimation.geometryListener());
             return true;
         });
     }
 
-    /** Зберігає незмінну інформацію про кінці зв'язку, щоб зупинити його імпульс після видалення моделі. */
+    /** Зберігає посилання на анімацію та її подання зв'язку для узгодженого керування життєвим циклом. */
     private static final class ActiveAnimation {
         private final PulseAnimationView view;
         private final ConnectionView connectionView;
         private final String sourceNeuronId;
         private final String targetNeuronId;
         private ChangeListener<Parent> parentListener;
+        private ChangeListener<Number> geometryListener;
 
-        /** Зберігає анімацію та її зв'язок для узгодженого керування життєвим циклом. */
+        /** Зберігає анімацію та кінці зв'язку, щоб зупиняти її після видалення відповідного нейрона. */
         private ActiveAnimation(
                 PulseAnimationView view,
                 ConnectionView connectionView,
@@ -235,6 +242,16 @@ public final class PulseAnimationController implements PulseAnimator {
         /** Повертає слухач, який потрібно від'єднати після завершення анімації. */
         private ChangeListener<Parent> parentListener() {
             return parentListener;
+        }
+
+        /** Зберігає слухач актуалізації імпульсу після зміни геометрії зв'язку. */
+        private void setGeometryListener(ChangeListener<Number> geometryListener) {
+            this.geometryListener = geometryListener;
+        }
+
+        /** Повертає слухач геометрії для від'єднання після завершення імпульсу. */
+        private ChangeListener<Number> geometryListener() {
+            return geometryListener;
         }
 
         /** Перевіряє, чи проходить зв'язок через нейрон, який зараз видаляють. */

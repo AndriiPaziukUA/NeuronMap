@@ -36,7 +36,7 @@ public final class EditorHistoryCoordinator {
      * @param neuronController контролер взаємодії з нейронами.
      * @param state стан редактора.
      * @param workspace полотно редактора.
-     * @param synchronizeNeuronToolPlacement узгодження активного інструмента з поточним режимом редактора.
+     * @param synchronizeNeuronToolPlacement узгодження активного інструмента розміщення зі станом редактора.
      * @param presentation координатор візуальних подань.
      * @param save дія збереження стану редактора.
      * @param status дія показу повідомлень стану.
@@ -69,48 +69,77 @@ public final class EditorHistoryCoordinator {
         this.localization = Objects.requireNonNull(localization, "localization");
     }
 
-    /** Скасовує останню зміну карти й оновлює залежні частини інтерфейсу. */
+    /**
+     * Скасовує останню зміну карти, не перериваючи симуляцію та чинний режим редагування.
+     *
+     * @return {@code true}, якщо зміну скасовано; інакше {@code false}.
+     */
     public boolean undo() {
-        simulationController.stop();
         if (!historyService.undo()) {
             return false;
         }
         resetEditorAfterHistoryChange();
-        presentation.synchronizeViewsWithModel();
-        synchronizeNeuronToolPlacement.run();
+        presentation.synchronizeViewsAfterHistoryChange();
+        simulationController.refreshPresentationAfterMapHistoryChange();
+        synchronizeActiveToolAfterHistoryChange();
         save.run();
         status.accept(localization.text("status.undo"));
         return true;
     }
 
-    /** Повторює скасовану зміну карти й оновлює залежні частини інтерфейсу. */
+    /**
+     * Повторює скасовану зміну карти, не перериваючи симуляцію та чинний режим редагування.
+     *
+     * @return {@code true}, якщо зміну повторено; інакше {@code false}.
+     */
     public boolean redo() {
-        simulationController.stop();
         if (!historyService.redo()) {
             return false;
         }
         resetEditorAfterHistoryChange();
-        presentation.synchronizeViewsWithModel();
-        synchronizeNeuronToolPlacement.run();
+        presentation.synchronizeViewsAfterHistoryChange();
+        simulationController.refreshPresentationAfterMapHistoryChange();
+        synchronizeActiveToolAfterHistoryChange();
         save.run();
         status.accept(localization.text("status.redo"));
         return true;
     }
 
     /**
-     * Скидає тимчасову взаємодію після undo/redo, але не вимикає активний інструмент розміщення нейронів.
+     * Очищує лише тимчасову взаємодію, яка не належить активному інструменту, і скидає вибір.
+     * Режими додавання нейронів та створення або видалення зв'язків залишаються активними.
      */
     private void resetEditorAfterHistoryChange() {
-        boolean keepNeuronPlacement = state.mode() == EditorState.Mode.ADD_NEURON;
-        connectionController.cancelCreate();
-        if (keepNeuronPlacement) {
-            connectionController.clearDeleteHighlights();
-        } else {
-            connectionController.exitDelete();
-            state.resetToIdle();
-            workspace.node().setCursor(Cursor.DEFAULT);
+        switch (state.mode()) {
+            case ADD_NEURON -> connectionController.clearDeleteHighlights();
+            case CREATE_CONNECTION -> {
+                // Джерело та прев’ю зберігаються; прев’ю оновиться після перебудови подань.
+            }
+            case DELETE_CONNECTION -> {
+                // Підсвічування збережених зв'язків продовжується; координатор подань оновить лише необхідні зв'язки.
+            }
+            case IDLE, ROTATE_NEURON -> resetInactiveToolState();
         }
         neuronController.hideMenu();
         state.clearSelection();
+    }
+
+    /** Скидає режими, які не повинні переживати перебудову подань після зміни історії. */
+    private void resetInactiveToolState() {
+        connectionController.cancelCreate();
+        connectionController.exitDelete();
+        state.resetToIdle();
+        workspace.node().setCursor(Cursor.DEFAULT);
+    }
+
+    /** Відновлює графічний стан активного інструмента після синхронізації моделі та її подань. */
+    private void synchronizeActiveToolAfterHistoryChange() {
+        switch (state.mode()) {
+            case CREATE_CONNECTION -> connectionController.refreshPreviewAfterCameraChange();
+            case DELETE_CONNECTION -> {
+                // MapPresentationCoordinator уже оновив підсвічування та завершив невалідний режим за потреби.
+            }
+            case ADD_NEURON, IDLE, ROTATE_NEURON -> synchronizeNeuronToolPlacement.run();
+        }
     }
 }
