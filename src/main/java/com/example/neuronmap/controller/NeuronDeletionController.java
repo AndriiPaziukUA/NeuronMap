@@ -97,12 +97,14 @@ public final class NeuronDeletionController {
 
     /**
      * Видаляє наявні нейрони через службу й один раз синхронізує подання після завершення операції.
+     * Під час активного додавання зберігає вибраний інструмент, щоб видалення вибору не вимикало розміщення.
      *
      * @param neuronIds ідентифікатори нейронів, які потрібно видалити.
      * @return {@code true}, якщо видалено принаймні один нейрон; інакше {@code false}.
      */
     private boolean deleteNeurons(Collection<String> neuronIds) {
         LinkedHashSet<String> ids = new LinkedHashSet<>(neuronIds);
+        boolean keepNeuronPlacement = state.mode() == EditorState.Mode.ADD_NEURON;
         boolean changed = false;
         hideMenu.run();
         for (String neuronId : ids) {
@@ -114,8 +116,10 @@ public final class NeuronDeletionController {
         }
 
         state.clearSelection();
-        state.resetToIdle();
-        workspace.node().setCursor(Cursor.DEFAULT);
+        if (!keepNeuronPlacement) {
+            state.resetToIdle();
+            workspace.node().setCursor(Cursor.DEFAULT);
+        }
         refreshPresentation.run();
         save.run();
         status.accept(

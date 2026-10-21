@@ -22,7 +22,11 @@ import com.example.neuronmap.view.neuron.RotationHandleView;
 import javafx.event.ActionEvent;
 import javafx.event.Event;
 import javafx.geometry.Point2D;
+import javafx.scene.Cursor;
+import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import org.junit.jupiter.api.Test;
@@ -34,18 +38,15 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє, що скасування видалення не завершує життєвий цикл обробників полотна й інструментів. */
+/** Перевіряє взаємодію полотна й інструментів після undo та тривале розміщення нейронів. */
 final class MapEditorComponentFactoryUndoInteractionTest {
 
-    /**
-     * Відтворює видалення нейрона та Ctrl+Z через зібраний граф редактора, після чого перевіряє додавання через панель.
-     *
-     * @throws Exception якщо JavaFX не може виконати перевірку у своєму потоці.
-     */
+    /** Перевіряє, що undo не від'єднує обробники, а режим додавання лишається активним до явного скасування. */
     @Test
-    void undoAfterDeletionKeepsCanvasAndToolbarHandlersInstalled() throws Exception {
+    void undoKeepsHandlersInstalledAndToolbarPlacementModePersistent() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
             Fixture fixture = new Fixture();
             try {
@@ -57,7 +58,7 @@ final class MapEditorComponentFactoryUndoInteractionTest {
                 assertTrue(fixture.components.neuronController().deleteSelectedNeurons());
                 assertTrue(fixture.neurons.find(original.id()).isEmpty());
 
-                Event.fireEvent(fixture.scene.getRoot(), keyPressedEvent(true));
+                Event.fireEvent(fixture.scene.getRoot(), keyPressedEvent(KeyCode.Z, true));
 
                 assertTrue(fixture.neurons.find(original.id()).isPresent(),
                         "Ctrl+Z має відновити видалений нейрон");
@@ -70,32 +71,137 @@ final class MapEditorComponentFactoryUndoInteractionTest {
 
                 Event.fireEvent(fixture.view.toolbar().addExcitatoryButton(), new ActionEvent());
                 assertEquals(EditorState.Mode.ADD_NEURON, fixture.state.mode(),
-                        "Кнопка панелі повинна й надалі вмикати режим додавання");
+                        "Кнопка панелі має вмикати режим додавання");
+                assertTrue(fixture.view.toolbar().addExcitatoryButton().getStyleClass()
+                                .contains("tool-button-active"),
+                        "Активна кнопка має залишатися виділеною");
 
-                Point2D scenePoint = fixture.view.workspace().node().localToScene(280.0, 210.0);
-                Event.fireEvent(fixture.view.workspace().node(), mouseClickedEvent(280.0, 210.0, scenePoint));
-
+                clickWorkspace(fixture, 280.0, 210.0);
                 assertEquals(2, fixture.neurons.neurons().size(),
-                        "Клік по полотну після Ctrl+Z повинен створити новий нейрон");
-                assertTrue(fixture.state.isIdle(), "Після створення нейрона режим додавання має завершитися");
+                        "Перший клік по полотну має створити нейрон");
+                assertEquals(EditorState.Mode.ADD_NEURON, fixture.state.mode(),
+                        "Після створення першого нейрона режим має залишатися активним");
+                assertEquals(1, previewCount(fixture),
+                        "Попередній перегляд не має зникати після створення нейрона");
+
+                clickWorkspace(fixture, 340.0, 250.0);
+                assertEquals(3, fixture.neurons.neurons().size(),
+                        "Наступний клік має створити ще один нейрон без повторної активації інструмента");
+                assertEquals(EditorState.Mode.ADD_NEURON, fixture.state.mode(),
+                        "Режим має залишатися активним після кожного розміщення");
+                assertEquals(1, previewCount(fixture),
+                        "Попередній перегляд має залишатися видимим і після повторного розміщення");
+
+                Event.fireEvent(fixture.view.toolbar().addInhibitoryButton(), new ActionEvent());
+                assertEquals(NeuronType.INHIBITORY, fixture.state.pendingNeuronType(),
+                        "Натискання іншої кнопки має перемикати тип активного інструмента");
+                assertFalse(fixture.view.toolbar().addExcitatoryButton().getStyleClass()
+                                .contains("tool-button-active"),
+                        "Попередня кнопка має втратити виділення");
+                assertTrue(fixture.view.toolbar().addInhibitoryButton().getStyleClass()
+                                .contains("tool-button-active"),
+                        "Виділеною має бути лише нова кнопка");
+
+                clickWorkspace(fixture, 400.0, 290.0);
+                assertEquals(4, fixture.neurons.neurons().size(),
+                        "Перемикання типу не має вимикати режим повторного розміщення");
+                assertEquals(EditorState.Mode.ADD_NEURON, fixture.state.mode());
+
+                Event.fireEvent(fixture.scene.getRoot(), keyPressedEvent(KeyCode.ESCAPE, false));
+                assertTrue(fixture.state.isIdle(), "Esc має вимикати режим розміщення");
+                assertFalse(fixture.view.toolbar().addExcitatoryButton().getStyleClass()
+                                .contains("tool-button-active"));
+                assertFalse(fixture.view.toolbar().addInhibitoryButton().getStyleClass()
+                                .contains("tool-button-active"));
+                assertEquals(0, previewCount(fixture),
+                        "Вимкнення режиму через Esc має прибирати попередній перегляд");
+
+                Event.fireEvent(fixture.view.toolbar().addExcitatoryButton(), new ActionEvent());
+                Event.fireEvent(fixture.view.toolbar().addExcitatoryButton(), new ActionEvent());
+                assertTrue(fixture.state.isIdle(), "Повторне натискання тієї самої кнопки має вимикати режим");
             } finally {
                 fixture.dispose();
             }
         });
     }
 
-    /**
-     * Створює подію Ctrl+Z для маршрутизатора гарячих клавіш редактора.
-     *
-     * @param controlDown ознака натиснутої клавіші Ctrl.
-     * @return сформована подія натискання клавіші Z.
-     */
-    private static javafx.scene.input.KeyEvent keyPressedEvent(boolean controlDown) {
-        return new javafx.scene.input.KeyEvent(
-                javafx.scene.input.KeyEvent.KEY_PRESSED,
+    /** Перевіряє, що видалення поточного вибору не вимикає активний інструмент розміщення нейронів. */
+    @Test
+    void deletingSelectionKeepsNeuronPlacementModeActive() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            Fixture fixture = new Fixture();
+            try {
+                Neuron original = fixture.neurons.create(NeuronType.EXCITATORY, 80.0, 60.0);
+                fixture.history.initialize();
+                fixture.install();
+                fixture.state.selectOnly(original.id());
+
+                Event.fireEvent(fixture.view.toolbar().addExcitatoryButton(), new ActionEvent());
+                Event.fireEvent(fixture.scene.getRoot(), keyPressedEvent(KeyCode.DELETE, false));
+
+                assertTrue(fixture.neurons.find(original.id()).isEmpty(),
+                        "Команда Delete має виконати видалення вибраного нейрона");
+                assertEquals(EditorState.Mode.ADD_NEURON, fixture.state.mode(),
+                        "Видалення вибору не має вимикати режим розміщення");
+                assertEquals(NeuronType.EXCITATORY, fixture.state.pendingNeuronType());
+                assertTrue(fixture.view.toolbar().addExcitatoryButton().getStyleClass()
+                                .contains("tool-button-active"),
+                        "Кнопка активного інструмента має залишатися виділеною після видалення");
+                assertEquals(Cursor.CROSSHAIR, fixture.view.workspace().node().getCursor(),
+                        "Курсор має зберігати вигляд активного режиму розміщення");
+
+                clickWorkspace(fixture, 280.0, 210.0);
+                assertEquals(1, fixture.neurons.neurons().size(),
+                        "Після видалення має залишатися можливість додавати нейрони без повторної активації");
+                assertEquals(EditorState.Mode.ADD_NEURON, fixture.state.mode());
+            } finally {
+                fixture.dispose();
+            }
+        });
+    }
+
+    /** Перевіряє, що undo/redo змінює карту, але не вимикає активний інструмент розміщення нейронів. */
+    @Test
+    void undoAndRedoKeepNeuronPlacementModeActive() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            Fixture fixture = new Fixture();
+            try {
+                fixture.neurons.create(NeuronType.EXCITATORY, 80.0, 60.0);
+                fixture.history.initialize();
+                fixture.install();
+                Event.fireEvent(fixture.view.toolbar().addExcitatoryButton(), new ActionEvent());
+
+                clickWorkspace(fixture, 280.0, 210.0);
+                assertEquals(2, fixture.neurons.neurons().size());
+
+                Event.fireEvent(fixture.scene.getRoot(), keyPressedEvent(KeyCode.Z, true));
+                assertEquals(1, fixture.neurons.neurons().size(), "Undo має скасувати додавання нейрона");
+                assertEquals(EditorState.Mode.ADD_NEURON, fixture.state.mode(),
+                        "Undo не має вимикати активний інструмент");
+                assertEquals(Cursor.CROSSHAIR, fixture.view.workspace().node().getCursor());
+                assertEquals(1, previewCount(fixture), "Попередній перегляд має залишатися видимим після undo");
+
+                Event.fireEvent(fixture.scene.getRoot(), keyPressedEvent(KeyCode.Y, true));
+                assertEquals(2, fixture.neurons.neurons().size(), "Redo має повторити додавання нейрона");
+                assertEquals(EditorState.Mode.ADD_NEURON, fixture.state.mode(),
+                        "Redo не має вимикати активний інструмент");
+                assertTrue(fixture.view.toolbar().addExcitatoryButton().getStyleClass()
+                        .contains("tool-button-active"));
+                assertEquals(Cursor.CROSSHAIR, fixture.view.workspace().node().getCursor());
+                assertEquals(1, previewCount(fixture), "Попередній перегляд має залишатися видимим після redo");
+            } finally {
+                fixture.dispose();
+            }
+        });
+    }
+
+    /** Створює клавіатурну подію для перевірки гарячих клавіш зібраного редактора. */
+    private static KeyEvent keyPressedEvent(KeyCode code, boolean controlDown) {
+        return new KeyEvent(
+                KeyEvent.KEY_PRESSED,
                 "",
                 "",
-                javafx.scene.input.KeyCode.Z,
+                code,
                 false,
                 controlDown,
                 false,
@@ -103,14 +209,45 @@ final class MapEditorComponentFactoryUndoInteractionTest {
         );
     }
 
-    /**
-     * Створює первинне клацання на полотні з координатами локального вузла та відповідною точкою сцени.
-     *
-     * @param x локальна координата X робочої області.
-     * @param y локальна координата Y робочої області.
-     * @param scenePoint та сама точка в системі координат сцени.
-     * @return подія первинного клацання.
-     */
+    /** Клацає по полотну в точці, вказаній у його локальній системі координат. */
+    private static void clickWorkspace(Fixture fixture, double x, double y) {
+        Point2D scenePoint = fixture.view.workspace().node().localToScene(x, y);
+        Event.fireEvent(fixture.view.workspace().node(), mouseMovedEvent(x, y, scenePoint));
+        Event.fireEvent(fixture.view.workspace().node(), mouseClickedEvent(x, y, scenePoint));
+    }
+
+    /** Підраховує лише попередні перегляди інструмента, не враховуючи ручки обертання на тому самому шарі. */
+    private static long previewCount(Fixture fixture) {
+        return fixture.view.workspace().overlayLayer().getChildren().stream()
+                .filter(Node::isMouseTransparent)
+                .count();
+    }
+
+    /** Створює подію руху миші для перевірки попереднього перегляду, прив'язаного до курсора. */
+    private static MouseEvent mouseMovedEvent(double x, double y, Point2D scenePoint) {
+        return new MouseEvent(
+                MouseEvent.MOUSE_MOVED,
+                x,
+                y,
+                scenePoint.getX(),
+                scenePoint.getY(),
+                MouseButton.NONE,
+                0,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                true,
+                null
+        );
+    }
+
+    /** Створює первинне клацання на полотні з локальними й відповідними координатами сцени. */
     private static MouseEvent mouseClickedEvent(double x, double y, Point2D scenePoint) {
         return new MouseEvent(
                 MouseEvent.MOUSE_CLICKED,
@@ -134,7 +271,7 @@ final class MapEditorComponentFactoryUndoInteractionTest {
         );
     }
 
-    /** Складає реальні компоненти редактора з тестовим сховищем для перевірки маршрутизації подій після undo. */
+    /** Складає реальні компоненти редактора з тестовим сховищем для перевірки маршрутизації подій. */
     private static final class Fixture {
 
         private final NeuronMapModel model = new NeuronMapModel();
@@ -168,7 +305,7 @@ final class MapEditorComponentFactoryUndoInteractionTest {
         private final MapEditorComponentFactory.Components components = createComponents();
         private final Scene scene = createScene();
 
-        /** Складає компоненти після налаштування callback-ів до координаторів, які з'являться під час створення. */
+        /** Складає компоненти після налаштування callback-ів до координаторів, що створюються. */
         private MapEditorComponentFactory.Components createComponents() {
             return MapEditorComponentFactory.create(new MapEditorComponentFactory.Inputs(
                     config,
@@ -213,7 +350,7 @@ final class MapEditorComponentFactoryUndoInteractionTest {
             return view.createScene(800.0, 600.0);
         }
 
-        /** Реєструє маршрутизатори подій і створює початкові графічні подання карти. */
+        /** Реєструє обробники й створює початкові графічні подання карти. */
         private void install() {
             components.neuronController().loadViews();
             components.presentation().refreshAll();
@@ -222,7 +359,7 @@ final class MapEditorComponentFactoryUndoInteractionTest {
             components.keyboardController().install(scene);
         }
 
-        /** Звільняє всі створені компоненти, щоб не залишати обробників і ресурсів JavaFX після тесту. */
+        /** Звільняє створені компоненти, щоб не залишати обробників і ресурсів JavaFX після тесту. */
         private void dispose() {
             components.keyboardController().dispose();
             components.interaction().dispose();
@@ -235,16 +372,12 @@ final class MapEditorComponentFactoryUndoInteractionTest {
         }
     }
 
-    /** Реалізує сховище без файлових побічних ефектів, потрібне лише для складання редакторських компонентів. */
+    /** Реалізує сховище без файлових побічних ефектів, потрібне для складання компонентів редактора. */
     private static final class TestMapRepository implements MapRepository {
 
         private final NeuronMapModel model;
 
-        /**
-         * Зберігає початкову модель, яку тестове сховище повертає під час завантаження.
-         *
-         * @param model модель, що використовується тестовим сховищем.
-         */
+        /** Зберігає початкову модель, яку тестове сховище повертає під час завантаження. */
         private TestMapRepository(NeuronMapModel model) {
             this.model = model;
         }
@@ -255,25 +388,25 @@ final class MapEditorComponentFactoryUndoInteractionTest {
             return Path.of("test-project.db");
         }
 
-        /** Повертає типовий стан камери, бо файл налаштувань у тесті не створюється. */
+        /** Повертає типовий стан камери без читання зовнішніх файлів. */
         @Override
         public CameraState loadCameraState() {
             return CameraState.defaultState();
         }
 
-        /** Повертає резервну швидкість симуляції без читання зовнішнього файла. */
+        /** Повертає передану резервну швидкість симуляції без файлових операцій. */
         @Override
         public double loadSimulationTickMillis(double fallbackMillis) {
             return fallbackMillis;
         }
 
-        /** Копіює поточну тестову модель у модель, передану для завантаження. */
+        /** Копіює тестову модель у модель, яку передано на завантаження. */
         @Override
         public void loadInto(NeuronMapModel target) {
             target.replaceContentsFrom(model);
         }
 
-        /** Не зберігає швидкість, оскільки перевірка не стосується файлової персистентності. */
+        /** Не зберігає швидкість, бо тест не перевіряє файлову персистентність. */
         @Override
         public void saveSimulationTickMillis(double millis) {
         }
@@ -283,7 +416,7 @@ final class MapEditorComponentFactoryUndoInteractionTest {
         public void save(NeuronMapModel ignored, CameraState cameraState) {
         }
 
-        /** Звільняє тестове сховище без зовнішніх ресурсів. */
+        /** Звільняє тестове сховище, яке не використовує зовнішніх ресурсів. */
         @Override
         public void close() {
         }

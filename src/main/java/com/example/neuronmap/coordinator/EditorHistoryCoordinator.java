@@ -12,9 +12,7 @@ import javafx.scene.Cursor;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-/**
- * Пов’язує операції скасування й повторення з оновленням візуального подання та стану взаємодії редактора.
- */
+/** Пов’язує undo/redo зі скиданням тимчасових станів і синхронізацією подань редактора. */
 public final class EditorHistoryCoordinator {
 
     private final HistoryService historyService;
@@ -23,25 +21,25 @@ public final class EditorHistoryCoordinator {
     private final NeuronInteractionController neuronController;
     private final EditorState state;
     private final WorkspaceView workspace;
-    private final Runnable removeDragPreview;
+    private final Runnable synchronizeNeuronToolPlacement;
     private final MapPresentationCoordinator presentation;
     private final Runnable save;
     private final Consumer<String> status;
     private final LocalizationService localization;
 
     /**
-     * Створює екземпляр EditorHistoryCoordinator та зберігає передані залежності, потрібні для його роботи.
+     * Створює координатор історії та зберігає залежності, потрібні для узгодження undo/redo з редактором.
      *
      * @param historyService служба скасування й повторення змін.
-     * @param simulationController значення «simulation controller», яке використовується в цьому методі.
-     * @param connectionController значення «connection controller», яке використовується в цьому методі.
-     * @param neuronController значення «neuron controller», яке використовується в цьому методі.
-     * @param state стан об’єкта, який потрібно зберегти або відновити.
+     * @param simulationController контролер симуляції.
+     * @param connectionController контролер зв'язків.
+     * @param neuronController контролер взаємодії з нейронами.
+     * @param state стан редактора.
      * @param workspace полотно редактора.
-     * @param removeDragPreview callback, який прибирає попередній перегляд перетягування.
-     * @param presentation візуальне подання нейрона.
-     * @param save функція зворотного виклику для відповідної дії.
-     * @param status callback для показу повідомлення в рядку стану.
+     * @param synchronizeNeuronToolPlacement узгодження активного інструмента з поточним режимом редактора.
+     * @param presentation координатор візуальних подань.
+     * @param save дія збереження стану редактора.
+     * @param status дія показу повідомлень стану.
      * @param localization служба локалізації інтерфейсу.
      */
     public EditorHistoryCoordinator(
@@ -51,7 +49,7 @@ public final class EditorHistoryCoordinator {
             NeuronInteractionController neuronController,
             EditorState state,
             WorkspaceView workspace,
-            Runnable removeDragPreview,
+            Runnable synchronizeNeuronToolPlacement,
             MapPresentationCoordinator presentation,
             Runnable save,
             Consumer<String> status,
@@ -63,16 +61,15 @@ public final class EditorHistoryCoordinator {
         this.neuronController = Objects.requireNonNull(neuronController, "neuronController");
         this.state = Objects.requireNonNull(state, "state");
         this.workspace = Objects.requireNonNull(workspace, "workspace");
-        this.removeDragPreview = Objects.requireNonNull(removeDragPreview, "removeDragPreview");
+        this.synchronizeNeuronToolPlacement = Objects.requireNonNull(
+                synchronizeNeuronToolPlacement, "synchronizeNeuronToolPlacement");
         this.presentation = Objects.requireNonNull(presentation, "presentation");
         this.save = Objects.requireNonNull(save, "save");
         this.status = Objects.requireNonNull(status, "status");
         this.localization = Objects.requireNonNull(localization, "localization");
     }
 
-    /**
-     * Скасовує останню зміну карти й оновлює залежні частини інтерфейсу.
-     */
+    /** Скасовує останню зміну карти й оновлює залежні частини інтерфейсу. */
     public boolean undo() {
         simulationController.stop();
         if (!historyService.undo()) {
@@ -80,14 +77,13 @@ public final class EditorHistoryCoordinator {
         }
         resetEditorAfterHistoryChange();
         presentation.synchronizeViewsWithModel();
+        synchronizeNeuronToolPlacement.run();
         save.run();
         status.accept(localization.text("status.undo"));
         return true;
     }
 
-    /**
-     * Повторює скасовану зміну карти й оновлює залежні частини інтерфейсу.
-     */
+    /** Повторює скасовану зміну карти й оновлює залежні частини інтерфейсу. */
     public boolean redo() {
         simulationController.stop();
         if (!historyService.redo()) {
@@ -95,21 +91,26 @@ public final class EditorHistoryCoordinator {
         }
         resetEditorAfterHistoryChange();
         presentation.synchronizeViewsWithModel();
+        synchronizeNeuronToolPlacement.run();
         save.run();
         status.accept(localization.text("status.redo"));
         return true;
     }
 
     /**
-     * Скидає тимчасові стани взаємодії після відновлення іншого знімка карти.
+     * Скидає тимчасову взаємодію після undo/redo, але не вимикає активний інструмент розміщення нейронів.
      */
     private void resetEditorAfterHistoryChange() {
-        removeDragPreview.run();
+        boolean keepNeuronPlacement = state.mode() == EditorState.Mode.ADD_NEURON;
         connectionController.cancelCreate();
-        connectionController.exitDelete();
+        if (keepNeuronPlacement) {
+            connectionController.clearDeleteHighlights();
+        } else {
+            connectionController.exitDelete();
+            state.resetToIdle();
+            workspace.node().setCursor(Cursor.DEFAULT);
+        }
         neuronController.hideMenu();
-        state.resetToIdle();
         state.clearSelection();
-        workspace.node().setCursor(Cursor.DEFAULT);
     }
 }

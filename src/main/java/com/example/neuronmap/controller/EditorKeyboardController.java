@@ -24,7 +24,9 @@ public final class EditorKeyboardController {
     private final Runnable toggleSimulationPause;
     private final BooleanSupplier simulationPauseShortcutAvailable;
     private final Node simulationPauseShortcutRoot;
+    private final BooleanSupplier addNeuronModeActive;
     private final EventHandler<KeyEvent> keyHandler = this::handleKeyPressed;
+    private final EventHandler<KeyEvent> addModeEscapeFilter = this::handleAddModeEscape;
     private final EventHandler<KeyEvent> keyReleasedHandler = this::handleKeyReleased;
     private Scene scene;
     private boolean spacePressed;
@@ -52,6 +54,7 @@ public final class EditorKeyboardController {
         toggleSimulationPause = () -> { };
         simulationPauseShortcutAvailable = () -> false;
         simulationPauseShortcutRoot = null;
+        addNeuronModeActive = () -> false;
     }
 
     /**
@@ -75,6 +78,34 @@ public final class EditorKeyboardController {
             BooleanSupplier simulationPauseShortcutAvailable,
             Node simulationPauseShortcutRoot
     ) {
+        this(undo, redo, deleteSelection, cancelInteractions, toggleSimulationPause,
+                simulationPauseShortcutAvailable, simulationPauseShortcutRoot, () -> false);
+    }
+
+    /**
+     * Створює маршрутизатор команд із пріоритетним обробленням Esc у режимі додавання нейронів.
+     * Пріоритетний фільтр реєструється перед фільтром головного меню, щоб Esc спершу вимикав режим розміщення.
+     *
+     * @param undo дія скасування останньої зміни.
+     * @param redo дія повторення скасованої зміни.
+     * @param deleteSelection дія видалення вибраних нейронів.
+     * @param cancelInteractions дія скасування активної взаємодії.
+     * @param toggleSimulationPause дія перемикання ручної паузи симуляції.
+     * @param simulationPauseShortcutAvailable перевірка доступності команди паузи симуляції.
+     * @param simulationPauseShortcutRoot кореневий вузол дошки для команди паузи.
+     * @param addNeuronModeActive перевірка того, чи активний режим додавання нейрона.
+     * @throws NullPointerException якщо обов'язкову залежність не задано.
+     */
+    public EditorKeyboardController(
+            BooleanSupplier undo,
+            BooleanSupplier redo,
+            BooleanSupplier deleteSelection,
+            Runnable cancelInteractions,
+            Runnable toggleSimulationPause,
+            BooleanSupplier simulationPauseShortcutAvailable,
+            Node simulationPauseShortcutRoot,
+            BooleanSupplier addNeuronModeActive
+    ) {
         this.undo = Objects.requireNonNull(undo, "undo");
         this.redo = Objects.requireNonNull(redo, "redo");
         this.deleteSelection = Objects.requireNonNull(deleteSelection, "deleteSelection");
@@ -84,6 +115,7 @@ public final class EditorKeyboardController {
                 simulationPauseShortcutAvailable, "simulationPauseShortcutAvailable");
         this.simulationPauseShortcutRoot = Objects.requireNonNull(
                 simulationPauseShortcutRoot, "simulationPauseShortcutRoot");
+        this.addNeuronModeActive = Objects.requireNonNull(addNeuronModeActive, "addNeuronModeActive");
     }
 
     /**
@@ -99,6 +131,7 @@ public final class EditorKeyboardController {
         }
         dispose();
         scene = targetScene;
+        scene.addEventFilter(KeyEvent.KEY_PRESSED, addModeEscapeFilter);
         scene.addEventHandler(KeyEvent.KEY_PRESSED, keyHandler);
         scene.addEventFilter(KeyEvent.KEY_RELEASED, keyReleasedHandler);
     }
@@ -108,10 +141,24 @@ public final class EditorKeyboardController {
         if (scene == null) {
             return;
         }
+        scene.removeEventFilter(KeyEvent.KEY_PRESSED, addModeEscapeFilter);
         scene.removeEventHandler(KeyEvent.KEY_PRESSED, keyHandler);
         scene.removeEventFilter(KeyEvent.KEY_RELEASED, keyReleasedHandler);
         scene = null;
         spacePressed = false;
+    }
+
+    /**
+     * Перехоплює Esc до фільтра меню лише тоді, коли активний режим додавання нейрона.
+     *
+     * @param event подія натискання клавіші.
+     */
+    private void handleAddModeEscape(KeyEvent event) {
+        if (event.getCode() != KeyCode.ESCAPE || !addNeuronModeActive.getAsBoolean()) {
+            return;
+        }
+        cancelInteractions.run();
+        event.consume();
     }
 
     /**

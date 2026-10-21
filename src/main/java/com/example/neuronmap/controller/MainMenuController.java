@@ -358,7 +358,8 @@ public final class MainMenuController {
 
     /** Обробляє Escape й блокує редакторські скорочення в меню. */
     private void handleKeyPressed(KeyEvent event) {
-        if (disposed || EditorKeyboardShortcutBoundary.blocksShortcutsFor(event.getTarget())
+        if (disposed || event.isConsumed()
+                || EditorKeyboardShortcutBoundary.blocksShortcutsFor(event.getTarget())
                 || SceneKeyboardModality.hasActiveBoundaryFor(event.getTarget())) {
             return;
         }

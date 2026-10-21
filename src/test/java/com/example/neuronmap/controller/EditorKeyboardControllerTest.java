@@ -98,6 +98,46 @@ final class EditorKeyboardControllerTest {
         });
     }
 
+    /** Перевіряє, що Esc у режимі додавання скасовує його перед передаванням події фільтру меню. */
+    @Test
+    void prioritizesAddModeCancellationOverMenuEscapeHandler() throws Exception {
+        runOnFxThread(() -> {
+            StackPane root = new StackPane();
+            TextField textField = new TextField();
+            root.getChildren().add(textField);
+            Scene scene = new Scene(root);
+            AtomicBoolean addModeActive = new AtomicBoolean(true);
+            AtomicInteger cancelCalls = new AtomicInteger();
+            AtomicInteger menuCalls = new AtomicInteger();
+            EditorKeyboardController controller = new EditorKeyboardController(
+                    () -> false,
+                    () -> false,
+                    () -> false,
+                    () -> {
+                        cancelCalls.incrementAndGet();
+                        addModeActive.set(false);
+                    },
+                    () -> { },
+                    () -> false,
+                    root,
+                    addModeActive::get
+            );
+            controller.install(scene);
+            scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+                if (!event.isConsumed() && event.getCode() == KeyCode.ESCAPE) {
+                    menuCalls.incrementAndGet();
+                    event.consume();
+                }
+            });
+
+            fireKey(textField, KeyCode.ESCAPE, false);
+
+            assertEquals(1, cancelCalls.get());
+            assertEquals(0, menuCalls.get(), "Esc у режимі розміщення не має відкривати головне меню");
+            controller.dispose();
+        });
+    }
+
     /** Перевіряє, що пробіл перемикає паузу лише на дошці, коли команда доступна, і не повторює дію при автоповторі. */
     @Test
     void routesSpaceOnlyOnBoardWhenAvailableAndOncePerKeyPress() throws Exception {

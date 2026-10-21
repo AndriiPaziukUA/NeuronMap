@@ -67,6 +67,16 @@
     -fx-background-color: #363b43;
 }
 
+.tool-button-active {
+    -fx-background-color: #3b4c61;
+    -fx-border-color: #86a9d5;
+    -fx-border-width: 1.5;
+}
+
+.tool-button-active:hover {
+    -fx-background-color: #465a72;
+}
+
 .tool-button-danger {
     -fx-background-color: #542d32;
     -fx-border-color: #754047;

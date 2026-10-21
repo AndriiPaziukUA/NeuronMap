@@ -12,6 +12,7 @@ import com.example.neuronmap.controller.PulseAnimationController;
 import com.example.neuronmap.controller.SelectionController;
 import com.example.neuronmap.controller.SimulationController;
 import com.example.neuronmap.i18n.LocalizationService;
+import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.service.ConnectionService;
 import com.example.neuronmap.service.GroupService;
 import com.example.neuronmap.service.HistoryService;
@@ -198,16 +199,16 @@ final class MapEditorComponentFactory {
                 inputs.actions().updateStatus(),
                 inputs.localization()
         );
-        interaction.configureToolbarButtons(
-                inputs.view().toolbar().addExcitatoryButton(),
-                inputs.view().toolbar().addInhibitoryButton()
-        );
+        interaction.configureToolbarButtons(Map.of(
+                NeuronType.EXCITATORY, inputs.view().toolbar().addExcitatoryButton(),
+                NeuronType.INHIBITORY, inputs.view().toolbar().addInhibitoryButton()
+        ));
         return new InteractionComponents(presentation, interaction);
     }
 
     /**
      * Створює компоненти історії, клавіатури й камери після появи координатора взаємодії.
-     * Під час undo/redo історія очищує лише попередній перегляд інструмента, не завершуючи життєвий цикл взаємодії.
+     * Під час undo/redo історія скидає тимчасову взаємодію, зберігаючи активний інструмент розміщення нейронів.
      *
      * @param inputs залежності складання редактора.
      * @param base базові компоненти контролерів.
@@ -226,7 +227,7 @@ final class MapEditorComponentFactory {
                 base.neuronController(),
                 inputs.state(),
                 inputs.view().workspace(),
-                interaction.interaction()::clearDragPreview,
+                interaction.interaction()::synchronizeNeuronToolPlacement,
                 interaction.presentation(),
                 inputs.actions().save(),
                 inputs.actions().updateStatus(),
@@ -240,7 +241,8 @@ final class MapEditorComponentFactory {
                 base.simulationController()::pauseOrResume,
                 () -> base.simulationController().hasActiveSimulation()
                         && !inputs.view().mainMenu().isMenuVisible(),
-                inputs.view().workspace().node()
+                inputs.view().workspace().node(),
+                () -> inputs.state().mode() == EditorState.Mode.ADD_NEURON
         );
         CameraController cameraController = new CameraController(
                 inputs.state(),

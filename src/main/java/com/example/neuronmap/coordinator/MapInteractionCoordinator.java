@@ -21,10 +21,11 @@ import javafx.scene.control.Button;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-/** Координує обробку подій полотна та передає зміни моделі до координатора презентації. */
+/** Координує режими взаємодії з полотном і передає зміни моделі координатору презентації. */
 public final class MapInteractionCoordinator {
 
     private final NeuronService neuronService;
@@ -58,6 +59,7 @@ public final class MapInteractionCoordinator {
      * @param save дія збереження поточного стану.
      * @param status дія показу повідомлень стану.
      * @param localization служба локалізації інтерфейсу.
+     * @throws NullPointerException якщо обов'язкову залежність не задано.
      */
     public MapInteractionCoordinator(
             NeuronService neuronService,
@@ -101,24 +103,37 @@ public final class MapInteractionCoordinator {
         installed = true;
     }
 
-    /** Починає режим додавання нейрона та готує стан взаємодії. */
+    /**
+     * Вмикає режим розміщення нейрона або перемикає його на інший тип.
+     * Повторне натискання на вже активний тип скасовує режим.
+     *
+     * @param type тип нейрона, який слід розміщувати.
+     * @throws NullPointerException якщо тип нейрона не задано.
+     * @throws IllegalStateException якщо координатор уже звільнив свої ресурси.
+     */
     public void beginAddNeuronMode(NeuronType type) {
         ensureNotDisposed();
+        Objects.requireNonNull(type, "type");
+        if (state.mode() == EditorState.Mode.ADD_NEURON && state.pendingNeuronType() == type) {
+            cancelInteractions();
+            return;
+        }
         simulationController.stop();
         connectionController.cancelCreate();
         connectionController.exitDelete();
         neuronController.hideMenu();
         state.enterAddNeuronMode(type);
+        toolDragController.setPlacementMode(type);
         workspace.node().setCursor(Cursor.CROSSHAIR);
         status.accept(localization.text("status.add_neuron_hint"));
     }
 
-    /** Скасовує незавершені режими взаємодії та очищує тимчасові подання. */
+    /** Скасовує активні режими взаємодії, попередній перегляд та підсвічування інструмента. */
     public void cancelInteractions() {
         if (disposed) {
             return;
         }
-        clearDragPreview();
+        toolDragController.setPlacementMode(null);
         connectionController.cancelCreate();
         connectionController.exitDelete();
         neuronController.hideMenu();
@@ -128,13 +143,18 @@ public final class MapInteractionCoordinator {
     }
 
     /**
-     * Прибирає лише попередній перегляд перетягування інструмента, не від'єднуючи обробники редактора.
-     * Використовується під час скасування історії, коли життєвий цикл взаємодії має залишатися активним.
+     * Узгоджує виділення інструмента та його попередній перегляд зі станом редактора після undo/redo.
+     * Активний режим розміщення залишається ввімкненим, доки його не скасує користувач.
      */
-    void clearDragPreview() {
-        if (!disposed) {
-            toolDragController.clearPreview();
+    void synchronizeNeuronToolPlacement() {
+        if (disposed) {
+            return;
         }
+        NeuronType activeType = state.mode() == EditorState.Mode.ADD_NEURON
+                ? state.pendingNeuronType() : null;
+        toolDragController.setPlacementMode(activeType);
+        toolDragController.refreshPlacementPreview();
+        workspace.node().setCursor(activeType == null ? Cursor.DEFAULT : Cursor.CROSSHAIR);
     }
 
     /** Створює нейрон у заданих координатах і синхронізує карту одним викликом координатора презентації. */
@@ -163,7 +183,7 @@ public final class MapInteractionCoordinator {
         presentation.refreshAll();
     }
 
-    /** Знімає фільтри полотна, завершує тимчасові режими й звільняє джерела перетягування. */
+    /** Знімає обробники полотна, завершує тимчасові режими й звільняє ресурси кнопок. */
     public void dispose() {
         if (disposed) {
             return;
@@ -186,19 +206,17 @@ public final class MapInteractionCoordinator {
         if (disposed || event.getButton() != MouseButton.PRIMARY) {
             return;
         }
-        if (neuronController.isInteractiveTarget(event.getTarget())
-                || JavaFxNodeLookup.findAncestor(event.getTarget(), ConnectionView.class) != null) {
-            return;
-        }
         if (state.mode() == EditorState.Mode.ADD_NEURON) {
             Point2D viewportPoint = workspace.node().sceneToLocal(event.getSceneX(), event.getSceneY());
             Point2D worldPoint = WorldCoordinateMapper.viewportToWorld(
                     viewportPoint, state.zoom(), state.panX(), state.panY());
             Point2D neuronTopLeft = NeuronVisualGeometry.topLeftFromCenter(worldPoint);
             addNeuronAt(state.pendingNeuronType(), neuronTopLeft.getX(), neuronTopLeft.getY());
-            state.resetToIdle();
-            workspace.node().setCursor(Cursor.DEFAULT);
             event.consume();
+            return;
+        }
+        if (neuronController.isInteractiveTarget(event.getTarget())
+                || JavaFxNodeLookup.findAncestor(event.getTarget(), ConnectionView.class) != null) {
             return;
         }
         if (state.isIdle()) {
@@ -217,10 +235,29 @@ public final class MapInteractionCoordinator {
         addNeuronAt(type, neuronTopLeft.getX(), neuronTopLeft.getY());
     }
 
-    /** Під'єднує перетягування до кнопок додавання збуджувального й гальмівного нейронів. */
+    /**
+     * Під'єднує поточні кнопки інструментів; сумісний метод для двох наявних типів нейронів.
+     *
+     * @param excitatoryButton кнопка інструмента збуджувального нейрона.
+     * @param inhibitoryButton кнопка інструмента гальмівного нейрона.
+     * @throws IllegalStateException якщо координатор уже звільнив свої ресурси.
+     */
     public void configureToolbarButtons(Button excitatoryButton, Button inhibitoryButton) {
         ensureNotDisposed();
         toolDragController.configureToolbarButtons(excitatoryButton, inhibitoryButton);
+    }
+
+    /**
+     * Під'єднує довільну кількість кнопок інструментів за картою типів і кнопок.
+     *
+     * @param buttons відповідність типів нейронів кнопкам, що мають запускати ці інструменти.
+     * @throws NullPointerException якщо карту, тип або кнопку не задано.
+     * @throws IllegalArgumentException якщо тип або кнопку вже зареєстровано для іншого інструмента.
+     * @throws IllegalStateException якщо координатор уже звільнив свої ресурси.
+     */
+    public void configureToolbarButtons(Map<NeuronType, Button> buttons) {
+        ensureNotDisposed();
+        toolDragController.configureToolbarButtons(buttons);
     }
 
     /** Забороняє повторно активувати координатор після звільнення його ресурсів. */
