@@ -198,9 +198,22 @@ public final class CameraController {
         clearCursorCoordinates();
     }
 
-    /** Застосовує поточний масштаб і зміщення зі стану редактора до полотна. */
-    public void apply() {
+    /**
+     * Застосовує лише масштаб і зміщення, які не залежать від остаточного розміру вікна.
+     * Цей крок можна виконати до показу Stage, щоб перший кадр уже мав збережений стан камери.
+     */
+    public void applyTransform() {
         workspace.setWorldTransform(state.zoom(), state.panX(), state.panY());
+    }
+
+    /**
+     * Застосовує стан камери до полотна та оновлює залежні від компонування накладки й координати курсора.
+     *
+     * <p>Повне оновлення слід виконувати після компонування сцени, оскільки накладки можуть залежати
+     * від доступних розмірів робочої області.</p>
+     */
+    public void apply() {
+        applyTransform();
         refreshOverlay.run();
         refreshCursorCoordinates();
     }
@@ -361,7 +374,7 @@ public final class CameraController {
         event.consume();
     }
 
-    /** Зберігає поточні координати вказівника в локальному просторі сцени та оновлює їх світове значення. */
+    /** Зберігає поточні координати в локальному просторі сцени та оновлює їх світове значення. */
     private void updateCursorCoordinates(double sceneX, double sceneY) {
         Point2D viewportPoint = workspace.node().sceneToLocal(sceneX, sceneY);
         if (!isInsideWorkspace(viewportPoint)) {

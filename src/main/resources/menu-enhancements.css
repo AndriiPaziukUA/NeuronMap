@@ -95,3 +95,59 @@
 .main-menu-panel .combo-box-popup .list-cell:hover {
     -fx-background-color: #343a43;
 }
+
+/* Спільне компонування рядків налаштувань: текст зліва, елемент керування справа. */
+.main-menu-setting-row {
+    -fx-alignment: center-left;
+    -fx-spacing: 12;
+}
+
+/* Додатковий клас повноекранного перемикача для його власного оформлення. */
+.main-menu-fullscreen-settings {
+    -fx-alignment: center-left;
+    -fx-spacing: 12;
+}
+
+.main-menu-panel .main-menu-fullscreen-toggle {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-border-color: transparent;
+    -fx-padding: 2;
+    -fx-cursor: hand;
+}
+
+.main-menu-panel .main-menu-fullscreen-toggle:disabled {
+    -fx-opacity: 0.55;
+    -fx-cursor: default;
+}
+
+.main-menu-panel .main-menu-fullscreen-toggle .fullscreen-switch-track {
+    -fx-fill: #3a414b;
+    -fx-stroke: #5a6471;
+    -fx-stroke-width: 1;
+}
+
+.main-menu-panel .main-menu-fullscreen-toggle:selected .fullscreen-switch-track {
+    -fx-fill: #245bd7;
+    -fx-stroke: #4b83ff;
+}
+
+.main-menu-panel .main-menu-fullscreen-toggle .fullscreen-switch-thumb {
+    -fx-fill: #edf0f3;
+    -fx-stroke: #c4cbd3;
+    -fx-stroke-width: 0.7;
+}
+
+.main-menu-panel .main-menu-fullscreen-toggle:selected .fullscreen-switch-thumb {
+    -fx-fill: #ffffff;
+    -fx-stroke: #d7e5ff;
+}
+
+.main-menu-panel .main-menu-fullscreen-toggle:focused .fullscreen-switch-track {
+    -fx-stroke: #aab8c8;
+    -fx-stroke-width: 1.5;
+}
+
+.main-menu-panel .main-menu-fullscreen-toggle:hover .fullscreen-switch-thumb {
+    -fx-fill: #ffffff;
+}

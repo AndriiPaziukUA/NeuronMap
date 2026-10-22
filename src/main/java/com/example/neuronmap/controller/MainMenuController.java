@@ -33,6 +33,7 @@ public final class MainMenuController {
 
     private Scene installedScene;
     private boolean savingPendingProjectChanges;
+    private boolean fullScreenSettingRegistered;
     private boolean disposed;
 
     /** Створює контролер і пов'язує подання з діями застосунку та координатором налаштувань. */
@@ -119,6 +120,38 @@ public final class MainMenuController {
         ensureNotDisposed();
         settingsCoordinator.preview(setting, value);
         view.refreshSettingsState();
+    }
+
+    /**
+     * Реєструє повноекранний режим у спільному сеансі налаштувань і синхронізує перемикач після відкату.
+     *
+     * @param currentValue постачальник активного стану повноекранного режиму.
+     * @param previewAction дія тимчасового застосування стану без збереження.
+     * @param persistAction дія збереження підтвердженого стану.
+     * @throws IllegalStateException якщо налаштування вже зареєстроване або контролер звільнено.
+     * @throws NullPointerException якщо callback не задано.
+     */
+    public void registerFullScreenSetting(
+            Supplier<Boolean> currentValue,
+            Consumer<Boolean> previewAction,
+            Consumer<Boolean> persistAction
+    ) {
+        ensureNotDisposed();
+        if (fullScreenSettingRegistered) {
+            throw new IllegalStateException("Full-screen setting is already registered");
+        }
+        Supplier<Boolean> checkedCurrentValue = Objects.requireNonNull(currentValue, "currentValue");
+        Consumer<Boolean> checkedPreviewAction = Objects.requireNonNull(previewAction, "previewAction");
+        Consumer<Boolean> checkedPersistAction = Objects.requireNonNull(persistAction, "persistAction");
+        SettingsEditSession.Setting<Boolean> setting = registerSetting(
+                checkedCurrentValue,
+                enabled -> {
+                    checkedPreviewAction.accept(enabled);
+                    view.refreshFullScreenValue();
+                },
+                checkedPersistAction);
+        view.setFullScreenActions(checkedCurrentValue, enabled -> previewSetting(setting, enabled));
+        fullScreenSettingRegistered = true;
     }
 
     /** Оновлює видимий список проєктів за найновішими даними каталогу. */

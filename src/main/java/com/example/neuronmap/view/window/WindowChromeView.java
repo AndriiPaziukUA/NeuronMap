@@ -32,6 +32,7 @@ import java.util.function.Consumer;
 /**
  * Відображає локалізований заголовок редактора всередині системної {@link HeaderBar} JavaFX.
  * Платформний стиль визначає компонування та CSS; переміщення, зміну розміру й семантику кнопок забезпечує JavaFX.
+ * У повноекранному режимі заголовок повністю приховується та перестає займати місце в компонуванні.
  */
 public final class WindowChromeView extends BorderPane {
 
@@ -148,6 +149,7 @@ public final class WindowChromeView extends BorderPane {
         localization.addListener(localeChangeListener);
         maximized = stage.isMaximized() || stage.isFullScreen();
         refreshControlLabels();
+        refreshWindowState();
     }
 
     /**
@@ -236,6 +238,7 @@ public final class WindowChromeView extends BorderPane {
 
         // Стандартні дії кнопок визначаються їхніми системними ролями HeaderButtonType.
         extendedHeaderBarInstalled = true;
+        refreshWindowState();
         requestLayout();
     }
 
@@ -378,10 +381,28 @@ public final class WindowChromeView extends BorderPane {
         updateMaximizeIcon();
     }
 
-    /** Узгоджує значок і доступну назву кнопки максимізації зі станом Stage. */
+    /** Узгоджує видимість усієї смуги заголовка й значок кнопки максимізації зі станом Stage. */
     private void refreshWindowState() {
-        maximized = stage.isMaximized() || stage.isFullScreen();
+        boolean fullScreen = stage.isFullScreen();
+        maximized = stage.isMaximized() || fullScreen;
+        updateHeaderVisibility(getTop(), fullScreen);
         updateMaximizeIcon();
+        requestLayout();
+    }
+
+    /**
+     * Застосовує стан видимості заголовка окремо від {@link Stage}, щоб перевіряти компонування без показу вікна.
+     * Прихований заголовок також виключається з компонування, щоб він не резервував вертикальний простір.
+     *
+     * @param header вузол усієї смуги заголовка; {@code null} дозволено до її встановлення.
+     * @param fullScreen чи перебуває вікно в повноекранному режимі.
+     */
+    static void updateHeaderVisibility(Node header, boolean fullScreen) {
+        if (header == null) {
+            return;
+        }
+        header.setVisible(!fullScreen);
+        header.setManaged(!fullScreen);
     }
 
     /** Оновлює графічний значок і доступну назву кнопки відповідно до платформної семантики вікна. */

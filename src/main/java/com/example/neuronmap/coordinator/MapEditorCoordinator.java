@@ -36,6 +36,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /** Узгоджує сценарії редактора, що охоплюють кілька підсистем, і керує життєвим циклом сцени. */
 public final class MapEditorCoordinator {
@@ -73,7 +75,7 @@ public final class MapEditorCoordinator {
     private boolean shutdown;
     private Scene scene;
 
-    /** Створює координатор редактора, ініціалізує стан карти й делегує складання графа компонентів фабриці. */
+    /** Створює координатор редактора, зберігаючи сумісний контракт для запуску без глобальної опції екрана. */
     public MapEditorCoordinator(
             NeuronMapApplicationService application,
             AppConfig config,
@@ -82,6 +84,36 @@ public final class MapEditorCoordinator {
             MapRepositoryFactory mapRepositoryFactory,
             Runnable exitApplication
     ) {
+        this(application, config, localization, projectCatalog, mapRepositoryFactory,
+                exitApplication, null, null, null);
+    }
+
+    /**
+     * Складає граф редактора та, якщо передано всі callback-и, реєструє повноекранний режим у спільній сесії меню.
+     *
+     * @param application прикладні служби карти й збереження.
+     * @param config перевірена конфігурація застосунку.
+     * @param localization спільна служба локалізації.
+     * @param projectCatalog служба каталогу проєктів.
+     * @param mapRepositoryFactory фабрика сховищ проєктів.
+     * @param exitApplication дія завершення застосунку.
+     * @param currentFullScreen постачальник поточного стану повноекранного режиму або {@code null} разом з іншими callback-ами.
+     * @param previewFullScreen дія тимчасового застосування повноекранного режиму.
+     * @param persistFullScreen дія постійного збереження повноекранного режиму.
+     * @throws IllegalArgumentException якщо передано лише частину callback-ів налаштування.
+     */
+    public MapEditorCoordinator(
+            NeuronMapApplicationService application,
+            AppConfig config,
+            LocalizationService localization,
+            ProjectCatalogService projectCatalog,
+            MapRepositoryFactory mapRepositoryFactory,
+            Runnable exitApplication,
+            Supplier<Boolean> currentFullScreen,
+            Consumer<Boolean> previewFullScreen,
+            Consumer<Boolean> persistFullScreen
+    ) {
+        validateFullScreenCallbacks(currentFullScreen, previewFullScreen, persistFullScreen);
         Objects.requireNonNull(application, "application");
         Objects.requireNonNull(config, "config");
         this.projectCatalog = Objects.requireNonNull(projectCatalog, "projectCatalog");
@@ -157,14 +189,32 @@ public final class MapEditorCoordinator {
                 projectWorkflowCoordinator::renameProject, projectWorkflowCoordinator::deleteProject,
                 exitApplication, editorProjectSessionCoordinator::pauseForMenu,
                 editorProjectSessionCoordinator::resumeAfterMenu);
+        if (currentFullScreen != null) {
+            mainMenuController.registerFullScreenSetting(
+                    currentFullScreen, previewFullScreen, persistFullScreen);
+        }
         projectDirectoryWatcher = new ProjectDirectoryWatcher(
                 projectCatalog.storageDirectory(), mainMenuController::refreshProjects);
         projectDirectoryWatcher.start();
         neuronController.loadViews();
         presentation.refreshAll();
+        cameraController.applyTransform();
         interaction.install();
         cameraController.install();
         connectionController.install();
+    }
+
+    /** Перевіряє, що повноекранне налаштування підключене повним набором callback-ів або не підключене взагалі. */
+    private static void validateFullScreenCallbacks(
+            Supplier<Boolean> currentFullScreen,
+            Consumer<Boolean> previewFullScreen,
+            Consumer<Boolean> persistFullScreen
+    ) {
+        boolean supplied = currentFullScreen != null || previewFullScreen != null || persistFullScreen != null;
+        boolean complete = currentFullScreen != null && previewFullScreen != null && persistFullScreen != null;
+        if (supplied && !complete) {
+            throw new IllegalArgumentException("Full-screen setting callbacks must be supplied together");
+        }
     }
 
     /** Створює дії, через які координатор сесії керує контролерами й поданнями редактора. */

@@ -9,27 +9,18 @@ import com.example.neuronmap.service.ProjectCatalogService;
 import javafx.scene.Scene;
 
 import java.util.Objects;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
- * Фасад редактора на рівні застосунку, який приховує складання внутрішніх компонентів і надає контракт життєвого циклу.
- * Не обробляє UI-події та не містить сценаріїв взаємодії: побудову редактора й координацію підсистем делегує
- * {@link MapEditorCoordinator}, залишаючи точці входу стабільний зовнішній інтерфейс.
+ * Фасад редактора, який приховує складання внутрішніх компонентів і надає контракт життєвого циклу.
+ * Побудову редактора й координацію підсистем делегує {@link MapEditorCoordinator}.
  */
 public final class NeuronMapEditor {
 
     private final MapEditorCoordinator coordinator;
 
-    /**
-     * Створює фасад редактора та передає всі залежності координатору, який складає підсистеми карти.
-     *
-     * @param application прикладна служба, яка надає доступ до служб карти й збереження.
-     * @param config завантажена конфігурація застосунку.
-     * @param localization готова служба локалізації інтерфейсу.
-     * @param projectCatalog готова служба каталогу проєктів.
-     * @param mapRepositoryFactory фабрика репозиторіїв проєктів.
-     * @param exitApplication дія завершення роботи застосунку.
-     * @throws NullPointerException якщо будь-яка із залежностей не задана.
-     */
+    /** Створює фасад редактора зі службами проєкту та дією завершення застосунку. */
     public NeuronMapEditor(
             NeuronMapApplicationService application,
             AppConfig config,
@@ -38,37 +29,59 @@ public final class NeuronMapEditor {
             MapRepositoryFactory mapRepositoryFactory,
             Runnable exitApplication
     ) {
-        this.coordinator = new MapEditorCoordinator(
+        this(application, config, localization, projectCatalog, mapRepositoryFactory,
+                exitApplication, null, null, null);
+    }
+
+    /**
+     * Створює фасад редактора та передає координатору callback-и глобального налаштування повноекранного режиму.
+     * Цей конструктор використовується точкою входу, яка володіє життєвим циклом Stage.
+     *
+     * @param application прикладна служба карти та збереження.
+     * @param config перевірена конфігурація застосунку.
+     * @param localization спільна служба локалізації.
+     * @param projectCatalog служба каталогу проєктів.
+     * @param mapRepositoryFactory фабрика сховищ проєктів.
+     * @param exitApplication дія завершення застосунку.
+     * @param currentFullScreen постачальник активного стану повноекранного режиму.
+     * @param previewFullScreen дія тимчасового перемикання режиму.
+     * @param persistFullScreen дія збереження підтвердженого стану.
+     */
+    NeuronMapEditor(
+            NeuronMapApplicationService application,
+            AppConfig config,
+            LocalizationService localization,
+            ProjectCatalogService projectCatalog,
+            MapRepositoryFactory mapRepositoryFactory,
+            Runnable exitApplication,
+            Supplier<Boolean> currentFullScreen,
+            Consumer<Boolean> previewFullScreen,
+            Consumer<Boolean> persistFullScreen
+    ) {
+        coordinator = new MapEditorCoordinator(
                 Objects.requireNonNull(application, "application"),
                 Objects.requireNonNull(config, "config"),
                 Objects.requireNonNull(localization, "localization"),
                 Objects.requireNonNull(projectCatalog, "projectCatalog"),
                 Objects.requireNonNull(mapRepositoryFactory, "mapRepositoryFactory"),
-                Objects.requireNonNull(exitApplication, "exitApplication")
+                Objects.requireNonNull(exitApplication, "exitApplication"),
+                currentFullScreen,
+                previewFullScreen,
+                persistFullScreen
         );
     }
 
-    /**
-     * Створює сцену редактора заданого розміру та повертає її точці входу для показу у вікні.
-     *
-     * @param width ширина видимої області.
-     * @param height висота видимої області.
-     * @return створена сцена редактора.
-     */
+    /** Створює сцену редактора зазначеного початкового розміру. */
     public Scene createScene(double width, double height) {
         return coordinator.createScene(width, height);
     }
 
-    /**
-     * Центрує початковий вигляд карти після розміщення сцени у вікні.
-     */
+    /** Центрує початковий вигляд карти після розміщення сцени у вікні. */
     public void centerInitialView() {
         coordinator.centerInitialView();
     }
 
-    /**
-     * Завершує життєвий цикл редактора, делегуючи очищення ресурсів координатору.
-     */
+    /** Завершує редактор і звільняє його ресурси. */
     public void shutdown() {
         coordinator.shutdown();
     }

@@ -22,6 +22,7 @@ import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Компонує сторінки меню, відображає стан та передає події користувача через callback-и.
@@ -85,9 +86,7 @@ public final class MainMenuView extends StackPane {
         }
     }
 
-    /**
-     * Позначає сторінку, яку наразі показує контейнер меню.
-     */
+    /** Позначає сторінку, яку наразі показує контейнер меню. */
     private enum Page {
         MAIN,
         LOAD,
@@ -97,6 +96,7 @@ public final class MainMenuView extends StackPane {
     private final LocalizationService localization;
     private final MainMenuHomeView homeView;
     private final ProjectListView projectListView;
+    private final FullScreenSettingsView fullScreenSettingsView;
     private final LanguageSettingsView languageSettingsView;
     private final VBox panel = new VBox(14.0);
     private final VBox content = new VBox(10.0);
@@ -130,6 +130,7 @@ public final class MainMenuView extends StackPane {
         this.homeView = new MainMenuHomeView(localization);
         configureHomePageActions();
         this.projectListView = new ProjectListView(localization);
+        this.fullScreenSettingsView = new FullScreenSettingsView(localization);
         this.languageSettingsView = new LanguageSettingsView(localization);
         this.unsavedChangesView = new UnsavedChangesView(localization);
         if (visibilityChanged != null) {
@@ -195,9 +196,7 @@ public final class MainMenuView extends StackPane {
         });
     }
 
-    /**
-     * Налаштовує розміщення спільної панелі сторінок.
-     */
+    /** Налаштовує розміщення спільної панелі сторінок. */
     private void configurePanel() {
         panel.getStyleClass().add("main-menu-panel");
         panel.setMinSize(0.0, 0.0);
@@ -215,9 +214,7 @@ public final class MainMenuView extends StackPane {
         HBox.setHgrow(footerSpacer, Priority.ALWAYS);
     }
 
-    /**
-     * Підключає спільні кнопки нижньої панелі сторінок.
-     */
+    /** Підключає спільні кнопки нижньої панелі сторінок. */
     private void configureFooter() {
         backButton.setOnAction(event -> {
             requireActions().back().run();
@@ -229,9 +226,7 @@ public final class MainMenuView extends StackPane {
         });
     }
 
-    /**
-     * Підключає кнопки головної сторінки до перевіреного набору дій контролера.
-     */
+    /** Підключає кнопки головної сторінки до перевіреного набору дій контролера. */
     private void configureHomePageActions() {
         homeView.setActions(
                 () -> requireActions().close().run(),
@@ -256,9 +251,7 @@ public final class MainMenuView extends StackPane {
         return actions;
     }
 
-    /**
-     * Розміщує накладку меню, підлаштовуючи розмір панелі до вмісту поточної сторінки.
-     */
+    /** Розміщує накладку меню, підлаштовуючи розмір панелі до вмісту поточної сторінки. */
     @Override
     protected void layoutChildren() {
         super.layoutChildren();
@@ -307,9 +300,6 @@ public final class MainMenuView extends StackPane {
      * @param previewLanguageAction дія попереднього перегляду вибраної мови.
      * @param confirmLanguageAction дія підтвердження всіх змінених налаштувань.
      * @param hasUnsavedLanguageChanges перевірка наявності змін у спільній сесії налаштувань.
-     *
-     * <p>Виклик необов'язковий для автономного відображення сторінки: без нього вибір мови
-     * та підтвердження змін не передаються контролеру й не змінюють стан локалізації.</p>
      */
     public void setLanguageActions(
             Consumer<SupportedLanguage> previewLanguageAction,
@@ -324,30 +314,31 @@ public final class MainMenuView extends StackPane {
     }
 
     /**
+     * Підключає джерело поточного стану та callback попереднього перегляду повноекранного режиму.
+     *
+     * @param currentValue постачальник фактично активного стану режиму.
+     * @param previewAction дія тимчасового застосування вибраного стану.
+     */
+    public void setFullScreenActions(Supplier<Boolean> currentValue, Consumer<Boolean> previewAction) {
+        fullScreenSettingsView.setActions(currentValue, previewAction);
+    }
+
+    /**
      * Передає контролеру повідомлення про завершене перейменування рядка.
      *
-     * @param action необов'язкове сповіщення зовнішнього власника списку про підтвердження назви.
-     *               Сам рядок проєкту може завершити локальне перейменування й без цього сповіщення.
+     * @param action сповіщення про підтвердження назви проєкту.
      * @throws NullPointerException якщо callback не задано.
      */
     public void setProjectRenameCommittedAction(Runnable action) {
         projectRenameCommittedAction = Objects.requireNonNull(action, "action");
     }
 
-    /**
-     * Перевіряє, чи відображається накладка меню.
-     *
-     * @return {@code true}, якщо меню відкрите.
-     */
+    /** Перевіряє, чи відображається накладка меню. */
     public boolean isMenuVisible() {
         return isVisible();
     }
 
-    /**
-     * Показує меню та сповіщає власника про відкриття.
-     *
-     * @throws IllegalStateException якщо дії ще не підключено.
-     */
+    /** Показує меню та сповіщає власника про відкриття. */
     public void showMenu() {
         requireActions();
         setVisible(true);
@@ -356,9 +347,7 @@ public final class MainMenuView extends StackPane {
         restoreMenuPanelFocus();
     }
 
-    /**
-     * Приховує меню й діалог підтвердження та сповіщає власника про закриття.
-     */
+    /** Приховує меню й діалог підтвердження та сповіщає власника про закриття. */
     public void hide() {
         if (!isVisible()) {
             return;
@@ -369,67 +358,42 @@ public final class MainMenuView extends StackPane {
         visibilityChanged.accept(false);
     }
 
-    /**
-     * Повертає наявність незбережених змін налаштувань або введеної назви проєкту.
-     *
-     * @return {@code true}, якщо зміни є.
-     */
+    /** Повертає наявність незбережених змін налаштувань або введеної назви проєкту. */
     public boolean hasUnsavedChanges() {
         return settingsHaveUnsavedChanges() || projectListView.hasUnsavedChanges();
     }
 
-    /**
-     * Перевіряє наявність незбережених змін назви у поточному списку проєктів.
-     *
-     * @return {@code true}, якщо є зміни.
-     */
+    /** Перевіряє наявність незбережених змін назви у поточному списку проєктів. */
     public boolean hasUnsavedProjectChanges() {
         return projectListView.hasUnsavedChanges();
     }
 
-    /**
-     * Передає списку проєктів запит зберегти введені назви.
-     */
+    /** Передає списку проєктів запит зберегти введені назви. */
     public void savePendingProjectChanges() {
         projectListView.savePendingChanges();
     }
 
-    /**
-     * Передає списку проєктів запит відхилити введені назви.
-     */
+    /** Передає списку проєктів запит відхилити введені назви. */
     public void discardPendingProjectChanges() {
         projectListView.discardPendingChanges();
     }
 
-    /**
-     * Перевіряє, чи відображається діалог підтвердження.
-     *
-     * @return {@code true}, якщо діалог відкритий.
-     */
+    /** Перевіряє, чи відображається діалог підтвердження. */
     public boolean isConfirmingUnsavedChanges() {
         return unsavedChangesView.isShowing();
     }
 
-    /**
-     * Показує підтвердження незбережених змін перед дією, що може їх втратити.
-     *
-     * @param saveAction дія збереження.
-     * @param discardAction дія відхилення змін.
-     */
+    /** Показує підтвердження незбережених змін перед дією, що може їх втратити. */
     public void confirmUnsavedChanges(Runnable saveAction, Runnable discardAction) {
         unsavedChangesView.show(saveAction, discardAction);
     }
 
-    /**
-     * Вибирає в активному діалозі відхилення змін і продовження дії.
-     */
+    /** Вибирає в активному діалозі відхилення змін і продовження дії. */
     public void discardAndContinueUnsavedChanges() {
         unsavedChangesView.discardAndContinue();
     }
 
-    /**
-     * Показує головну сторінку меню.
-     */
+    /** Показує головну сторінку меню. */
     public void showMainPage() {
         page = Page.MAIN;
         clearProjectRows();
@@ -438,11 +402,7 @@ public final class MainMenuView extends StackPane {
         installPanel();
     }
 
-    /**
-     * Показує сторінку збережених проєктів; каталог і бізнес-операції залишаються поза поданням.
-     *
-     * @param projects описи доступних збережених проєктів; {@code null} трактується як порожній список.
-     */
+    /** Показує сторінку збережених проєктів; каталог і бізнес-операції залишаються поза поданням. */
     public void showLoadPage(List<ProjectDescriptor> projects) {
         page = Page.LOAD;
         projectListView.showProjects(
@@ -457,219 +417,143 @@ public final class MainMenuView extends StackPane {
         installPanel();
     }
 
-    /**
-     * Показує сторінку налаштувань і оновлює її локалізовані тексти.
-     */
+    /** Показує налаштування, розміщуючи повноекранний режим безпосередньо над вибором мови. */
     public void showSettingsPage() {
         page = Page.SETTINGS;
         clearProjectRows();
+        fullScreenSettingsView.refreshValue();
         languageSettingsView.refreshTexts();
         updatePageTitle();
-        content.getChildren().setAll(languageSettingsView);
+        content.getChildren().setAll(fullScreenSettingsView, languageSettingsView);
         installPanel();
     }
 
-    /**
-     * Перевіряє, чи відкрита сторінка збережених проєктів.
-     *
-     * @return {@code true}, якщо відкрито список проєктів.
-     */
+    /** Перевіряє, чи відкрита сторінка збережених проєктів. */
     public boolean isLoadPage() {
         return page == Page.LOAD;
     }
 
-    /**
-     * Перевіряє, чи відкрита сторінка налаштувань.
-     *
-     * @return {@code true}, якщо відкрито налаштування.
-     */
+    /** Перевіряє, чи відкрита сторінка налаштувань. */
     public boolean isSettingsPage() {
         return page == Page.SETTINGS;
     }
 
-    /**
-     * Повертає підписи кнопок головної сторінки для регресійних тестів у цьому пакеті.
-     *
-     * @return поточні підписи кнопок.
-     */
+    /** Повертає підписи кнопок головної сторінки для регресійних тестів у цьому пакеті. */
     List<String> mainButtonTextsForTest() {
         return homeView.buttonTextsForTest();
     }
 
-    /**
-     * Надає компонент вибору мови для UI-тестів.
-     *
-     * @return список підтримуваних мов.
-     */
+    /** Надає компонент вибору мови для UI-тестів. */
     javafx.scene.control.ComboBox<SupportedLanguage> languageSelectorForTest() {
         return languageSettingsView.languageSelectorForTest();
     }
 
-    /**
-     * Повертає головну сторінку для перевірок композиції.
-     *
-     * @return компонент головної сторінки меню.
-     */
+    /** Повертає головну сторінку для перевірок композиції. */
     MainMenuHomeView homePageForTest() {
         return homeView;
     }
 
-    /**
-     * Повертає список проєктів для перевірок композиції.
-     *
-     * @return компонент списку проєктів.
-     */
+    /** Повертає список проєктів для перевірок композиції. */
     ProjectListView projectListPageForTest() {
         return projectListView;
     }
 
-    /**
-     * Повертає налаштування мови для перевірок композиції.
-     *
-     * @return компонент налаштувань мови.
-     */
+    /** Повертає налаштування мови для перевірок композиції. */
     LanguageSettingsView languageSettingsPageForTest() {
         return languageSettingsView;
     }
 
-    /**
-     * Повертає кнопку відхилення змін для тестування скасування.
-     *
-     * @return кнопка «Ні».
-     */
+    /** Повертає налаштування повноекранного режиму для перевірок композиції. */
+    FullScreenSettingsView fullScreenSettingsPageForTest() {
+        return fullScreenSettingsView;
+    }
+
+    /** Повертає кнопку відхилення змін для тестування скасування. */
     Button discardChangesButtonForTest() {
         return unsavedChangesView.discardButtonForTest();
     }
 
-    /**
-     * Повертає кнопку підтвердження змін для тестування збереження.
-     *
-     * @return кнопка «Так».
-     */
+    /** Повертає кнопку підтвердження змін для тестування збереження. */
     Button saveChangesButtonForTest() {
         return unsavedChangesView.saveButtonForTest();
     }
 
-    /**
-     * Перевіряє наявність непідтверджених змін налаштувань.
-     *
-     * @return {@code true}, якщо сесія містить зміни.
-     */
+    /** Перевіряє наявність непідтверджених змін налаштувань. */
     public boolean isSettingsDirty() {
         return settingsHaveUnsavedChanges();
     }
 
-    /**
-     * Оновлює відображення кнопки збереження після зміни будь-якого параметра налаштувань.
-     */
+    /** Оновлює відображення кнопки збереження після зміни будь-якого параметра налаштувань. */
     public void refreshSettingsState() {
         updateSaveButtonVisibility();
     }
 
-    /**
-     * Надає кнопку повернення для UI-тестів.
-     *
-     * @return кнопка переходу на попередню сторінку.
-     */
+    /** Синхронізує положення перемикача з фактичним станом після підтвердження або відкату налаштувань. */
+    public void refreshFullScreenValue() {
+        fullScreenSettingsView.refreshValue();
+    }
+
+    /** Надає кнопку повернення для UI-тестів. */
     Button backButtonForTest() {
         return backButton;
     }
 
-    /**
-     * Надає кнопку підтвердження налаштувань для UI-тестів.
-     *
-     * @return кнопка збереження.
-     */
+    /** Надає кнопку підтвердження налаштувань для UI-тестів. */
     Button saveSettingsButtonForTest() {
         return saveSettingsButton;
     }
 
-    /**
-     * Повертає заголовок поточної сторінки.
-     *
-     * @return текст заголовка меню.
-     */
+    /** Повертає заголовок поточної сторінки. */
     String pageTitleForTest() {
         return titleLabel.getText();
     }
 
-    /**
-     * Надає прокручуваний список проєктів для перевірок компонування.
-     *
-     * @return список проєктів.
-     */
+    /** Надає прокручуваний список проєктів для перевірок компонування. */
     ScrollPane projectScrollPaneForTest() {
         return projectListView.scrollPaneForTest();
     }
 
-    /**
-     * Надає панель меню для тестів відновлення фокусу.
-     *
-     * @return панель меню.
-     */
+    /** Надає панель меню для тестів відновлення фокусу. */
     Region menuPanelForTest() {
         return panel;
     }
 
-    /**
-     * Повертає максимальну ширину панелі для адаптивних тестів.
-     *
-     * @return максимальна ширина.
-     */
+    /** Повертає максимальну ширину панелі для адаптивних тестів. */
     double panelMaxWidthForTest() {
         return panel.getMaxWidth();
     }
 
-    /**
-     * Повертає фактичну ширину панелі після компонування.
-     *
-     * @return ширина панелі.
-     */
+    /** Повертає фактичну ширину панелі після компонування. */
     double panelWidthForTest() {
         return panel.getWidth();
     }
 
-    /**
-     * Повертає фактичну висоту панелі після компонування.
-     *
-     * @return висота панелі.
-     */
+    /** Повертає фактичну висоту панелі після компонування. */
     double panelHeightForTest() {
         return panel.getHeight();
     }
 
-    /**
-     * Повертає максимальну висоту панелі для адаптивних тестів.
-     *
-     * @return максимальна висота.
-     */
+    /** Повертає максимальну висоту панелі для адаптивних тестів. */
     double panelMaxHeightForTest() {
         return panel.getMaxHeight();
     }
 
-    /**
-     * Повертає рядки збережених проєктів для тестів інтерфейсу.
-     *
-     * @return поточні рядки проєктів.
-     */
+    /** Повертає рядки збережених проєктів для тестів інтерфейсу. */
     List<SavedProjectRowView> projectRowsForTest() {
         return projectListView.rowsForTest();
     }
 
-    /**
-     * Звільняє ресурси рядків і від'єднує слухача локалізації.
-     */
+    /** Звільняє дочірні подання та від'єднує слухача локалізації. */
     public void dispose() {
         homeView.dispose();
         projectListView.dispose();
+        fullScreenSettingsView.dispose();
         languageSettingsView.dispose();
         unsavedChangesView.hide();
         localization.removeListener(localizationListener);
     }
 
-    /**
-     * Передає запит збереження налаштувань контролеру та оновлює відображений стан.
-     */
+    /** Передає запит збереження налаштувань контролеру та оновлює відображений стан. */
     private void handleSaveSettingsRequested() {
         if (isSettingsPage()) {
             commitSettingsAction.run();
@@ -677,28 +561,18 @@ public final class MainMenuView extends StackPane {
         }
     }
 
-    /**
-     * Передає вибрану мову контролеру та оновлює стан кнопки збереження.
-     *
-     * @param language вибрана мова.
-     */
+    /** Передає вибрану мову контролеру та оновлює стан кнопки збереження. */
     private void handleLanguageSelected(SupportedLanguage language) {
         previewLanguageAction.accept(language);
         updateSaveButtonVisibility();
     }
 
-    /**
-     * Перевіряє, чи має поточна сторінка непідтверджені налаштування.
-     *
-     * @return {@code true}, якщо зміни є.
-     */
+    /** Перевіряє, чи має поточна сторінка непідтверджені налаштування. */
     private boolean settingsHaveUnsavedChanges() {
         return page == Page.SETTINGS && hasUnsavedSettings.getAsBoolean();
     }
 
-    /**
-     * Перевстановлює вміст панелі відповідно до поточної сторінки.
-     */
+    /** Перевстановлює вміст панелі відповідно до поточної сторінки. */
     private void installPanel() {
         if (page == Page.MAIN) {
             footer.getChildren().clear();
@@ -714,9 +588,7 @@ public final class MainMenuView extends StackPane {
         restoreMenuPanelFocus();
     }
 
-    /**
-     * Відновлює клавіатурний фокус панелі після переходу між сторінками меню.
-     */
+    /** Відновлює клавіатурний фокус панелі після переходу між сторінками меню. */
     private void restoreMenuPanelFocus() {
         if (!isMenuVisible() || panel.getScene() == null) {
             return;
@@ -729,17 +601,13 @@ public final class MainMenuView extends StackPane {
         });
     }
 
-    /**
-     * Звільняє рядки проєктів та очищує вміст попередньої сторінки.
-     */
+    /** Звільняє рядки проєктів та очищує вміст попередньої сторінки. */
     private void clearProjectRows() {
         projectListView.clear();
         content.getChildren().clear();
     }
 
-    /**
-     * Оновлює переклади контейнера та передає оновлення спеціалізованим сторінкам.
-     */
+    /** Оновлює переклади контейнера та передає оновлення спеціалізованим сторінкам. */
     private void refreshTexts() {
         updatePageTitle();
         backButton.setText(localization.text("menu.back"));
@@ -748,9 +616,7 @@ public final class MainMenuView extends StackPane {
         updateSaveButtonVisibility();
     }
 
-    /**
-     * Оновлює заголовок відповідно до поточної сторінки меню.
-     */
+    /** Оновлює заголовок відповідно до поточної сторінки меню. */
     private void updatePageTitle() {
         String title = switch (page) {
             case MAIN -> "NeuronMap";
@@ -760,20 +626,14 @@ public final class MainMenuView extends StackPane {
         titleLabel.setText(title);
     }
 
-    /**
-     * Показує або приховує кнопку збереження залежно від спільного стану сесії налаштувань.
-     */
+    /** Показує або приховує кнопку збереження залежно від спільного стану сесії налаштувань. */
     private void updateSaveButtonVisibility() {
         boolean showSave = settingsHaveUnsavedChanges();
         saveSettingsButton.setVisible(showSave);
         saveSettingsButton.setManaged(showSave);
     }
 
-    /**
-     * Створює кнопку збереження з природними розмірами та власним стилем.
-     *
-     * @return кнопка збереження.
-     */
+    /** Створює кнопку збереження з природними розмірами та власним стилем. */
     private static Button settingsSaveButton() {
         Button button = new Button();
         button.getStyleClass().add("main-menu-settings-save-button");
@@ -783,11 +643,7 @@ public final class MainMenuView extends StackPane {
         return button;
     }
 
-    /**
-     * Створює допоміжну кнопку повернення з розмірами, що визначаються таблицею стилів.
-     *
-     * @return кнопка повернення.
-     */
+    /** Створює допоміжну кнопку повернення з розмірами, що визначаються таблицею стилів. */
     private static Button secondaryButton() {
         Button button = new Button();
         button.getStyleClass().add("main-menu-back-button");

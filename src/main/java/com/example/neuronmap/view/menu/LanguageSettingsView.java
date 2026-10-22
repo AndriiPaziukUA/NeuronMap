@@ -2,7 +2,6 @@ package com.example.neuronmap.view.menu;
 
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.i18n.SupportedLanguage;
-import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -30,12 +29,14 @@ public final class LanguageSettingsView extends VBox {
      * Створює сторінку налаштувань мови без самостійної зміни активної локалі.
      *
      * @param localization служба отримання перекладів і підтримуваних мов.
+     * @throws NullPointerException якщо службу локалізації не задано.
      */
     public LanguageSettingsView(LocalizationService localization) {
         this.localization = Objects.requireNonNull(localization, "localization");
         setMinHeight(0.0);
+        setMaxWidth(Double.MAX_VALUE);
         languageLabel.getStyleClass().add("main-menu-label");
-        languageSelector.setMaxWidth(Double.MAX_VALUE);
+        languageSelector.setMaxWidth(250.0);
         languageSelector.setPrefWidth(250.0);
         languageSelector.setCellFactory(list -> languageCell());
         languageSelector.setButtonCell(languageCell());
@@ -61,10 +62,11 @@ public final class LanguageSettingsView extends VBox {
             }
             event.consume();
         });
-        HBox languageRow = new HBox(12.0, languageLabel, languageSelector);
-        languageRow.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(languageSelector, Priority.ALWAYS);
-        getChildren().setAll(languageRow);
+
+        HBox row = new HBox();
+        MainMenuSettingRow.configure(row, languageLabel, languageSelector);
+        VBox.setVgrow(row, Priority.NEVER);
+        getChildren().setAll(row);
         localization.addListener(localizationListener);
         refreshTexts();
     }
@@ -73,6 +75,7 @@ public final class LanguageSettingsView extends VBox {
      * Встановлює дію контролера для попереднього перегляду вибраної мови.
      *
      * @param action callback, який обробляє вибір мови поза межами подання.
+     * @throws NullPointerException якщо callback не задано.
      */
     public void setLanguageSelectedAction(Consumer<SupportedLanguage> action) {
         languageSelected = Objects.requireNonNull(action, "action");
