@@ -21,7 +21,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
-import javafx.scene.layout.StackPane;
 import javafx.scene.shape.SVGPath;
 
 import java.util.Locale;
@@ -29,7 +28,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
-/** Створює панель інструментів редактора та керує її підписками на локалізацію і сцену. */
+/** Створює панель інструментів редактора та координує її елементи й підписки на спільні служби. */
 public final class ToolbarView {
 
     public static final double HEIGHT = 54.0;
@@ -46,20 +45,18 @@ public final class ToolbarView {
     private final Button ungroupButton = toolButton();
     private final Button pauseResumeButton = iconButton();
     private final SVGPath simulationIcon = createSimulationIcon();
-    private final Button stepOnceButton = iconButton();
-    private final StackPane stepOnceIcon = createStepOnceIcon();
     private final Button stopSignalsButton = iconButton();
+    private final StepOnceShelfView stepOnceShelf =
+            new StepOnceShelfView(root, pauseResumeButton, stopSignalsButton, RESUME_ICON_PATH);
     private final SVGPath stopSignalsIcon = createStopSignalsIcon();
     private final Separator simulationSeparator = new Separator();
     private final Label speedLabel = new Label();
     private final TextField speedField = new TextField();
     private final Label cameraCoordinatesLabel = new Label();
     private final Consumer<String> speedChanged;
-    private Runnable stepOnceAction = () -> { };
     private double appliedSpeedMillis;
     private boolean committingSpeed;
     private boolean simulationPaused;
-    private boolean simulationControlsVisible;
     private boolean disposed;
 
     private final EventHandler<MouseEvent> sceneMousePressedHandler = this::handleSceneMousePressed;
@@ -79,7 +76,6 @@ public final class ToolbarView {
     private final EventHandler<ActionEvent> groupHandler;
     private final EventHandler<ActionEvent> ungroupHandler;
     private final EventHandler<ActionEvent> pauseResumeHandler;
-    private final EventHandler<ActionEvent> stepOnceHandler = event -> stepOnceAction.run();
     private final EventHandler<ActionEvent> stopSignalsHandler;
 
     private Scene sceneWithMouseFilter;
@@ -128,16 +124,13 @@ public final class ToolbarView {
         title.getStyleClass().add("toolbar-title");
         pauseResumeButton.getStyleClass().add("simulation-icon-button");
         pauseResumeButton.setGraphic(simulationIcon);
-        stepOnceButton.getStyleClass().addAll("simulation-icon-button", "simulation-step-button");
-        stepOnceButton.setGraphic(stepOnceIcon);
+        setManagedAndVisible(pauseResumeButton, false);
         stopSignalsButton.getStyleClass().add("simulation-icon-button-danger");
         stopSignalsButton.setGraphic(stopSignalsIcon);
-        setManagedAndVisible(pauseResumeButton, false);
-        setManagedAndVisible(stepOnceButton, false);
+        stepOnceShelf.setSimulationControlsVisible(false);
         setManagedAndVisible(stopSignalsButton, false);
         setManagedAndVisible(simulationSeparator, false);
         pauseResumeButton.addEventHandler(ActionEvent.ACTION, pauseResumeHandler);
-        stepOnceButton.addEventHandler(ActionEvent.ACTION, stepOnceHandler);
         stopSignalsButton.addEventHandler(ActionEvent.ACTION, stopSignalsHandler);
 
         speedLabel.getStyleClass().add("toolbar-speed-label");
@@ -164,7 +157,8 @@ public final class ToolbarView {
         root.getChildren().addAll(
                 title, addExcitatoryButton, addInhibitoryButton, new Separator(),
                 groupButton, ungroupButton, speedLabel, speedField, simulationSeparator,
-                pauseResumeButton, stepOnceButton, stopSignalsButton, spacer, cameraCoordinatesLabel);
+                pauseResumeButton, stepOnceShelf.node(), stopSignalsButton, spacer,
+                cameraCoordinatesLabel, stepOnceShelf.underline());
         localization.addListener(localizationListener);
         refreshTexts();
     }
@@ -190,7 +184,7 @@ public final class ToolbarView {
      * @return кнопка «Наступний такт».
      */
     public Button stepOnceButton() {
-        return stepOnceButton;
+        return stepOnceShelf.button();
     }
 
     /**
@@ -200,7 +194,7 @@ public final class ToolbarView {
      * @throws NullPointerException якщо дію не задано.
      */
     public void setStepSimulationOnceAction(Runnable action) {
-        stepOnceAction = Objects.requireNonNull(action, "action");
+        stepOnceShelf.setAction(action);
     }
 
     /**
@@ -209,11 +203,10 @@ public final class ToolbarView {
      * @param visible чи потрібно показати елементи.
      */
     public void setSimulationControlsVisible(boolean visible) {
-        simulationControlsVisible = visible;
         setManagedAndVisible(simulationSeparator, visible);
         setManagedAndVisible(pauseResumeButton, visible);
         setManagedAndVisible(stopSignalsButton, visible);
-        updateStepOnceButtonVisibility();
+        stepOnceShelf.setSimulationControlsVisible(visible);
     }
 
     /**
@@ -228,7 +221,7 @@ public final class ToolbarView {
         String tooltipText = localization.text(paused ? "toolbar.resume.tooltip" : "toolbar.pause.tooltip");
         pauseResumeButton.setTooltip(new Tooltip(tooltipText));
         pauseResumeButton.setAccessibleText(tooltipText);
-        updateStepOnceButtonVisibility();
+        stepOnceShelf.setSimulationPaused(paused);
     }
 
     /** Установлює значення швидкості симуляції, яке показує панель інструментів. */
@@ -264,7 +257,7 @@ public final class ToolbarView {
         groupButton.removeEventHandler(ActionEvent.ACTION, groupHandler);
         ungroupButton.removeEventHandler(ActionEvent.ACTION, ungroupHandler);
         pauseResumeButton.removeEventHandler(ActionEvent.ACTION, pauseResumeHandler);
-        stepOnceButton.removeEventHandler(ActionEvent.ACTION, stepOnceHandler);
+        stepOnceShelf.dispose();
         stopSignalsButton.removeEventHandler(ActionEvent.ACTION, stopSignalsHandler);
     }
 
@@ -313,16 +306,10 @@ public final class ToolbarView {
         stopSignalsButton.setTooltip(new Tooltip(stopTooltipText));
         stopSignalsButton.setAccessibleText(stopTooltipText);
         String stepTooltipText = localization.text("toolbar.step_once.tooltip");
-        stepOnceButton.setTooltip(new Tooltip(stepTooltipText));
-        stepOnceButton.setAccessibleText(stepTooltipText);
+        stepOnceShelf.setTooltipText(stepTooltipText);
         speedLabel.setText(localization.text("toolbar.speed"));
         speedField.setPromptText(localization.text("toolbar.speed.prompt"));
         setSimulationPaused(simulationPaused);
-    }
-
-    /** Показує кнопку однотактного продовження лише під час ручної паузи активної симуляції. */
-    private void updateStepOnceButtonVisibility() {
-        setManagedAndVisible(stepOnceButton, simulationControlsVisible && simulationPaused);
     }
 
     /** Задає visible та managed разом, щоб прихований елемент не займав місця в панелі. */
@@ -414,26 +401,6 @@ public final class ToolbarView {
         SVGPath icon = new SVGPath();
         icon.getStyleClass().add("simulation-icon");
         icon.setContent(PAUSE_ICON_PATH);
-        return icon;
-    }
-
-    /**
-     * Створює векторний трикутник із накладеною цифрою «1» для однотактного продовження.
-     *
-     * @return композиція трикутника та цифри для графіки кнопки.
-     */
-    private static StackPane createStepOnceIcon() {
-        SVGPath triangle = new SVGPath();
-        triangle.getStyleClass().add("simulation-icon");
-        triangle.setContent(RESUME_ICON_PATH);
-        Label number = new Label("1");
-        number.getStyleClass().add("simulation-step-number");
-        number.setTranslateX(-2.0);
-        StackPane icon = new StackPane(triangle, number);
-        icon.getStyleClass().add("simulation-step-icon");
-        icon.setMinSize(15.0, 15.0);
-        icon.setPrefSize(15.0, 15.0);
-        icon.setMaxSize(15.0, 15.0);
         return icon;
     }
 

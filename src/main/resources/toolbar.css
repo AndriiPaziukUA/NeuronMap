@@ -1,4 +1,17 @@
 /* Оформлення панелі інструментів та її елементів керування симуляцією. */
+.simulation-step-shelf {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.simulation-step-group-underline {
+    -fx-background-color: #636a75;
+    -fx-min-height: 1px;
+    -fx-pref-height: 1px;
+    -fx-max-height: 1px;
+    -fx-background-radius: 1px;
+}
+
 .topbar {
     -fx-background-color: #22252a;
     -fx-border-color: #30343b;
