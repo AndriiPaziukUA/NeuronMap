@@ -30,7 +30,7 @@ public final class PulseAnimationView extends Pane {
     private static final double ARROW_SIZE = 11.0;
     private static final double ARROW_HALF_WIDTH = 5.5;
 
-    private final Supplier<ConnectionPulseSnapshot> snapshotSupplier;
+    private Supplier<ConnectionPulseSnapshot> snapshotSupplier;
     private final Polygon arrow = new Polygon();
     private final DoubleProperty progress = new SimpleDoubleProperty(0.0);
     private final Runnable onFinished;
@@ -183,16 +183,30 @@ public final class PulseAnimationView extends Pane {
     }
 
     /**
+     * Переприв'язує джерело геометрії, не перезапускаючи часову шкалу імпульсу.
+     * Це дозволяє тому самому імпульсу продовжитися після відновлення подання зв'язку.
+     *
+     * @param supplier постачальник актуального знімка зв'язку; може повертати {@code null}, поки зв'язок відсутній.
+     * @throws NullPointerException якщо постачальник не задано.
+     */
+    public void setSnapshotSupplier(Supplier<ConnectionPulseSnapshot> supplier) {
+        snapshotSupplier = Objects.requireNonNull(supplier, "supplier");
+        refreshGeometry();
+    }
+
+    /**
      * Оновлює траєкторію й колір наконечника після подієвого повідомлення про зміну зв'язку.
      * Не змінює прогрес або тривалість часової шкали.
      */
     public void refreshGeometry() {
         ConnectionPulseSnapshot currentSnapshot = snapshotSupplier.get();
-        if (currentSnapshot == null || currentSnapshot.equals(lastSnapshot)) {
+        if (currentSnapshot == null) {
             return;
         }
-        lastSnapshot = currentSnapshot;
-        arrow.setFill(lastSnapshot.pulseColor());
+        if (!currentSnapshot.equals(lastSnapshot)) {
+            lastSnapshot = currentSnapshot;
+            arrow.setFill(lastSnapshot.pulseColor());
+        }
         updatePulsePosition(progress.get());
     }
 

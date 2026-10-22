@@ -7,7 +7,8 @@ import com.example.neuronmap.view.editor.WorkspaceView;
 import com.example.neuronmap.view.simulation.PulseAnimationView;
 import com.example.neuronmap.view.simulation.PulseAnimator;
 import javafx.beans.value.ChangeListener;
-import javafx.scene.Parent;
+import javafx.collections.ListChangeListener;
+import javafx.scene.Node;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +43,8 @@ public final class PulseAnimationController implements PulseAnimator {
     ) {
         this.workspace = Objects.requireNonNull(workspace, "workspace");
         this.activityChanged = Objects.requireNonNull(activityChanged, "activityChanged");
+        workspace.edgeLayer().getChildren().addListener(
+                (ListChangeListener<Node>) change -> synchronizeConnectionViews());
     }
 
     /**
@@ -72,8 +75,8 @@ public final class PulseAnimationController implements PulseAnimator {
         }
 
         pruneFinished();
-        String connectionId = connectionView.model().id();
-        if (hasActiveAnimationForConnection(connectionId)) {
+        Connection connection = connectionView.model();
+        if (hasActiveAnimationForConnection(connection.id())) {
             return;
         }
 
@@ -82,7 +85,6 @@ public final class PulseAnimationController implements PulseAnimator {
             return;
         }
 
-        Connection connection = connectionView.model();
         PulseAnimationView animation = new PulseAnimationView(
                 snapshot,
                 connectionView::capturePulseSnapshot,
@@ -93,19 +95,14 @@ public final class PulseAnimationController implements PulseAnimator {
         workspace.pulseLayer().getChildren().add(animation);
         ActiveAnimation activeAnimation = new ActiveAnimation(
                 animation,
+                connection.id(),
                 connectionView,
                 connection.sourceId(),
                 connection.targetId()
         );
-        ChangeListener<Parent> parentListener = (observable, oldParent, newParent) -> {
-            if (oldParent != null && newParent == null) {
-                animation.stop();
-            }
-        };
-        ChangeListener<Number> geometryListener = (observable, oldValue, newValue) -> animation.refreshGeometry();
-        activeAnimation.setParentListener(parentListener);
+        ChangeListener<Number> geometryListener =
+                (observable, oldValue, newValue) -> animation.refreshGeometry();
         activeAnimation.setGeometryListener(geometryListener);
-        connectionView.parentProperty().addListener(parentListener);
         connectionView.geometryRevisionProperty().addListener(geometryListener);
         activeAnimations.add(activeAnimation);
         animation.play();
@@ -222,6 +219,65 @@ public final class PulseAnimationController implements PulseAnimator {
         return activeAnimations.stream().anyMatch(animation -> animation.isForConnection(connectionId));
     }
 
+    /**
+     * Узгоджує активні імпульси зі зв'язками, які зараз присутні на полотні.
+     * Якщо зв'язок тимчасово зник, анімація лишається активною, але прихованою; після відновлення
+     * сумісного зв'язку вона підхоплює його геометрію зі збереженим прогресом тієї самої часової шкали.
+     */
+    private void synchronizeConnectionViews() {
+        for (ActiveAnimation activeAnimation : List.copyOf(activeAnimations)) {
+            ConnectionView replacement = findConnectionView(activeAnimation.connectionId());
+            if (replacement != null && !activeAnimation.matchesConnection(replacement.model())) {
+                activeAnimation.view().stop();
+                continue;
+            }
+
+            ConnectionView current = activeAnimation.connectionView();
+            if (current == replacement) {
+                activeAnimation.view().setVisible(replacement != null);
+                continue;
+            }
+
+            detachGeometryListener(activeAnimation);
+            activeAnimation.setConnectionView(replacement);
+            if (replacement == null) {
+                activeAnimation.view().setVisible(false);
+                activeAnimation.view().setSnapshotSupplier(() -> null);
+                continue;
+            }
+
+            activeAnimation.view().setSnapshotSupplier(replacement::capturePulseSnapshot);
+            activeAnimation.view().setVisible(true);
+            ChangeListener<Number> geometryListener =
+                    (observable, oldValue, newValue) -> activeAnimation.view().refreshGeometry();
+            activeAnimation.setGeometryListener(geometryListener);
+            replacement.geometryRevisionProperty().addListener(geometryListener);
+            activeAnimation.view().refreshGeometry();
+        }
+        pruneFinished();
+    }
+
+    /** Знаходить поточне графічне подання зв'язку за стабільним ідентифікатором. */
+    private ConnectionView findConnectionView(String connectionId) {
+        for (Node node : workspace.edgeLayer().getChildren()) {
+            if (node instanceof ConnectionView connectionView
+                    && connectionView.model().id().equals(connectionId)) {
+                return connectionView;
+            }
+        }
+        return null;
+    }
+
+    /** Від'єднує слухач геометрії від поточного подання, якщо воно існує. */
+    private void detachGeometryListener(ActiveAnimation activeAnimation) {
+        ConnectionView connectionView = activeAnimation.connectionView();
+        ChangeListener<Number> listener = activeAnimation.geometryListener();
+        if (connectionView != null && listener != null) {
+            connectionView.geometryRevisionProperty().removeListener(listener);
+        }
+        activeAnimation.setGeometryListener(null);
+    }
+
     /** Обробляє завершення анімації та повідомляє про зміну активності. */
     private void handleAnimationFinished() {
         pruneFinished();
@@ -234,30 +290,38 @@ public final class PulseAnimationController implements PulseAnimator {
             if (!activeAnimation.view().isFinished()) {
                 return false;
             }
-            activeAnimation.connectionView().parentProperty().removeListener(activeAnimation.parentListener());
-            activeAnimation.connectionView().geometryRevisionProperty()
-                    .removeListener(activeAnimation.geometryListener());
+            detachGeometryListener(activeAnimation);
             return true;
         });
     }
 
-    /** Зберігає посилання на анімацію та її подання зв'язку для узгодженого керування життєвим циклом. */
+    /** Зберігає посилання на анімацію та її кінці, щоб узгоджувати відновлення відповідного зв'язку. */
     private static final class ActiveAnimation {
         private final PulseAnimationView view;
-        private final ConnectionView connectionView;
+        private final String connectionId;
         private final String sourceNeuronId;
         private final String targetNeuronId;
-        private ChangeListener<Parent> parentListener;
+        private ConnectionView connectionView;
         private ChangeListener<Number> geometryListener;
 
-        /** Зберігає анімацію та кінці зв'язку, щоб зупиняти її після видалення відповідного нейрона. */
+        /**
+         * Створює запис керування імпульсом і запам'ятовує стабільну ідентичність зв'язку.
+         *
+         * @param view графічна анімація імпульсу.
+         * @param connectionId незмінний ідентифікатор напрямленого зв'язку.
+         * @param connectionView поточне графічне подання зв'язку.
+         * @param sourceNeuronId ідентифікатор нейрона-джерела.
+         * @param targetNeuronId ідентифікатор цільового нейрона.
+         */
         private ActiveAnimation(
                 PulseAnimationView view,
+                String connectionId,
                 ConnectionView connectionView,
                 String sourceNeuronId,
                 String targetNeuronId
         ) {
             this.view = view;
+            this.connectionId = connectionId;
             this.connectionView = connectionView;
             this.sourceNeuronId = sourceNeuronId;
             this.targetNeuronId = targetNeuronId;
@@ -268,19 +332,19 @@ public final class PulseAnimationController implements PulseAnimator {
             return view;
         }
 
-        /** Повертає подання зв'язку, від якого залежить анімація. */
+        /** Повертає стабільний ідентифікатор напрямленого зв'язку. */
+        private String connectionId() {
+            return connectionId;
+        }
+
+        /** Повертає поточне подання зв'язку або {@code null}, якщо зв'язок тимчасово відсутній. */
         private ConnectionView connectionView() {
             return connectionView;
         }
 
-        /** Зберігає слухач видалення подання зв'язку для контрольованого життєвого циклу. */
-        private void setParentListener(ChangeListener<Parent> parentListener) {
-            this.parentListener = parentListener;
-        }
-
-        /** Повертає слухач, який потрібно від'єднати після завершення анімації. */
-        private ChangeListener<Parent> parentListener() {
-            return parentListener;
+        /** Замінює подання зв'язку, до якого прив'язана анімація. */
+        private void setConnectionView(ConnectionView connectionView) {
+            this.connectionView = connectionView;
         }
 
         /** Зберігає слухач актуалізації імпульсу після зміни геометрії зв'язку. */
@@ -294,8 +358,15 @@ public final class PulseAnimationController implements PulseAnimator {
         }
 
         /** Перевіряє, чи належить анімація вказаному напрямленому зв'язку. */
-        private boolean isForConnection(String connectionId) {
-            return connectionView.model().id().equals(connectionId);
+        private boolean isForConnection(String candidateConnectionId) {
+            return connectionId.equals(candidateConnectionId);
+        }
+
+        /** Перевіряє відповідність зв'язку початковому ID та початковим і кінцевим нейронам. */
+        private boolean matchesConnection(Connection connection) {
+            return connectionId.equals(connection.id())
+                    && sourceNeuronId.equals(connection.sourceId())
+                    && targetNeuronId.equals(connection.targetId());
         }
 
         /** Перевіряє, чи проходить зв'язок через нейрон, який зараз видаляють. */
