@@ -21,6 +21,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.shape.SVGPath;
 
 import java.util.Locale;
 import java.util.Objects;
@@ -34,14 +35,20 @@ public final class ToolbarView {
 
     public static final double HEIGHT = 54.0;
 
+    private static final String PAUSE_ICON_PATH = "M 0 0 H 4 V 14 H 0 Z M 6 0 H 10 V 14 H 6 Z";
+    private static final String RESUME_ICON_PATH = "M 0 0 L 13 7 L 0 14 Z";
+    private static final String STOP_ICON_PATH = "M 1 1 H 12 V 12 H 1 Z";
+
     private final HBox root = new HBox();
     private final LocalizationService localization;
     private final Button addExcitatoryButton = toolButton();
     private final Button addInhibitoryButton = toolButton();
     private final Button groupButton = toolButton();
     private final Button ungroupButton = toolButton();
-    private final Button pauseResumeButton = iconButton("❚❚");
-    private final Button stopSignalsButton = iconButton("■");
+    private final Button pauseResumeButton = iconButton();
+    private final SVGPath simulationIcon = createSimulationIcon();
+    private final Button stopSignalsButton = iconButton();
+    private final SVGPath stopSignalsIcon = createStopSignalsIcon();
     private final Separator simulationSeparator = new Separator();
     private final Label speedLabel = new Label();
     private final TextField speedField = new TextField();
@@ -49,6 +56,7 @@ public final class ToolbarView {
     private final Consumer<String> speedChanged;
     private double appliedSpeedMillis;
     private boolean committingSpeed;
+    private boolean simulationPaused;
     private boolean disposed;
 
     private final EventHandler<MouseEvent> sceneMousePressedHandler = this::handleSceneMousePressed;
@@ -115,7 +123,9 @@ public final class ToolbarView {
         Label title = new Label(ApplicationMetadata.NAME);
         title.getStyleClass().add("toolbar-title");
         pauseResumeButton.getStyleClass().add("simulation-icon-button");
+        pauseResumeButton.setGraphic(simulationIcon);
         stopSignalsButton.getStyleClass().add("simulation-icon-button-danger");
+        stopSignalsButton.setGraphic(stopSignalsIcon);
         pauseResumeButton.setVisible(false);
         pauseResumeButton.setManaged(false);
         stopSignalsButton.setVisible(false);
@@ -196,14 +206,17 @@ public final class ToolbarView {
     }
 
     /**
-     * Оновлює вигляд елемента керування, щоб показати стан паузи симуляції.
+     * Оновлює векторний значок і підказку відповідно до стану паузи симуляції.
      *
      * @param paused чи призупинено симуляцію.
      */
     public void setSimulationPaused(boolean paused) {
-        pauseResumeButton.setText(paused ? "▶" : "❚❚");
-        pauseResumeButton.setTooltip(new Tooltip(localization.text(
-                paused ? "toolbar.resume.tooltip" : "toolbar.pause.tooltip")));
+        simulationPaused = paused;
+        simulationIcon.setContent(paused ? RESUME_ICON_PATH : PAUSE_ICON_PATH);
+        String tooltipText = localization.text(
+                paused ? "toolbar.resume.tooltip" : "toolbar.pause.tooltip");
+        pauseResumeButton.setTooltip(new Tooltip(tooltipText));
+        pauseResumeButton.setAccessibleText(tooltipText);
     }
 
     /**
@@ -310,10 +323,12 @@ public final class ToolbarView {
         groupButton.setTooltip(new Tooltip(localization.text("toolbar.group.tooltip")));
         ungroupButton.setText(localization.text("toolbar.ungroup"));
         ungroupButton.setTooltip(new Tooltip(localization.text("toolbar.ungroup.tooltip")));
-        stopSignalsButton.setTooltip(new Tooltip(localization.text("toolbar.stop.tooltip")));
+        String stopTooltipText = localization.text("toolbar.stop.tooltip");
+        stopSignalsButton.setTooltip(new Tooltip(stopTooltipText));
+        stopSignalsButton.setAccessibleText(stopTooltipText);
         speedLabel.setText(localization.text("toolbar.speed"));
         speedField.setPromptText(localization.text("toolbar.speed.prompt"));
-        setSimulationPaused(pauseResumeButton.getText().equals("▶"));
+        setSimulationPaused(simulationPaused);
     }
 
     /**
@@ -412,14 +427,38 @@ public final class ToolbarView {
     }
 
     /**
-     * Створює кнопку панелі інструментів із заданим значком.
+     * Створює кнопку панелі інструментів, графічний значок якої задається окремо.
      *
-     * @param text текст кнопки.
-     * @return оформлена кнопка.
+     * @return кнопка з базовим CSS-класом інструмента та без текстового символу.
      */
-    private static Button iconButton(String text) {
-        Button button = new Button(text);
+    private static Button iconButton() {
+        Button button = new Button();
+        button.setText("");
         button.getStyleClass().add("tool-button");
         return button;
+    }
+
+    /**
+     * Створює векторний значок керування симуляцією, геометрію якого можна точно налаштувати через SVG-шлях.
+     *
+     * @return значок з окремим CSS-класом для застосування кольору.
+     */
+    private static SVGPath createSimulationIcon() {
+        SVGPath icon = new SVGPath();
+        icon.getStyleClass().add("simulation-icon");
+        icon.setContent(PAUSE_ICON_PATH);
+        return icon;
+    }
+
+    /**
+     * Створює векторний квадрат для кнопки зупинки сигналів.
+     *
+     * @return векторний значок зупинки з окремим CSS-класом кольору.
+     */
+    private static SVGPath createStopSignalsIcon() {
+        SVGPath icon = new SVGPath();
+        icon.getStyleClass().add("simulation-stop-icon");
+        icon.setContent(STOP_ICON_PATH);
+        return icon;
     }
 }

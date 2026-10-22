@@ -6,9 +6,11 @@
 }
 
 .rotation-handle-glyph {
-    -fx-text-fill: #eef1f4;
-    -fx-font-size: 12px;
-    -fx-font-weight: 800;
+    -fx-fill: transparent;
+    -fx-stroke: #eef1f4;
+    -fx-stroke-width: 1.5;
+    -fx-stroke-line-cap: round;
+    -fx-stroke-line-join: round;
 }
 
 .rotation-hint {

@@ -1,5 +1,6 @@
 package com.example.neuronmap.view.neuron;
 
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.model.NeuronType;
@@ -7,19 +8,27 @@ import javafx.application.Platform;
 import javafx.geometry.Point2D;
 import javafx.scene.Scene;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
+import javafx.scene.shape.Arc;
+import javafx.scene.shape.Path;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє, що ручка обертання розміщується відповідно до центра та кута нейрона. */
+/** Перевіряє векторний значок, розміщення та поведінку ручки обертання нейрона. */
 final class RotationHandleViewTest {
 
     private static final double EPSILON = 0.0001;
 
+    /** Запускає JavaFX перед тестами, які створюють і перевіряють графічні вузли. */
     @BeforeAll
     static void startJavaFx() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -33,6 +42,44 @@ final class RotationHandleViewTest {
         if (!latch.await(5, TimeUnit.SECONDS)) {
             throw new IllegalStateException("JavaFX startup timed out");
         }
+    }
+
+    /** Перевіряє векторний значок і рівні відступи кругової дуги від усіх країв ручки. */
+    @Test
+    void handleUsesCenteredVectorArcWithSymmetricMargins() throws Exception {
+        runOnFxThread(() -> {
+            RotationHandleView handle = new RotationHandleView();
+            assertTrue(handle.getText().isBlank(), "Значок не повинен залишатися текстовим символом");
+            StackPane graphic = assertInstanceOf(StackPane.class, handle.getGraphic());
+            Arc arc = assertInstanceOf(Arc.class, graphic.getChildren().get(1));
+            Path arrowHead = assertInstanceOf(Path.class, graphic.getChildren().get(2));
+            assertTrue(arc.getStyleClass().contains("rotation-handle-glyph"));
+            assertTrue(arrowHead.getStyleClass().contains("rotation-handle-glyph"));
+            assertFalse(arc.isManaged(), "Компонування не повинно зміщувати симетричну кругову дугу");
+            assertFalse(arrowHead.isManaged(), "Компонування не повинно зміщувати вістря стрілки");
+
+            double center = RotationHandleView.SIZE / 2.0;
+            double leftMargin = arc.getCenterX() - arc.getRadiusX();
+            double rightMargin = RotationHandleView.SIZE - arc.getCenterX() - arc.getRadiusX();
+            double topMargin = arc.getCenterY() - arc.getRadiusY();
+            double bottomMargin = RotationHandleView.SIZE - arc.getCenterY() - arc.getRadiusY();
+
+            assertEquals(center, arc.getCenterX(), EPSILON);
+            assertEquals(center, arc.getCenterY(), EPSILON);
+            assertEquals(arc.getRadiusX(), arc.getRadiusY(), EPSILON);
+            assertEquals(leftMargin, rightMargin, EPSILON,
+                    "Кругова дуга має бути симетричною відносно лівого й правого країв");
+            assertEquals(topMargin, bottomMargin, EPSILON,
+                    "Кругова дуга має бути симетричною відносно верхнього й нижнього країв");
+            assertEquals(leftMargin, topMargin, EPSILON,
+                    "Проміжок від кругової дуги до країв має бути однаковим з усіх боків");
+
+            LocalizationService localization = new LocalizationService(Locale.ENGLISH);
+            handle.bindLocalizedTooltip(localization);
+            assertEquals("Rotate", handle.getAccessibleText(),
+                    "Текстова назва для допоміжних технологій має бути доступна окремо від значка");
+            handle.dispose();
+        });
     }
 
     /** Перевіряє початкове центрування ручки під нейроном і точний проміжок від його нижнього краю. */
@@ -232,6 +279,7 @@ final class RotationHandleViewTest {
         );
     }
 
+    /** Виконує дію в потоці JavaFX і передає помилки до потоку JUnit. */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];

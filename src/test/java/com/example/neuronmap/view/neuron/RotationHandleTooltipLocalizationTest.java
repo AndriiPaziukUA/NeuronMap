@@ -10,29 +10,34 @@ import java.util.Locale;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-/** Перевіряє локалізацію підказки ручки обертання та звільнення слухача після від'єднання. */
+/** Перевіряє локалізацію підказки та доступної назви ручки обертання й звільнення слухача після від'єднання. */
 final class RotationHandleTooltipLocalizationTest {
 
-    /** Перевіряє переклад для всіх підтримуваних мов і від'єднання підказки після завершення життєвого циклу. */
+    /** Перевіряє переклад підказки й доступної назви для всіх мов та їх очищення після завершення життєвого циклу. */
     @Test
-    void tooltipTracksActiveLanguageAndCanBeUnbound() throws Exception {
+    void tooltipAndAccessibleTextTrackActiveLanguageAndCanBeUnbound() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
             LocalizationService localization = new LocalizationService(Locale.ENGLISH);
             RotationHandleView handle = new RotationHandleView();
             handle.bindLocalizedTooltip(localization);
 
             assertEquals("Rotate", handle.getTooltip().getText());
+            assertEquals("Rotate", handle.getAccessibleText());
 
             localization.setLanguage(SupportedLanguage.UKRAINIAN);
             assertEquals("Повернути", handle.getTooltip().getText());
+            assertEquals("Повернути", handle.getAccessibleText());
 
             localization.setLanguage(SupportedLanguage.RUSSIAN);
             assertEquals("Повернуть", handle.getTooltip().getText());
+            assertEquals("Повернуть", handle.getAccessibleText());
 
             handle.unbindLocalizedTooltip();
             assertNull(handle.getTooltip());
+            assertNull(handle.getAccessibleText());
             localization.setLanguage(SupportedLanguage.ENGLISH);
             assertNull(handle.getTooltip());
+            assertNull(handle.getAccessibleText());
 
             handle.dispose();
         });

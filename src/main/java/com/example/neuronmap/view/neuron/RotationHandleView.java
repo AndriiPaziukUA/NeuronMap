@@ -7,9 +7,13 @@ import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContentDisplay;
-import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
+import javafx.scene.shape.Arc;
+import javafx.scene.shape.ArcType;
 import javafx.scene.shape.Circle;
+import javafx.scene.shape.LineTo;
+import javafx.scene.shape.MoveTo;
+import javafx.scene.shape.Path;
 
 import java.util.Locale;
 import java.util.Objects;
@@ -29,10 +33,15 @@ public final class RotationHandleView extends Button {
 
     private static final String TOOLTIP_BUNDLE = "i18n.rotationHandle";
     private static final String ROTATE_TOOLTIP_KEY = "rotate";
+    /** Радіус кругової частини значка, симетрично розміщеної всередині ручки. */
+    private static final double ROTATION_ICON_RADIUS = 6.2;
+    /** Довжина кожного штриха, що формує вістря кругової стрілки. */
+    private static final double ROTATION_ARROW_HEAD_LENGTH = 3.3;
 
     private final StackPane graphicPane = new StackPane();
     private final Circle background = new Circle(SIZE / 2.0);
-    private final Label glyph = new Label("↻");
+    private final Arc rotationArc = createRotationArc();
+    private final Path arrowHead = createRotationArrowHead();
 
     private LocalizationService localization;
     private Consumer<Locale> localizationListener;
@@ -48,6 +57,7 @@ public final class RotationHandleView extends Button {
         resize(SIZE, SIZE);
 
         setPadding(Insets.EMPTY);
+        setText("");
         setAlignment(Pos.CENTER);
         setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
         setFocusTraversable(false);
@@ -57,21 +67,25 @@ public final class RotationHandleView extends Button {
         background.getStyleClass().add("rotation-handle");
         background.setMouseTransparent(true);
 
-        glyph.getStyleClass().add("rotation-handle-glyph");
-        glyph.setMouseTransparent(true);
+        rotationArc.getStyleClass().add("rotation-handle-glyph");
+        rotationArc.setManaged(false);
+        rotationArc.setMouseTransparent(true);
+        arrowHead.getStyleClass().add("rotation-handle-glyph");
+        arrowHead.setManaged(false);
+        arrowHead.setMouseTransparent(true);
 
         graphicPane.setMinSize(SIZE, SIZE);
         graphicPane.setPrefSize(SIZE, SIZE);
         graphicPane.setMaxSize(SIZE, SIZE);
         graphicPane.setAlignment(Pos.CENTER);
         graphicPane.setMouseTransparent(true);
-        graphicPane.getChildren().addAll(background, glyph);
+        graphicPane.getChildren().addAll(background, rotationArc, arrowHead);
 
         setGraphic(graphicPane);
     }
 
     /**
-     * Прив'язує до ручки локалізовану підказку та оновлює її під час перемикання мови.
+     * Прив'язує локалізовану підказку та доступну назву ручки й оновлює їх під час перемикання мови.
      * Повторне прив'язування спочатку знімає попереднього слухача, щоб уникнути витоків ресурсів.
      *
      * @param localization спільна служба локалізації інтерфейсу.
@@ -86,13 +100,15 @@ public final class RotationHandleView extends Button {
 
         unbindLocalizedTooltip();
         this.localization = localization;
-        setTooltip(TooltipFactory.create(localization.textFrom(TOOLTIP_BUNDLE, ROTATE_TOOLTIP_KEY)));
+        String tooltipText = localization.textFrom(TOOLTIP_BUNDLE, ROTATE_TOOLTIP_KEY);
+        setTooltip(TooltipFactory.create(tooltipText));
+        setAccessibleText(tooltipText);
         localizationListener = ignored -> refreshLocalizedTooltip();
         localization.addListener(localizationListener);
     }
 
     /**
-     * Від'єднує слухача локалізації та прибирає підказку, звільняючи пов'язані ресурси.
+     * Від'єднує слухача локалізації та прибирає підказку й доступну назву, звільняючи пов'язані ресурси.
      */
     public void unbindLocalizedTooltip() {
         if (localization != null && localizationListener != null) {
@@ -101,6 +117,7 @@ public final class RotationHandleView extends Button {
         localization = null;
         localizationListener = null;
         setTooltip(null);
+        setAccessibleText(null);
     }
 
     /**
@@ -147,7 +164,7 @@ public final class RotationHandleView extends Button {
     }
 
     /**
-     * Установлює візуальний кут графічного символу ручки.
+     * Установлює візуальний кут векторного значка ручки.
      *
      * @param degrees кут повороту в градусах.
      */
@@ -156,16 +173,57 @@ public final class RotationHandleView extends Button {
     }
 
     /**
-     * Синхронізує текст підказки з поточною активною локаллю, якщо підказку прив'язано.
+     * Створює кругову дугу зі сталим радіусом і центром у центрі ручки.
+     * Завдяки цьому проміжки від самої кругової частини до країв ручки однакові з усіх боків;
+     * вістря стрілки є окремою фігурою й не впливає на центрування дуги.
+     *
+     * @return відкрита дуга без власного кольору, який задає таблиця стилів.
+     */
+    private static Arc createRotationArc() {
+        Arc arc = new Arc(
+                SIZE / 2.0,
+                SIZE / 2.0,
+                ROTATION_ICON_RADIUS,
+                ROTATION_ICON_RADIUS,
+                45.0,
+                270.0
+        );
+        arc.setType(ArcType.OPEN);
+        return arc;
+    }
+
+    /**
+     * Створює два штрихи вістря на початковій точці дуги, використовуючи її радіус і центр.
+     *
+     * @return контур вістря без заливки, оформлення якого задається CSS.
+     */
+    private static Path createRotationArrowHead() {
+        double center = SIZE / 2.0;
+        double offset = ROTATION_ICON_RADIUS / Math.sqrt(2.0);
+        double tipX = center + offset;
+        double tipY = center - offset;
+        Path path = new Path(
+                new MoveTo(tipX, tipY),
+                new LineTo(tipX - ROTATION_ARROW_HEAD_LENGTH, tipY),
+                new MoveTo(tipX, tipY),
+                new LineTo(tipX, tipY - ROTATION_ARROW_HEAD_LENGTH)
+        );
+        return path;
+    }
+
+    /**
+     * Синхронізує текст підказки й доступну назву з активною локаллю, якщо підказку прив'язано.
      */
     private void refreshLocalizedTooltip() {
         if (localization != null && getTooltip() != null) {
-            getTooltip().setText(localization.textFrom(TOOLTIP_BUNDLE, ROTATE_TOOLTIP_KEY));
+            String tooltipText = localization.textFrom(TOOLTIP_BUNDLE, ROTATE_TOOLTIP_KEY);
+            getTooltip().setText(tooltipText);
+            setAccessibleText(tooltipText);
         }
     }
 
     /**
-     * Скидає візуальний кут і від'єднує підказку перед повторним використанням або вилученням ручки.
+     * Скидає візуальний кут і від'єднує підказку та доступну назву перед вилученням ручки.
      */
     public void dispose() {
         unbindLocalizedTooltip();
