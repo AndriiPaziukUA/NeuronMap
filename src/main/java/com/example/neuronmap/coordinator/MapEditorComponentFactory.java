@@ -193,7 +193,6 @@ final class MapEditorComponentFactory {
                 base.selectionController(),
                 base.connectionController(),
                 base.neuronController(),
-                base.simulationController(),
                 presentation,
                 inputs.actions().save(),
                 inputs.actions().updateStatus(),

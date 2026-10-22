@@ -5,7 +5,6 @@ import com.example.neuronmap.controller.ConnectionController;
 import com.example.neuronmap.controller.NeuronInteractionController;
 import com.example.neuronmap.controller.NeuronToolDragController;
 import com.example.neuronmap.controller.SelectionController;
-import com.example.neuronmap.controller.SimulationController;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.service.NeuronService;
@@ -34,7 +33,6 @@ public final class MapInteractionCoordinator {
     private final SelectionController selectionController;
     private final ConnectionController connectionController;
     private final NeuronInteractionController neuronController;
-    private final SimulationController simulationController;
     private final MapPresentationCoordinator presentation;
     private final Runnable save;
     private final Consumer<String> status;
@@ -54,7 +52,6 @@ public final class MapInteractionCoordinator {
      * @param selectionController контролер вибору нейронів.
      * @param connectionController контролер створення й видалення зв'язків.
      * @param neuronController контролер подій нейронів.
-     * @param simulationController контролер симуляції.
      * @param presentation координатор візуальних подань.
      * @param save дія збереження поточного стану.
      * @param status дія показу повідомлень стану.
@@ -68,7 +65,6 @@ public final class MapInteractionCoordinator {
             SelectionController selectionController,
             ConnectionController connectionController,
             NeuronInteractionController neuronController,
-            SimulationController simulationController,
             MapPresentationCoordinator presentation,
             Runnable save,
             Consumer<String> status,
@@ -80,7 +76,6 @@ public final class MapInteractionCoordinator {
         this.selectionController = Objects.requireNonNull(selectionController, "selectionController");
         this.connectionController = Objects.requireNonNull(connectionController, "connectionController");
         this.neuronController = Objects.requireNonNull(neuronController, "neuronController");
-        this.simulationController = Objects.requireNonNull(simulationController, "simulationController");
         this.presentation = Objects.requireNonNull(presentation, "presentation");
         this.save = Objects.requireNonNull(save, "save");
         this.status = Objects.requireNonNull(status, "status");
@@ -104,7 +99,7 @@ public final class MapInteractionCoordinator {
     }
 
     /**
-     * Вмикає режим розміщення нейрона або перемикає його на інший тип.
+     * Вмикає режим розміщення нейрона або перемикає його на інший тип, не зупиняючи симуляцію.
      * Повторне натискання на вже активний тип скасовує режим.
      *
      * @param type тип нейрона, який слід розміщувати.
@@ -118,7 +113,6 @@ public final class MapInteractionCoordinator {
             cancelInteractions();
             return;
         }
-        simulationController.stop();
         connectionController.cancelCreate();
         connectionController.exitDelete();
         neuronController.hideMenu();
@@ -176,7 +170,13 @@ public final class MapInteractionCoordinator {
         workspace.node().setCursor(activeType == null ? Cursor.DEFAULT : Cursor.CROSSHAIR);
     }
 
-    /** Створює нейрон у заданих координатах і синхронізує карту одним викликом координатора презентації. */
+    /**
+     * Створює нейрон і синхронізує карту, не перериваючи активну симуляцію сигналів.
+     *
+     * @param type тип нового нейрона.
+     * @param x горизонтальна координата нейрона.
+     * @param y вертикальна координата нейрона.
+     */
     public void addNeuronAt(NeuronType type, double x, double y) {
         ensureNotDisposed();
         if (type == null) {

@@ -138,7 +138,7 @@ final class MapPresentationCoordinatorLifecycleTest {
             Fixture fixture = new Fixture();
             MapInteractionCoordinator interactions = new MapInteractionCoordinator(
                     fixture.neuronService, fixture.state, fixture.workspace, fixture.selectionController,
-                    fixture.connectionController, fixture.neuronController, fixture.simulationController,
+                    fixture.connectionController, fixture.neuronController,
                     fixture.presentation, () -> { }, ignored -> { }, fixture.localization);
             try {
                 interactions.addNeuronAt(NeuronType.INHIBITORY, 150.0, 140.0);

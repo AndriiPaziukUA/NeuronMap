@@ -20,8 +20,12 @@ import com.example.neuronmap.view.editor.MainView;
 import com.example.neuronmap.view.neuron.NeuronView;
 import com.example.neuronmap.view.neuron.RotationHandleView;
 import javafx.event.Event;
+import javafx.geometry.Point2D;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import org.junit.jupiter.api.Test;
@@ -36,7 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє повідомлення стану для скасування інтерактивних режимів редактора. */
+/** Перевіряє безперервність симуляції під час роботи з тулбаром і скасування режимів редактора. */
 final class MapInteractionCoordinatorConnectionCancellationTest {
 
     /** Перевіряє повний клавіатурний маршрут і захищає повідомлення створення зв’язку від перезапису статусом ready. */
@@ -57,6 +61,53 @@ final class MapInteractionCoordinatorConnectionCancellationTest {
                 assertEquals(fixture.localization.text("status.connection_create_cancelled"),
                         fixture.lastStatus.get(),
                         "Загальне повідомлення ready не має перезаписувати повідомлення про скасування зв’язку");
+            } finally {
+                fixture.dispose();
+            }
+        });
+    }
+
+    /** Перевіряє, що інструменти тулбару й фактичне розміщення нейрона не зупиняють сигнали. */
+    @Test
+    void nonSimulationToolbarActionsAndNeuronPlacementKeepActiveSimulationRunning() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            Fixture fixture = new Fixture();
+            try {
+                Neuron source = fixture.neurons.create(NeuronType.EXCITATORY, 80.0, 60.0);
+                fixture.history.initialize();
+                fixture.install();
+                fixture.components.simulationController().emitPulse(source.id());
+                assertTrue(fixture.components.simulationController().hasActiveSimulation(),
+                        "Тест має починатися з активного сигналу");
+
+                fixture.view.toolbar().addExcitatoryButton().fire();
+
+                assertEquals(EditorState.Mode.ADD_NEURON, fixture.state.mode());
+                assertEquals(NeuronType.EXCITATORY, fixture.state.pendingNeuronType());
+                assertTrue(fixture.components.simulationController().hasActiveSimulation(),
+                        "Вибір інструмента додавання не повинен завершувати активний сигнал");
+
+                fixture.view.toolbar().addInhibitoryButton().fire();
+
+                assertEquals(NeuronType.INHIBITORY, fixture.state.pendingNeuronType());
+                assertTrue(fixture.components.simulationController().hasActiveSimulation(),
+                        "Перемикання між інструментами також не повинно завершувати активний сигнал");
+
+                toolbarButton(fixture, "toolbar.group").fire();
+                assertTrue(fixture.components.simulationController().hasActiveSimulation(),
+                        "Натискання групування не повинно завершувати активний сигнал");
+
+                toolbarButton(fixture, "toolbar.ungroup").fire();
+                assertTrue(fixture.components.simulationController().hasActiveSimulation(),
+                        "Натискання розгрупування не повинно завершувати активний сигнал");
+
+                int initialNeuronCount = fixture.model.neurons().size();
+                clickWorkspace(fixture, 240.0, 180.0);
+
+                assertEquals(initialNeuronCount + 1, fixture.model.neurons().size(),
+                        "Клацання по дошці має створити нейрон вибраного типу");
+                assertTrue(fixture.components.simulationController().hasActiveSimulation(),
+                        "Фактичне розміщення нейрона також не повинно завершувати активний сигнал");
             } finally {
                 fixture.dispose();
             }
@@ -147,6 +198,47 @@ final class MapInteractionCoordinatorConnectionCancellationTest {
                 new LocalizationService(Locale.forLanguageTag("uk")).text("status.connection_delete_cancelled"));
         assertEquals("Удаление связей отменено.",
                 new LocalizationService(Locale.forLanguageTag("ru")).text("status.connection_delete_cancelled"));
+    }
+
+    /** Імітує користувацьке клацання по полотну через штатний маршрут обробки події.
+     *
+     * @param fixture тестове оточення редактора.
+     * @param x горизонтальна координата на полотні.
+     * @param y вертикальна координата на полотні.
+     */
+    private static void clickWorkspace(Fixture fixture, double x, double y) {
+        Point2D scenePoint = fixture.view.workspace().node().localToScene(x, y);
+        Event.fireEvent(fixture.view.workspace().node(), new MouseEvent(
+                MouseEvent.MOUSE_CLICKED,
+                x,
+                y,
+                scenePoint.getX(),
+                scenePoint.getY(),
+                MouseButton.PRIMARY,
+                1,
+                false,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false,
+                false,
+                false,
+                true,
+                null
+        ));
+    }
+
+    /** Знаходить кнопку тулбару за локалізованим ключем, щоб перевіряти реальні callback-и інструментів. */
+    private static Button toolbarButton(Fixture fixture, String localizationKey) {
+        String expectedText = fixture.localization.text(localizationKey);
+        return fixture.view.toolbar().node().getChildren().stream()
+                .filter(Button.class::isInstance)
+                .map(Button.class::cast)
+                .filter(button -> expectedText.equals(button.getText()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Не знайдено кнопку тулбару: " + localizationKey));
     }
 
     /** Створює клавіатурну подію Esc для проходження реального маршруту обробки сцени JavaFX. */
