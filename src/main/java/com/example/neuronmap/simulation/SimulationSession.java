@@ -96,9 +96,9 @@ public final class SimulationSession {
     }
 
     /**
-     * Обробляє один такт: активує нейрони, випускає по одному сигналу від кожного активного нейрона й оновлює лічильники.
+     * Обробляє один такт, оновлює залишки активності та визначає активації, які вже прогнозуються наступними сигналами.
      *
-     * @return результат обробленого такту або {@code null}, якщо подальшої роботи немає.
+     * @return результат такту з незмінним знімком залишків активних тактів або {@code null}, якщо роботи немає.
      */
     public SimulationStep nextStep() {
         if (finished || !hasPendingWork()) {
@@ -118,10 +118,9 @@ public final class SimulationSession {
         collectThresholdActivations(inputSums, activatedNeuronIds);
         restartActivationCounters(activatedNeuronIds);
         Set<String> emittingNeuronIds = emitActiveSignals(activatedNeuronIds, nextSignals);
+        Set<String> nextActivatedNeuronIds = new LinkedHashSet<>();
+        collectThresholdActivations(nextSignals, nextActivatedNeuronIds);
 
-        SimulationStep step = new SimulationStep(
-                tick.value(), inputSums, activatedNeuronIds, emittingNeuronIds, nextSignals);
-        tick = tick.next();
         if (nextSignals.isEmpty()) {
             finished = true;
             remainingActiveTicks.clear();
@@ -129,6 +128,17 @@ public final class SimulationSession {
             pendingSignals.putAll(nextSignals);
             finished = false;
         }
+
+        SimulationStep step = new SimulationStep(
+                tick.value(),
+                inputSums,
+                activatedNeuronIds,
+                emittingNeuronIds,
+                nextSignals,
+                remainingActiveTicks,
+                nextActivatedNeuronIds
+        );
+        tick = tick.next();
         return step;
     }
 

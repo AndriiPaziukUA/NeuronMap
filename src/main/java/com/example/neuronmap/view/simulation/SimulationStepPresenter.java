@@ -8,8 +8,9 @@ import javafx.scene.Node;
 
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
-/** Відображає результати такту симуляції через індикатори вхідних сигналів, порти нейронів та анімації зв'язків. */
+/** Відображає результати такту симуляції через суми вхідних сигналів, залишки активних тактів і анімації зв'язків. */
 public class SimulationStepPresenter {
 
     private final WorkspaceView workspace;
@@ -52,7 +53,7 @@ public class SimulationStepPresenter {
     }
 
     /**
-     * Відновлює індикатори поточного такту без запуску нових імпульсів.
+     * Відновлює індикатори поточного такту й лічильники нейронів, які активуються від сигналів у дорозі, без запуску нових імпульсів.
      * Використовується після відновлення моделі, коли вже наявні анімації мають продовжуватися з поточного прогресу.
      *
      * @param step останній оброблений такт симуляції.
@@ -64,14 +65,17 @@ public class SimulationStepPresenter {
         clearOutputSignalHighlights();
         showIncomingSignals(step.nextInputSums());
         refreshNeuronViews.run();
+        showRemainingActiveTicks(step.remainingActiveTicks());
+        showPendingActivationCounters(step.nextActivatedNeuronIds());
         for (String neuronId : step.emittingNeuronIds()) {
             highlightOutputSignal(neuronId);
         }
     }
 
-    /** Прибирає індикатори сигналів, підсвічування виходів і тимчасові анімації завершеного сеансу. */
+    /** Прибирає індикатори сигналів, залишки активних тактів і анімації завершеного сеансу. */
     public void clearRuntime() {
         clearDisplayedInputSignals();
+        clearDisplayedRemainingActiveTicks();
         clearOutputSignalHighlights();
         pulseAnimations.stopAll();
     }
@@ -109,6 +113,32 @@ public class SimulationStepPresenter {
                 neuronView.showInputSignal(sum);
             }
         });
+    }
+
+    /** Оновлює числові індикатори залишку активних тактів для всіх нейронів. */
+    private void showRemainingActiveTicks(Map<String, Integer> remainingActiveTicks) {
+        neuronViews.forEach((neuronId, neuronView) ->
+                neuronView.setRemainingActiveTicks(remainingActiveTicks.getOrDefault(neuronId, 0)));
+    }
+
+    /**
+     * Негайно показує повний лічильник нейронів, які досягли порога від сигналів, що вже прямують до них.
+     * Саму активацію симуляція виконає на наступному такті; тут відображається її вже відомий результат.
+     *
+     * @param neuronIds нейрони, для яких запланована сума вхідних сигналів перетинає поріг активації.
+     */
+    private void showPendingActivationCounters(Set<String> neuronIds) {
+        for (String neuronId : neuronIds) {
+            NeuronView neuronView = neuronViews.get(neuronId);
+            if (neuronView != null) {
+                neuronView.setRemainingActiveTicks(neuronView.model().activeTicks());
+            }
+        }
+    }
+
+    /** Скидає залишок активних тактів усіх нейронів після очищення runtime-стану. */
+    private void clearDisplayedRemainingActiveTicks() {
+        neuronViews.values().forEach(neuronView -> neuronView.setRemainingActiveTicks(0));
     }
 
     /** Прибирає з нейронів індикатори вхідних сигналів. */

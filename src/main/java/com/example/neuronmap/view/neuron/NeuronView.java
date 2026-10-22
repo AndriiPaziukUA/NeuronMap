@@ -13,7 +13,7 @@ import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
 
 /**
- * Відображає нейрон, його порти й напрямок сигналу, а також візуальні стани вибору, наведення та передачі сигналу.
+ * Відображає нейрон, його порти, залишок активних тактів і візуальні стани вибору, наведення та передачі сигналу.
  *
  * <p>Область взаємодії визначається геометрією тіла з округленими кутами та видимими портами;
  * тінь і прямокутні межі контейнера не розширюють її.</p>
@@ -34,18 +34,19 @@ public final class NeuronView extends StackPane {
     private static final String INPUT_SIGNAL_SUFFICIENT_STYLE_CLASS = "port-input-sufficient";
     private static final String OUTPUT_SIGNAL_EXCITATORY_STYLE_CLASS = "port-output-signal-excitatory";
     private static final String OUTPUT_SIGNAL_INHIBITORY_STYLE_CLASS = "port-output-signal-inhibitory";
-    private static final double SIGNAL_LABEL_WIDTH = 48.0;
-    private static final double SIGNAL_LABEL_HEIGHT = 28.0;
-    private static final double SIGNAL_LABEL_SIDE_GAP = 10.0;
+    private static final double NUMERIC_LABEL_WIDTH = 48.0;
+    private static final double NUMERIC_LABEL_HEIGHT = 28.0;
+    private static final double NUMERIC_LABEL_SIDE_GAP = 10.0;
 
     private final NeuronPresentation presentation;
     private final Rectangle body = new Rectangle(WIDTH, HEIGHT);
     private final Circle inputPort = new Circle(NeuronVisualGeometry.INPUT_PORT_RADIUS);
     private final Polygon outputPort = new Polygon();
     private final Label inputSignalLabel = new Label();
-    private final Label outputSignalLabel = new Label();
+    private final Label remainingActiveTicksLabel = new Label();
 
     private Integer displayedInputSignal;
+    private int displayedRemainingActiveTicks;
     private boolean outputSignalActive;
     private boolean dragging;
     private boolean wasDragged;
@@ -80,8 +81,8 @@ public final class NeuronView extends StackPane {
         body.setMouseTransparent(false);
         body.setManaged(false);
 
-        configureSignalLabel(inputSignalLabel);
-        configureSignalLabel(outputSignalLabel);
+        configureNumericLabel(inputSignalLabel);
+        configureNumericLabel(remainingActiveTicksLabel);
         inputPort.getStyleClass().add("port");
         inputPort.setMouseTransparent(false);
         inputPort.setManaged(false);
@@ -89,10 +90,10 @@ public final class NeuronView extends StackPane {
         outputPort.setMouseTransparent(false);
         outputPort.setManaged(false);
         inputSignalLabel.setManaged(false);
-        outputSignalLabel.setManaged(false);
+        remainingActiveTicksLabel.setManaged(false);
         inputSignalLabel.setText(NO_INPUT_SIGNAL_TEXT);
-        outputSignalLabel.setText(Integer.toString(model().signalWeight()));
-        getChildren().addAll(body, inputSignalLabel, outputSignalLabel, inputPort, outputPort);
+        remainingActiveTicksLabel.setText(Integer.toString(displayedRemainingActiveTicks));
+        getChildren().addAll(body, inputSignalLabel, remainingActiveTicksLabel, inputPort, outputPort);
         refreshInputPortStyleClass();
         refreshOutputPortStyleClass();
         refreshVisuals(false);
@@ -211,9 +212,7 @@ public final class NeuronView extends StackPane {
         }
     }
 
-    /**
-     * Завершує перетягування та очищає відповідний стан.
-     */
+    /** Завершує перетягування та очищає відповідний стан. */
     public void endDrag() {
         dragging = false;
     }
@@ -229,20 +228,31 @@ public final class NeuronView extends StackPane {
         refreshInputPortStyleClass();
     }
 
-    /**
-     * Приховує індикатор вхідного сигналу й повертає вхідний порт до нейтрального кольору.
-     */
+    /** Приховує індикатор вхідного сигналу й повертає вхідний порт до нейтрального кольору. */
     public void hideInputSignal() {
         displayedInputSignal = null;
         inputSignalLabel.setText(NO_INPUT_SIGNAL_TEXT);
         refreshInputPortStyleClass();
     }
 
-    /**
-     * Очищає текст і стан відображення вхідного сигналу.
-     */
+    /** Очищає текст і стан відображення вхідного сигналу. */
     public void clearDisplayedInputSignal() {
         hideInputSignal();
+    }
+
+    /**
+     * Негайно встановлює кількість активних тактів, яка залишилася в нейрона.
+     * Значення зберігається в поданні, щоб звичайне оновлення геометрії не повертало застарілий текст.
+     *
+     * @param remainingActiveTicks залишок тактів; нуль означає, що нейрон не має активних тактів.
+     * @throws IllegalArgumentException якщо залишок тактів від'ємний.
+     */
+    public void setRemainingActiveTicks(int remainingActiveTicks) {
+        if (remainingActiveTicks < 0) {
+            throw new IllegalArgumentException("Remaining active ticks must not be negative.");
+        }
+        displayedRemainingActiveTicks = remainingActiveTicks;
+        remainingActiveTicksLabel.setText(Integer.toString(remainingActiveTicks));
     }
 
     /**
@@ -265,7 +275,7 @@ public final class NeuronView extends StackPane {
     }
 
     /**
-     * Оновлює розташування та класи стилю нейрона з урахуванням типу й вибору.
+     * Оновлює розташування та класи стилю нейрона з урахуванням типу й вибору, не змінюючи залишок активних тактів.
      *
      * @param selected ознака вибраного нейрона.
      */
@@ -277,8 +287,10 @@ public final class NeuronView extends StackPane {
         refreshInputPortStyleClass();
         refreshOutputPortStyleClass();
 
-        inputSignalLabel.setText(displayedInputSignal == null ? NO_INPUT_SIGNAL_TEXT : Integer.toString(displayedInputSignal));
-        outputSignalLabel.setText(Integer.toString(model().signalWeight()));
+        inputSignalLabel.setText(displayedInputSignal == null
+                ? NO_INPUT_SIGNAL_TEXT
+                : Integer.toString(displayedInputSignal));
+        remainingActiveTicksLabel.setText(Integer.toString(displayedRemainingActiveTicks));
         positionFixedChildren();
     }
 
@@ -310,13 +322,13 @@ public final class NeuronView extends StackPane {
      * які залежать від CSS-ширини рамки та могли б зрушувати тіло під час оновлень симуляції.</p>
      */
     private void positionFixedChildren() {
-        double signalY = (HEIGHT - SIGNAL_LABEL_HEIGHT) / 2.0;
-        double leftSignalX = SIGNAL_LABEL_SIDE_GAP;
-        double rightSignalX = WIDTH - SIGNAL_LABEL_WIDTH - SIGNAL_LABEL_SIDE_GAP;
-        inputSignalLabel.resize(SIGNAL_LABEL_WIDTH, SIGNAL_LABEL_HEIGHT);
-        inputSignalLabel.relocate(presentation.directionReversed() ? rightSignalX : leftSignalX, signalY);
-        outputSignalLabel.resize(SIGNAL_LABEL_WIDTH, SIGNAL_LABEL_HEIGHT);
-        outputSignalLabel.relocate(presentation.directionReversed() ? leftSignalX : rightSignalX, signalY);
+        double labelY = (HEIGHT - NUMERIC_LABEL_HEIGHT) / 2.0;
+        double leftLabelX = NUMERIC_LABEL_SIDE_GAP;
+        double rightLabelX = WIDTH - NUMERIC_LABEL_WIDTH - NUMERIC_LABEL_SIDE_GAP;
+        inputSignalLabel.resize(NUMERIC_LABEL_WIDTH, NUMERIC_LABEL_HEIGHT);
+        inputSignalLabel.relocate(presentation.directionReversed() ? rightLabelX : leftLabelX, labelY);
+        remainingActiveTicksLabel.resize(NUMERIC_LABEL_WIDTH, NUMERIC_LABEL_HEIGHT);
+        remainingActiveTicksLabel.relocate(presentation.directionReversed() ? leftLabelX : rightLabelX, labelY);
         NeuronVisualGeometry.positionInputPort(inputPort, presentation.directionReversed());
         NeuronVisualGeometry.positionOutputTriangle(outputPort, presentation.directionReversed());
         outputPort.setTranslateX(presentation.directionReversed()
@@ -354,9 +366,7 @@ public final class NeuronView extends StackPane {
         }
     }
 
-    /**
-     * Визначає колір вхідного порту за вже відображеною сумою сигналів і порогом нейрона.
-     */
+    /** Визначає колір вхідного порту за вже відображеною сумою сигналів і порогом нейрона. */
     private void refreshInputPortStyleClass() {
         String desiredClass = null;
         if (displayedInputSignal != null) {
@@ -372,9 +382,7 @@ public final class NeuronView extends StackPane {
         );
     }
 
-    /**
-     * Визначає колір вихідного порту за активністю передачі й типом нейрона.
-     */
+    /** Визначає колір вихідного порту за активністю передачі й типом нейрона. */
     private void refreshOutputPortStyleClass() {
         String desiredClass = null;
         if (outputSignalActive) {
@@ -443,11 +451,11 @@ public final class NeuronView extends StackPane {
     }
 
     /**
-     * Налаштовує текстову позначку вхідного або вихідного сигналу.
+     * Налаштовує текстову позначку вхідної суми або залишку активних тактів.
      *
-     * @param label позначка сигналу.
+     * @param label позначка числового стану нейрона.
      */
-    private void configureSignalLabel(Label label) {
+    private void configureNumericLabel(Label label) {
         label.getStyleClass().add("neuron-activation");
         label.setAlignment(Pos.CENTER);
         label.setMouseTransparent(true);
