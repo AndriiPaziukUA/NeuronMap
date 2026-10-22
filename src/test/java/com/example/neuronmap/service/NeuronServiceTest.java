@@ -9,10 +9,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє контракти пошуку, видалення та зміни стану нейронів через NeuronService. */
+/** Перевіряє контракти пошуку, видалення й зміни стану нейронів через NeuronService. */
 class NeuronServiceTest {
 
-    /** Перевіряє створення, зміну типу, налаштувань і видалення через службу нейронів. */
+    /** Перевіряє створення, зміну типу й параметрів та видалення нейрона через службу. */
     @Test
     void createToggleSettingsAndRemoveAreDelegatedThroughService() {
         NeuronMapModel model = new NeuronMapModel();
@@ -23,9 +23,11 @@ class NeuronServiceTest {
         assertEquals(neuron, service.find(neuron.id()).orElseThrow());
         assertTrue(service.toggleType(neuron.id()));
         assertEquals(NeuronType.INHIBITORY, neuron.type());
+        neuron.setActiveTicks(4);
         assertTrue(service.updateSettings(neuron.id(), 7, 5));
         assertEquals(7, neuron.signalStrength());
         assertEquals(5, neuron.activationThreshold());
+        assertEquals(4, neuron.activeTicks());
         assertTrue(service.presentation(neuron.id()).isPresent());
         assertEquals(neuron, service.remove(neuron.id()).orElseThrow());
         assertTrue(service.find(neuron.id()).isEmpty());

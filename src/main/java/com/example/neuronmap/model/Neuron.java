@@ -2,7 +2,7 @@ package com.example.neuronmap.model;
 
 /**
  * Зберігає семантичний стан нейрона: тип, поточну активацію та налаштування сигналу.
- * Сила сигналу й поріг активації зберігаються разом у {@link NeuronParameters}.
+ * Сила сигналу, поріг активації й тривалість активності зберігаються разом у {@link NeuronParameters}.
  */
 public final class Neuron {
 
@@ -12,7 +12,7 @@ public final class Neuron {
     private NeuronParameters parameters;
 
     /**
-     * Створює нейрон із типовими параметрами сигналу.
+     * Створює нейрон із типовими параметрами сигналу та одним активним тактом.
      *
      * @param id унікальний ідентифікатор нейрона.
      * @param type тип нейрона.
@@ -20,17 +20,17 @@ public final class Neuron {
      * @throws IllegalArgumentException якщо ідентифікатор порожній або тип не задано.
      */
     public Neuron(String id, NeuronType type, int activation) {
-        this(id, type, activation, new NeuronParameters(1, 1));
+        this(id, type, activation, new NeuronParameters(1, 1, 1));
     }
 
     /**
-     * Створює нейрон із силою сигналу та порогом активації, заданими окремими значеннями.
-     * Сигнатура збережена для наявних місць створення нейронів.
+     * Створює нейрон із указаною силою сигналу та порогом активації, зберігаючи сумісність зі старими викликами.
+     * Для створеного нейрона тривалість активності дорівнює одному такту.
      *
      * @param id унікальний ідентифікатор нейрона.
      * @param type тип нейрона.
      * @param activation початкове значення активації.
-     * @param signalStrength сила сигналу нейрона.
+     * @param signalStrength сила сигналу, який генерує нейрон.
      * @param activationThreshold поріг суми вхідних сигналів для активації нейрона.
      * @throws IllegalArgumentException якщо ідентифікатор порожній, тип не задано або параметри некоректні.
      */
@@ -41,12 +41,30 @@ public final class Neuron {
             int signalStrength,
             int activationThreshold
     ) {
-        this(
-                id,
-                type,
-                activation,
-                new NeuronParameters(signalStrength, activationThreshold)
-        );
+        this(id, type, activation, new NeuronParameters(signalStrength, activationThreshold));
+    }
+
+    /**
+     * Створює нейрон з усіма параметрами сигналу, включно з тривалістю активності.
+     *
+     * @param id унікальний ідентифікатор нейрона.
+     * @param type тип нейрона.
+     * @param activation початкове значення активації.
+     * @param signalStrength сила сигналу, який генерує нейрон.
+     * @param activationThreshold поріг суми вхідних сигналів для активації нейрона.
+     * @param activeTicks кількість тактів, протягом яких нейрон випускає сигнал.
+     * @throws IllegalArgumentException якщо ідентифікатор порожній, тип не задано або параметри некоректні.
+     */
+    public Neuron(
+            String id,
+            NeuronType type,
+            int activation,
+            int signalStrength,
+            int activationThreshold,
+            int activeTicks
+    ) {
+        this(id, type, activation,
+                new NeuronParameters(signalStrength, activationThreshold, activeTicks));
     }
 
     /**
@@ -58,12 +76,7 @@ public final class Neuron {
      * @param parameters перевірені параметри сигналу нейрона.
      * @throws IllegalArgumentException якщо ідентифікатор порожній або тип чи параметри не задано.
      */
-    public Neuron(
-            String id,
-            NeuronType type,
-            int activation,
-            NeuronParameters parameters
-    ) {
+    public Neuron(String id, NeuronType type, int activation, NeuronParameters parameters) {
         if (id == null || id.isBlank()) {
             throw new IllegalArgumentException("Neuron id must not be blank.");
         }
@@ -90,7 +103,7 @@ public final class Neuron {
     }
 
     /**
-     * Повертає тип нейрона, що визначає знак базової ваги сигналу.
+     * Повертає тип нейрона, що визначає знак вихідного сигналу.
      *
      * @return тип нейрона.
      */
@@ -132,14 +145,14 @@ public final class Neuron {
     /**
      * Повертає незмінний об'єкт налаштувань сигналу нейрона.
      *
-     * @return параметри сили сигналу та порога активації.
+     * @return параметри сили сигналу, порога активації та активних тактів.
      */
     public NeuronParameters parameters() {
         return parameters;
     }
 
     /**
-     * Замінює обидва параметри сигналу однією перевіреною операцією.
+     * Замінює всі параметри нейрона однією перевіреною операцією.
      *
      * @param parameters нові параметри нейрона.
      * @throws IllegalArgumentException якщо параметри не задано.
@@ -152,7 +165,7 @@ public final class Neuron {
     }
 
     /**
-     * Повертає налаштовану силу сигналу нейрона.
+     * Повертає налаштовану силу вихідного сигналу нейрона.
      *
      * @return сила сигналу.
      */
@@ -161,13 +174,17 @@ public final class Neuron {
     }
 
     /**
-     * Установлює силу сигналу, зберігаючи поточний поріг активації.
+     * Установлює силу сигналу, зберігаючи поріг активації та тривалість активності.
      *
      * @param signalStrength нова сила сигналу.
      * @throws IllegalArgumentException якщо значення не є додатним.
      */
     public void setSignalStrength(int signalStrength) {
-        parameters = new NeuronParameters(signalStrength, parameters.activationThreshold());
+        parameters = new NeuronParameters(
+                signalStrength,
+                parameters.activationThreshold(),
+                parameters.activeTicks()
+        );
     }
 
     /**
@@ -180,17 +197,44 @@ public final class Neuron {
     }
 
     /**
-     * Установлює поріг активації, зберігаючи поточну силу сигналу.
+     * Установлює поріг активації, зберігаючи силу сигналу та тривалість активності.
      *
      * @param activationThreshold новий поріг активації.
      * @throws IllegalArgumentException якщо значення не є додатним.
      */
     public void setActivationThreshold(int activationThreshold) {
-        parameters = new NeuronParameters(parameters.signalStrength(), activationThreshold);
+        parameters = new NeuronParameters(
+                parameters.signalStrength(),
+                activationThreshold,
+                parameters.activeTicks()
+        );
     }
 
     /**
-     * Повертає вагу сигналу з урахуванням типу нейрона та налаштованої сили сигналу.
+     * Повертає налаштовану кількість тактів, протягом яких нейрон випускає по одному сигналу.
+     *
+     * @return кількість активних тактів після активації.
+     */
+    public int activeTicks() {
+        return parameters.activeTicks();
+    }
+
+    /**
+     * Установлює тривалість активності, зберігаючи силу сигналу та поріг активації.
+     *
+     * @param activeTicks кількість тактів, протягом яких нейрон випускає сигнали.
+     * @throws IllegalArgumentException якщо значення не є додатним.
+     */
+    public void setActiveTicks(int activeTicks) {
+        parameters = new NeuronParameters(
+                parameters.signalStrength(),
+                parameters.activationThreshold(),
+                activeTicks
+        );
+    }
+
+    /**
+     * Повертає вагу сигналу з урахуванням типу нейрона та налаштованої сили.
      *
      * @return додатна вага для збуджувального нейрона або від'ємна для гальмівного.
      */

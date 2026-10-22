@@ -17,78 +17,71 @@ final class NeuronSettingsForm {
     private final Button saveButton;
     private final TextField signalField = createNumericField();
     private final TextField thresholdField = createNumericField();
+    private final TextField activeTicksField = createNumericField();
 
-    /**
-     * Створює форму та пов'язує валідність введення з доступністю кнопки збереження.
-     *
-     * @param saveButton кнопка, доступність якої залежить від валідності параметрів.
-     * @throws NullPointerException якщо кнопку не задано.
-     */
+    /** Створює форму та пов'язує валідність усіх полів із доступністю кнопки збереження. */
     NeuronSettingsForm(Button saveButton) {
         this.saveButton = Objects.requireNonNull(saveButton, "saveButton");
         signalField.textProperty().addListener((observable, oldValue, newValue) -> validateInput());
         thresholdField.textProperty().addListener((observable, oldValue, newValue) -> validateInput());
+        activeTicksField.textProperty().addListener((observable, oldValue, newValue) -> validateInput());
         validateInput();
     }
 
-    /** Завантажує з моделі параметри нейрона та встановлює курсор після початкового значення. */
+    /** Завантажує параметри нейрона та встановлює курсор після кожного початкового значення. */
     void load(Neuron neuron) {
         Objects.requireNonNull(neuron, "neuron");
         signalField.setText(Integer.toString(neuron.signalStrength()));
         thresholdField.setText(Integer.toString(neuron.activationThreshold()));
-        signalField.deselect();
-        thresholdField.deselect();
-        signalField.positionCaret(signalField.getLength());
-        thresholdField.positionCaret(thresholdField.getLength());
+        activeTicksField.setText(Integer.toString(neuron.activeTicks()));
+        for (TextField field : fields()) {
+            field.deselect();
+            field.positionCaret(field.getLength());
+        }
         validateInput();
     }
 
-    /** Встановлює однакову локалізовану підказку формату для обох числових полів. */
+    /** Встановлює однакову локалізовану підказку формату для числових полів. */
     void setPromptText(String promptText) {
-        signalField.setPromptText(promptText);
-        thresholdField.setPromptText(promptText);
+        for (TextField field : fields()) field.setPromptText(promptText);
     }
 
-    /** Повертає поле введення сили сигналу для компонування у відповідному рядку. */
-    TextField signalField() {
-        return signalField;
-    }
+    /** Повертає поле введення сили сигналу. */
+    TextField signalField() { return signalField; }
 
-    /** Повертає поле введення порога активації для компонування у відповідному рядку. */
-    TextField thresholdField() {
-        return thresholdField;
-    }
+    /** Повертає поле введення порога активації. */
+    TextField thresholdField() { return thresholdField; }
+
+    /** Повертає поле введення кількості активних тактів. */
+    TextField activeTicksField() { return activeTicksField; }
 
     /**
-     * Повертає готові параметри лише тоді, коли обидва поля містять додатні цілі числа в межах int.
+     * Повертає готові параметри, лише якщо всі поля містять додатні цілі числа в межах int.
      *
      * @return валідні параметри або порожній результат для невалідного введення.
      */
     Optional<NeuronParameters> parameters() {
         OptionalInt signalStrength = parsePositive(signalField.getText());
         OptionalInt activationThreshold = parsePositive(thresholdField.getText());
-        if (signalStrength.isEmpty() || activationThreshold.isEmpty()) {
+        OptionalInt activeTicks = parsePositive(activeTicksField.getText());
+        if (signalStrength.isEmpty() || activationThreshold.isEmpty() || activeTicks.isEmpty()) {
             return Optional.empty();
         }
         return Optional.of(new NeuronParameters(
-                signalStrength.getAsInt(),
-                activationThreshold.getAsInt()
-        ));
+                signalStrength.getAsInt(), activationThreshold.getAsInt(), activeTicks.getAsInt()));
     }
 
-    /** Оновлює доступність кнопки збереження відповідно до поточного введення. */
+    /** Оновлює доступність кнопки збереження відповідно до введення в усіх полях. */
     private void validateInput() {
-        saveButton.setDisable(
-                parsePositive(signalField.getText()).isEmpty()
-                        || parsePositive(thresholdField.getText()).isEmpty()
-        );
+        saveButton.setDisable(fields().stream().anyMatch(field -> parsePositive(field.getText()).isEmpty()));
     }
 
-    /**
-     * Створює поле, яке відхиляє символи, що не є десятковими цифрами.
-     *
-     * @return поле введення з числовим фільтром.
-     */
+    /** Повертає поля у стабільному порядку для спільної валідації та налаштування. */
+    private java.util.List<TextField> fields() {
+        return java.util.List.of(signalField, thresholdField, activeTicksField);
+    }
+
+    /** Створює поле, яке відхиляє символи, що не є десятковими цифрами. */
     private static TextField createNumericField() {
         TextField field = new TextField();
         UnaryOperator<TextFormatter.Change> digitsOnly = change ->
@@ -97,16 +90,9 @@ final class NeuronSettingsForm {
         return field;
     }
 
-    /**
-     * Перетворює текст на додатне ціле число в межах int.
-     *
-     * @param text текст, який потрібно перевірити.
-     * @return додатне число або порожній результат для некоректного значення.
-     */
+    /** Перетворює текст на додатне ціле число в межах int. */
     private static OptionalInt parsePositive(String text) {
-        if (text == null || text.isBlank()) {
-            return OptionalInt.empty();
-        }
+        if (text == null || text.isBlank()) return OptionalInt.empty();
         try {
             int value = Integer.parseInt(text);
             return value > 0 ? OptionalInt.of(value) : OptionalInt.empty();

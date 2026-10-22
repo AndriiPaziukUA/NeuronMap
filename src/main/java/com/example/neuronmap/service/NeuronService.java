@@ -40,7 +40,7 @@ public final class NeuronService {
     /**
      * Повертає поточні нейрони моделі.
      *
-     * @return колекція нейронів, яку надає модель; служба не створює окремої копії колекції.
+     * @return колекція нейронів моделі без створення окремої копії.
      */
     public Collection<Neuron> neurons() {
         return model.neurons();
@@ -78,7 +78,7 @@ public final class NeuronService {
      * @param type тип нейрона.
      * @param x початкова горизонтальна координата нейрона на карті.
      * @param y початкова вертикальна координата нейрона на карті.
-     * @return створений нейрон.
+     * @return створений нейрон із типовою тривалістю активності в один такт.
      */
     public Neuron create(NeuronType type, double x, double y) {
         return model.createNeuron(type, x, y);
@@ -143,10 +143,10 @@ public final class NeuronService {
     }
 
     /**
-     * Атомарно замінює обидва налаштування сигналу нейрона переданим value object.
+     * Атомарно замінює всі налаштування сигналу нейрона переданим value object.
      *
      * @param neuronId ідентифікатор нейрона.
-     * @param parameters нові параметри сили сигналу та порога активації.
+     * @param parameters нові параметри сили сигналу, порога активації та тривалості активності.
      * @return {@code true}, якщо нейрон знайдено й параметри застосовано; інакше {@code false}.
      * @throws NullPointerException якщо параметри не задано.
      */
@@ -159,8 +159,8 @@ public final class NeuronService {
     }
 
     /**
-     * Оновлює силу сигналу та поріг активації нейрона.
-     * Сумісний контракт делегує перевірку та збереження спільному типу параметрів.
+     * Оновлює силу сигналу та поріг активації, зберігаючи поточну тривалість активності нейрона.
+     * Цей метод залишає чинний двопараметровий контракт для наявних викликів.
      *
      * @param neuronId ідентифікатор нейрона.
      * @param signalStrength сила сигналу, який генерує нейрон.
@@ -170,7 +170,11 @@ public final class NeuronService {
      */
     public boolean updateSettings(String neuronId, int signalStrength, int activationThreshold) {
         NeuronParameters parameters = new NeuronParameters(signalStrength, activationThreshold);
-        return updateSettings(neuronId, parameters);
+        return find(neuronId).map(neuron -> {
+            neuron.setSignalStrength(parameters.signalStrength());
+            neuron.setActivationThreshold(parameters.activationThreshold());
+            return true;
+        }).orElse(false);
     }
 
     /**

@@ -9,9 +9,7 @@ import javafx.scene.Node;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * Відображає результати такту симуляції через індикатори вхідних сигналів, порти нейронів та анімації зв'язків.
- */
+/** Відображає результати такту симуляції через індикатори вхідних сигналів, порти нейронів та анімації зв'язків. */
 public class SimulationStepPresenter {
 
     private final WorkspaceView workspace;
@@ -40,7 +38,7 @@ public class SimulationStepPresenter {
     }
 
     /**
-     * Відображає результати такту та запускає анімації вихідних зв'язків активованих нейронів.
+     * Відображає результати такту та запускає анімації всіх нейронів, які випустили сигнал у цьому такті.
      *
      * @param step результат одного такту симуляції.
      * @throws NullPointerException якщо результат такту не задано.
@@ -48,7 +46,7 @@ public class SimulationStepPresenter {
     public void apply(SimulationStep step) {
         Objects.requireNonNull(step, "step");
         restoreVisualState(step);
-        for (String neuronId : step.activatedNeuronIds()) {
+        for (String neuronId : step.emittingNeuronIds()) {
             animateOutgoingConnections(neuronId);
         }
     }
@@ -66,7 +64,7 @@ public class SimulationStepPresenter {
         clearOutputSignalHighlights();
         showIncomingSignals(step.nextInputSums());
         refreshNeuronViews.run();
-        for (String neuronId : step.activatedNeuronIds()) {
+        for (String neuronId : step.emittingNeuronIds()) {
             highlightOutputSignal(neuronId);
         }
     }
@@ -83,20 +81,12 @@ public class SimulationStepPresenter {
         refreshNeuronViews.run();
     }
 
-    /**
-     * Оновлює тривалість анімацій відповідно до поточної тривалості такту симуляції.
-     *
-     * @param tickDurationMillis тривалість одного такту в мілісекундах.
-     */
+    /** Оновлює тривалість анімацій відповідно до поточної тривалості такту симуляції. */
     public void setTickDurationMillis(double tickDurationMillis) {
         pulseAnimations.setTickDurationMillis(tickDurationMillis);
     }
 
-    /**
-     * Перевіряє, чи відображаються анімації імпульсів, які ще не завершилися.
-     *
-     * @return {@code true}, якщо хоча б один імпульс ще анімується.
-     */
+    /** Перевіряє, чи відображаються анімації імпульсів, які ще не завершилися. */
     public boolean hasActiveAnimations() {
         return pulseAnimations.hasActiveAnimations();
     }

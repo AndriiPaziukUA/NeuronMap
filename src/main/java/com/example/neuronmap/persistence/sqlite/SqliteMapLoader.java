@@ -13,30 +13,29 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Зчитує з SQLite нейрони, їхнє подання, зв’язки й групи та відновлює ними модель карти.
- */
+/** Зчитує з SQLite нейрони, їхнє подання, зв’язки й групи та відновлює ними модель карти. */
 public final class SqliteMapLoader {
 
     private final java.sql.Connection connection;
 
     /**
-     * Створює екземпляр SqliteMapLoader та зберігає передані залежності, потрібні для його роботи.
+     * Створює завантажувач для відкритого з'єднання SQLite.
      *
-     * @param connection напрямлений зв’язок між нейронами.
+     * @param connection відкрите з'єднання з базою даних.
+     * @throws IllegalArgumentException якщо з'єднання не задано.
      */
     public SqliteMapLoader(java.sql.Connection connection) {
         if (connection == null) {
-
             throw new IllegalArgumentException("connection must not be null");
         }
         this.connection = connection;
     }
 
     /**
-     * Відновлює модель карти, послідовно завантажуючи її нейрони, подання, зв’язки й групи.
+     * Відновлює модель карти, послідовно завантажуючи нейрони, подання, зв'язки й групи.
      *
-     * @param model модель карти нейронів.
+     * @param model модель карти, яку потрібно заповнити даними з бази.
+     * @throws SQLException якщо запит до бази даних не вдається виконати.
      */
     public void loadInto(NeuronMapModel model) throws SQLException {
         model.clear();
@@ -47,9 +46,10 @@ public final class SqliteMapLoader {
     }
 
     /**
-     * Завантажує neurons із відповідного джерела даних.
+     * Завантажує семантичні параметри нейронів, включно з кількістю активних тактів.
      *
-     * @param model модель карти нейронів.
+     * @param model модель карти, до якої додаються відновлені нейрони.
+     * @throws SQLException якщо читання нейронів або їхніх параметрів не вдається.
      */
     private void loadNeurons(NeuronMapModel model) throws SQLException {
         String sql = """
@@ -58,7 +58,8 @@ public final class SqliteMapLoader {
                     type,
                     activation,
                     signal_strength,
-                    activation_threshold
+                    activation_threshold,
+                    active_ticks
                 FROM neurons
                 ORDER BY rowid
                 """;
@@ -78,23 +79,20 @@ public final class SqliteMapLoader {
                     continue;
                 }
 
-                neuron.setSignalStrength(
-                        resultSet.getInt("signal_strength")
-                );
-                neuron.setActivationThreshold(
-                        resultSet.getInt("activation_threshold")
-                );
+                neuron.setSignalStrength(resultSet.getInt("signal_strength"));
+                neuron.setActivationThreshold(resultSet.getInt("activation_threshold"));
+                neuron.setActiveTicks(resultSet.getInt("active_ticks"));
             }
         }
     }
 
     /**
-     * Завантажує presentations із відповідного джерела даних.
+     * Завантажує координати, обертання й напрямок візуальних подань нейронів.
      *
-     * @param model модель карти нейронів.
+     * @param model модель карти, що містить подання створених нейронів.
+     * @throws SQLException якщо читання даних подання не вдається.
      */
-    private void loadPresentations(NeuronMapModel model)
-            throws SQLException {
+    private void loadPresentations(NeuronMapModel model) throws SQLException {
         String sql = """
                 SELECT
                     neuron_id,
@@ -119,23 +117,19 @@ public final class SqliteMapLoader {
                         resultSet.getDouble("x"),
                         resultSet.getDouble("y")
                 );
-                presentation.setRotationDegrees(
-                        resultSet.getDouble("rotation")
-                );
-                presentation.setDirectionReversed(
-                        resultSet.getInt("direction_reversed") != 0
-                );
+                presentation.setRotationDegrees(resultSet.getDouble("rotation"));
+                presentation.setDirectionReversed(resultSet.getInt("direction_reversed") != 0);
             }
         }
     }
 
     /**
-     * Завантажує connections із відповідного джерела даних.
+     * Відновлює напрямлені зв'язки між нейронами після завантаження самих нейронів.
      *
-     * @param model модель карти нейронів.
+     * @param model модель карти, до якої додаються зв'язки.
+     * @throws SQLException якщо читання зв'язків не вдається.
      */
-    private void loadConnections(NeuronMapModel model)
-            throws SQLException {
+    private void loadConnections(NeuronMapModel model) throws SQLException {
         String sql = """
                 SELECT id, source_id, target_id
                 FROM connections
@@ -155,9 +149,10 @@ public final class SqliteMapLoader {
     }
 
     /**
-     * Завантажує groups із відповідного джерела даних.
+     * Відновлює групи після завантаження нейронів, збираючи їхніх учасників за ідентифікатором групи.
      *
-     * @param model модель карти нейронів.
+     * @param model модель карти, до якої додаються групи.
+     * @throws SQLException якщо читання членства груп не вдається.
      */
     private void loadGroups(NeuronMapModel model) throws SQLException {
         String sql = """
@@ -165,15 +160,12 @@ public final class SqliteMapLoader {
                 FROM group_members
                 ORDER BY group_id, rowid
                 """;
-
-        Map<String, List<String>> membersByGroup =
-                new LinkedHashMap<>();
+        Map<String, List<String>> membersByGroup = new LinkedHashMap<>();
 
         try (Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery(sql)) {
             while (resultSet.next()) {
-                membersByGroup
-                        .computeIfAbsent(
+                membersByGroup.computeIfAbsent(
                                 resultSet.getString("group_id"),
                                 ignored -> new ArrayList<>()
                         )

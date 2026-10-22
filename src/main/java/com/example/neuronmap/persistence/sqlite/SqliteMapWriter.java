@@ -13,10 +13,11 @@ public final class SqliteMapWriter {
     private final SqliteSettingsStore settings;
 
     /**
-     * Створює записувач із тим самим з'єднанням і власником типізованих налаштувань, що й репозиторій.
+     * Створює записувач із тим самим з'єднанням та сховищем типізованих налаштувань, що й репозиторій.
      *
      * @param connection з'єднання SQLite спільної транзакції.
      * @param settings сховище типізованих налаштувань проєкту.
+     * @throws IllegalArgumentException якщо з'єднання або сховище не задано.
      */
     public SqliteMapWriter(java.sql.Connection connection, SqliteSettingsStore settings) {
         if (connection == null) {
@@ -30,7 +31,7 @@ public final class SqliteMapWriter {
     }
 
     /**
-     * Записує стан карти та камери.
+     * Записує актуальний стан карти й камери.
      *
      * @param model модель карти нейронів.
      * @param cameraState стан камери, який потрібно зберегти разом із картою.
@@ -57,7 +58,7 @@ public final class SqliteMapWriter {
     }
 
     /**
-     * Записує семантичні параметри всіх нейронів у таблицю нейронів.
+     * Записує семантичні параметри всіх нейронів, включно з тривалістю активності.
      *
      * @param model модель карти, звідки беруться нейрони.
      * @throws SQLException якщо пакетний запис нейронів не вдався.
@@ -69,9 +70,10 @@ public final class SqliteMapWriter {
                     type,
                     activation,
                     signal_strength,
-                    activation_threshold
+                    activation_threshold,
+                    active_ticks
                 )
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """;
 
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -81,6 +83,7 @@ public final class SqliteMapWriter {
                 statement.setInt(3, neuron.activation());
                 statement.setInt(4, neuron.signalStrength());
                 statement.setInt(5, neuron.activationThreshold());
+                statement.setInt(6, neuron.activeTicks());
                 statement.addBatch();
             }
             statement.executeBatch();
@@ -119,10 +122,10 @@ public final class SqliteMapWriter {
     }
 
     /**
-     * Записує напрямлені зв’язки між нейронами.
+     * Записує напрямлені зв'язки між нейронами.
      *
-     * @param model модель карти, що містить зв’язки.
-     * @throws SQLException якщо пакетний запис зв’язків не вдався.
+     * @param model модель карти, що містить зв'язки.
+     * @throws SQLException якщо пакетний запис зв'язків не вдався.
      */
     private void insertConnections(NeuronMapModel model) throws SQLException {
         String sql = """
@@ -146,10 +149,10 @@ public final class SqliteMapWriter {
     }
 
     /**
-     * Записує групи та їхніх учасників.
+     * Записує групи та кожного їхнього учасника.
      *
      * @param model модель карти, що містить групи та учасників.
-     * @throws SQLException якщо запис груп або учасників не вдався.
+     * @throws SQLException якщо пакетний запис груп або учасників не вдався.
      */
     private void insertGroups(NeuronMapModel model) throws SQLException {
         String groupSql = "INSERT INTO groups (id) VALUES (?)";

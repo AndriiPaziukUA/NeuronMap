@@ -40,6 +40,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
 
     private static final String STYLESHEET_RESOURCE = "/neuron-settings.css";
     private static final String LOCALIZATION_BUNDLE = "i18n.neuronSettings";
+    private static final String SETTINGS_BUNDLE_KEY_PREFIX = "i18n.neuronSettings.";
     private static final double INPUT_COLUMN_WIDTH = 160.0;
 
     private final LocalizationService localization;
@@ -55,6 +56,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     private final Button cancelButton = new Button();
     private final TextField signalField;
     private final TextField thresholdField;
+    private final TextField activeTicksField;
     private final NeuronSettingsForm settingsForm;
     private final EventHandler<KeyEvent> sceneKeyboardFilter = this::filterOutsideModalKeyboardEvents;
     private final NeuronSettingsLayout settingsLayout;
@@ -75,9 +77,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     public NeuronSettingsView(LocalizationService localization) {
         this.localization = Objects.requireNonNull(localization, "localization");
         URL stylesheet = getClass().getResource(STYLESHEET_RESOURCE);
-        if (stylesheet == null) {
-            throw new IllegalStateException(STYLESHEET_RESOURCE + " is missing");
-        }
+        if (stylesheet == null) throw new IllegalStateException(STYLESHEET_RESOURCE + " is missing");
         getStylesheets().add(stylesheet.toExternalForm());
 
         setManaged(false);
@@ -94,19 +94,14 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         settingsForm = new NeuronSettingsForm(saveButton);
         signalField = settingsForm.signalField();
         thresholdField = settingsForm.thresholdField();
+        activeTicksField = settingsForm.activeTicksField();
         configureSettingsRows();
         configureFooter();
         getChildren().addAll(backdrop, panel);
         refreshTexts();
     }
 
-    /**
-     * Додає рядок до прокручуваного списку та оновлює його природну висоту.
-     * Метод доступний у межах пакета, оскільки додавання рядка саме по собі не реєструє бізнес-параметр.
-     *
-     * @param settingRow готовий вузол одного параметра.
-     * @throws NullPointerException якщо рядок не задано.
-     */
+    /** Додає рядок до прокручуваного списку та оновлює його природну висоту. */
     void addSetting(Node settingRow) {
         settingsRows.getChildren().add(Objects.requireNonNull(settingRow, "settingRow"));
         settingsLayout.updateViewportHeight();
@@ -128,12 +123,8 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         Objects.requireNonNull(neuron, "neuron");
         Objects.requireNonNull(onSave, "onSave");
         Scene scene = applicationRoot.getScene();
-        if (scene == null) {
-            throw new IllegalStateException("Neuron settings overlay requires an attached JavaFX scene");
-        }
-        if (host != null) {
-            throw new IllegalStateException("Neuron settings view is already showing");
-        }
+        if (scene == null) throw new IllegalStateException("Neuron settings overlay requires an attached JavaFX scene");
+        if (host != null) throw new IllegalStateException("Neuron settings view is already showing");
 
         settingsForm.load(neuron);
         saveAction = onSave;
@@ -149,35 +140,23 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     }
 
     /** Закриває накладку, якщо вона відображається, без збереження введених значень. */
-    public void hide() {
-        close();
-    }
+    public void hide() { close(); }
 
     /** Остаточно звільняє тимчасові ресурси; повторний виклик безпечний, повторний показ заборонено. */
     public void dispose() {
-        if (disposed) {
-            return;
-        }
+        if (disposed) return;
         close();
         disposed = true;
     }
 
-    /**
-     * Перевіряє, що подання не було остаточно звільнене.
-     *
-     * @throws IllegalStateException якщо подання вже остаточно звільнено.
-     */
+    /** Перевіряє, що подання не було остаточно звільнене. */
     private void ensureNotDisposed() {
-        if (disposed) {
-            throw new IllegalStateException("Neuron settings view is disposed");
-        }
+        if (disposed) throw new IllegalStateException("Neuron settings view is disposed");
     }
 
     /** Повідомляє маршрутизатору клавіатури, що відкрите подання ізолює глобальні команди редактора. */
     @Override
-    public boolean blocksEditorShortcuts() {
-        return host != null && isVisible();
-    }
+    public boolean blocksEditorShortcuts() { return host != null && isVisible(); }
 
     /** Налаштовує затемнений фон, клацання по якому скасовує редагування. */
     private void configureBackdrop() {
@@ -199,54 +178,43 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         panel.setPrefSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
         panel.setMaxSize(NeuronSettingsLayout.MAX_PANEL_WIDTH, NeuronSettingsLayout.MAX_PANEL_HEIGHT);
         StackPane.setAlignment(panel, Pos.CENTER);
-
         title.getStyleClass().add("neuron-settings-title");
         title.setWrapText(true);
         title.setMaxWidth(Double.MAX_VALUE);
         title.setAlignment(Pos.CENTER);
     }
 
-    /** Створює початкові рядки та налаштовує вертикальне прокручування за потреби. */
+    /** Створює рядки параметрів та налаштовує вертикальне прокручування за потреби. */
     private void configureSettingsRows() {
         settingsRows.setMinSize(0.0, 0.0);
         settingsRows.setFillWidth(true);
         addSetting(createSettingRow("neuron.settings.signal_strength", signalField));
         addSetting(createSettingRow("neuron.settings.activation_threshold", thresholdField));
-
+        addSetting(createSettingRow(SETTINGS_BUNDLE_KEY_PREFIX + "active_ticks", activeTicksField));
         settingsScroll.setFitToWidth(true);
         settingsScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         settingsScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         settingsScroll.setMinSize(0.0, 0.0);
         settingsScroll.getStyleClass().add("neuron-settings-scroll");
         settingsScroll.widthProperty().addListener(
-                (observable, oldWidth, newWidth) -> settingsLayout.updateViewportHeight()
-        );
+                (observable, oldWidth, newWidth) -> settingsLayout.updateViewportHeight());
         VBox.setVgrow(settingsScroll, Priority.ALWAYS);
-
     }
 
-    /**
-     * Створює рядок із гнучким підписом і полем фіксованої ширини для вирівнювання колонок.
-     *
-     * @param labelKey ключ локалізованого підпису параметра.
-     * @param field поле введення параметра.
-     * @return підготовлений рядок налаштування.
-     */
+    /** Створює рядок із гнучким підписом і полем фіксованої ширини для вирівнювання колонок. */
     private HBox createSettingRow(String labelKey, TextField field) {
-        Label label = new Label(localization.text(labelKey));
+        Label label = new Label(labelText(labelKey));
         settingLabels.put(labelKey, label);
         label.getStyleClass().add("neuron-settings-label");
         label.setWrapText(true);
         label.setMinWidth(0.0);
         label.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(label, Priority.ALWAYS);
-
         field.getStyleClass().add("neuron-settings-field");
         field.setPrefColumnCount(10);
         field.setMinWidth(INPUT_COLUMN_WIDTH);
         field.setPrefWidth(INPUT_COLUMN_WIDTH);
         field.setMaxWidth(INPUT_COLUMN_WIDTH);
-
         HBox row = new HBox(16.0, label, field);
         row.setAlignment(Pos.CENTER_LEFT);
         row.setPadding(new Insets(9.0, 10.0, 9.0, 10.0));
@@ -254,6 +222,14 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         row.setMaxWidth(Double.MAX_VALUE);
         row.getStyleClass().add("neuron-settings-row");
         return row;
+    }
+
+    /** Отримує текст підпису з виділеного набору рядків налаштувань або зі спільного набору інтерфейсу. */
+    private String labelText(String labelKey) {
+        if (labelKey.startsWith(SETTINGS_BUNDLE_KEY_PREFIX)) {
+            return localization.textFrom(LOCALIZATION_BUNDLE, labelKey.substring(SETTINGS_BUNDLE_KEY_PREFIX.length()));
+        }
+        return localization.text(labelKey);
     }
 
     /** Налаштовує кнопки підтвердження та скасування з незалежним стилем подання. */
@@ -290,10 +266,10 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         applicationRoot.layout();
     }
 
-    /** Оновлює всі локалізовані тексти під час показу накладки. */
+    /** Оновлює всі локалізовані тексти під час показу накладки або зміни мови. */
     private void refreshTexts() {
         title.setText(localization.textFrom(LOCALIZATION_BUNDLE, "title"));
-        settingLabels.forEach((key, label) -> label.setText(localization.text(key)));
+        settingLabels.forEach((key, label) -> label.setText(labelText(key)));
         saveButton.setText(localization.text("neuron.settings.save"));
         cancelButton.setText(localization.textFrom(LOCALIZATION_BUNDLE, "cancel"));
         settingsForm.setPromptText(localization.text("neuron.settings.positive_integer"));
@@ -302,17 +278,11 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         if (getScene() != null) {
             ContentSizedButtonPair.sizeToLargestContent(saveButton, cancelButton);
             requestLayout();
-            if (host != null) {
-                host.requestLayout();
-            }
+            if (host != null) host.requestLayout();
         }
     }
 
-    /**
-     * Зберігає початкове адаптивне компонування модальної панелі після винесення геометрії в окремий клас.
-     * StackPane спочатку компонуватиме власних дітей, а помічник підлаштує картку за природним розміром
-     * і обмежить її доступною площею так само, як це робило попереднє компонування.
-     */
+    /** Підлаштовує картку за природним розміром і обмежує її доступною площею. */
     @Override
     protected void layoutChildren() {
         super.layoutChildren();
@@ -321,18 +291,14 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
 
     /** Реєструє слухача локалізації лише на час показу накладки. */
     private void startListeningToLocalization() {
-        if (localizationListenerRegistered) {
-            return;
-        }
+        if (localizationListenerRegistered) return;
         localization.addListener(localizationListener);
         localizationListenerRegistered = true;
     }
 
     /** Знімає слухача локалізації під час закриття, не утримуючи приховане подання. */
     private void stopListeningToLocalization() {
-        if (!localizationListenerRegistered) {
-            return;
-        }
+        if (!localizationListenerRegistered) return;
         localization.removeListener(localizationListener);
         localizationListenerRegistered = false;
     }
@@ -340,9 +306,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     /** Зберігає перевірені параметри й закриває накладку перед передаванням результату. */
     private void save() {
         Optional<NeuronParameters> parameters = settingsForm.parameters();
-        if (parameters.isEmpty() || saveAction == null) {
-            return;
-        }
+        if (parameters.isEmpty() || saveAction == null) return;
         Consumer<NeuronParameters> action = saveAction;
         NeuronParameters savedParameters = parameters.orElseThrow();
         close();
@@ -358,40 +322,24 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         stopListeningToLocalization();
         setVisible(false);
         setManaged(false);
-        if (previousHost != null) {
-            previousHost.getChildren().remove(this);
-        }
+        if (previousHost != null) previousHost.getChildren().remove(this);
     }
 
-    /**
-     * Блокує клавіатурну взаємодію поза накладкою, щоб фокус не дозволяв керувати редактором за модальним вікном.
-     * Escape у такому разі закриває накладку локально, не відкриваючи головне меню.
-     *
-     * @param event подія клавіатури, що проходить через сцену.
-     */
+    /** Блокує клавіатурну взаємодію поза накладкою; Escape скасовує редагування. */
     private void filterOutsideModalKeyboardEvents(KeyEvent event) {
-        if (!blocksEditorShortcuts()) {
-            return;
-        }
-
-        boolean escapePressed = event.getEventType() == KeyEvent.KEY_PRESSED
-                && event.getCode() == KeyCode.ESCAPE;
-        if (escapePressed) {
+        if (!blocksEditorShortcuts()) return;
+        if (event.getEventType() == KeyEvent.KEY_PRESSED && event.getCode() == KeyCode.ESCAPE) {
             event.consume();
             close();
             return;
         }
-        if (EditorKeyboardShortcutBoundary.blocksShortcutsFor(event.getTarget())) {
-            return;
-        }
+        if (EditorKeyboardShortcutBoundary.blocksShortcutsFor(event.getTarget())) return;
         event.consume();
     }
 
     /** Реєструє фільтр сцени лише на час показу модальної накладки. */
     private void startFilteringSceneKeyboard(Scene scene) {
-        if (keyboardFilterScene == scene) {
-            return;
-        }
+        if (keyboardFilterScene == scene) return;
         stopFilteringSceneKeyboard();
         if (scene != null) {
             SceneKeyboardModality.register(scene, this);
@@ -402,12 +350,11 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
 
     /** Знімає фільтр сцени, щоб після закриття накладки клавіатура працювала звичайно. */
     private void stopFilteringSceneKeyboard() {
-        if (keyboardFilterScene != null) {
-            Scene previousScene = keyboardFilterScene;
-            keyboardFilterScene = null;
-            previousScene.removeEventFilter(KeyEvent.ANY, sceneKeyboardFilter);
-            SceneKeyboardModality.unregister(previousScene, this);
-        }
+        if (keyboardFilterScene == null) return;
+        Scene previousScene = keyboardFilterScene;
+        keyboardFilterScene = null;
+        previousScene.removeEventFilter(KeyEvent.ANY, sceneKeyboardFilter);
+        SceneKeyboardModality.unregister(previousScene, this);
     }
 
     /** Повертає поле сили сигналу для регресійних тестів. */
@@ -415,6 +362,9 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
 
     /** Повертає поле порога активації для регресійних тестів. */
     TextField thresholdFieldForTest() { return thresholdField; }
+
+    /** Повертає поле кількості активних тактів для регресійних тестів. */
+    TextField activeTicksFieldForTest() { return activeTicksField; }
 
     /** Повертає кнопку збереження для перевірок введення та геометрії. */
     Button saveButtonForTest() { return saveButton; }
@@ -431,15 +381,10 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     /** Повертає заголовок для перевірки його вирівнювання. */
     Label titleForTest() { return title; }
 
-    /** Повертає затемнений фон для перевірки скасування натисканням поза карткою налаштувань. */
+    /** Повертає затемнений фон для перевірки скасування натисканням поза карткою. */
     Node backdropForTest() { return backdrop; }
 
-    /**
-     * Повертає локалізований підпис параметра для перевірки оновлення мови без повторного відкриття.
-     *
-     * @param key ключ перекладу підпису.
-     * @return поточний текст підпису або {@code null}, якщо параметр із таким ключем не створено.
-     */
+    /** Повертає локалізований підпис параметра без повторного відкриття накладки. */
     String settingLabelTextForTest(String key) {
         Label label = settingLabels.get(key);
         return label == null ? null : label.getText();
@@ -457,9 +402,12 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     /** Повертає фактичну висоту панелі після компонування. */
     double panelHeightForTest() { return panel.getHeight(); }
 
-    /** Повертає підказку поля сили сигналу для перевірки локалізованого формату. */
+    /** Повертає підказку поля сили сигналу. */
     String signalPromptForTest() { return signalField.getPromptText(); }
 
-    /** Повертає підказку поля порога активації для перевірки локалізованого формату. */
+    /** Повертає підказку поля порога активації. */
     String thresholdPromptForTest() { return thresholdField.getPromptText(); }
+
+    /** Повертає підказку поля активних тактів. */
+    String activeTicksPromptForTest() { return activeTicksField.getPromptText(); }
 }

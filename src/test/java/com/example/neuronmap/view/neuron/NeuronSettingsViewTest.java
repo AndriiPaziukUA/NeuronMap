@@ -6,7 +6,6 @@ import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.testsupport.JavaFxTestSupport;
-
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
@@ -14,8 +13,6 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
-
 import org.junit.jupiter.api.Test;
 
 import java.util.Locale;
@@ -46,8 +43,7 @@ final class NeuronSettingsViewTest {
             assertFalse(view.getStylesheets().stream().anyMatch(path -> path.endsWith("/menu-enhancements.css")));
             assertTrue(view.saveButtonForTest().getStyleClass().contains("neuron-settings-button"));
             assertTrue(view.cancelButtonForTest().getStyleClass().contains("neuron-settings-button"));
-            assertEquals(localization.textFrom("i18n.neuronSettings", "cancel"),
-                    view.cancelButtonForTest().getText());
+            assertEquals(localization.textFrom("i18n.neuronSettings", "cancel"), view.cancelButtonForTest().getText());
             assertEquals(Region.USE_COMPUTED_SIZE, view.saveButtonForTest().getMaxWidth(), 0.1);
             assertEquals(Region.USE_COMPUTED_SIZE, view.saveButtonForTest().getMaxHeight(), 0.1);
             assertEquals(Region.USE_COMPUTED_SIZE, view.cancelButtonForTest().getMaxWidth(), 0.1);
@@ -60,12 +56,11 @@ final class NeuronSettingsViewTest {
             assertNull(view.saveButtonForTest().getTooltip());
             assertNull(view.cancelButtonForTest().getTooltip());
             assertEquals(Pos.CENTER, view.titleForTest().getAlignment());
-
             view.hide();
         });
     }
 
-    /** Перевіряє оновлення підписів параметрів відразу після попереднього перегляду іншої мови. */
+    /** Перевіряє оновлення підписів усіх параметрів відразу після зміни мови інтерфейсу. */
     @Test
     void refreshesSettingLabelsImmediatelyWhenLocaleChanges() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
@@ -77,18 +72,21 @@ final class NeuronSettingsViewTest {
 
             String englishSignalLabel = view.settingLabelTextForTest("neuron.settings.signal_strength");
             String englishThresholdLabel = view.settingLabelTextForTest("neuron.settings.activation_threshold");
+            String englishActiveTicksLabel = view.settingLabelTextForTest("i18n.neuronSettings.active_ticks");
             assertEquals("Signal strength:", englishSignalLabel);
             assertEquals("Activation threshold:", englishThresholdLabel);
+            assertEquals("Active ticks", englishActiveTicksLabel);
 
             localization.previewLanguage(SupportedLanguage.UKRAINIAN);
-
             assertEquals(localization.text("neuron.settings.signal_strength"),
                     view.settingLabelTextForTest("neuron.settings.signal_strength"));
             assertEquals(localization.text("neuron.settings.activation_threshold"),
                     view.settingLabelTextForTest("neuron.settings.activation_threshold"));
+            assertEquals(localization.textFrom("i18n.neuronSettings", "active_ticks"),
+                    view.settingLabelTextForTest("i18n.neuronSettings.active_ticks"));
             assertFalse(englishSignalLabel.equals(view.settingLabelTextForTest("neuron.settings.signal_strength")));
-            assertFalse(englishThresholdLabel.equals(
-                    view.settingLabelTextForTest("neuron.settings.activation_threshold")));
+            assertFalse(englishThresholdLabel.equals(view.settingLabelTextForTest("neuron.settings.activation_threshold")));
+            assertFalse(englishActiveTicksLabel.equals(view.settingLabelTextForTest("i18n.neuronSettings.active_ticks")));
             view.hide();
         });
     }
@@ -104,18 +102,21 @@ final class NeuronSettingsViewTest {
             view.signalFieldForTest().selectAll();
             view.thresholdFieldForTest().setText("4");
             view.thresholdFieldForTest().selectAll();
+            view.activeTicksFieldForTest().setText("4");
+            view.activeTicksFieldForTest().selectAll();
 
             view.showIn(root, neuron("focus", NeuronType.EXCITATORY, 17, 4), ignored -> { });
-
             assertFalse(view.signalFieldForTest().isFocused());
             assertFalse(view.thresholdFieldForTest().isFocused());
+            assertFalse(view.activeTicksFieldForTest().isFocused());
             assertEquals("", view.signalFieldForTest().getSelectedText());
             assertEquals("", view.thresholdFieldForTest().getSelectedText());
+            assertEquals("", view.activeTicksFieldForTest().getSelectedText());
             view.hide();
         });
     }
 
-    /** Перевіряє числовий фільтр, додатність значень і блокування переповнення int. */
+    /** Перевіряє числовий фільтр, додатність значень і блокування переповнення int для кожного поля. */
     @Test
     void acceptsOnlyPositiveIntegersWithinIntegerRange() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
@@ -134,14 +135,18 @@ final class NeuronSettingsViewTest {
             view.signalFieldForTest().setText("12");
             view.thresholdFieldForTest().setText("2147483648");
             assertTrue(view.saveButtonForTest().isDisabled());
-
+            view.thresholdFieldForTest().setText("2");
+            view.activeTicksFieldForTest().setText("0");
+            assertTrue(view.saveButtonForTest().isDisabled());
+            view.activeTicksFieldForTest().setText("2147483648");
+            assertTrue(view.saveButtonForTest().isDisabled());
             view.hide();
         });
     }
 
-    /** Перевіряє зміну сили сигналу гальмівного нейрона та передавання позитивних параметрів на збереження. */
+    /** Перевіряє зміну всіх параметрів гальмівного нейрона та їх передавання на збереження. */
     @Test
-    void savesPositiveSignalStrengthForInhibitoryNeuron() throws Exception {
+    void savesPositiveParametersForInhibitoryNeuron() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
             StackPane root = new StackPane();
             new Scene(root, 900.0, 600.0);
@@ -152,9 +157,10 @@ final class NeuronSettingsViewTest {
 
             view.signalFieldForTest().setText("13");
             view.thresholdFieldForTest().setText("5");
+            view.activeTicksFieldForTest().setText("4");
             view.saveButtonForTest().fire();
 
-            assertEquals(new NeuronParameters(13, 5), saved.get());
+            assertEquals(new NeuronParameters(13, 5, 4), saved.get());
             assertFalse(root.getChildren().contains(view));
         });
     }
@@ -172,7 +178,6 @@ final class NeuronSettingsViewTest {
             assertEquals(naturalHeight, scroll.getPrefViewportHeight(), 1.0);
             assertEquals(ScrollPane.ScrollBarPolicy.AS_NEEDED, scroll.getVbarPolicy());
             assertEquals(ScrollPane.ScrollBarPolicy.NEVER, scroll.getHbarPolicy());
-
             for (int index = 0; index < 12; index++) {
                 Label extraLabel = new Label("Future setting " + index);
                 HBox row = new HBox(extraLabel);
@@ -188,13 +193,12 @@ final class NeuronSettingsViewTest {
         });
     }
 
-    /** Перевіряє, що модальну накладку не можна показати без сцени, яка потрібна для ізоляції клавіатури. */
+    /** Перевіряє, що накладку не можна показати без сцени, потрібної для ізоляції клавіатури. */
     @Test
     void refusesToShowWithoutAttachedScene() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
             StackPane unattachedRoot = new StackPane();
             NeuronSettingsView view = new NeuronSettingsView(new LocalizationService(Locale.ENGLISH));
-
             assertThrows(IllegalStateException.class,
                     () -> view.showIn(unattachedRoot, neuron("unattached", NeuronType.EXCITATORY, 1, 1), ignored -> { }));
             view.dispose();
@@ -210,7 +214,6 @@ final class NeuronSettingsViewTest {
             root.resize(900.0, 600.0);
             NeuronSettingsView view = new NeuronSettingsView(new LocalizationService(Locale.ENGLISH));
             view.showIn(root, neuron("resize", NeuronType.EXCITATORY, 1, 1), ignored -> { });
-
             Label wrappedLabel = new Label("A future setting with a deliberately long localized description "
                     + "that must wrap onto several lines when the available panel width becomes narrow.");
             wrappedLabel.setWrapText(true);
@@ -221,14 +224,12 @@ final class NeuronSettingsViewTest {
             root.layout();
             double wideHeight = wrappedLabel.getHeight();
             double wideViewportHeight = view.settingsScrollForTest().getPrefViewportHeight();
-
             root.resize(420.0, 600.0);
             root.applyCss();
             root.layout();
             view.applyCss();
             view.layout();
             root.layout();
-
             assertTrue(wrappedLabel.getHeight() > wideHeight + 1.0,
                     "Підпис має займати більше рядків після звуження контейнера");
             assertTrue(view.settingsScrollForTest().getPrefViewportHeight() >= wideViewportHeight,
@@ -241,5 +242,4 @@ final class NeuronSettingsViewTest {
     private static Neuron neuron(String id, NeuronType type, int signalStrength, int threshold) {
         return new Neuron(id, type, 0, signalStrength, threshold);
     }
-
 }

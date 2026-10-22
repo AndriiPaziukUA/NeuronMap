@@ -7,19 +7,17 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-/**
- * Створює та мігрує схему SQLite, додаючи потрібні таблиці й стовпці для актуальної версії даних.
- */
+/** Створює та мігрує схему SQLite, додаючи потрібні таблиці й стовпці для актуальної версії даних. */
 public final class SqliteSchema {
 
-    private static final int CURRENT_VERSION = 4;
+    private static final int CURRENT_VERSION = 5;
 
-    /** Не дозволяє створювати екземпляри утиліти для керування схемою. */
+    /** Не дозволяє створювати екземпляри утиліти керування схемою. */
     private SqliteSchema() {
     }
 
     /**
-     * Перевіряє версію схеми й застосовує необхідні зміни, не записуючи версію повторно для актуальної бази.
+     * Перевіряє версію схеми й застосовує необхідні зміни, не переписуючи актуальну базу без потреби.
      * Бази, створені новішою версією застосунку, відхиляються до будь-якої модифікації схеми.
      *
      * @param connection відкрите з'єднання з базою SQLite.
@@ -41,10 +39,7 @@ public final class SqliteSchema {
             ensureDirectionColumn(connection);
             ensureVersion(connection, versionAtStart);
         } catch (SQLException exception) {
-            throw new PersistenceException(
-                    "Не вдалося підготувати схему SQLite.",
-                    exception
-            );
+            throw new PersistenceException("Не вдалося підготувати схему SQLite.", exception);
         }
     }
 
@@ -54,8 +49,7 @@ public final class SqliteSchema {
      * @param connection відкрите з'єднання з базою SQLite.
      * @throws SQLException якщо SQLite не може створити таблицю.
      */
-    private static void createBaseSchema(Connection connection)
-            throws SQLException {
+    private static void createBaseSchema(Connection connection) throws SQLException {
         try (Statement statement = connection.createStatement()) {
             statement.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS neurons (
@@ -63,10 +57,10 @@ public final class SqliteSchema {
                         type TEXT NOT NULL,
                         activation INTEGER NOT NULL DEFAULT 0,
                         signal_strength INTEGER NOT NULL DEFAULT 1,
-                        activation_threshold INTEGER NOT NULL DEFAULT 1
+                        activation_threshold INTEGER NOT NULL DEFAULT 1,
+                        active_ticks INTEGER NOT NULL DEFAULT 1
                     )
                     """);
-
             statement.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS neuron_presentations (
                         neuron_id TEXT PRIMARY KEY,
@@ -79,7 +73,6 @@ public final class SqliteSchema {
                             ON DELETE CASCADE
                     )
                     """);
-
             statement.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS connections (
                         id TEXT PRIMARY KEY,
@@ -95,13 +88,7 @@ public final class SqliteSchema {
                         CHECK (source_id <> target_id)
                     )
                     """);
-
-            statement.executeUpdate("""
-                    CREATE TABLE IF NOT EXISTS groups (
-                        id TEXT PRIMARY KEY
-                    )
-                    """);
-
+            statement.executeUpdate("CREATE TABLE IF NOT EXISTS groups (id TEXT PRIMARY KEY)");
             statement.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS group_members (
                         group_id TEXT NOT NULL,
@@ -115,7 +102,6 @@ public final class SqliteSchema {
                             ON DELETE CASCADE
                     )
                     """);
-
             statement.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS settings (
                         key TEXT PRIMARY KEY,
@@ -129,13 +115,11 @@ public final class SqliteSchema {
      * Переносить координати нейронів зі старої таблиці до таблиці подань і видаляє застарілі стовпці.
      *
      * @param connection відкрите з'єднання з базою SQLite.
-     * @throws SQLException якщо перенесення або зміна таблиці не вдалися.
+     * @throws SQLException якщо перенесення координат або зміна таблиці не вдалися.
      */
-    private static void migrateLegacyNeuronLayout(Connection connection)
-            throws SQLException {
+    private static void migrateLegacyNeuronLayout(Connection connection) throws SQLException {
         boolean hasX = columnExists(connection, "neurons", "x");
         boolean hasY = columnExists(connection, "neurons", "y");
-
         if (!hasX && !hasY) {
             return;
         }
@@ -173,31 +157,32 @@ public final class SqliteSchema {
     }
 
     /**
-     * Додає параметри нейронів, яких бракує в старих версіях схеми.
+     * Додає відсутні параметри нейрона, використовуючи початкове значення 1 для сумісності зі старими базами.
      *
      * @param connection відкрите з'єднання з базою SQLite.
      * @throws SQLException якщо перевірка або зміна таблиці не вдалися.
      */
-    private static void ensureNeuronSettingsColumns(Connection connection)
-            throws SQLException {
-        if (!columnExists(connection, "neurons", "signal_strength")) {
-            try (Statement statement = connection.createStatement()) {
-                statement.executeUpdate("""
-                        ALTER TABLE neurons
-                        ADD COLUMN signal_strength
-                        INTEGER NOT NULL DEFAULT 1
-                        """);
-            }
-        }
+    private static void ensureNeuronSettingsColumns(Connection connection) throws SQLException {
+        ensureIntegerColumn(connection, "signal_strength");
+        ensureIntegerColumn(connection, "activation_threshold");
+        ensureIntegerColumn(connection, "active_ticks");
+    }
 
-        if (!columnExists(connection, "neurons", "activation_threshold")) {
-            try (Statement statement = connection.createStatement()) {
-                statement.executeUpdate("""
-                        ALTER TABLE neurons
-                        ADD COLUMN activation_threshold
-                        INTEGER NOT NULL DEFAULT 1
-                        """);
-            }
+    /**
+     * Додає відсутній стовпець цілого параметра нейрона зі значенням за замовчуванням 1.
+     *
+     * @param connection відкрите з'єднання з базою SQLite.
+     * @param column назва стовпця параметра, що додається.
+     * @throws SQLException якщо перевірка або зміна таблиці не вдалися.
+     */
+    private static void ensureIntegerColumn(Connection connection, String column) throws SQLException {
+        if (columnExists(connection, "neurons", column)) {
+            return;
+        }
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate(
+                    "ALTER TABLE neurons ADD COLUMN " + column + " INTEGER NOT NULL DEFAULT 1"
+            );
         }
     }
 
@@ -207,17 +192,14 @@ public final class SqliteSchema {
      * @param connection відкрите з'єднання з базою SQLite.
      * @throws SQLException якщо перевірка або зміна таблиці не вдалися.
      */
-    private static void ensureDirectionColumn(Connection connection)
-            throws SQLException {
+    private static void ensureDirectionColumn(Connection connection) throws SQLException {
         if (columnExists(connection, "neuron_presentations", "direction_reversed")) {
             return;
         }
-
         try (Statement statement = connection.createStatement()) {
             statement.executeUpdate("""
                     ALTER TABLE neuron_presentations
-                    ADD COLUMN direction_reversed
-                    INTEGER NOT NULL DEFAULT 0
+                    ADD COLUMN direction_reversed INTEGER NOT NULL DEFAULT 0
                     """);
         }
     }
@@ -231,13 +213,8 @@ public final class SqliteSchema {
      * @return {@code true}, якщо стовпець існує; інакше {@code false}.
      * @throws SQLException якщо SQLite не може прочитати опис таблиці.
      */
-    private static boolean columnExists(
-            Connection connection,
-            String table,
-            String column
-    ) throws SQLException {
+    private static boolean columnExists(Connection connection, String table, String column) throws SQLException {
         String sql = "PRAGMA table_info(" + table + ")";
-
         try (Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery(sql)) {
             while (resultSet.next()) {
@@ -246,7 +223,6 @@ public final class SqliteSchema {
                 }
             }
         }
-
         return false;
     }
 
@@ -274,12 +250,10 @@ public final class SqliteSchema {
      * @param versionAtStart версія схеми, прочитана до застосування змін.
      * @throws SQLException якщо SQLite не може записати номер версії.
      */
-    private static void ensureVersion(Connection connection, int versionAtStart)
-            throws SQLException {
+    private static void ensureVersion(Connection connection, int versionAtStart) throws SQLException {
         if (versionAtStart == CURRENT_VERSION) {
             return;
         }
-
         try (Statement statement = connection.createStatement()) {
             statement.execute("PRAGMA user_version = " + CURRENT_VERSION);
         }
