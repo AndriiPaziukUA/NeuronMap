@@ -15,19 +15,28 @@ import java.util.function.Consumer;
 /** Координує життєвий цикл модальної накладки налаштувань та її взаємодію з головним меню. */
 public final class NeuronSettingsOverlayCoordinator {
 
+    private static final Runnable NO_CLOSE_ACTION = () -> { };
+
     private final StackPane overlayHost;
     private final MainMenuView mainMenu;
     private final LocalizationService localization;
+    private Runnable settingsClosedAction = NO_CLOSE_ACTION;
+    private boolean suppressCloseAction;
+    private boolean disposed;
     private final ChangeListener<Boolean> settingsVisibilityListener =
             (observable, wasVisible, isVisible) -> {
                 if (Boolean.FALSE.equals(isVisible)) {
                     stopWatchingMainMenu();
+                    if (!suppressCloseAction) {
+                        Runnable action = settingsClosedAction;
+                        settingsClosedAction = NO_CLOSE_ACTION;
+                        action.run();
+                    }
                 }
             };
 
     private NeuronSettingsView settingsView;
     private ChangeListener<Boolean> mainMenuVisibilityListener;
-    private boolean disposed;
 
     /**
      * Створює координатор з явними залежностями контейнера накладок і головного меню.
@@ -49,7 +58,7 @@ public final class NeuronSettingsOverlayCoordinator {
     }
 
     /**
-     * Показує накладку налаштувань нейрона, закриваючи її під час відкриття головного меню.
+     * Показує накладку налаштувань нейрона без додаткової дії після її закриття.
      *
      * @param neuron нейрон, параметри якого редагують.
      * @param onSave дія застосування підтверджених параметрів.
@@ -57,9 +66,24 @@ public final class NeuronSettingsOverlayCoordinator {
      * @throws IllegalStateException якщо координатор уже звільнено.
      */
     public void show(Neuron neuron, Consumer<NeuronParameters> onSave) {
+        show(neuron, onSave, NO_CLOSE_ACTION);
+    }
+
+    /**
+     * Показує накладку налаштувань і виконує дію після її звичайного закриття користувачем.
+     * Програмне приховування накладки та відкриття головного меню не викликають цю дію.
+     *
+     * @param neuron нейрон, параметри якого редагують.
+     * @param onSave дія застосування підтверджених параметрів.
+     * @param onClose дія, яку виконують після закриття накладки користувачем.
+     * @throws NullPointerException якщо нейрон, callback збереження або callback закриття не задано.
+     * @throws IllegalStateException якщо координатор уже звільнено.
+     */
+    public void show(Neuron neuron, Consumer<NeuronParameters> onSave, Runnable onClose) {
         ensureNotDisposed();
         Objects.requireNonNull(neuron, "neuron");
         Objects.requireNonNull(onSave, "onSave");
+        Objects.requireNonNull(onClose, "onClose");
         Scene scene = overlayHost.getScene();
         if (scene == null || mainMenu.isMenuVisible()) {
             hide();
@@ -71,16 +95,35 @@ public final class NeuronSettingsOverlayCoordinator {
             settingsView = new NeuronSettingsView(localization);
             settingsView.visibleProperty().addListener(settingsVisibilityListener);
         }
+        settingsClosedAction = onClose;
         watchMainMenuVisibility();
-        settingsView.showIn(overlayHost, neuron, onSave);
+        try {
+            settingsView.showIn(overlayHost, neuron, onSave);
+        } catch (RuntimeException | Error failure) {
+            settingsClosedAction = NO_CLOSE_ACTION;
+            try {
+                settingsView.hide();
+            } catch (RuntimeException | Error cleanupFailure) {
+                failure.addSuppressed(cleanupFailure);
+            }
+            stopWatchingMainMenu();
+            throw failure;
+        }
     }
 
-    /** Приховує накладку без збереження введених параметрів і завершує тимчасове спостереження меню. */
+    /** Приховує накладку без збереження введених параметрів і пригнічує дію звичайного закриття. */
     public void hide() {
-        if (settingsView != null) {
-            settingsView.hide();
+        settingsClosedAction = NO_CLOSE_ACTION;
+        boolean previousSuppression = suppressCloseAction;
+        suppressCloseAction = true;
+        try {
+            if (settingsView != null) {
+                settingsView.hide();
+            }
+        } finally {
+            suppressCloseAction = previousSuppression;
+            stopWatchingMainMenu();
         }
-        stopWatchingMainMenu();
     }
 
     /** Остаточно звільняє подання й слухачі координатора; повторний виклик безпечний. */
@@ -88,7 +131,7 @@ public final class NeuronSettingsOverlayCoordinator {
         if (disposed) {
             return;
         }
-        stopWatchingMainMenu();
+        hide();
         if (settingsView != null) {
             settingsView.visibleProperty().removeListener(settingsVisibilityListener);
             settingsView.dispose();
@@ -97,7 +140,11 @@ public final class NeuronSettingsOverlayCoordinator {
         disposed = true;
     }
 
-    /** Перевіряє, чи координатор ще може показувати накладку. */
+    /**
+     * Забороняє використання координатора після звільнення його ресурсів.
+     *
+     * @throws IllegalStateException якщо координатор остаточно звільнено.
+     */
     private void ensureNotDisposed() {
         if (disposed) {
             throw new IllegalStateException("Neuron settings overlay coordinator is disposed");

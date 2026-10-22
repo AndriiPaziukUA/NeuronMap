@@ -15,8 +15,12 @@ import com.example.neuronmap.testsupport.JavaFxTestSupport;
 import com.example.neuronmap.view.editor.WorkspaceView;
 import com.example.neuronmap.view.menu.MainMenuView;
 import com.example.neuronmap.view.neuron.NeuronMenuView;
+import com.example.neuronmap.view.neuron.NeuronSettingsView;
 import com.example.neuronmap.view.neuron.NeuronView;
 import com.example.neuronmap.view.simulation.SimulationStepPresenter;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import org.junit.jupiter.api.Test;
@@ -77,6 +81,49 @@ final class NeuronMenuControllerDirectionTest {
         });
     }
 
+    /** Перевіряє, що після скасування налаштувань меню повторно з'являється над тим самим нейроном. */
+    @Test
+    void restoresContextMenuAfterSettingsAreCancelled() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            Fixture fixture = createFixture();
+            fixture.workspace().nodeLayer().getChildren().add(fixture.neuronView());
+            new Scene(fixture.overlayHost(), 900.0, 600.0);
+            fixture.controller().show(fixture.neuronView());
+            VBox originalMenu = fixture.controller().node();
+            HBox buttons = (HBox) originalMenu.getChildren().getFirst();
+            Button settingsButton = buttons.getChildren().stream()
+                    .filter(Button.class::isInstance)
+                    .map(Button.class::cast)
+                    .filter(button -> button.getGraphic() != null
+                            && button.getGraphic().getStyleClass().contains("neuron-menu-icon-settings"))
+                    .findFirst()
+                    .orElseThrow();
+
+            settingsButton.fire();
+
+            assertFalse(fixture.controller().isVisible());
+            NeuronSettingsView settingsView = fixture.overlayHost().getChildren().stream()
+                    .filter(NeuronSettingsView.class::isInstance)
+                    .map(NeuronSettingsView.class::cast)
+                    .findFirst()
+                    .orElseThrow();
+            Button cancelButton = settingsView.lookupAll(".neuron-settings-button").stream()
+                    .filter(Button.class::isInstance)
+                    .map(Button.class::cast)
+                    .filter(button -> !button.getText().equals(
+                            fixture.localization().text("neuron.settings.save")))
+                    .findFirst()
+                    .orElseThrow();
+
+            cancelButton.fire();
+
+            assertTrue(fixture.controller().isVisible());
+            assertTrue(fixture.workspace().overlayLayer().getChildren().contains(fixture.controller().node()));
+            assertEquals(fixture.neuron().id(), fixture.state().selectedNeuronForMenu());
+            dispose(fixture);
+        });
+    }
+
     /** Створює контролер із явним контейнером накладок і лічильниками побічних ефектів. */
     private static Fixture createFixture() {
         LocalizationService localization = new LocalizationService(Locale.forLanguageTag("uk"));
@@ -129,9 +176,9 @@ final class NeuronMenuControllerDirectionTest {
                 localization,
                 settingsCoordinator);
 
-        return new Fixture(controller, neuronService, historyService, neuron,
-                visualRefreshes, connectionRefreshes, overlayRefreshes, saves, status, localization, mainMenu,
-                simulation, connections);
+        return new Fixture(controller, neuronService, historyService, neuron, visualRefreshes,
+                connectionRefreshes, overlayRefreshes, saves, status, localization, mainMenu, simulation,
+                connections, workspace, neuronView, overlayHost, state);
     }
 
     /** Звільняє ресурси контролера накладки, симуляції, зв'язків і подання головного меню. */
@@ -156,6 +203,10 @@ final class NeuronMenuControllerDirectionTest {
             LocalizationService localization,
             MainMenuView mainMenu,
             SimulationController simulation,
-            ConnectionController connections
+            ConnectionController connections,
+            WorkspaceView workspace,
+            NeuronView neuronView,
+            StackPane overlayHost,
+            EditorState state
     ) { }
 }

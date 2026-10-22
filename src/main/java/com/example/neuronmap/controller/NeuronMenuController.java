@@ -36,6 +36,7 @@ public final class NeuronMenuController {
 
     private VBox menu;
     private String activeNeuronId;
+    private NeuronView activeNeuronView;
     private boolean disposed;
 
     /**
@@ -128,6 +129,7 @@ public final class NeuronMenuController {
         String neuronId = neuronView.model().id();
         state.setSelectedNeuronForMenu(neuronId);
         activeNeuronId = neuronId;
+        activeNeuronView = neuronView;
 
         menu = menuView.createMenu(
                 connections.hasConnections(neuronId),
@@ -184,6 +186,7 @@ public final class NeuronMenuController {
             menu = null;
         }
         activeNeuronId = null;
+        activeNeuronView = null;
         state.setSelectedNeuronForMenu(null);
     }
 
@@ -225,20 +228,42 @@ public final class NeuronMenuController {
 
     /**
      * Відкриває накладку налаштувань і застосовує параметри після підтвердження.
-     * Спочатку прибирає контекстне меню, щоб воно не залишалося під модальною накладкою.
+     * Запам'ятовує подання нейрона, щоб відновити його контекстне меню після звичайного закриття накладки.
      *
      * @param neuronId ідентифікатор нейрона, налаштування якого потрібно змінити.
      */
     private void showNeuronSettings(String neuronId) {
         ensureNotDisposed();
+        NeuronView neuronView = activeNeuronView;
         neuronService.find(neuronId).ifPresent(neuron -> {
             hide();
-            settingsOverlayCoordinator.show(neuron, parameters -> {
-                if (neuronService.updateSettings(neuronId, parameters)) {
-                    save.run();
-                    status.accept(localization.text("neuron.settings.saved"));
-                }
-            });
+            settingsOverlayCoordinator.show(
+                    neuron,
+                    parameters -> {
+                        if (neuronService.updateSettings(neuronId, parameters)) {
+                            save.run();
+                            status.accept(localization.text("neuron.settings.saved"));
+                        }
+                    },
+                    () -> restoreMenuAfterSettingsClosed(neuronId, neuronView)
+            );
         });
+    }
+
+    /**
+     * Відновлює контекстне меню лише для нейрона, який досі належить активній карті.
+     * Пропускає відновлення після завершення контролера або видалення нейрона.
+     *
+     * @param neuronId ідентифікатор нейрона, для якого відкривали налаштування.
+     * @param neuronView попереднє графічне подання нейрона.
+     */
+    private void restoreMenuAfterSettingsClosed(String neuronId, NeuronView neuronView) {
+        if (disposed
+                || neuronView == null
+                || !workspace.nodeLayer().getChildren().contains(neuronView)
+                || neuronService.find(neuronId).isEmpty()) {
+            return;
+        }
+        show(neuronView);
     }
 }

@@ -36,6 +36,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Перевіряє реакцію взаємодії з нейроном на різні кнопки миші та видимість контекстного меню. */
@@ -67,9 +68,9 @@ final class NeuronInteractionControllerMouseButtonTest {
         });
     }
 
-    /** Перевіряє, що відкриття налаштувань прибирає контекстне меню та приховує його після закриття накладки. */
+    /** Перевіряє, що після скасування налаштувань контекстне меню відновлюється. */
     @Test
-    void openingSettingsClosesContextMenuAndDoesNotRestoreItAfterCancel() throws Exception {
+    void openingSettingsRestoresContextMenuAfterCancel() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
             Fixture fixture = fixture();
             click(fixture.neuronView(), MouseButton.SECONDARY);
@@ -100,9 +101,25 @@ final class NeuronInteractionControllerMouseButtonTest {
                     .map(NeuronSettingsView.class::cast)
                     .findFirst()
                     .orElseThrow();
-            settingsView.hide();
-            assertFalse(hasVisibleMenu(fixture.workspace()),
-                    "Закриття налаштувань не повинно відновлювати старе контекстне меню");
+            Button cancelButton = settingsView.lookupAll(".neuron-settings-button").stream()
+                    .filter(Button.class::isInstance)
+                    .map(Button.class::cast)
+                    .filter(button -> !button.getText().equals(
+                            fixture.localization().text("neuron.settings.save")))
+                    .findFirst()
+                    .orElseThrow();
+            cancelButton.fire();
+
+            assertTrue(hasVisibleMenu(fixture.workspace()),
+                    "Після скасування налаштувань контекстне меню має відновитися");
+            VBox restoredMenu = fixture.workspace().overlayLayer().getChildren().stream()
+                    .filter(VBox.class::isInstance)
+                    .map(VBox.class::cast)
+                    .filter(VBox::isVisible)
+                    .findFirst()
+                    .orElseThrow();
+            assertNotSame(contextMenu, restoredMenu,
+                    "Після закриття налаштувань потрібно створити актуальне контекстне меню");
             dispose(fixture);
         });
     }
