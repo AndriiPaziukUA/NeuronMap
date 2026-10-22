@@ -7,6 +7,7 @@ import com.example.neuronmap.view.editor.WorkspaceView;
 import javafx.application.Platform;
 import javafx.event.Event;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -180,17 +181,21 @@ final class EditorKeyboardControllerTest {
         });
     }
 
-    /** Перевіряє, що пробіл перемикає паузу лише на дошці, коли команда доступна, і не повторює дію при автоповторі. */
+    /** Перевіряє глобальну паузу з різних вузлів сцени без активації сфокусованої кнопки. */
     @Test
-    void routesSpaceOnlyOnBoardWhenAvailableAndOncePerKeyPress() throws Exception {
+    void routesSpaceFromAnyEditorControlWhenAvailableAndOncePerKeyPress() throws Exception {
         runOnFxThread(() -> {
             AtomicInteger pauseCalls = new AtomicInteger();
+            AtomicInteger buttonActionCalls = new AtomicInteger();
             AtomicBoolean available = new AtomicBoolean(true);
             WorkspaceView workspace = new WorkspaceView();
             StackPane board = workspace.node();
             StackPane outsideBoard = new StackPane();
+            Button toolbarButton = new Button("Дія панелі");
+            toolbarButton.setOnAction(event -> buttonActionCalls.incrementAndGet());
             TextField textField = new TextField();
             board.getChildren().add(textField);
+            outsideBoard.getChildren().add(toolbarButton);
             StackPane sceneRoot = new StackPane(board, outsideBoard);
             EditorKeyboardController controller = new EditorKeyboardController(
                     () -> true,
@@ -214,21 +219,27 @@ final class EditorKeyboardControllerTest {
             fireKeyReleased(textField, KeyCode.SPACE);
 
             fireKey(outsideBoard, KeyCode.SPACE, false);
-            assertEquals(1, pauseCalls.get(), "Поза дошкою гаряча клавіша не має працювати");
+            assertEquals(2, pauseCalls.get(), "Гаряча клавіша працює і поза дошкою редактора");
             fireKeyReleased(outsideBoard, KeyCode.SPACE);
+
+            fireKey(toolbarButton, KeyCode.SPACE, false);
+            assertEquals(3, pauseCalls.get(), "Пробіл на кнопці панелі перемикає паузу");
+            assertEquals(0, buttonActionCalls.get(), "Пробіл не має активувати сфокусовану кнопку замість паузи");
+            fireKeyReleased(toolbarButton, KeyCode.SPACE);
+            assertEquals(0, buttonActionCalls.get(), "Відпускання пробілу не має активувати кнопку");
 
             available.set(false);
             fireKey(board, KeyCode.SPACE, false);
-            assertEquals(1, pauseCalls.get(), "Команда недоступна, коли кнопки симуляції приховані");
+            assertEquals(3, pauseCalls.get(), "Команда недоступна, коли симуляція не активна");
             fireKeyReleased(board, KeyCode.SPACE);
 
             available.set(true);
             fireKey(board, KeyCode.SPACE, true);
-            assertEquals(1, pauseCalls.get(), "Комбінація з Ctrl не є командою паузи");
+            assertEquals(3, pauseCalls.get(), "Комбінація з Ctrl не є командою паузи");
             fireKeyReleased(board, KeyCode.SPACE);
 
             fireKey(board, KeyCode.SPACE, false);
-            assertEquals(2, pauseCalls.get(), "Нове натискання після відпускання знову перемикає паузу");
+            assertEquals(4, pauseCalls.get(), "Нове натискання після відпускання знову перемикає паузу");
             fireKeyReleased(board, KeyCode.SPACE);
             controller.dispose();
             workspace.dispose();

@@ -6,7 +6,6 @@ import com.example.neuronmap.view.support.SceneKeyboardModality;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -23,9 +22,10 @@ public final class EditorKeyboardController {
     private final Runnable cancelInteractions;
     private final Runnable toggleSimulationPause;
     private final BooleanSupplier simulationPauseShortcutAvailable;
-    private final Node simulationPauseShortcutRoot;
+    private final Node simulationPauseShortcutAnchor;
     private final BooleanSupplier priorityEscapeModeActive;
     private final EventHandler<KeyEvent> keyHandler = this::handleKeyPressed;
+    private final EventHandler<KeyEvent> spaceKeyFilter = this::handleSpaceKeyPressed;
     private final EventHandler<KeyEvent> priorityEscapeFilter = this::handlePriorityEscape;
     private final EventHandler<KeyEvent> keyReleasedHandler = this::handleKeyReleased;
     private Scene scene;
@@ -53,7 +53,7 @@ public final class EditorKeyboardController {
         this.cancelInteractions = Objects.requireNonNull(cancelInteractions, "cancelInteractions");
         toggleSimulationPause = () -> { };
         simulationPauseShortcutAvailable = () -> false;
-        simulationPauseShortcutRoot = null;
+        simulationPauseShortcutAnchor = null;
         priorityEscapeModeActive = () -> false;
     }
 
@@ -65,8 +65,8 @@ public final class EditorKeyboardController {
      * @param deleteSelection дія видалення вибраних нейронів.
      * @param cancelInteractions дія скасування активної взаємодії.
      * @param toggleSimulationPause дія перемикання ручної паузи симуляції.
-     * @param simulationPauseShortcutAvailable перевірка доступності команди паузи, коли відповідні кнопки показані.
-     * @param simulationPauseShortcutRoot кореневий вузол дошки, усередині якого дозволено гарячу клавішу.
+     * @param simulationPauseShortcutAvailable перевірка доступності команди паузи, коли симуляція активна.
+     * @param simulationPauseShortcutAnchor вузол, що належить сцені редактора й визначає її межу.
      * @throws NullPointerException якщо будь-яку залежність не задано.
      */
     public EditorKeyboardController(
@@ -76,10 +76,10 @@ public final class EditorKeyboardController {
             Runnable cancelInteractions,
             Runnable toggleSimulationPause,
             BooleanSupplier simulationPauseShortcutAvailable,
-            Node simulationPauseShortcutRoot
+            Node simulationPauseShortcutAnchor
     ) {
         this(undo, redo, deleteSelection, cancelInteractions, toggleSimulationPause,
-                simulationPauseShortcutAvailable, simulationPauseShortcutRoot, () -> false);
+                simulationPauseShortcutAvailable, simulationPauseShortcutAnchor, () -> false);
     }
 
     /**
@@ -92,7 +92,7 @@ public final class EditorKeyboardController {
      * @param cancelInteractions дія скасування активної взаємодії.
      * @param toggleSimulationPause дія перемикання ручної паузи симуляції.
      * @param simulationPauseShortcutAvailable перевірка доступності команди паузи симуляції.
-     * @param simulationPauseShortcutRoot кореневий вузол дошки для команди паузи.
+     * @param simulationPauseShortcutAnchor вузол, що належить сцені редактора й визначає її межу.
      * @param priorityEscapeModeActive перевірка, чи активний режим із пріоритетним скасуванням через Esc.
      * @throws NullPointerException якщо обов'язкову залежність не задано.
      */
@@ -103,7 +103,7 @@ public final class EditorKeyboardController {
             Runnable cancelInteractions,
             Runnable toggleSimulationPause,
             BooleanSupplier simulationPauseShortcutAvailable,
-            Node simulationPauseShortcutRoot,
+            Node simulationPauseShortcutAnchor,
             BooleanSupplier priorityEscapeModeActive
     ) {
         this.undo = Objects.requireNonNull(undo, "undo");
@@ -113,14 +113,15 @@ public final class EditorKeyboardController {
         this.toggleSimulationPause = Objects.requireNonNull(toggleSimulationPause, "toggleSimulationPause");
         this.simulationPauseShortcutAvailable = Objects.requireNonNull(
                 simulationPauseShortcutAvailable, "simulationPauseShortcutAvailable");
-        this.simulationPauseShortcutRoot = Objects.requireNonNull(
-                simulationPauseShortcutRoot, "simulationPauseShortcutRoot");
+        this.simulationPauseShortcutAnchor = Objects.requireNonNull(
+                simulationPauseShortcutAnchor, "simulationPauseShortcutAnchor");
         this.priorityEscapeModeActive = Objects.requireNonNull(
                 priorityEscapeModeActive, "priorityEscapeModeActive");
     }
 
     /**
      * Реєструє гарячі клавіші на сцені, попередньо від'єднавши їх від іншої сцени за потреби.
+     * Пробіл перехоплюється на фазі фільтрації до стандартної активації фокусованих кнопок.
      * Повторне встановлення на ту саму сцену не створює дубльованих підписок.
      *
      * @param targetScene сцена, на якій потрібно обробляти клавіатурні команди.
@@ -133,6 +134,7 @@ public final class EditorKeyboardController {
         dispose();
         scene = targetScene;
         scene.addEventFilter(KeyEvent.KEY_PRESSED, priorityEscapeFilter);
+        scene.addEventFilter(KeyEvent.KEY_PRESSED, spaceKeyFilter);
         scene.addEventHandler(KeyEvent.KEY_PRESSED, keyHandler);
         scene.addEventFilter(KeyEvent.KEY_RELEASED, keyReleasedHandler);
     }
@@ -143,6 +145,7 @@ public final class EditorKeyboardController {
             return;
         }
         scene.removeEventFilter(KeyEvent.KEY_PRESSED, priorityEscapeFilter);
+        scene.removeEventFilter(KeyEvent.KEY_PRESSED, spaceKeyFilter);
         scene.removeEventHandler(KeyEvent.KEY_PRESSED, keyHandler);
         scene.removeEventFilter(KeyEvent.KEY_RELEASED, keyReleasedHandler);
         scene = null;
@@ -163,13 +166,23 @@ public final class EditorKeyboardController {
     }
 
     /**
-     * Маршрутизує гарячі клавіші й зберігає стандартне введення у текстових та інтерактивних елементах.
+     * Перехоплює пробіл до того, як подання сфокусованої кнопки зможе активувати її замість симуляції.
+     *
+     * @param event подія натискання клавіші.
+     */
+    private void handleSpaceKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.SPACE) {
+            handleSpacePressed(event);
+        }
+    }
+
+    /**
+     * Маршрутизує гарячі клавіші й зберігає стандартне введення у текстових елементах та модальних поданнях.
      *
      * @param event подія натискання клавіші.
      */
     private void handleKeyPressed(KeyEvent event) {
         if (event.getCode() == KeyCode.SPACE) {
-            handleSpacePressed(event);
             return;
         }
         if (isTextInputTarget(event.getTarget())
@@ -198,6 +211,7 @@ public final class EditorKeyboardController {
 
     /**
      * Виконує паузу лише для окремого натискання пробілу в доступному редакторі.
+     * Пробіл працює по всій сцені, крім текстового введення, модальних меж і комбінацій із модифікаторами.
      *
      * @param event подія натискання пробілу.
      */
@@ -208,10 +222,9 @@ public final class EditorKeyboardController {
         spacePressed = true;
         if (!isUnmodifiedSpace(event)
                 || isTextInputTarget(event.getTarget())
-                || JavaFxNodeLookup.findAncestor(event.getTarget(), Button.class) != null
                 || EditorKeyboardShortcutBoundary.blocksShortcutsFor(event.getTarget())
                 || SceneKeyboardModality.hasActiveBoundaryFor(event.getTarget())
-                || !isWithinSimulationPauseShortcutRoot(event.getTarget())
+                || !isInSimulationPauseShortcutScene(event.getTarget())
                 || !simulationPauseShortcutAvailable.getAsBoolean()) {
             return;
         }
@@ -231,23 +244,18 @@ public final class EditorKeyboardController {
     }
 
     /**
-     * Перевіряє, що ціль події розташована всередині дошки редактора.
+     * Перевіряє, що ціль події належить тій самій сцені, що й якір маршрутизатора.
+     * Фокус може залишатися на будь-якому елементі сцени, зокрема на кнопці панелі інструментів.
      *
      * @param target ціль клавіатурної події.
-     * @return {@code true}, якщо ціль є дошкою або її нащадком.
+     * @return {@code true}, якщо ціль належить сцені редактора.
      */
-    private boolean isWithinSimulationPauseShortcutRoot(Object target) {
-        if (!(target instanceof Node targetNode)) {
+    private boolean isInSimulationPauseShortcutScene(Object target) {
+        if (!(target instanceof Node targetNode) || simulationPauseShortcutAnchor == null) {
             return false;
         }
-        Node current = targetNode;
-        while (current != null) {
-            if (current == simulationPauseShortcutRoot) {
-                return true;
-            }
-            current = current.getParent();
-        }
-        return false;
+        return simulationPauseShortcutAnchor.getScene() != null
+                && targetNode.getScene() == simulationPauseShortcutAnchor.getScene();
     }
 
     /**
