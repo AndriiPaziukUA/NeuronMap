@@ -190,7 +190,7 @@ public final class NeuronRotationController {
         overlayPositioner.position(view, null, handle);
     }
 
-    /** Запам'ятовує початковий кут нейрона й покажчика перед початком перетягування ручки. */
+    /** Приховує підказку ручки й запам'ятовує початкові кути перед початком перетягування. */
     private void beginRotation(String neuronId, MouseEvent event) {
         if (disposed || event.getButton() != MouseButton.PRIMARY) {
             return;
@@ -203,6 +203,10 @@ public final class NeuronRotationController {
         Point2D pointer = workspace.node().sceneToLocal(event.getSceneX(), event.getSceneY());
         rotationStartPointerAngle = NeuronRotationMath.pointerAngleDegrees(rotationCenter, pointer);
         rotationStartDegrees = view.presentation().rotationDegrees();
+        RotationHandleView handle = rotationHandles.get(neuronId);
+        if (handle != null) {
+            handle.suspendTooltip();
+        }
         rotatingNeuronId = neuronId;
         activeNeuronId = neuronId;
         state.enterRotateMode();
@@ -227,7 +231,7 @@ public final class NeuronRotationController {
         event.consume();
     }
 
-    /** Завершує обертання, відновлює курсор і зберігає змінений кут нейрона. */
+    /** Завершує обертання, відновлює підказку й курсор та зберігає змінений кут нейрона. */
     private void endRotation(String neuronId, MouseEvent event, RotationHandleView handle) {
         if (disposed || !neuronId.equals(rotatingNeuronId)) {
             return;
@@ -242,8 +246,14 @@ public final class NeuronRotationController {
         event.consume();
     }
 
-    /** Скидає координати й ідентифікатор поточного жесту без запуску збереження. */
+    /** Відновлює підказку ручки й скидає дані поточного жесту без запуску збереження. */
     private void resetRotationGesture() {
+        if (rotatingNeuronId != null) {
+            RotationHandleView handle = rotationHandles.get(rotatingNeuronId);
+            if (handle != null) {
+                handle.resumeTooltip();
+            }
+        }
         rotatingNeuronId = null;
         rotationCenter = null;
         rotationStartPointerAngle = 0.0;

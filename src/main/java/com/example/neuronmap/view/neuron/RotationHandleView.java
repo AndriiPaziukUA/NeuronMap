@@ -7,6 +7,7 @@ import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Arc;
 import javafx.scene.shape.ArcType;
@@ -23,7 +24,8 @@ import java.util.function.Consumer;
  * Відображає інтерактивну ручку обертання та встановлює її положення й візуальний кут.
  *
  * <p>Область натискання обмежена круглою поверхнею, а не прямокутними межами кнопки.
- * Локалізована підказка прив'язується на час активної взаємодії з ручкою.</p>
+ * Локалізована підказка може тимчасово від'єднуватися на час жесту обертання без зміни
+ * доступної назви та з відновленням актуального перекладу.</p>
  */
 public final class RotationHandleView extends Button {
 
@@ -45,6 +47,8 @@ public final class RotationHandleView extends Button {
 
     private LocalizationService localization;
     private Consumer<Locale> localizationListener;
+    private Tooltip localizedTooltip;
+    private boolean tooltipSuspended;
 
     /** Створює круглу ручку та обмежує її інтерактивну область видимою формою кола. */
     public RotationHandleView() {
@@ -101,10 +105,38 @@ public final class RotationHandleView extends Button {
         unbindLocalizedTooltip();
         this.localization = localization;
         String tooltipText = localization.textFrom(TOOLTIP_BUNDLE, ROTATE_TOOLTIP_KEY);
-        setTooltip(TooltipFactory.create(tooltipText));
+        localizedTooltip = TooltipFactory.create(tooltipText);
+        setTooltip(localizedTooltip);
         setAccessibleText(tooltipText);
         localizationListener = ignored -> refreshLocalizedTooltip();
         localization.addListener(localizationListener);
+    }
+
+    /**
+     * Тимчасово від'єднує спливаючу підказку від кнопки, зберігаючи її для подальшого відновлення.
+     * Доступна назва залишається на кнопці, а переклад збереженої підказки й далі оновлюється.
+     */
+    public void suspendTooltip() {
+        if (tooltipSuspended || localizedTooltip == null) {
+            return;
+        }
+        tooltipSuspended = true;
+        localizedTooltip.hide();
+        setTooltip(null);
+    }
+
+    /**
+     * Відновлює підказку після завершення взаємодії, якщо її раніше було призупинено.
+     * Повторний виклик без попереднього призупинення нічого не змінює.
+     */
+    public void resumeTooltip() {
+        if (!tooltipSuspended) {
+            return;
+        }
+        tooltipSuspended = false;
+        if (localizedTooltip != null) {
+            setTooltip(localizedTooltip);
+        }
     }
 
     /**
@@ -116,6 +148,8 @@ public final class RotationHandleView extends Button {
         }
         localization = null;
         localizationListener = null;
+        localizedTooltip = null;
+        tooltipSuspended = false;
         setTooltip(null);
         setAccessibleText(null);
     }
@@ -211,20 +245,16 @@ public final class RotationHandleView extends Button {
         return path;
     }
 
-    /**
-     * Синхронізує текст підказки й доступну назву з активною локаллю, якщо підказку прив'язано.
-     */
+    /** Синхронізує текст збереженої підказки й доступну назву з активною локаллю. */
     private void refreshLocalizedTooltip() {
-        if (localization != null && getTooltip() != null) {
+        if (localization != null && localizedTooltip != null) {
             String tooltipText = localization.textFrom(TOOLTIP_BUNDLE, ROTATE_TOOLTIP_KEY);
-            getTooltip().setText(tooltipText);
+            localizedTooltip.setText(tooltipText);
             setAccessibleText(tooltipText);
         }
     }
 
-    /**
-     * Скидає візуальний кут і від'єднує підказку та доступну назву перед вилученням ручки.
-     */
+    /** Скидає візуальний кут і від'єднує підказку та доступну назву перед вилученням ручки. */
     public void dispose() {
         unbindLocalizedTooltip();
         graphicPane.setRotate(0.0);
