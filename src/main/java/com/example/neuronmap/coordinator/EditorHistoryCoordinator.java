@@ -10,6 +10,7 @@ import com.example.neuronmap.view.editor.WorkspaceView;
 import javafx.scene.Cursor;
 
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /** Пов’язує undo/redo зі скиданням тимчасових станів і синхронізацією подань редактора. */
@@ -70,39 +71,55 @@ public final class EditorHistoryCoordinator {
     }
 
     /**
-     * Скасовує останню зміну карти, не перериваючи симуляцію та чинний режим редагування.
+     * Скасовує останню зміну карти та передає клавіатурний фокус останньому нейрону, повернутому в карту.
      *
      * @return {@code true}, якщо зміну скасовано; інакше {@code false}.
      */
     public boolean undo() {
+        Set<String> previousNeuronIds = presentation.neuronIds();
         if (!historyService.undo()) {
             return false;
         }
-        resetEditorAfterHistoryChange();
-        presentation.synchronizeViewsAfterHistoryChange();
-        simulationController.refreshPresentationAfterMapHistoryChange();
-        synchronizeActiveToolAfterHistoryChange();
+        String restoredNeuronId = synchronizeAfterHistoryChange(previousNeuronIds);
         save.run();
         status.accept(localization.text("status.undo"));
+        presentation.focusRestoredNeuron(restoredNeuronId);
         return true;
     }
 
     /**
-     * Повторює скасовану зміну карти, не перериваючи симуляцію та чинний режим редагування.
+     * Повторює скасовану зміну карти та фокусує останній нейрон, який повернувся до карти.
      *
      * @return {@code true}, якщо зміну повторено; інакше {@code false}.
      */
     public boolean redo() {
+        Set<String> previousNeuronIds = presentation.neuronIds();
         if (!historyService.redo()) {
             return false;
         }
-        resetEditorAfterHistoryChange();
-        presentation.synchronizeViewsAfterHistoryChange();
-        simulationController.refreshPresentationAfterMapHistoryChange();
-        synchronizeActiveToolAfterHistoryChange();
+        String restoredNeuronId = synchronizeAfterHistoryChange(previousNeuronIds);
         save.run();
         status.accept(localization.text("status.redo"));
+        presentation.focusRestoredNeuron(restoredNeuronId);
         return true;
+    }
+
+    /**
+     * Узгоджує редактор із новим станом карти та повертає ідентифікатор новоствореного історією нейрона.
+     *
+     * @param previousNeuronIds ідентифікатори нейронів, які були в поданнях до зміни історії.
+     * @return ідентифікатор останнього відновленого нейрона або {@code null}, якщо нових нейронів немає.
+     */
+    private String synchronizeAfterHistoryChange(Set<String> previousNeuronIds) {
+        resetEditorAfterHistoryChange();
+        String restoredNeuronId = presentation.synchronizeViewsAfterHistoryChange(previousNeuronIds);
+        simulationController.refreshPresentationAfterMapHistoryChange();
+        synchronizeActiveToolAfterHistoryChange();
+        if (restoredNeuronId != null) {
+            state.selectOnly(restoredNeuronId);
+            presentation.refreshNeurons();
+        }
+        return restoredNeuronId;
     }
 
     /**

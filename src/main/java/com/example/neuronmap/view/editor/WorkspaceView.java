@@ -13,7 +13,9 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.transform.Scale;
 
-/** Збирає шари полотна карти, керує фокусом дошки та перемальовує координатну сітку. */
+import java.util.Objects;
+
+/** Збирає шари полотна карти, керує клавіатурним фокусом і перемальовує координатну сітку. */
 public final class WorkspaceView {
 
     private final StackPane viewport = new StackPane();
@@ -92,6 +94,27 @@ public final class WorkspaceView {
         viewport.heightProperty().removeListener(viewportHeightListener);
         clip.widthProperty().unbind();
         clip.heightProperty().unbind();
+    }
+
+    /**
+     * Переміщує клавіатурний фокус на вузол усередині робочої області.
+     * Метод зберігає централізоване керування фокусом, не змінюючи маршрутизацію гарячих клавіш.
+     *
+     * @param target вузол робочої області, який має отримати клавіатурний фокус.
+     * @throws NullPointerException якщо вузол не задано.
+     * @throws IllegalArgumentException якщо вузол не належить цій робочій області.
+     * @throws IllegalStateException якщо робочу область уже звільнено.
+     */
+    public void focusNode(Node target) {
+        Objects.requireNonNull(target, "target");
+        if (disposed) {
+            throw new IllegalStateException("Workspace view is disposed");
+        }
+        if (!belongsToViewport(target)) {
+            throw new IllegalArgumentException("Focus target does not belong to this workspace");
+        }
+        target.setFocusTraversable(true);
+        target.requestFocus();
     }
 
     /**
@@ -179,6 +202,23 @@ public final class WorkspaceView {
         if (!disposed && !isInteractiveTarget(event.getTarget())) {
             viewport.requestFocus();
         }
+    }
+
+    /**
+     * Перевіряє, чи є переданий вузол дочірнім елементом поточної робочої області.
+     *
+     * @param target вузол, належність якого перевіряється.
+     * @return {@code true}, якщо вузол є коренем або нащадком робочої області.
+     */
+    private boolean belongsToViewport(Node target) {
+        Node current = target;
+        while (current != null) {
+            if (current == viewport) {
+                return true;
+            }
+            current = current.getParent();
+        }
+        return false;
     }
 
     /**

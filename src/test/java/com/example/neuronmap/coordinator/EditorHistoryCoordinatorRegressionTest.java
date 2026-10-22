@@ -40,10 +40,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє збереження режимів зв’язків і активного сеансу симуляції під час undo/redo. */
+/** Перевіряє регресії undo/redo для взаємодії, фокуса нейронів і активного сеансу симуляції. */
 final class EditorHistoryCoordinatorRegressionTest {
 
     /** Перевіряє, що undo та redo зберігають режим створення зв’язків і його графічне прев’ю. */
@@ -233,12 +234,79 @@ final class EditorHistoryCoordinatorRegressionTest {
         });
     }
 
+    /** Перевіряє фокус і вибір нейрона після скасування його видалення та наступну команду Delete. */
+    @Test
+    void undoOfNeuronDeletionFocusesAndSelectsRestoredNeuron() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            Fixture fixture = new Fixture();
+            try {
+                Neuron neuron = fixture.neurons.create(NeuronType.EXCITATORY, 80.0, 60.0);
+                fixture.history.initialize();
+                fixture.install();
+
+                fixture.state.selectOnly(neuron.id());
+                assertTrue(fixture.components.neuronController().deleteSelectedNeurons());
+                assertNull(fixture.model.neuron(neuron.id()));
+
+                fireShortcut(fixture.scene, KeyCode.Z);
+
+                NeuronView restoredView = fixture.neuronViews.get(neuron.id());
+                assertNotNull(restoredView, "Undo має відтворити графічне подання нейрона");
+                assertTrue(restoredView.isFocusTraversable(), "Відновлений нейрон має приймати фокус клавіатури");
+                assertEquals(1, fixture.state.selectedNeuronIds().size());
+                assertTrue(fixture.state.selectedNeuronIds().contains(neuron.id()),
+                        "Поточним вибором має стати відновлений нейрон");
+
+                fireUnmodifiedKey(fixture.scene, KeyCode.DELETE);
+                assertNull(fixture.model.neuron(neuron.id()),
+                        "Delete після undo має видаляти сфокусований і вибраний нейрон");
+            } finally {
+                fixture.dispose();
+            }
+        });
+    }
+
+    /** Перевіряє, що redo фокусує останній нейрон, повернутий із кількох нейронів. */
+    @Test
+    void redoFocusesLastNeuronRestoredByHistory() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            Fixture fixture = new Fixture();
+            try {
+                fixture.history.initialize();
+                fixture.install();
+
+                fixture.neurons.create(NeuronType.EXCITATORY, 80.0, 60.0);
+                fixture.neurons.create(NeuronType.INHIBITORY, 240.0, 160.0);
+                fixture.components.presentation().refreshAll();
+                fixture.history.commitSavedState();
+
+                fireShortcut(fixture.scene, KeyCode.Z);
+                assertTrue(fixture.model.neurons().isEmpty());
+
+                fireShortcut(fixture.scene, KeyCode.Y);
+
+                String lastRestoredNeuronId = fixture.neurons.neurons().stream()
+                        .map(Neuron::id)
+                        .reduce((first, last) -> last)
+                        .orElseThrow();
+                NeuronView restoredView = fixture.neuronViews.get(lastRestoredNeuronId);
+                assertNotNull(restoredView);
+                assertEquals(1, fixture.state.selectedNeuronIds().size());
+                assertTrue(fixture.state.selectedNeuronIds().contains(lastRestoredNeuronId));
+                assertTrue(restoredView.isFocusTraversable(),
+                        "Останній відновлений нейрон має приймати клавіатурний фокус");
+            } finally {
+                fixture.dispose();
+            }
+        });
+    }
+
     /**
      * Перевіряє анімацію, активний вихід і суму сигналу в поточних поданнях після відновлення карти.
      *
      * @param fixture компоненти редактора та його поточні подання.
      * @param sourceId ідентифікатор активованого нейрона-джерела.
-     * @param targetId ідентифікатор нейрона, для якого показано вхідну суму.
+     * @param targetId ідентифікатор нейрона, для якого показано вхідну суму сигналу.
      */
     private static void assertCurrentSignalPresentation(Fixture fixture, String sourceId, String targetId) {
         NeuronView sourceView = fixture.neuronViews.get(sourceId);
@@ -287,15 +355,13 @@ final class EditorHistoryCoordinatorRegressionTest {
      */
     private static void fireShortcut(Scene scene, KeyCode code) {
         Event.fireEvent(scene.getRoot(), new KeyEvent(
-                KeyEvent.KEY_PRESSED,
-                "",
-                "",
-                code,
-                false,
-                true,
-                false,
-                false
-        ));
+                KeyEvent.KEY_PRESSED, "", "", code, false, true, false, false));
+    }
+
+    /** Надсилає звичайну клавішу без модифікаторів до маршрутизатора гарячих клавіш редактора. */
+    private static void fireUnmodifiedKey(Scene scene, KeyCode code) {
+        Event.fireEvent(scene.getRoot(), new KeyEvent(
+                KeyEvent.KEY_PRESSED, "", "", code, false, false, false, false));
     }
 
     /**

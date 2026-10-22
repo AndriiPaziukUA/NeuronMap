@@ -20,6 +20,7 @@ import javafx.scene.layout.Pane;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /** Єдиний власник синхронізації графічних подань карти з поточним станом моделі. */
 public final class MapPresentationCoordinator {
@@ -80,6 +81,15 @@ public final class MapPresentationCoordinator {
     public void refreshNeurons() {
         synchronizeNeuronViews();
         refreshNeuronVisuals();
+    }
+
+    /**
+     * Повертає ідентифікатори нейронів, для яких зараз існують графічні подання.
+     *
+     * @return незмінна множина ідентифікаторів зареєстрованих подань.
+     */
+    public Set<String> neuronIds() {
+        return Set.copyOf(neuronViews.keySet());
     }
 
     /** Переміщує клацнутий нейрон вище в порядку шарів, якщо цього вимагає взаємодія. */
@@ -173,6 +183,39 @@ public final class MapPresentationCoordinator {
         refreshRelatedGeometry();
         refreshOverlayPositions();
         bringRotationHandlesToFront();
+    }
+
+    /**
+     * Синхронізує подання після зміни історії та визначає останній нейрон, що з'явився в карті.
+     * Порядок перевірки відповідає порядку нейронів у моделі.
+     *
+     * @param previousNeuronIds ідентифікатори подань до виконання undo або redo.
+     * @return ідентифікатор останнього відновленого нейрона або {@code null}, якщо нейронів не додалося.
+     */
+    public String synchronizeViewsAfterHistoryChange(Set<String> previousNeuronIds) {
+        Objects.requireNonNull(previousNeuronIds, "previousNeuronIds");
+        synchronizeViewsAfterHistoryChange();
+        return neuronService.neurons().stream()
+                .map(Neuron::id)
+                .filter(neuronId -> !previousNeuronIds.contains(neuronId))
+                .reduce((first, last) -> last)
+                .orElse(null);
+    }
+
+    /**
+     * Передає фокус клавіатури відновленому нейрону, якщо його подання існує.
+     * Відсутній нейрон ігнорується, бо інші зміни історії можуть не додавати нейронів до карти.
+     *
+     * @param neuronId ідентифікатор нейрона, який потрібно сфокусувати; {@code null} ігнорується.
+     */
+    public void focusRestoredNeuron(String neuronId) {
+        if (neuronId == null) {
+            return;
+        }
+        NeuronView neuronView = neuronViews.get(neuronId);
+        if (neuronView != null) {
+            workspace.focusNode(neuronView);
+        }
     }
 
     /** Повністю перебудовує подання після заміни активного проєкту або іншої повної заміни моделі. */
