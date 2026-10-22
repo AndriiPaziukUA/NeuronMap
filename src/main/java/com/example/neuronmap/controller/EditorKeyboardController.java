@@ -24,6 +24,8 @@ public final class EditorKeyboardController {
     private final BooleanSupplier simulationPauseShortcutAvailable;
     private final Node simulationPauseShortcutAnchor;
     private final BooleanSupplier priorityEscapeModeActive;
+    private Runnable continueSimulationOneTick = () -> { };
+    private BooleanSupplier simulationStepShortcutAvailable = () -> false;
     private final EventHandler<KeyEvent> keyHandler = this::handleKeyPressed;
     private final EventHandler<KeyEvent> spaceKeyFilter = this::handleSpaceKeyPressed;
     private final EventHandler<KeyEvent> priorityEscapeFilter = this::handlePriorityEscape;
@@ -120,6 +122,18 @@ public final class EditorKeyboardController {
     }
 
     /**
+     * Налаштовує команду Ctrl+Space для однотактного продовження, не змінюючи інші гарячі клавіші.
+     *
+     * @param action дія, що виконує один такт симуляції.
+     * @param available перевірка, чи активні умови для виконання однотактної команди.
+     * @throws NullPointerException якщо одну з залежностей не задано.
+     */
+    public void configureSimulationStepShortcut(Runnable action, BooleanSupplier available) {
+        continueSimulationOneTick = Objects.requireNonNull(action, "action");
+        simulationStepShortcutAvailable = Objects.requireNonNull(available, "available");
+    }
+
+    /**
      * Реєструє гарячі клавіші на сцені, попередньо від'єднавши їх від іншої сцени за потреби.
      * Пробіл перехоплюється на фазі фільтрації до стандартної активації фокусованих кнопок.
      * Повторне встановлення на ту саму сцену не створює дубльованих підписок.
@@ -152,11 +166,7 @@ public final class EditorKeyboardController {
         spacePressed = false;
     }
 
-    /**
-     * Перехоплює Esc до фільтра меню, коли активний інструмент потребує пріоритетного скасування.
-     *
-     * @param event подія натискання клавіші.
-     */
+    /** Перехоплює Esc до фільтра меню, коли активний інструмент потребує пріоритетного скасування. */
     private void handlePriorityEscape(KeyEvent event) {
         if (event.getCode() != KeyCode.ESCAPE || !priorityEscapeModeActive.getAsBoolean()) {
             return;
@@ -165,22 +175,14 @@ public final class EditorKeyboardController {
         event.consume();
     }
 
-    /**
-     * Перехоплює пробіл до того, як подання сфокусованої кнопки зможе активувати її замість симуляції.
-     *
-     * @param event подія натискання клавіші.
-     */
+    /** Перехоплює пробіл до того, як подання сфокусованої кнопки зможе активувати її замість симуляції. */
     private void handleSpaceKeyPressed(KeyEvent event) {
         if (event.getCode() == KeyCode.SPACE) {
             handleSpacePressed(event);
         }
     }
 
-    /**
-     * Маршрутизує гарячі клавіші й зберігає стандартне введення у текстових елементах та модальних поданнях.
-     *
-     * @param event подія натискання клавіші.
-     */
+    /** Маршрутизує клавіші редактора, зберігаючи стандартне введення в текстових полях і модальних поданнях. */
     private void handleKeyPressed(KeyEvent event) {
         if (event.getCode() == KeyCode.SPACE) {
             return;
@@ -210,8 +212,8 @@ public final class EditorKeyboardController {
     }
 
     /**
-     * Виконує паузу лише для окремого натискання пробілу в доступному редакторі.
-     * Пробіл працює по всій сцені, крім текстового введення, модальних меж і комбінацій із модифікаторами.
+     * Обробляє пробіл для ручної паузи та Ctrl+Space для однотактного продовження.
+     * Комбінація Ctrl+Space не перемикає ручну паузу й маршрутизується лише за окремим дозволом.
      *
      * @param event подія натискання пробілу.
      */
@@ -220,6 +222,13 @@ public final class EditorKeyboardController {
             return;
         }
         spacePressed = true;
+        if (isControlSpace(event)) {
+            if (canRouteSimulationShortcut(event) && simulationStepShortcutAvailable.getAsBoolean()) {
+                continueSimulationOneTick.run();
+                event.consume();
+            }
+            return;
+        }
         if (!isUnmodifiedSpace(event)
                 || isTextInputTarget(event.getTarget())
                 || EditorKeyboardShortcutBoundary.blocksShortcutsFor(event.getTarget())
@@ -232,24 +241,39 @@ public final class EditorKeyboardController {
         event.consume();
     }
 
-    /**
-     * Скидає стан пробілу після відпускання, щоб автоповтор клавіші не перемикав паузу кілька разів.
+    /** Перевіряє Ctrl+Space без інших модифікаторів, щоб не перехоплювати альтернативні комбінації.
      *
-     * @param event подія відпускання клавіші.
+     * @param event клавіатурна подія для перевірки.
+     * @return {@code true}, якщо натиснуто лише Ctrl+Space.
      */
+    private boolean isControlSpace(KeyEvent event) {
+        return event.getCode() == KeyCode.SPACE
+                && event.isControlDown()
+                && !event.isShiftDown()
+                && !event.isAltDown()
+                && !event.isMetaDown();
+    }
+
+    /** Перевіряє, що однотактну команду можна обробляти в цільовій області редактора.
+     *
+     * @param event клавіатурна подія для перевірки.
+     * @return {@code true}, якщо ціль події належить редактору та не заблокована модальним поданням.
+     */
+    private boolean canRouteSimulationShortcut(KeyEvent event) {
+        return !isTextInputTarget(event.getTarget())
+                && !EditorKeyboardShortcutBoundary.blocksShortcutsFor(event.getTarget())
+                && !SceneKeyboardModality.hasActiveBoundaryFor(event.getTarget())
+                && isInSimulationPauseShortcutScene(event.getTarget());
+    }
+
+    /** Скидає стан пробілу після відпускання, щоб автоповтор клавіші не запускав команди кілька разів. */
     private void handleKeyReleased(KeyEvent event) {
         if (event.getCode() == KeyCode.SPACE) {
             spacePressed = false;
         }
     }
 
-    /**
-     * Перевіряє, що ціль події належить тій самій сцені, що й якір маршрутизатора.
-     * Фокус може залишатися на будь-якому елементі сцени, зокрема на кнопці панелі інструментів.
-     *
-     * @param target ціль клавіатурної події.
-     * @return {@code true}, якщо ціль належить сцені редактора.
-     */
+    /** Перевіряє, що ціль події належить тій самій сцені, що й якір маршрутизатора. */
     private boolean isInSimulationPauseShortcutScene(Object target) {
         if (!(target instanceof Node targetNode) || simulationPauseShortcutAnchor == null) {
             return false;
@@ -258,34 +282,19 @@ public final class EditorKeyboardController {
                 && targetNode.getScene() == simulationPauseShortcutAnchor.getScene();
     }
 
-    /**
-     * Перевіряє, що пробіл натиснуто без модифікаторів.
-     *
-     * @param event подія натискання пробілу.
-     * @return {@code true}, якщо пробіл натиснуто без Shift, Ctrl, Alt або Meta.
-     */
+    /** Перевіряє, що пробіл натиснуто без Shift, Ctrl, Alt або Meta. */
     private boolean isUnmodifiedSpace(KeyEvent event) {
         return !event.isShiftDown() && !event.isControlDown() && !event.isAltDown() && !event.isMetaDown();
     }
 
-    /**
-     * Позначає подію обробленою лише тоді, коли відповідна команда справді виконалася.
-     *
-     * @param event клавіатурна подія, яку може бути потрібно спожити.
-     * @param handled ознака успішного виконання команди.
-     */
+    /** Позначає подію обробленою лише тоді, коли відповідна команда справді виконалася. */
     private void consumeWhenHandled(KeyEvent event, boolean handled) {
         if (handled) {
             event.consume();
         }
     }
 
-    /**
-     * Перевіряє, чи спрямована подія на текстове поле або його вкладений вузол.
-     *
-     * @param target ціль клавіатурної події.
-     * @return {@code true}, якщо ціллю є текстовий елемент введення або його нащадок.
-     */
+    /** Перевіряє, чи спрямована подія на текстове поле або його вкладений вузол. */
     private boolean isTextInputTarget(Object target) {
         return JavaFxNodeLookup.findAncestor(target, TextInputControl.class) != null;
     }

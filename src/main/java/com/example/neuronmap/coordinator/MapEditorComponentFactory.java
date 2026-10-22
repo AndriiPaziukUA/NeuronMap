@@ -101,6 +101,7 @@ final class MapEditorComponentFactory {
                 inputs.config().simulation().maxTickMillis(),
                 inputs.localization()
         );
+        inputs.view().toolbar().setStepSimulationOnceAction(simulationController::continueForOneTick);
         SimulationSpeedCoordinator simulationSpeedCoordinator = new SimulationSpeedCoordinator(
                 inputs.mapService(),
                 inputs.actions().applySimulationSpeed(),
@@ -242,6 +243,13 @@ final class MapEditorComponentFactory {
                         && !inputs.view().mainMenu().isMenuVisible(),
                 inputs.view().workspace().node(),
                 () -> requiresPriorityEscapeCancellation(inputs.state())
+        );
+        keyboardController.configureSimulationStepShortcut(
+                base.simulationController()::continueForOneTick,
+                () -> base.simulationController().isPaused()
+                        && !base.simulationController().isSingleStepRunning()
+                        && base.simulationController().hasActiveSimulation()
+                        && !inputs.view().mainMenu().isMenuVisible()
         );
         CameraController cameraController = new CameraController(
                 inputs.state(),

@@ -21,6 +21,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.shape.SVGPath;
 
 import java.util.Locale;
@@ -28,9 +29,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
-/**
- * Створює панель інструментів редактора та керує її підписками на локалізацію і сцену.
- */
+/** Створює панель інструментів редактора та керує її підписками на локалізацію і сцену. */
 public final class ToolbarView {
 
     public static final double HEIGHT = 54.0;
@@ -47,6 +46,8 @@ public final class ToolbarView {
     private final Button ungroupButton = toolButton();
     private final Button pauseResumeButton = iconButton();
     private final SVGPath simulationIcon = createSimulationIcon();
+    private final Button stepOnceButton = iconButton();
+    private final StackPane stepOnceIcon = createStepOnceIcon();
     private final Button stopSignalsButton = iconButton();
     private final SVGPath stopSignalsIcon = createStopSignalsIcon();
     private final Separator simulationSeparator = new Separator();
@@ -54,9 +55,11 @@ public final class ToolbarView {
     private final TextField speedField = new TextField();
     private final Label cameraCoordinatesLabel = new Label();
     private final Consumer<String> speedChanged;
+    private Runnable stepOnceAction = () -> { };
     private double appliedSpeedMillis;
     private boolean committingSpeed;
     private boolean simulationPaused;
+    private boolean simulationControlsVisible;
     private boolean disposed;
 
     private final EventHandler<MouseEvent> sceneMousePressedHandler = this::handleSceneMousePressed;
@@ -76,6 +79,7 @@ public final class ToolbarView {
     private final EventHandler<ActionEvent> groupHandler;
     private final EventHandler<ActionEvent> ungroupHandler;
     private final EventHandler<ActionEvent> pauseResumeHandler;
+    private final EventHandler<ActionEvent> stepOnceHandler = event -> stepOnceAction.run();
     private final EventHandler<ActionEvent> stopSignalsHandler;
 
     private Scene sceneWithMouseFilter;
@@ -124,15 +128,16 @@ public final class ToolbarView {
         title.getStyleClass().add("toolbar-title");
         pauseResumeButton.getStyleClass().add("simulation-icon-button");
         pauseResumeButton.setGraphic(simulationIcon);
+        stepOnceButton.getStyleClass().addAll("simulation-icon-button", "simulation-step-button");
+        stepOnceButton.setGraphic(stepOnceIcon);
         stopSignalsButton.getStyleClass().add("simulation-icon-button-danger");
         stopSignalsButton.setGraphic(stopSignalsIcon);
-        pauseResumeButton.setVisible(false);
-        pauseResumeButton.setManaged(false);
-        stopSignalsButton.setVisible(false);
-        stopSignalsButton.setManaged(false);
-        simulationSeparator.setVisible(false);
-        simulationSeparator.setManaged(false);
+        setManagedAndVisible(pauseResumeButton, false);
+        setManagedAndVisible(stepOnceButton, false);
+        setManagedAndVisible(stopSignalsButton, false);
+        setManagedAndVisible(simulationSeparator, false);
         pauseResumeButton.addEventHandler(ActionEvent.ACTION, pauseResumeHandler);
+        stepOnceButton.addEventHandler(ActionEvent.ACTION, stepOnceHandler);
         stopSignalsButton.addEventHandler(ActionEvent.ACTION, stopSignalsHandler);
 
         speedLabel.getStyleClass().add("toolbar-speed-label");
@@ -159,36 +164,43 @@ public final class ToolbarView {
         root.getChildren().addAll(
                 title, addExcitatoryButton, addInhibitoryButton, new Separator(),
                 groupButton, ungroupButton, speedLabel, speedField, simulationSeparator,
-                pauseResumeButton, stopSignalsButton, spacer, cameraCoordinatesLabel);
+                pauseResumeButton, stepOnceButton, stopSignalsButton, spacer, cameraCoordinatesLabel);
         localization.addListener(localizationListener);
         refreshTexts();
     }
 
-    /**
-     * Повертає кореневий вузол інтерфейсу.
-     *
-     * @return коренева панель інструментів.
-     */
+    /** Повертає кореневий вузол інтерфейсу. */
     public HBox node() {
         return root;
     }
 
-    /**
-     * Повертає кнопку додавання збуджувального нейрона.
-     *
-     * @return кнопка створення збуджувального нейрона.
-     */
+    /** Повертає кнопку додавання збуджувального нейрона. */
     public Button addExcitatoryButton() {
         return addExcitatoryButton;
     }
 
-    /**
-     * Повертає кнопку додавання гальмівного нейрона.
-     *
-     * @return кнопка створення гальмівного нейрона.
-     */
+    /** Повертає кнопку додавання гальмівного нейрона. */
     public Button addInhibitoryButton() {
         return addInhibitoryButton;
+    }
+
+    /**
+     * Повертає кнопку однотактного продовження для доступу до відповідного елемента керування.
+     *
+     * @return кнопка «Наступний такт».
+     */
+    public Button stepOnceButton() {
+        return stepOnceButton;
+    }
+
+    /**
+     * Установлює дію, що просуває симуляцію до початку наступного такту й залишає її на ручній паузі.
+     *
+     * @param action дія однотактного продовження.
+     * @throws NullPointerException якщо дію не задано.
+     */
+    public void setStepSimulationOnceAction(Runnable action) {
+        stepOnceAction = Objects.requireNonNull(action, "action");
     }
 
     /**
@@ -197,44 +209,35 @@ public final class ToolbarView {
      * @param visible чи потрібно показати елементи.
      */
     public void setSimulationControlsVisible(boolean visible) {
-        simulationSeparator.setVisible(visible);
-        simulationSeparator.setManaged(visible);
-        pauseResumeButton.setVisible(visible);
-        pauseResumeButton.setManaged(visible);
-        stopSignalsButton.setVisible(visible);
-        stopSignalsButton.setManaged(visible);
+        simulationControlsVisible = visible;
+        setManagedAndVisible(simulationSeparator, visible);
+        setManagedAndVisible(pauseResumeButton, visible);
+        setManagedAndVisible(stopSignalsButton, visible);
+        updateStepOnceButtonVisibility();
     }
 
     /**
-     * Оновлює векторний значок і підказку відповідно до стану паузи симуляції.
+     * Оновлює векторний значок і підказку відповідно до стану ручної паузи симуляції.
+     * Однотактне виконання навмисно не змінює цей стан.
      *
      * @param paused чи призупинено симуляцію.
      */
     public void setSimulationPaused(boolean paused) {
         simulationPaused = paused;
         simulationIcon.setContent(paused ? RESUME_ICON_PATH : PAUSE_ICON_PATH);
-        String tooltipText = localization.text(
-                paused ? "toolbar.resume.tooltip" : "toolbar.pause.tooltip");
+        String tooltipText = localization.text(paused ? "toolbar.resume.tooltip" : "toolbar.pause.tooltip");
         pauseResumeButton.setTooltip(new Tooltip(tooltipText));
         pauseResumeButton.setAccessibleText(tooltipText);
+        updateStepOnceButtonVisibility();
     }
 
-    /**
-     * Установлює значення швидкості симуляції, яке показує панель інструментів.
-     *
-     * @param millis тривалість такту в мілісекундах.
-     */
+    /** Установлює значення швидкості симуляції, яке показує панель інструментів. */
     public void setSimulationSpeedMillis(double millis) {
         appliedSpeedMillis = millis;
         speedField.setText(NumberDisplayFormatter.format(millis));
     }
 
-    /**
-     * Установлює координати вказівника або очищує підпис, якщо координати не скінченні.
-     *
-     * @param x горизонтальна координата.
-     * @param y вертикальна координата.
-     */
+    /** Установлює координати вказівника або очищує підпис, якщо координати не скінченні. */
     public void setCameraCoordinates(double x, double y) {
         if (!Double.isFinite(x) || !Double.isFinite(y)) {
             cameraCoordinatesLabel.setText("");
@@ -244,9 +247,7 @@ public final class ToolbarView {
                 + ", Y: " + NumberDisplayFormatter.format(y));
     }
 
-    /**
-     * Від'єднує власні слухачі та фільтр сцени; повторний виклик безпечний.
-     */
+    /** Від'єднує власні слухачі та фільтр сцени; повторний виклик безпечний. */
     public void dispose() {
         if (disposed) {
             return;
@@ -263,16 +264,11 @@ public final class ToolbarView {
         groupButton.removeEventHandler(ActionEvent.ACTION, groupHandler);
         ungroupButton.removeEventHandler(ActionEvent.ACTION, ungroupHandler);
         pauseResumeButton.removeEventHandler(ActionEvent.ACTION, pauseResumeHandler);
+        stepOnceButton.removeEventHandler(ActionEvent.ACTION, stepOnceHandler);
         stopSignalsButton.removeEventHandler(ActionEvent.ACTION, stopSignalsHandler);
     }
 
-    /**
-     * Під'єднує фільтр кліків до нової сцени й від'єднує його від попередньої.
-     *
-     * @param observable властивість сцени.
-     * @param oldScene попередня сцена.
-     * @param newScene нова сцена.
-     */
+    /** Під'єднує фільтр кліків до нової сцени й від'єднує його від попередньої. */
     private void handleSceneChanged(
             javafx.beans.value.ObservableValue<? extends Scene> observable,
             Scene oldScene,
@@ -283,11 +279,7 @@ public final class ToolbarView {
         attachSceneMouseFilter(newScene);
     }
 
-    /**
-     * Додає фільтр до сцени, якщо панель ще не звільнена.
-     *
-     * @param scene сцена, на яку додається фільтр.
-     */
+    /** Додає фільтр до сцени, якщо панель ще не звільнена. */
     private void attachSceneMouseFilter(Scene scene) {
         if (disposed || scene == null || scene == sceneWithMouseFilter) {
             return;
@@ -297,20 +289,14 @@ public final class ToolbarView {
         sceneWithMouseFilter = scene;
     }
 
-    /**
-     * Знімає фільтр із тієї сцени, де його фактично зареєстровано.
-     *
-     * @param scene сцена для очищення.
-     */
+    /** Знімає фільтр із тієї сцени, де його фактично зареєстровано. */
     private void detachSceneMouseFilter(Scene scene) {
         if (scene != null) {
             scene.removeEventFilter(MouseEvent.MOUSE_PRESSED, sceneMousePressedHandler);
         }
     }
 
-    /**
-     * Оновлює написи панелі інструментів відповідно до поточної мови.
-     */
+    /** Оновлює написи панелі інструментів відповідно до поточної мови. */
     private void refreshTexts() {
         if (disposed) {
             return;
@@ -326,16 +312,26 @@ public final class ToolbarView {
         String stopTooltipText = localization.text("toolbar.stop.tooltip");
         stopSignalsButton.setTooltip(new Tooltip(stopTooltipText));
         stopSignalsButton.setAccessibleText(stopTooltipText);
+        String stepTooltipText = localization.text("toolbar.step_once.tooltip");
+        stepOnceButton.setTooltip(new Tooltip(stepTooltipText));
+        stepOnceButton.setAccessibleText(stepTooltipText);
         speedLabel.setText(localization.text("toolbar.speed"));
         speedField.setPromptText(localization.text("toolbar.speed.prompt"));
         setSimulationPaused(simulationPaused);
     }
 
-    /**
-     * Завершує редагування швидкості, якщо користувач натиснув поза текстовим полем.
-     *
-     * @param event подія натискання миші.
-     */
+    /** Показує кнопку однотактного продовження лише під час ручної паузи активної симуляції. */
+    private void updateStepOnceButtonVisibility() {
+        setManagedAndVisible(stepOnceButton, simulationControlsVisible && simulationPaused);
+    }
+
+    /** Задає visible та managed разом, щоб прихований елемент не займав місця в панелі. */
+    private static void setManagedAndVisible(Node node, boolean visible) {
+        node.setVisible(visible);
+        node.setManaged(visible);
+    }
+
+    /** Завершує редагування швидкості, якщо користувач натиснув поза текстовим полем. */
     private void handleSceneMousePressed(MouseEvent event) {
         if (disposed || !speedField.isFocused()) {
             return;
@@ -346,9 +342,7 @@ public final class ToolbarView {
         }
     }
 
-    /**
-     * Перевіряє введену тривалість такту та передає нове значення контролеру.
-     */
+    /** Перевіряє введену тривалість такту та передає нове значення контролеру. */
     private void commitSpeedEdit() {
         if (committingSpeed || disposed) {
             return;
@@ -367,12 +361,7 @@ public final class ToolbarView {
         }
     }
 
-    /**
-     * Перевіряє, чи дорівнює введення вже застосованій швидкості.
-     *
-     * @param text введене значення.
-     * @return {@code true}, якщо значення вже застосовано.
-     */
+    /** Перевіряє, чи дорівнює введення вже застосованій швидкості. */
     private boolean isAppliedSpeed(String text) {
         try {
             double enteredMillis = Double.parseDouble(text);
@@ -382,11 +371,7 @@ public final class ToolbarView {
         }
     }
 
-    /**
-     * Створює фільтр поля швидкості, який пропускає лише число допустимого формату.
-     *
-     * @return фільтр введення.
-     */
+    /** Створює фільтр поля швидкості, який пропускає лише число допустимого формату. */
     private static UnaryOperator<TextFormatter.Change> numericSpeedFilter() {
         return change -> {
             String text = change.getControlNewText();
@@ -397,13 +382,7 @@ public final class ToolbarView {
         };
     }
 
-    /**
-     * Перевіряє, чи є вузол ціллю або нащадком заданого вузла.
-     *
-     * @param target вузол для перевірки.
-     * @param parent шуканий предок.
-     * @return {@code true}, якщо вузол збігається або є нащадком.
-     */
+    /** Перевіряє, чи є вузол ціллю або нащадком заданого вузла. */
     private static boolean isDescendantOrSelf(Node target, Node parent) {
         Node current = target;
         while (current != null) {
@@ -415,22 +394,14 @@ public final class ToolbarView {
         return false;
     }
 
-    /**
-     * Створює кнопку інструмента панелі редактора.
-     *
-     * @return кнопка з базовим CSS-класом інструмента.
-     */
+    /** Створює кнопку інструмента панелі редактора. */
     private static Button toolButton() {
         Button button = new Button();
         button.getStyleClass().add("tool-button");
         return button;
     }
 
-    /**
-     * Створює кнопку панелі інструментів, графічний значок якої задається окремо.
-     *
-     * @return кнопка з базовим CSS-класом інструмента та без текстового символу.
-     */
+    /** Створює кнопку панелі інструментів, графічний значок якої задається окремо. */
     private static Button iconButton() {
         Button button = new Button();
         button.setText("");
@@ -438,11 +409,7 @@ public final class ToolbarView {
         return button;
     }
 
-    /**
-     * Створює векторний значок керування симуляцією, геометрію якого можна точно налаштувати через SVG-шлях.
-     *
-     * @return значок з окремим CSS-класом для застосування кольору.
-     */
+    /** Створює векторний значок керування симуляцією з геометрією, що задається SVG-шляхом. */
     private static SVGPath createSimulationIcon() {
         SVGPath icon = new SVGPath();
         icon.getStyleClass().add("simulation-icon");
@@ -451,10 +418,26 @@ public final class ToolbarView {
     }
 
     /**
-     * Створює векторний квадрат для кнопки зупинки сигналів.
+     * Створює векторний трикутник із накладеною цифрою «1» для однотактного продовження.
      *
-     * @return векторний значок зупинки з окремим CSS-класом кольору.
+     * @return композиція трикутника та цифри для графіки кнопки.
      */
+    private static StackPane createStepOnceIcon() {
+        SVGPath triangle = new SVGPath();
+        triangle.getStyleClass().add("simulation-icon");
+        triangle.setContent(RESUME_ICON_PATH);
+        Label number = new Label("1");
+        number.getStyleClass().add("simulation-step-number");
+        number.setTranslateX(-2.0);
+        StackPane icon = new StackPane(triangle, number);
+        icon.getStyleClass().add("simulation-step-icon");
+        icon.setMinSize(15.0, 15.0);
+        icon.setPrefSize(15.0, 15.0);
+        icon.setMaxSize(15.0, 15.0);
+        return icon;
+    }
+
+    /** Створює векторний квадрат для кнопки зупинки сигналів. */
     private static SVGPath createStopSignalsIcon() {
         SVGPath icon = new SVGPath();
         icon.getStyleClass().add("simulation-stop-icon");

@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-/** Відображає результати такту симуляції через суми вхідних сигналів, залишки активних тактів і анімації зв'язків. */
+/** Відображає результати такту симуляції через індикатори нейронів і анімації сигналів. */
 public class SimulationStepPresenter {
 
     private final WorkspaceView workspace;
@@ -39,7 +39,7 @@ public class SimulationStepPresenter {
     }
 
     /**
-     * Відображає результати такту та запускає анімації всіх нейронів, які випустили сигнал у цьому такті.
+     * Відображає результати такту й запускає анімації нейронів, які випустили сигнал.
      *
      * @param step результат одного такту симуляції.
      * @throws NullPointerException якщо результат такту не задано.
@@ -47,6 +47,29 @@ public class SimulationStepPresenter {
     public void apply(SimulationStep step) {
         Objects.requireNonNull(step, "step");
         restoreVisualState(step);
+        startAnimations(step);
+    }
+
+    /**
+     * Відображає обчислений такт без запуску його анімацій.
+     * Дає змогу призупинити симуляцію на початку такту після оновлення індикаторів, але до руху імпульсів.
+     *
+     * @param step результат одного такту симуляції.
+     * @throws NullPointerException якщо результат такту не задано.
+     */
+    public void applyWithoutAnimations(SimulationStep step) {
+        restoreVisualState(Objects.requireNonNull(step, "step"));
+    }
+
+    /**
+     * Запускає анімації вихідних зв'язків для вже обчисленого такту без повторного оновлення моделі.
+     * Використовується, коли користувач відновлює симуляцію зі стану, показаного до початку анімації.
+     *
+     * @param step раніше обчислений і відображений такт симуляції.
+     * @throws NullPointerException якщо результат такту не задано.
+     */
+    public void startAnimations(SimulationStep step) {
+        Objects.requireNonNull(step, "step");
         for (String neuronId : step.emittingNeuronIds()) {
             animateOutgoingConnections(neuronId);
         }
@@ -77,8 +100,8 @@ public class SimulationStepPresenter {
     }
 
     /**
-     * Відновлює індикатори поточного такту й лічильники нейронів, які активуються від сигналів у дорозі, без запуску нових імпульсів.
-     * Використовується після відновлення моделі, коли вже наявні анімації мають продовжуватися з поточного прогресу.
+     * Відновлює індикатори поточного такту й лічильники нейронів, що активуються від сигналів у дорозі,
+     * без запуску нових імпульсів.
      *
      * @param step останній оброблений такт симуляції.
      * @throws NullPointerException якщо результат такту не задано.
@@ -104,9 +127,7 @@ public class SimulationStepPresenter {
         pulseAnimations.stopAll();
     }
 
-    /**
-     * Завершує візуальну доставку імпульсів попереднього такту перед обробкою сигналів на новій межі.
-     */
+    /** Завершує візуальну доставку імпульсів попереднього такту перед обробкою сигналів на новій межі. */
     public void completeAnimationsAtTickBoundary() {
         pulseAnimations.completeAtTickBoundary();
     }
@@ -154,7 +175,6 @@ public class SimulationStepPresenter {
 
     /**
      * Негайно показує повний лічильник нейронів, які досягли порога від сигналів, що вже прямують до них.
-     * Саму активацію симуляція виконає на найближчій межі такту; тут відображається її вже відомий результат.
      *
      * @param neuronIds нейрони, для яких запланована сума вхідних сигналів перетинає поріг активації.
      */

@@ -114,6 +114,32 @@
     -fx-background-color: #363b43;
 }
 
+.simulation-step-button {
+    -fx-content-display: left;
+    -fx-min-width: 31px;
+    -fx-pref-width: 31px;
+    -fx-max-width: 31px;
+    -fx-min-height: 31px;
+    -fx-pref-height: 31px;
+    -fx-max-height: 31px;
+    -fx-padding: 0 7px 0 7px;
+}
+
+.simulation-step-button:hover {
+    -fx-background-color: #363b43;
+}
+
+.simulation-step-icon {
+    -fx-alignment: center;
+}
+
+.simulation-step-number {
+    -fx-text-fill: #22252a;
+    -fx-font-size: 8px;
+    -fx-font-weight: 800;
+    -fx-padding: 0;
+}
+
 .simulation-icon-button-danger {
     -fx-background-color: #3a2c30;
     -fx-border-color: #554046;

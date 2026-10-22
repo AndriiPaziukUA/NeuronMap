@@ -43,6 +43,8 @@ public final class SimulationController {
     private double tickMillis;
     private boolean paused;
     private boolean modalSuspended;
+    private boolean singleStepRunning;
+    private boolean stepAwaitingAnimation;
 
     /**
      * Створює контролер симуляції зі спільною службою локалізації та перевіреними часовими параметрами.
@@ -88,9 +90,7 @@ public final class SimulationController {
         tickMillis = SimulationSpeed.requireMillis(initialTickMillis, minTickMillis, maxTickMillis);
         stepPresenter.setTickDurationMillis(tickMillis);
         finishDelay = new PauseTransition(Duration.millis(tickMillis));
-
         finishDelay.setOnFinished(event -> finishDelayElapsed());
-
         simulationActivityConsumer.accept(false);
         pausedStateConsumer.accept(false);
     }
@@ -115,10 +115,11 @@ public final class SimulationController {
         }
         paused = false;
         modalSuspended = false;
+        setSingleStepRunning(false);
         notifyPausedState();
         finishDelay.stop();
         updateSimulationControlsVisibility();
-        processNextStep();
+        processNextStep(true);
         if (session != null && !session.isFinished()) {
             startTimelineIfNeeded();
         }
@@ -135,7 +136,7 @@ public final class SimulationController {
         lastAppliedStep = step;
         runtimeState.apply(step);
         stepPresenter.applyImmediateActivation(step, sourceNeuronId, remainingMillis);
-        if (paused || modalSuspended) {
+        if ((paused && !singleStepRunning) || modalSuspended) {
             stepPresenter.pauseAnimations();
         }
 
@@ -149,30 +150,53 @@ public final class SimulationController {
         updateSimulationControlsVisibility();
     }
 
-    /** Завершує очікування поточного такту: обробляє сигнали на межі або очищує остаточний runtime-стан. */
+    /** Завершує поточний інтервал і за однотактного виконання показує наступний такт до старту його анімацій. */
     private void finishDelayElapsed() {
         finishDelay.stop();
+        if (singleStepRunning && session != null && session.hasPendingWork()) {
+            processNextStep(false);
+            stepAwaitingAnimation = session != null && lastAppliedStep != null;
+            setSingleStepRunning(false);
+            pauseFinishDelayAtManualBoundary();
+            stepPresenter.pauseAnimations();
+            updateSimulationControlsVisibility();
+            return;
+        }
         if (session != null && session.hasPendingWork()) {
-            processNextStep();
+            processNextStep(true);
             if (session != null && !session.isFinished()) {
                 startTimelineIfNeeded();
             }
             return;
         }
+        clearFinishedSimulation();
+    }
+
+    /** Очищує завершений сеанс та сповіщає власників інтерфейсу про його фактичне завершення. */
+    private void clearFinishedSimulation() {
         runtimeState.clear();
         stepPresenter.clearRuntime();
         lastAppliedStep = null;
         session = null;
         timeline = null;
+        paused = false;
+        modalSuspended = false;
+        stepAwaitingAnimation = false;
+        setSingleStepRunning(false);
+        notifyPausedState();
         stepPresenter.refresh();
         save.run();
         status.accept(localization.text("status.simulation_finished"));
         updateSimulationControlsVisibility();
     }
 
-    /** Перемикає симуляцію між ручною паузою та виконанням. */
+    /** Перемикає ручну паузу; під час однотактного виконання негайно зупиняє поточний інтервал. */
     public void pauseOrResume() {
         if (modalSuspended || !hasActiveSimulation()) {
+            return;
+        }
+        if (singleStepRunning) {
+            pause();
             return;
         }
         if (paused) {
@@ -183,12 +207,56 @@ public final class SimulationController {
     }
 
     /**
+     * Продовжує рівно один часовий інтервал симуляції та зупиняється на початку наступного такту.
+     * Індикатор ручної паузи не змінюється; повторний запит під час виконання поточного кроку ігнорується.
+     */
+    public void continueForOneTick() {
+        if (!paused || modalSuspended || singleStepRunning || !hasActiveSimulation() || session == null) {
+            return;
+        }
+        setSingleStepRunning(true);
+        resumePresentedStepAnimations();
+        if (finishDelay.getStatus() == Animation.Status.PAUSED) {
+            finishDelay.play();
+        } else if (isTerminalStepAwaitingCompletion()) {
+            startTerminalStepCompletion();
+        } else {
+            startTimelineIfNeeded();
+        }
+        stepPresenter.resumeAnimations();
+        updateSimulationControlsVisibility();
+    }
+
+    /** Запускає анімації вже обчисленого такту, не обробляючи його сигнали повторно. */
+    private void resumePresentedStepAnimations() {
+        if (!stepAwaitingAnimation) {
+            return;
+        }
+        stepAwaitingAnimation = false;
+        if (lastAppliedStep != null) {
+            stepPresenter.startAnimations(lastAppliedStep);
+        }
+    }
+
+    /** Визначає, чи вже показано останній такт, після якого не залишилося сигналів для обробки. */
+    private boolean isTerminalStepAwaitingCompletion() {
+        return session != null && session.isFinished() && !session.hasPendingWork()
+                && timeline == null && finishDelay.getStatus() == Animation.Status.STOPPED;
+    }
+
+    /** Дає користувачеві побачити останній стан такту, а потім завершує симуляцію штатним шляхом. */
+    private void startTerminalStepCompletion() {
+        finishDelay.setDuration(Duration.millis(tickMillis));
+        finishDelay.playFromStart();
+    }
+
+    /**
      * Призупиняє симуляцію для модального інтерфейсу, не змінюючи індикатор ручної паузи на панелі інструментів.
      *
      * @return {@code true}, якщо симуляція виконувалася й була призупинена цим викликом.
      */
     public boolean pauseForModal() {
-        if (!hasActiveSimulation() || paused || modalSuspended) {
+        if (!hasActiveSimulation() || (paused && !singleStepRunning) || modalSuspended) {
             return false;
         }
         modalSuspended = true;
@@ -202,15 +270,24 @@ public final class SimulationController {
             return;
         }
         modalSuspended = false;
-        if (!hasActiveSimulation() || paused) {
+        if (!hasActiveSimulation() || (paused && !singleStepRunning)) {
             return;
         }
         resumeInternal(false);
     }
 
-    /** Повертає, чи симуляція перебуває в ручній паузі. */
+    /** Повертає, чи симуляція перебуває в ручній паузі. Однотактне виконання зберігає цей стан. */
     public boolean isPaused() {
         return paused;
+    }
+
+    /**
+     * Повертає, чи триває однотактне виконання після натискання відповідної кнопки.
+     *
+     * @return {@code true}, якщо контролер очікує межу одного такту.
+     */
+    public boolean isSingleStepRunning() {
+        return singleStepRunning;
     }
 
     /** Перевіряє наявність активного сеансу, таймера або анімації симуляції. */
@@ -237,7 +314,7 @@ public final class SimulationController {
 
         runtimeState.apply(lastAppliedStep);
         stepPresenter.restoreVisualState(lastAppliedStep);
-        if (paused || modalSuspended) {
+        if ((paused && !singleStepRunning) || modalSuspended) {
             stepPresenter.pauseAnimations();
         }
         updateSimulationControlsVisibility();
@@ -263,7 +340,7 @@ public final class SimulationController {
             return;
         }
 
-        boolean shouldRemainPaused = paused || modalSuspended;
+        boolean shouldRemainPaused = (paused && !singleStepRunning) || modalSuspended;
         timeline.stop();
         createTimeline();
         if (!shouldRemainPaused) {
@@ -298,6 +375,7 @@ public final class SimulationController {
         if (!hasActiveSimulation()) {
             return;
         }
+        setSingleStepRunning(false);
         pauseInternal(true);
         status.accept(localization.text("status.simulation_paused"));
     }
@@ -326,14 +404,18 @@ public final class SimulationController {
         status.accept(localization.text("status.simulation_resumed"));
     }
 
-    /** Відновлює таймери симуляції та імпульсні анімації з поточного стану. */
+    /** Відновлює таймери й анімації; звичайне продовження скасовує обмеження однотактного режиму. */
     private void resumeInternal(boolean notifyManualPauseState) {
         if (notifyManualPauseState) {
             paused = false;
+            setSingleStepRunning(false);
+            resumePresentedStepAnimations();
         }
         startTimelineIfNeeded();
         if (finishDelay.getStatus() == Animation.Status.PAUSED) {
             finishDelay.play();
+        } else if (notifyManualPauseState && isTerminalStepAwaitingCompletion()) {
+            startTerminalStepCompletion();
         }
         stepPresenter.resumeAnimations();
         if (notifyManualPauseState) {
@@ -345,8 +427,10 @@ public final class SimulationController {
     /**
      * Спочатку завершує імпульси попереднього такту, потім обчислює й показує наступний результат симуляції.
      * Такий порядок не дозволяє незалежним часовим шкалам губити імпульси на спільній межі такту.
+     *
+     * @param animate чи потрібно запускати анімації одразу або лише показати обчислений стан.
      */
-    private void processNextStep() {
+    private void processNextStep(boolean animate) {
         if (session == null) {
             return;
         }
@@ -359,9 +443,13 @@ public final class SimulationController {
         }
         lastAppliedStep = step;
         runtimeState.apply(step);
-        stepPresenter.apply(step);
+        if (animate) {
+            stepPresenter.apply(step);
+        } else {
+            stepPresenter.applyWithoutAnimations(step);
+        }
         status.accept(localization.text("status.tick", step.tick().add(BigInteger.ONE)));
-        if (session.isFinished()) {
+        if (session.isFinished() && animate) {
             finishSimulation();
         }
     }
@@ -386,7 +474,7 @@ public final class SimulationController {
                 : MINIMUM_ANIMATION_MILLIS;
         finishDelay.setDuration(Duration.millis(safeDelay));
         finishDelay.playFromStart();
-        if (paused || modalSuspended) {
+        if ((paused && !singleStepRunning) || modalSuspended) {
             finishDelay.pause();
         }
         updateSimulationControlsVisibility();
@@ -427,17 +515,37 @@ public final class SimulationController {
         session = null;
         lastAppliedStep = null;
         stepPresenter.clearRuntime();
+        stepAwaitingAnimation = false;
+        setSingleStepRunning(false);
     }
 
-    /** Створює часову шкалу, яка обробляє наступні такти симуляції. */
+    /** Створює часову шкалу, яка завершує один такт або переходить до наступного залежно від режиму виконання. */
     private void createTimeline() {
-        timeline = new Timeline(new KeyFrame(Duration.millis(tickMillis), event -> processNextStep()));
+        timeline = new Timeline(new KeyFrame(Duration.millis(tickMillis), event -> handleTimelineBoundary()));
         timeline.setCycleCount(Timeline.INDEFINITE);
     }
 
-    /** Запускає часову шкалу лише тоді, коли сеанс має роботу та ще не виконується. */
+    /** Обробляє межу таймера; однотактний режим показує наступний такт без запуску його імпульсів. */
+    private void handleTimelineBoundary() {
+        if (singleStepRunning) {
+            if (timeline != null) {
+                timeline.stop();
+                timeline = null;
+            }
+            processNextStep(false);
+            stepAwaitingAnimation = session != null && lastAppliedStep != null;
+            setSingleStepRunning(false);
+            pauseFinishDelayAtManualBoundary();
+            stepPresenter.pauseAnimations();
+            updateSimulationControlsVisibility();
+            return;
+        }
+        processNextStep(true);
+    }
+
+    /** Запускає часову шкалу лише тоді, коли сеанс має роботу та не діє ручна або модальна пауза. */
     private void startTimelineIfNeeded() {
-        if (session == null || paused || modalSuspended
+        if (session == null || (paused && !singleStepRunning) || modalSuspended
                 || finishDelay.getStatus() != Animation.Status.STOPPED || !session.hasPendingWork()) {
             return;
         }
@@ -447,6 +555,21 @@ public final class SimulationController {
         if (timeline.getStatus() != Animation.Status.RUNNING) {
             timeline.play();
         }
+    }
+
+    /** Зупиняє новий таймер завершення, якщо обчислення на межі не повернуло наступного такту. */
+    private void pauseFinishDelayAtManualBoundary() {
+        if (paused && finishDelay.getStatus() == Animation.Status.RUNNING) {
+            finishDelay.pause();
+        }
+    }
+
+    /** Оновлює внутрішній стан обмеження виконання одним тактом, не змінюючи ручну паузу.
+     *
+     * @param running {@code true}, якщо має діяти межа одного такту.
+     */
+    private void setSingleStepRunning(boolean running) {
+        singleStepRunning = running;
     }
 
     /** Передає ручний стан паузи зареєстрованому споживачу панелі інструментів. */
