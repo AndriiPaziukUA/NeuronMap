@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє життєвий цикл активних імпульсів і зміну їхньої швидкості разом із тактом. */
+/** Перевіряє життєвий цикл імпульсів, зміну їхньої швидкості та тривалість окремої анімації. */
 class PulseAnimationControllerTest {
 
     /** Запускає JavaFX перед тестами, що працюють із графічними вузлами. */
@@ -99,12 +99,104 @@ class PulseAnimationControllerTest {
                 assertEquals(0, workspace.pulseLayer().getChildren().size());
             } finally {
                 controller.stopAll();
+                workspace.dispose();
             }
             assertEquals(0, workspace.pulseLayer().getChildren().size());
         });
     }
 
-    /** Виконує дію в JavaFX-потоці та передає помилки виконання до потоку JUnit. */
+    /** Перевіряє, що активний зв'язок не отримує дубльований імпульс, а наступний запуск зберігає типову тривалість. */
+    @Test
+    void activeConnectionRejectsDuplicatePulseAndKeepsDefaultDurationForNextPulse() throws Exception {
+        runOnFxThread(() -> {
+            NeuronMapModel model = new NeuronMapModel();
+            Neuron source = model.createNeuron(NeuronType.EXCITATORY, 50.0, 50.0);
+            Neuron target = model.createNeuron(NeuronType.EXCITATORY, 250.0, 50.0);
+            assertTrue(model.createConnection(source.id(), target.id()));
+            WorkspaceView workspace = new WorkspaceView();
+            new Scene(workspace.node(), 800, 600);
+            Map<String, NeuronView> views = Map.of(
+                    source.id(), new NeuronView(model.presentation(source.id())),
+                    target.id(), new NeuronView(model.presentation(target.id()))
+            );
+            workspace.nodeLayer().getChildren().addAll(views.values());
+            Connection connection = model.connections().iterator().next();
+            ConnectionView connectionView = new ConnectionView(connection, views::get, model::neuron);
+            workspace.edgeLayer().getChildren().add(connectionView);
+            PulseAnimationController controller = new PulseAnimationController(workspace);
+            try {
+                controller.setTickDurationMillis(500.0);
+                controller.play(connectionView, 175.0);
+
+                PulseAnimationView shortPulse = (PulseAnimationView) workspace.pulseLayer().getChildren().get(0);
+                assertEquals(175.0, shortPulse.getTickDurationMillis());
+
+                controller.play(connectionView);
+                assertEquals(1, controller.activeAnimationCountForTest());
+                assertEquals(1, workspace.pulseLayer().getChildren().size());
+                assertTrue(workspace.pulseLayer().getChildren().contains(shortPulse));
+
+                shortPulse.stop();
+                controller.play(connectionView);
+                assertEquals(1, controller.activeAnimationCountForTest());
+                assertEquals(1, workspace.pulseLayer().getChildren().size());
+                PulseAnimationView regularPulse = (PulseAnimationView) workspace.pulseLayer().getChildren().get(0);
+                assertEquals(500.0, regularPulse.getTickDurationMillis());
+            } finally {
+                controller.stopAll();
+                workspace.dispose();
+            }
+        });
+    }
+
+    /** Перевіряє, що межа такту завершує старий імпульс і звільняє зв'язок для наступного сигналу. */
+    @Test
+    void tickBoundaryCompletesPulseBeforeNextPulseOnSameConnection() throws Exception {
+        runOnFxThread(() -> {
+            NeuronMapModel model = new NeuronMapModel();
+            Neuron source = model.createNeuron(NeuronType.EXCITATORY, 50.0, 50.0);
+            Neuron target = model.createNeuron(NeuronType.EXCITATORY, 250.0, 50.0);
+            assertTrue(model.createConnection(source.id(), target.id()));
+
+            WorkspaceView workspace = new WorkspaceView();
+            new Scene(workspace.node(), 800, 600);
+            Map<String, NeuronView> views = Map.of(
+                    source.id(), new NeuronView(model.presentation(source.id())),
+                    target.id(), new NeuronView(model.presentation(target.id()))
+            );
+            workspace.nodeLayer().getChildren().addAll(views.values());
+            Connection connection = model.connections().iterator().next();
+            ConnectionView connectionView = new ConnectionView(connection, views::get, model::neuron);
+            workspace.edgeLayer().getChildren().add(connectionView);
+            PulseAnimationController controller = new PulseAnimationController(workspace);
+
+            try {
+                controller.play(connectionView, 175.0);
+                PulseAnimationView firstPulse = (PulseAnimationView) workspace.pulseLayer().getChildren().get(0);
+                controller.play(connectionView);
+                assertEquals(1, controller.activeAnimationCountForTest());
+
+                controller.completeAtTickBoundary();
+
+                assertTrue(firstPulse.isFinished());
+                assertEquals(0, controller.activeAnimationCountForTest());
+                assertTrue(workspace.pulseLayer().getChildren().isEmpty());
+
+                controller.play(connectionView);
+
+                assertEquals(1, controller.activeAnimationCountForTest());
+                assertEquals(1, workspace.pulseLayer().getChildren().size());
+                PulseAnimationView nextPulse = (PulseAnimationView) workspace.pulseLayer().getChildren().get(0);
+                assertTrue(nextPulse != firstPulse);
+                assertEquals(PulseAnimationView.DEFAULT_TICK_DURATION_MILLIS, nextPulse.getTickDurationMillis());
+            } finally {
+                controller.stopAll();
+                workspace.dispose();
+            }
+        });
+    }
+
+    /** Виконує дію в JavaFX-потоці та передає помилки до потоку JUnit. */
     private static void runOnFxThread(Runnable action) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] failure = new Throwable[1];

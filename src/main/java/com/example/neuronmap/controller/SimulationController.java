@@ -22,6 +22,8 @@ import java.util.function.Consumer;
 /** Керує життєвим циклом симуляції, таймерами, ручною паузою та передаванням стану симуляції до інтерфейсу. */
 public final class SimulationController {
 
+    private static final double MINIMUM_ANIMATION_MILLIS = 0.1;
+
     private final NeuronService neuronService;
     private final SimulationService simulationService;
     private final SimulationRuntimeState runtimeState;
@@ -87,60 +89,84 @@ public final class SimulationController {
         stepPresenter.setTickDurationMillis(tickMillis);
         finishDelay = new PauseTransition(Duration.millis(tickMillis));
 
-        finishDelay.setOnFinished(event -> {
-            if (session != null && session.hasPendingWork()) {
-                startTimelineIfNeeded();
-                return;
-            }
-            runtimeState.clear();
-            stepPresenter.clearRuntime();
-            lastAppliedStep = null;
-            session = null;
-            timeline = null;
-            stepPresenter.refresh();
-            save.run();
-            status.accept(localization.text("status.simulation_finished"));
-            updateSimulationControlsVisibility();
-        });
+        finishDelay.setOnFinished(event -> finishDelayElapsed());
 
         simulationActivityConsumer.accept(false);
         pausedStateConsumer.accept(false);
     }
 
-    /** Додає ручний запуск нейрона до симуляції та за потреби запускає обробку тактів. */
+    /** Активує початковий нейрон або виконує повторний ручний запуск у межах поточного такту. */
     public void emitPulse(String sourceNeuronId) {
         if (modalSuspended) {
             return;
         }
         if (session == null) {
-            session = simulationService.start(neuronService.model(), sourceNeuronId);
-            if (session == null) {
-                return;
-            }
-            paused = false;
-            modalSuspended = false;
-            notifyPausedState();
-            finishDelay.stop();
-            updateSimulationControlsVisibility();
-            processNextStep();
-            if (session == null) {
-                updateSimulationControlsVisibility();
-                return;
-            }
-            if (!session.isFinished()) {
-                startTimelineIfNeeded();
-            }
-            updateSimulationControlsVisibility();
+            startSession(sourceNeuronId);
             return;
         }
+        activateDuringCurrentTick(sourceNeuronId);
+    }
 
-        if (!session.queueManualStart(sourceNeuronId)) {
+    /** Створює сеанс, синхронно обробляє його перший такт і запускає наступну межу за потреби. */
+    private void startSession(String sourceNeuronId) {
+        session = simulationService.start(neuronService.model(), sourceNeuronId);
+        if (session == null) {
             return;
         }
+        paused = false;
+        modalSuspended = false;
+        notifyPausedState();
         finishDelay.stop();
-        if (!paused) {
+        updateSimulationControlsVisibility();
+        processNextStep();
+        if (session != null && !session.isFinished()) {
             startTimelineIfNeeded();
         }
+        updateSimulationControlsVisibility();
+    }
+
+    /** Застосовує ручну активацію одразу та синхронізує її анімацію з межею поточного такту. */
+    private void activateDuringCurrentTick(String sourceNeuronId) {
+        double remainingMillis = remainingTickDurationMillis();
+        SimulationStep step = session.activateManualStartNow(sourceNeuronId);
+        if (step == null) {
+            return;
+        }
+        lastAppliedStep = step;
+        runtimeState.apply(step);
+        stepPresenter.applyImmediateActivation(step, sourceNeuronId, remainingMillis);
+        if (paused || modalSuspended) {
+            stepPresenter.pauseAnimations();
+        }
+
+        if (session.isFinished()) {
+            if (timeline != null || finishDelay.getStatus() == Animation.Status.STOPPED) {
+                finishSimulation(remainingMillis);
+            }
+        } else if (finishDelay.getStatus() == Animation.Status.STOPPED) {
+            startTimelineIfNeeded();
+        }
+        updateSimulationControlsVisibility();
+    }
+
+    /** Завершує очікування поточного такту: обробляє сигнали на межі або очищує остаточний runtime-стан. */
+    private void finishDelayElapsed() {
+        finishDelay.stop();
+        if (session != null && session.hasPendingWork()) {
+            processNextStep();
+            if (session != null && !session.isFinished()) {
+                startTimelineIfNeeded();
+            }
+            return;
+        }
+        runtimeState.clear();
+        stepPresenter.clearRuntime();
+        lastAppliedStep = null;
+        session = null;
+        timeline = null;
+        stepPresenter.refresh();
+        save.run();
+        status.accept(localization.text("status.simulation_finished"));
         updateSimulationControlsVisibility();
     }
 
@@ -316,11 +342,15 @@ public final class SimulationController {
         updateSimulationControlsVisibility();
     }
 
-    /** Обчислює наступний такт, передає результат поданню та визначає, чи потрібно завершити симуляцію. */
+    /**
+     * Спочатку завершує імпульси попереднього такту, потім обчислює й показує наступний результат симуляції.
+     * Такий порядок не дозволяє незалежним часовим шкалам губити імпульси на спільній межі такту.
+     */
     private void processNextStep() {
         if (session == null) {
             return;
         }
+        stepPresenter.completeAnimationsAtTickBoundary();
         SimulationStep step = session.nextStep();
         if (step == null) {
             lastAppliedStep = null;
@@ -336,17 +366,54 @@ public final class SimulationController {
         }
     }
 
-    /** Завершує симуляцію, оновлює індикатори та зберігає потрібні параметри. */
+    /** Завершує симуляцію після заданого інтервалу, щоб імпульси встигли синхронно дійти до кінця такту. */
     private void finishSimulation() {
+        finishSimulation(tickMillis);
+    }
+
+    /**
+     * Зупиняє активний таймер і запускає відкладене очищення з потрібним залишком поточного такту.
+     *
+     * @param delayMillis час до завершення поточного такту в мілісекундах.
+     */
+    private void finishSimulation(double delayMillis) {
         if (timeline != null) {
             timeline.stop();
             timeline = null;
         }
-        if (finishDelay.getDuration().toMillis() != tickMillis) {
-            finishDelay.setDuration(Duration.millis(tickMillis));
-        }
+        double safeDelay = Double.isFinite(delayMillis) && delayMillis > 0.0
+                ? delayMillis
+                : MINIMUM_ANIMATION_MILLIS;
+        finishDelay.setDuration(Duration.millis(safeDelay));
         finishDelay.playFromStart();
+        if (paused || modalSuspended) {
+            finishDelay.pause();
+        }
         updateSimulationControlsVisibility();
+    }
+
+    /**
+     * Обчислює залишок поточного такту за активною часовою шкалою або таймером завершення.
+     *
+     * @return додатний час до найближчої межі такту в мілісекундах.
+     */
+    private double remainingTickDurationMillis() {
+        double duration = tickMillis;
+        double elapsed = 0.0;
+        if (timeline != null && timeline.getStatus() != Animation.Status.STOPPED) {
+            elapsed = timeline.getCurrentTime().toMillis();
+        } else if (finishDelay.getStatus() != Animation.Status.STOPPED) {
+            duration = finishDelay.getDuration().toMillis();
+            elapsed = finishDelay.getCurrentTime().toMillis();
+        }
+        if (!Double.isFinite(elapsed) || elapsed < 0.0) {
+            elapsed = 0.0;
+        }
+        double remaining = duration - elapsed;
+        if (!Double.isFinite(remaining) || remaining < MINIMUM_ANIMATION_MILLIS) {
+            return MINIMUM_ANIMATION_MILLIS;
+        }
+        return remaining;
     }
 
     /** Скидає поточний сеанс, таймер і тимчасові сигнали симуляції. */
@@ -370,7 +437,8 @@ public final class SimulationController {
 
     /** Запускає часову шкалу лише тоді, коли сеанс має роботу та ще не виконується. */
     private void startTimelineIfNeeded() {
-        if (session == null || paused || modalSuspended || !session.hasPendingWork()) {
+        if (session == null || paused || modalSuspended
+                || finishDelay.getStatus() != Animation.Status.STOPPED || !session.hasPendingWork()) {
             return;
         }
         if (timeline == null) {

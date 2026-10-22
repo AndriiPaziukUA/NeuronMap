@@ -2,7 +2,7 @@ package com.example.neuronmap.view.simulation;
 
 import com.example.neuronmap.view.connection.ConnectionView;
 
-/** Визначає операції керування візуальними анімаціями імпульсів. */
+/** Визначає керування візуальними імпульсами та їх синхронізацію з тактами симуляції. */
 public interface PulseAnimator {
 
     /** Призупиняє всі активні анімації імпульсів. */
@@ -29,11 +29,36 @@ public interface PulseAnimator {
     boolean hasActiveAnimations();
 
     /**
-     * Запускає анімацію для заданого візуального подання зв'язку.
+     * Запускає анімацію для заданого візуального подання зв'язку зі стандартною тривалістю такту.
      *
      * @param connectionView візуальне подання зв'язку.
      */
     void play(ConnectionView connectionView);
+
+    /**
+     * Запускає анімацію, яка завершується через заданий час, наприклад на залишку поточного такту.
+     * Реалізація, що підтримує індивідуальну тривалість, має перевизначити цей метод; стандартна поведінка
+     * зберігає сумісність із попередніми реалізаціями та запускає анімацію звичайним способом.
+     *
+     * @param connectionView візуальне подання зв'язку.
+     * @param durationMillis тривалість анімації в мілісекундах.
+     * @throws IllegalArgumentException якщо тривалість не є скінченним додатним числом.
+     */
+    default void play(ConnectionView connectionView, double durationMillis) {
+        if (!Double.isFinite(durationMillis) || durationMillis <= 0.0) {
+            throw new IllegalArgumentException("animation duration must be finite and positive");
+        }
+        play(connectionView);
+    }
+
+    /**
+     * Завершує всі імпульси попереднього такту перед застосуванням нового результату симуляції.
+     * Реалізації, що керують часовими шкалами самостійно, можуть залишити стандартну поведінку,
+     * якщо завершення синхронізується зовнішнім механізмом.
+     */
+    default void completeAtTickBoundary() {
+        // Для сумісних реалізацій синхронізацію може забезпечувати зовнішній механізм.
+    }
 
     /**
      * Застосовує тривалість такту симуляції до нових і вже активних анімацій імпульсів.

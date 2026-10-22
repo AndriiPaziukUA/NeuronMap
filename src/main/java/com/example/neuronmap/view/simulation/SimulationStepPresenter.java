@@ -53,6 +53,30 @@ public class SimulationStepPresenter {
     }
 
     /**
+     * Негайно оновлює стан карти після ручної активації та запускає її імпульси лише на залишок поточного такту.
+     * Уже активні анімації не перезапускаються, тому всі сигнали прибувають на спільній межі такту.
+     *
+     * @param step актуальний знімок моделі після негайної активації.
+     * @param sourceNeuronId ідентифікатор нейрона, активованого користувачем.
+     * @param remainingMillis час до завершення поточного такту в мілісекундах.
+     * @throws NullPointerException якщо знімок або ідентифікатор нейрона не задано.
+     * @throws IllegalArgumentException якщо залишок часу не є скінченним додатним числом.
+     */
+    public void applyImmediateActivation(
+            SimulationStep step,
+            String sourceNeuronId,
+            double remainingMillis
+    ) {
+        Objects.requireNonNull(step, "step");
+        Objects.requireNonNull(sourceNeuronId, "sourceNeuronId");
+        if (!Double.isFinite(remainingMillis) || remainingMillis <= 0.0) {
+            throw new IllegalArgumentException("remaining duration must be finite and positive");
+        }
+        restoreVisualState(step);
+        animateOutgoingConnections(sourceNeuronId, remainingMillis);
+    }
+
+    /**
      * Відновлює індикатори поточного такту й лічильники нейронів, які активуються від сигналів у дорозі, без запуску нових імпульсів.
      * Використовується після відновлення моделі, коли вже наявні анімації мають продовжуватися з поточного прогресу.
      *
@@ -78,6 +102,13 @@ public class SimulationStepPresenter {
         clearDisplayedRemainingActiveTicks();
         clearOutputSignalHighlights();
         pulseAnimations.stopAll();
+    }
+
+    /**
+     * Завершує візуальну доставку імпульсів попереднього такту перед обробкою сигналів на новій межі.
+     */
+    public void completeAnimationsAtTickBoundary() {
+        pulseAnimations.completeAtTickBoundary();
     }
 
     /** Оновлює подання нейронів і зв'язків після зміни моделі. */
@@ -123,7 +154,7 @@ public class SimulationStepPresenter {
 
     /**
      * Негайно показує повний лічильник нейронів, які досягли порога від сигналів, що вже прямують до них.
-     * Саму активацію симуляція виконає на наступному такті; тут відображається її вже відомий результат.
+     * Саму активацію симуляція виконає на найближчій межі такту; тут відображається її вже відомий результат.
      *
      * @param neuronIds нейрони, для яких запланована сума вхідних сигналів перетинає поріг активації.
      */
@@ -163,12 +194,22 @@ public class SimulationStepPresenter {
         }
     }
 
-    /** Запускає анімації на поточних вихідних зв'язках указаного нейрона. */
+    /** Запускає анімації на поточних вихідних зв'язках указаного нейрона зі стандартною тривалістю такту. */
     private void animateOutgoingConnections(String neuronId) {
         for (Node node : workspace.edgeLayer().getChildren()) {
             if (node instanceof ConnectionView connectionView
                     && connectionView.model().sourceId().equals(neuronId)) {
                 pulseAnimations.play(connectionView);
+            }
+        }
+    }
+
+    /** Запускає анімації вихідних зв'язків нейрона з індивідуальною тривалістю. */
+    private void animateOutgoingConnections(String neuronId, double durationMillis) {
+        for (Node node : workspace.edgeLayer().getChildren()) {
+            if (node instanceof ConnectionView connectionView
+                    && connectionView.model().sourceId().equals(neuronId)) {
+                pulseAnimations.play(connectionView, durationMillis);
             }
         }
     }

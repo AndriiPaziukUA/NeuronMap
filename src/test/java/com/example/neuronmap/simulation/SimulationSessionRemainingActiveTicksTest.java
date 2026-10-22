@@ -12,10 +12,12 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє, що результати симуляції містять актуальні залишки активних тактів нейронів. */
+/** Перевіряє залишки активних тактів, прогнозування активацій і захист від дублювання імпульсів. */
 final class SimulationSessionRemainingActiveTicksTest {
 
     /** Перевіряє зменшення залишку після кожного випущеного сигналу та його обнулення після останнього такту. */
@@ -40,9 +42,7 @@ final class SimulationSessionRemainingActiveTicksTest {
         assertFalse(third.remainingActiveTicks().containsKey(source.id()));
     }
 
-    /**
-     * Перевіряє, що такт повідомляє про досягнення порога ще під час відображення сигналу, який прямує до нейрона.
-     */
+    /** Перевіряє, що такт повідомляє про досягнення порога ще під час відображення сигналу, який прямує до нейрона. */
     @Test
     void exposesPendingThresholdActivationBeforeItIsProcessed() {
         NeuronMapModel model = new NeuronMapModel();
@@ -62,6 +62,49 @@ final class SimulationSessionRemainingActiveTicksTest {
         assertTrue(step.nextActivatedNeuronIds().contains(target.id()));
         assertFalse(step.activatedNeuronIds().contains(target.id()));
         assertFalse(step.remainingActiveTicks().containsKey(target.id()));
+    }
+
+    /** Перевіряє, що повторна активація не додає другий сигнал, доки сигнал нейрона перебуває в дорозі. */
+    @Test
+    void immediateActivationIsIgnoredWhileNeuronIsAlreadyEmittingThisTick() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron source = model.createNeuron(NeuronType.EXCITATORY, 0.0, 0.0);
+        Neuron target = model.createNeuron(NeuronType.EXCITATORY, 100.0, 0.0);
+        source.setActiveTicks(4);
+        target.setActivationThreshold(100);
+        assertTrue(model.createConnection(source.id(), target.id()));
+        SimulationSession session = SimulationSession.manual(model, source.id());
+
+        SimulationStep first = session.nextStep();
+        assertEquals(1, first.nextInputSums().get(target.id()));
+        assertEquals(3, first.remainingActiveTicks().get(source.id()));
+        BigInteger nextTick = session.tick();
+
+        assertNull(session.activateManualStartNow(source.id()));
+        assertEquals(nextTick, session.tick());
+
+        SimulationStep next = session.nextStep();
+        assertEquals(1, next.inputSums().get(target.id()));
+        assertEquals(1, next.nextInputSums().get(target.id()));
+        assertEquals(2, next.remainingActiveTicks().get(source.id()));
+    }
+
+    /** Перевіряє, що два ручні запуски того самого нейрона в межах такту створюють лише один вихідний сигнал. */
+    @Test
+    void repeatedImmediateActivationDoesNotAccumulateDuplicateSignals() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron source = model.createNeuron(NeuronType.EXCITATORY, 0.0, 0.0);
+        Neuron target = model.createNeuron(NeuronType.EXCITATORY, 100.0, 0.0);
+        target.setActivationThreshold(100);
+        assertTrue(model.createConnection(source.id(), target.id()));
+        SimulationSession session = SimulationSession.manual(model, source.id());
+        SimulationStep first = session.nextStep();
+        assertEquals(1, first.nextInputSums().get(target.id()));
+
+        assertNull(session.activateManualStartNow(source.id()));
+        SimulationStep next = session.nextStep();
+
+        assertEquals(1, next.inputSums().get(target.id()));
     }
 
     /** Перевіряє, що повторна активація перезапускає лічильник і відразу показує новий залишок. */
@@ -104,5 +147,52 @@ final class SimulationSessionRemainingActiveTicksTest {
         assertEquals(2, step.remainingActiveTicks().get("neuron-a"));
         assertThrows(UnsupportedOperationException.class,
                 () -> step.remainingActiveTicks().put("neuron-b", 3));
+    }
+
+    /** Перевіряє негайний випуск сигналу, об'єднання черги сигналів і відсутність зсуву глобального такту. */
+    @Test
+    void manualActivationImmediatelyMergesSignalsWithoutAdvancingTick() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron firstSource = model.createNeuron(NeuronType.EXCITATORY, 0.0, 0.0);
+        Neuron target = model.createNeuron(NeuronType.EXCITATORY, 100.0, 0.0);
+        Neuron manualSource = model.createNeuron(NeuronType.EXCITATORY, 0.0, 100.0);
+        target.setActivationThreshold(2);
+        target.setActiveTicks(3);
+        manualSource.setActiveTicks(4);
+        assertTrue(model.createConnection(firstSource.id(), target.id()));
+        assertTrue(model.createConnection(manualSource.id(), target.id()));
+        SimulationSession session = SimulationSession.manual(model, firstSource.id());
+
+        SimulationStep first = session.nextStep();
+        BigInteger nextTick = session.tick();
+        SimulationStep immediate = session.activateManualStartNow(manualSource.id());
+
+        assertNotNull(immediate);
+        assertEquals(first.tick(), immediate.tick());
+        assertEquals(nextTick, session.tick());
+        assertEquals(2, immediate.nextInputSums().get(target.id()));
+        assertTrue(immediate.nextActivatedNeuronIds().contains(target.id()));
+        assertTrue(immediate.activatedNeuronIds().contains(manualSource.id()));
+        assertEquals(Set.of(firstSource.id(), manualSource.id()), immediate.emittingNeuronIds());
+        assertEquals(3, immediate.remainingActiveTicks().get(manualSource.id()));
+
+        SimulationStep delivered = session.nextStep();
+        assertEquals(nextTick, delivered.tick());
+        assertEquals(2, delivered.inputSums().get(target.id()));
+        assertTrue(delivered.activatedNeuronIds().contains(target.id()));
+    }
+
+    /** Перевіряє, що некоректний ідентифікатор не змінює чергу й стан сеансу симуляції. */
+    @Test
+    void immediateActivationRejectsUnknownNeuronWithoutChangingTick() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron source = model.createNeuron(NeuronType.EXCITATORY, 0.0, 0.0);
+        SimulationSession session = SimulationSession.manual(model, source.id());
+        session.nextStep();
+        BigInteger currentTick = session.tick();
+
+        assertNull(session.activateManualStartNow("missing-neuron"));
+        assertEquals(currentTick, session.tick());
+        assertFalse(session.hasPendingWork());
     }
 }

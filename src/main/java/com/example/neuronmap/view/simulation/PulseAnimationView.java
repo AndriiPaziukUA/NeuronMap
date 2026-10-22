@@ -16,7 +16,8 @@ import java.util.function.Supplier;
 
 /**
  * Анімує трикутний наконечник сигналу вздовж актуальної геометрії зв'язку.
- * Прогрес руху має одне джерело часу — {@link Timeline}, а зміни геометрії надходять окремими подіями.
+ * Прогрес руху має одне джерело часу — {@link Timeline}, зміни геометрії надходять окремими подіями,
+ * а межа такту може синхронно завершити імпульс у кінцевій точці.
  */
 public final class PulseAnimationView extends Pane {
 
@@ -128,6 +129,19 @@ public final class PulseAnimationView extends Pane {
             return;
         }
         timeline.stop();
+        finish();
+    }
+
+    /**
+     * Завершує рух у кінцевій точці перед обробкою наступного такту симуляції.
+     * Це усуває гонку між незалежними часовими шкалами таймера симуляції та імпульсу.
+     */
+    public void completeAtTickBoundary() {
+        if (finished) {
+            return;
+        }
+        timeline.stop();
+        progress.set(1.0);
         finish();
     }
 

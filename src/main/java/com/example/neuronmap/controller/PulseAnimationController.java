@@ -45,14 +45,35 @@ public final class PulseAnimationController implements PulseAnimator {
     }
 
     /**
-     * Створює та запускає анімацію імпульсу для заданого подання зв'язку.
-     * Геометрія активного імпульсу оновлюється через подію зв'язку, а не через окремий цикл кадрів.
+     * Створює та запускає анімацію імпульсу для заданого подання зв'язку зі стандартною тривалістю такту.
      *
      * @param connectionView візуальне подання зв'язку.
      */
     @Override
     public void play(ConnectionView connectionView) {
+        play(connectionView, tickDurationMillis);
+    }
+
+    /**
+     * Створює та запускає анімацію імпульсу з індивідуальною тривалістю, не змінюючи налаштування інших анімацій.
+     * Геометрія активного імпульсу оновлюється через подію зв'язку, а не через окремий цикл кадрів.
+     *
+     * @param connectionView візуальне подання зв'язку.
+     * @param durationMillis тривалість саме цієї анімації в мілісекундах.
+     * @throws IllegalArgumentException якщо тривалість не є скінченним додатним числом.
+     */
+    @Override
+    public void play(ConnectionView connectionView, double durationMillis) {
         if (connectionView == null) {
+            return;
+        }
+        if (!Double.isFinite(durationMillis) || durationMillis <= 0.0) {
+            throw new IllegalArgumentException("animation duration must be finite and positive");
+        }
+
+        pruneFinished();
+        String connectionId = connectionView.model().id();
+        if (hasActiveAnimationForConnection(connectionId)) {
             return;
         }
 
@@ -65,7 +86,7 @@ public final class PulseAnimationController implements PulseAnimator {
         PulseAnimationView animation = new PulseAnimationView(
                 snapshot,
                 connectionView::capturePulseSnapshot,
-                tickDurationMillis,
+                durationMillis,
                 this::handleAnimationFinished
         );
 
@@ -140,6 +161,19 @@ public final class PulseAnimationController implements PulseAnimator {
     }
 
     /**
+     * Завершує поточні імпульси в кінцевих точках і звільняє зв'язки до запуску сигналів наступного такту.
+     * Імпульси природно завершуються самі, але порядок JavaFX callback-ів не гарантує, що це станеться
+     * раніше за таймер симуляції; цей метод усуває таку гонку детерміновано.
+     */
+    @Override
+    public void completeAtTickBoundary() {
+        for (ActiveAnimation activeAnimation : List.copyOf(activeAnimations)) {
+            activeAnimation.view().completeAtTickBoundary();
+        }
+        pruneFinished();
+    }
+
+    /**
      * Застосовує нову тривалість такту до всіх активних імпульсів і майбутніх анімацій.
      * Поточний прогрес активних імпульсів зберігається.
      *
@@ -181,6 +215,11 @@ public final class PulseAnimationController implements PulseAnimator {
     int activeAnimationCountForTest() {
         pruneFinished();
         return activeAnimations.size();
+    }
+
+    /** Перевіряє, чи вже є активний імпульс для заданого напрямленого зв'язку. */
+    private boolean hasActiveAnimationForConnection(String connectionId) {
+        return activeAnimations.stream().anyMatch(animation -> animation.isForConnection(connectionId));
     }
 
     /** Обробляє завершення анімації та повідомляє про зміну активності. */
@@ -249,9 +288,14 @@ public final class PulseAnimationController implements PulseAnimator {
             this.geometryListener = geometryListener;
         }
 
-        /** Повертає слухач геометрії для від'єднання після завершення імпульсу. */
+        /** Повертає слухач геометрії для від'єднання після завершення анімації. */
         private ChangeListener<Number> geometryListener() {
             return geometryListener;
+        }
+
+        /** Перевіряє, чи належить анімація вказаному напрямленому зв'язку. */
+        private boolean isForConnection(String connectionId) {
+            return connectionView.model().id().equals(connectionId);
         }
 
         /** Перевіряє, чи проходить зв'язок через нейрон, який зараз видаляють. */
