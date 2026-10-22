@@ -1,19 +1,23 @@
 package com.example.neuronmap.view.neuron;
 
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.model.NeuronType;
+import com.example.neuronmap.view.support.TooltipFactory;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.StackPane;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
 
 /**
- * Відображає нейрон, його порти, залишок активних тактів і візуальні стани вибору, наведення та передачі сигналу.
+ * Відображає нейрон, його порти, залишок активних тактів, підказку параметрів і візуальні стани взаємодії.
  *
  * <p>Область взаємодії визначається геометрією тіла з округленими кутами та видимими портами;
  * тінь і прямокутні межі контейнера не розширюють її.</p>
@@ -44,20 +48,25 @@ public final class NeuronView extends StackPane {
     private final Polygon outputPort = new Polygon();
     private final Label inputSignalLabel = new Label();
     private final Label remainingActiveTicksLabel = new Label();
+    private final Tooltip parameterTooltip = TooltipFactory.create("");
 
+    private LocalizationService tooltipLocalization;
     private Integer displayedInputSignal;
     private int displayedRemainingActiveTicks;
     private boolean outputSignalActive;
     private boolean dragging;
     private boolean wasDragged;
     private boolean dragGroup;
+    private boolean selected;
+    private boolean parameterTooltipInstalled;
+    private boolean parameterTooltipDisposed;
     private double dragStartSceneX;
     private double dragStartSceneY;
     private double lastSceneX;
     private double lastSceneY;
 
     /**
-     * Створює подання нейрона та його графічні дочірні вузли.
+     * Створює подання нейрона, його графічні дочірні вузли та підказку параметрів.
      *
      * @param presentation візуальне подання нейрона.
      * @throws IllegalArgumentException якщо подання не задано.
@@ -94,6 +103,8 @@ public final class NeuronView extends StackPane {
         inputSignalLabel.setText(NO_INPUT_SIGNAL_TEXT);
         remainingActiveTicksLabel.setText(Integer.toString(displayedRemainingActiveTicks));
         getChildren().addAll(body, inputSignalLabel, remainingActiveTicksLabel, inputPort, outputPort);
+        addEventHandler(MouseEvent.MOUSE_ENTERED, event -> refreshParameterTooltip());
+        addEventHandler(MouseEvent.MOUSE_MOVED, event -> refreshParameterTooltip());
         refreshInputPortStyleClass();
         refreshOutputPortStyleClass();
         refreshVisuals(false);
@@ -275,11 +286,43 @@ public final class NeuronView extends StackPane {
     }
 
     /**
+     * Налаштовує локалізацію параметрів у спливаючій підказці та одразу оновлює її текст.
+     *
+     * @param localization спільна служба локалізації застосунку.
+     * @throws IllegalArgumentException якщо службу локалізації не задано.
+     */
+    public void configureParameterTooltipLocalization(LocalizationService localization) {
+        if (localization == null) {
+            throw new IllegalArgumentException("localization must not be null");
+        }
+        tooltipLocalization = localization;
+        parameterTooltipDisposed = false;
+        refreshParameterTooltip();
+    }
+
+    /**
+     * Приховує та від'єднує спливаючу підказку перед вилученням нейрона з карти.
+     * Після повторного встановлення обробників підказку можна налаштувати знову.
+     */
+    public void disposeParameterTooltip() {
+        parameterTooltipDisposed = true;
+        parameterTooltip.hide();
+        if (parameterTooltipInstalled) {
+            Tooltip.uninstall(this, parameterTooltip);
+            parameterTooltipInstalled = false;
+        }
+        tooltipLocalization = null;
+        refreshParameterTooltipText();
+    }
+
+    /**
      * Оновлює розташування та класи стилю нейрона з урахуванням типу й вибору, не змінюючи залишок активних тактів.
+     * Вибраний нейрон не показує підказку параметрів, навіть коли вказівник залишається над ним.
      *
      * @param selected ознака вибраного нейрона.
      */
     public void refreshVisuals(boolean selected) {
+        this.selected = selected;
         setLayoutX(presentation.x());
         setLayoutY(presentation.y());
         setRotate(presentation.rotationDegrees());
@@ -292,6 +335,7 @@ public final class NeuronView extends StackPane {
                 : Integer.toString(displayedInputSignal));
         remainingActiveTicksLabel.setText(Integer.toString(displayedRemainingActiveTicks));
         positionFixedChildren();
+        refreshParameterTooltip();
     }
 
     /**
@@ -429,6 +473,72 @@ public final class NeuronView extends StackPane {
         if (!port.getStyleClass().contains(desiredClass)) {
             port.getStyleClass().add(desiredClass);
         }
+    }
+
+    /**
+     * Оновлює текст підказки лише параметрами, які редагуються в налаштуваннях нейрона.
+     * Мова береться з активної служби локалізації, а не із системної локалі JVM.
+     */
+    private void refreshParameterTooltipText() {
+        Neuron neuron = model();
+        String signalLabel = tooltipLocalization == null
+                ? "Signal strength"
+                : tooltipLocalization.text("neuron.settings.signal_strength");
+        String thresholdLabel = tooltipLocalization == null
+                ? "Activation threshold"
+                : tooltipLocalization.text("neuron.settings.activation_threshold");
+        String activeTicksLabel = tooltipLocalization == null
+                ? "Active ticks"
+                : tooltipLocalization.textFrom("i18n.neuronSettings", "active_ticks");
+        parameterTooltip.setText(String.join("\n",
+                parameterLine(signalLabel, neuron.signalStrength()),
+                parameterLine(thresholdLabel, neuron.activationThreshold()),
+                parameterLine(activeTicksLabel, neuron.activeTicks())));
+    }
+
+    /**
+     * Форматує один рядок підказки, нормалізуючи підпис із налаштувань до єдиного формату.
+     *
+     * @param label локалізований підпис параметра, із двокрапкою або без неї.
+     * @param value значення параметра нейрона.
+     * @return рядок формату «назва параметра: значення».
+     */
+    private static String parameterLine(String label, int value) {
+        String normalizedLabel = label == null ? "" : label.strip();
+        while (normalizedLabel.endsWith(":")) {
+            normalizedLabel = normalizedLabel.substring(0, normalizedLabel.length() - 1).stripTrailing();
+        }
+        return normalizedLabel + ": " + value;
+    }
+
+    /** Оновлює текст підказки й узгоджує її встановлення з поточним станом вибору нейрона. */
+    private void refreshParameterTooltip() {
+        refreshParameterTooltipText();
+        if (parameterTooltipDisposed) {
+            return;
+        }
+        if (selected) {
+            parameterTooltip.hide();
+            if (parameterTooltipInstalled) {
+                Tooltip.uninstall(this, parameterTooltip);
+                parameterTooltipInstalled = false;
+            }
+            return;
+        }
+        if (!parameterTooltipInstalled) {
+            Tooltip.install(this, parameterTooltip);
+            parameterTooltipInstalled = true;
+        }
+    }
+
+    /** Повертає сформований текст підказки для перевірки формату в автоматизованих тестах. */
+    String parameterTooltipTextForTest() {
+        return parameterTooltip.getText();
+    }
+
+    /** Повертає факт встановлення підказки для перевірки поведінки вибраного нейрона. */
+    boolean isParameterTooltipInstalledForTest() {
+        return parameterTooltipInstalled;
     }
 
     /**

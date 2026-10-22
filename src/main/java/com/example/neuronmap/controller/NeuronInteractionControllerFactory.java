@@ -35,7 +35,8 @@ public final class NeuronInteractionControllerFactory {
         NeuronInteractionController interactionController = new NeuronInteractionController(
                 dependencies.state(),
                 dependencies.selectionController(),
-                dependencies.simulation()
+                dependencies.simulation(),
+                dependencies.localization()
         );
 
         NeuronClipboardController clipboardController = createClipboardController(

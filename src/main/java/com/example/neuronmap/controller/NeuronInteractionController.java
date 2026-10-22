@@ -1,6 +1,7 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
+import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.view.neuron.NeuronView;
 import com.example.neuronmap.view.neuron.RotationHandleView;
 import com.example.neuronmap.view.support.JavaFxNodeLookup;
@@ -19,6 +20,7 @@ public final class NeuronInteractionController {
     private final EditorState state;
     private final SelectionController selectionController;
     private final SimulationController simulation;
+    private final LocalizationService localization;
     private NeuronClipboardController clipboardController;
     private NeuronDeletionController deletionController;
     private NeuronMenuController menuController;
@@ -34,20 +36,24 @@ public final class NeuronInteractionController {
 
     /**
      * Створює основу контролера; вузька фабрика ін'єктує підконтролери після створення callback-власника.
+     * Служба локалізації передається поданням нейронів через цей самий життєвий цикл взаємодії.
      *
      * @param state спільний стан редактора.
      * @param selectionController контролер вибору нейронів.
      * @param simulation контролер симуляції.
+     * @param localization спільна служба локалізації інтерфейсу.
      * @throws NullPointerException якщо обов'язкова залежність відсутня.
      */
     NeuronInteractionController(
             EditorState state,
             SelectionController selectionController,
-            SimulationController simulation
+            SimulationController simulation,
+            LocalizationService localization
     ) {
         this.state = Objects.requireNonNull(state, "state");
         this.selectionController = Objects.requireNonNull(selectionController, "selectionController");
         this.simulation = Objects.requireNonNull(simulation, "simulation");
+        this.localization = Objects.requireNonNull(localization, "localization");
     }
 
     /**
@@ -123,6 +129,7 @@ public final class NeuronInteractionController {
             return;
         }
         rotationController.installHandleHandlers(neuronView, rotationHandle);
+        neuronView.configureParameterTooltipLocalization(localization);
         EventHandler<MouseEvent> pressed = event -> dragController.handlePressed(neuronView, event);
         EventHandler<MouseEvent> dragged = event -> dragController.handleDragged(neuronView, event);
         EventHandler<MouseEvent> released = event -> dragController.handleReleased(neuronView);
@@ -135,7 +142,7 @@ public final class NeuronInteractionController {
     }
 
     /**
-     * Від'єднує обробники від конкретного подання перед його вилученням із карти.
+     * Від'єднує обробники та підказку параметрів перед вилученням подання з карти.
      *
      * @param neuronView подання нейрона; {@code null} дозволено, якщо потрібно зняти лише ручку.
      * @param rotationHandle пов'язана ручка обертання, якщо її потрібно від'єднати окремо.
@@ -148,6 +155,7 @@ public final class NeuronInteractionController {
             neuronView.removeEventHandler(MouseEvent.MOUSE_DRAGGED, handlers.draggedHandler());
             neuronView.removeEventHandler(MouseEvent.MOUSE_RELEASED, handlers.releasedHandler());
             neuronView.removeEventHandler(MouseEvent.MOUSE_CLICKED, handlers.clickedHandler());
+            neuronView.disposeParameterTooltip();
             rotationController.uninstallHandleHandlers(handlers.rotationHandle());
         } else if (rotationHandle != null) {
             rotationController.uninstallHandleHandlers(rotationHandle);
@@ -232,7 +240,7 @@ public final class NeuronInteractionController {
         return deletionController.deleteSelectedNeurons();
     }
 
-    /** Знімає обробники подань і звільняє меню, обертання, перетягування та буфер обміну. */
+    /** Знімає обробники й підказки подань та звільняє меню, обертання, перетягування і буфер обміну. */
     public void dispose() {
         if (disposed) {
             return;
@@ -246,6 +254,7 @@ public final class NeuronInteractionController {
             view.removeEventHandler(MouseEvent.MOUSE_DRAGGED, handlers.draggedHandler());
             view.removeEventHandler(MouseEvent.MOUSE_RELEASED, handlers.releasedHandler());
             view.removeEventHandler(MouseEvent.MOUSE_CLICKED, handlers.clickedHandler());
+            view.disposeParameterTooltip();
         });
         neuronHandlers.clear();
         clipboardController.dispose();
