@@ -25,8 +25,12 @@ final class SqliteNeuronSchemaContractTest {
              Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery("PRAGMA table_info(neurons)")) {
             List<String> columns = new ArrayList<>();
-            while (resultSet.next()) columns.add(resultSet.getString("name"));
-            assertEquals(List.of("id", "type", "activation", "signal_strength", "activation_threshold", "active_ticks"), columns);
+            while (resultSet.next()) {
+                columns.add(resultSet.getString("name"));
+            }
+            assertEquals(List.of(
+                    "id", "type", "activation", "signal_strength", "activation_threshold", "active_ticks", "name"
+            ), columns);
         }
     }
 }

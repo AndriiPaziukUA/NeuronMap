@@ -12,7 +12,7 @@ import java.util.Optional;
 
 /**
  * Надає операції над нейронами: створення, пошук, видалення, переміщення, обертання,
- * зміну типу, напрямку й параметрів сигналу.
+ * зміну типу, напрямку, назви й параметрів сигналу.
  */
 public final class NeuronService {
 
@@ -153,6 +153,25 @@ public final class NeuronService {
     public boolean updateSettings(String neuronId, NeuronParameters parameters) {
         Objects.requireNonNull(parameters, "parameters");
         return find(neuronId).map(neuron -> {
+            neuron.setParameters(parameters);
+            return true;
+        }).orElse(false);
+    }
+
+    /**
+     * Оновлює параметри сигналу й назву нейрона як одну операцію служби.
+     *
+     * @param neuronId ідентифікатор нейрона.
+     * @param parameters нові параметри сигналу.
+     * @param name нова назва або {@code null}, щоб очистити її.
+     * @return {@code true}, якщо нейрон знайдено й обидва значення застосовано; інакше {@code false}.
+     * @throws NullPointerException якщо параметри сигналу не задано.
+     * @throws IllegalArgumentException якщо назва перевищує допустиму довжину.
+     */
+    public boolean updateSettings(String neuronId, NeuronParameters parameters, String name) {
+        Objects.requireNonNull(parameters, "parameters");
+        return find(neuronId).map(neuron -> {
+            neuron.setName(name);
             neuron.setParameters(parameters);
             return true;
         }).orElse(false);

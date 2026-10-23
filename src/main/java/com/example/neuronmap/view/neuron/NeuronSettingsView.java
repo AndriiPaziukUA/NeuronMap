@@ -30,6 +30,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
@@ -54,6 +55,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     private final HBox footer = new HBox(10.0);
     private final Button saveButton = new Button();
     private final Button cancelButton = new Button();
+    private final TextField nameField;
     private final TextField signalField;
     private final TextField thresholdField;
     private final TextField activeTicksField;
@@ -63,7 +65,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
 
     private StackPane host;
     private Scene keyboardFilterScene;
-    private Consumer<NeuronParameters> saveAction;
+    private BiConsumer<NeuronParameters, String> saveAction;
     private boolean localizationListenerRegistered;
     private boolean disposed;
 
@@ -92,6 +94,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         configurePanel();
         settingsLayout = new NeuronSettingsLayout(this, panel, settingsRows, settingsScroll);
         settingsForm = new NeuronSettingsForm(saveButton);
+        nameField = settingsForm.nameField();
         signalField = settingsForm.signalField();
         thresholdField = settingsForm.thresholdField();
         activeTicksField = settingsForm.activeTicksField();
@@ -109,15 +112,31 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     }
 
     /**
-     * Показує накладку в контейнері головної сцени та завантажує параметри нейрона.
+     * Показує накладку з сумісним контрактом збереження лише числових параметрів.
      *
      * @param applicationRoot кореневий контейнер для внутрішніх накладок.
      * @param neuron нейрон, параметри якого редагують.
-     * @param onSave дія застосування підтверджених параметрів.
+     * @param onSave дія застосування підтверджених числових параметрів.
+     */
+    public void showIn(StackPane applicationRoot, Neuron neuron, Consumer<NeuronParameters> onSave) {
+        Objects.requireNonNull(onSave, "onSave");
+        showWithNameIn(applicationRoot, neuron, (parameters, ignoredName) -> onSave.accept(parameters));
+    }
+
+    /**
+     * Показує накладку й завантажує назву та параметри нейрона для редагування.
+     *
+     * @param applicationRoot кореневий контейнер для внутрішніх накладок.
+     * @param neuron нейрон, значення якого редагують.
+     * @param onSave дія застосування підтверджених параметрів і назви.
      * @throws NullPointerException якщо будь-який обов'язковий аргумент не задано.
      * @throws IllegalStateException якщо подання звільнено, контейнер не належить сцені або накладка вже відкрита.
      */
-    public void showIn(StackPane applicationRoot, Neuron neuron, Consumer<NeuronParameters> onSave) {
+    public void showWithNameIn(
+            StackPane applicationRoot,
+            Neuron neuron,
+            BiConsumer<NeuronParameters, String> onSave
+    ) {
         ensureNotDisposed();
         Objects.requireNonNull(applicationRoot, "applicationRoot");
         Objects.requireNonNull(neuron, "neuron");
@@ -184,10 +203,11 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         title.setAlignment(Pos.CENTER);
     }
 
-    /** Створює рядки параметрів та налаштовує вертикальне прокручування за потреби. */
+    /** Створює рядки параметрів у заданому порядку та налаштовує вертикальне прокручування. */
     private void configureSettingsRows() {
         settingsRows.setMinSize(0.0, 0.0);
         settingsRows.setFillWidth(true);
+        addSetting(createSettingRow(SETTINGS_BUNDLE_KEY_PREFIX + "name", nameField));
         addSetting(createSettingRow("neuron.settings.signal_strength", signalField));
         addSetting(createSettingRow("neuron.settings.activation_threshold", thresholdField));
         addSetting(createSettingRow(SETTINGS_BUNDLE_KEY_PREFIX + "active_ticks", activeTicksField));
@@ -197,11 +217,11 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         settingsScroll.setMinSize(0.0, 0.0);
         settingsScroll.getStyleClass().add("neuron-settings-scroll");
         settingsScroll.widthProperty().addListener(
-                (observable, oldWidth, newWidth) -> settingsLayout.updateViewportHeight());
+                (_, _, _) -> settingsLayout.updateViewportHeight());
         VBox.setVgrow(settingsScroll, Priority.ALWAYS);
     }
 
-    /** Створює рядок із гнучким підписом і полем фіксованої ширини для вирівнювання колонок. */
+    /** Створює рядок із гнучким підписом і полем введення для вирівнювання колонок налаштувань. */
     private HBox createSettingRow(String labelKey, TextField field) {
         Label label = new Label(labelText(labelKey));
         settingLabels.put(labelKey, label);
@@ -303,14 +323,15 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         localizationListenerRegistered = false;
     }
 
-    /** Зберігає перевірені параметри й закриває накладку перед передаванням результату. */
+    /** Зберігає перевірені значення й закриває накладку перед передаванням результату координатору. */
     private void save() {
         Optional<NeuronParameters> parameters = settingsForm.parameters();
         if (parameters.isEmpty() || saveAction == null) return;
-        Consumer<NeuronParameters> action = saveAction;
+        BiConsumer<NeuronParameters, String> action = saveAction;
         NeuronParameters savedParameters = parameters.orElseThrow();
+        String savedName = settingsForm.name();
         close();
-        action.accept(savedParameters);
+        action.accept(savedParameters, savedName);
     }
 
     /** Закриває накладку, очищує callback та звільняє тимчасові ресурси. */
@@ -357,6 +378,9 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         SceneKeyboardModality.unregister(previousScene, this);
     }
 
+    /** Повертає поле назви для регресійних перевірок обмеження довжини й завантаження значення. */
+    TextField nameFieldForTest() { return nameField; }
+
     /** Повертає поле сили сигналу для регресійних тестів. */
     TextField signalFieldForTest() { return signalField; }
 
@@ -396,18 +420,9 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     /** Повертає максимальну висоту панелі. */
     double panelMaxHeightForTest() { return panel.getMaxHeight(); }
 
-    /** Повертає фактичну ширину панелі після компонування. */
-    double panelWidthForTest() { return panel.getWidth(); }
-
-    /** Повертає фактичну висоту панелі після компонування. */
-    double panelHeightForTest() { return panel.getHeight(); }
-
     /** Повертає підказку поля сили сигналу. */
     String signalPromptForTest() { return signalField.getPromptText(); }
 
     /** Повертає підказку поля порога активації. */
     String thresholdPromptForTest() { return thresholdField.getPromptText(); }
-
-    /** Повертає підказку поля активних тактів. */
-    String activeTicksPromptForTest() { return activeTicksField.getPromptText(); }
 }

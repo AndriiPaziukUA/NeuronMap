@@ -13,9 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * Зберігає незмінний знімок даних карти, необхідних для скасування й повторення змін.
- */
+/** Зберігає незмінний знімок даних карти, необхідних для скасування й повторення змін. */
 public final class FieldStateSnapshot {
 
     private final List<NeuronState> neurons;
@@ -58,7 +56,8 @@ public final class FieldStateSnapshot {
             neuronStates.add(new NeuronState(
                     neuron.id(),
                     neuron.type(),
-                    neuron.parameters()
+                    neuron.parameters(),
+                    neuron.name()
             ));
         }
 
@@ -89,12 +88,7 @@ public final class FieldStateSnapshot {
             ));
         }
 
-        return new FieldStateSnapshot(
-                neuronStates,
-                presentationStates,
-                connectionStates,
-                groupStates
-        );
+        return new FieldStateSnapshot(neuronStates, presentationStates, connectionStates, groupStates);
     }
 
     /**
@@ -109,12 +103,9 @@ public final class FieldStateSnapshot {
         model.clear();
 
         for (NeuronState neuronState : neurons) {
-            Neuron neuron = model.addNeuron(
-                    neuronState.id(),
-                    neuronState.type(),
-                    0
-            );
+            Neuron neuron = model.addNeuron(neuronState.id(), neuronState.type(), 0);
             neuron.setParameters(neuronState.parameters());
+            neuron.setName(neuronState.name());
         }
 
         for (PresentationState presentationState : presentations) {
@@ -124,7 +115,6 @@ public final class FieldStateSnapshot {
                         "Missing neuron presentation for " + presentationState.neuronId()
                 );
             }
-
             presentation.setPosition(presentationState.position());
             presentation.setRotationDegrees(presentationState.rotationDegrees());
             presentation.setDirectionReversed(presentationState.directionReversed());
@@ -150,6 +140,15 @@ public final class FieldStateSnapshot {
      */
     public List<NeuronState> neurons() {
         return neurons;
+    }
+
+    /**
+     * Повертає незмінний список станів подань нейронів зі знімка.
+     *
+     * @return список станів подань нейронів.
+     */
+    public List<PresentationState> presentations() {
+        return presentations;
     }
 
     /**
@@ -213,13 +212,14 @@ public final class FieldStateSnapshot {
     }
 
     /**
-     * Зберігає параметри нейрона, потрібні для відновлення збереженого стану.
+     * Зберігає параметри й назву нейрона, потрібні для відновлення збереженого стану.
      *
      * @param id ідентифікатор нейрона.
      * @param type тип нейрона.
-     * @param parameters сила сигналу та поріг активації.
+     * @param parameters параметри сигналу.
+     * @param name назва нейрона або {@code null}.
      */
-    public record NeuronState(String id, NeuronType type, NeuronParameters parameters) {
+    public record NeuronState(String id, NeuronType type, NeuronParameters parameters, String name) {
         /**
          * Перевіряє, що знімок містить параметри нейрона.
          *
@@ -231,6 +231,17 @@ public final class FieldStateSnapshot {
         }
 
         /**
+         * Створює знімок зі старого контракту без заданої назви.
+         *
+         * @param id ідентифікатор нейрона.
+         * @param type тип нейрона.
+         * @param parameters параметри сигналу.
+         */
+        public NeuronState(String id, NeuronType type, NeuronParameters parameters) {
+            this(id, type, parameters, null);
+        }
+
+        /**
          * Створює знімок із попереднього контракту з окремими значеннями налаштувань.
          *
          * @param id ідентифікатор нейрона.
@@ -238,13 +249,8 @@ public final class FieldStateSnapshot {
          * @param signalStrength сила сигналу.
          * @param activationThreshold поріг активації.
          */
-        public NeuronState(
-                String id,
-                NeuronType type,
-                int signalStrength,
-                int activationThreshold
-        ) {
-            this(id, type, new NeuronParameters(signalStrength, activationThreshold));
+        public NeuronState(String id, NeuronType type, int signalStrength, int activationThreshold) {
+            this(id, type, new NeuronParameters(signalStrength, activationThreshold), null);
         }
 
         /**

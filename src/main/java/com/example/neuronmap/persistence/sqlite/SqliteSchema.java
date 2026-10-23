@@ -10,7 +10,7 @@ import java.sql.Statement;
 /** Створює та мігрує схему SQLite, додаючи потрібні таблиці й стовпці для актуальної версії даних. */
 public final class SqliteSchema {
 
-    private static final int CURRENT_VERSION = 5;
+    private static final int CURRENT_VERSION = 6;
 
     /** Не дозволяє створювати екземпляри утиліти керування схемою. */
     private SqliteSchema() {
@@ -36,6 +36,7 @@ public final class SqliteSchema {
             createBaseSchema(connection);
             migrateLegacyNeuronLayout(connection);
             ensureNeuronSettingsColumns(connection);
+            ensureNeuronNameColumn(connection);
             ensureDirectionColumn(connection);
             ensureVersion(connection, versionAtStart);
         } catch (SQLException exception) {
@@ -58,7 +59,8 @@ public final class SqliteSchema {
                         activation INTEGER NOT NULL DEFAULT 0,
                         signal_strength INTEGER NOT NULL DEFAULT 1,
                         activation_threshold INTEGER NOT NULL DEFAULT 1,
-                        active_ticks INTEGER NOT NULL DEFAULT 1
+                        active_ticks INTEGER NOT NULL DEFAULT 1,
+                        name TEXT
                     )
                     """);
             statement.executeUpdate("""
@@ -127,6 +129,8 @@ public final class SqliteSchema {
         connection.setAutoCommit(false);
         try (Statement statement = connection.createStatement()) {
             if (hasX && hasY) {
+                // This query only applies to the legacy neurons layout detected above.
+                //noinspection SqlResolve
                 statement.executeUpdate("""
                         INSERT OR IGNORE INTO neuron_presentations (
                             neuron_id,
@@ -141,9 +145,13 @@ public final class SqliteSchema {
             }
 
             if (hasX) {
+                // Metadata confirms this is a legacy column before it is removed.
+                //noinspection SqlResolve
                 statement.executeUpdate("ALTER TABLE neurons DROP COLUMN x");
             }
             if (hasY) {
+                // Metadata confirms this is a legacy column before it is removed.
+                //noinspection SqlResolve
                 statement.executeUpdate("ALTER TABLE neurons DROP COLUMN y");
             }
 
@@ -183,6 +191,21 @@ public final class SqliteSchema {
             statement.executeUpdate(
                     "ALTER TABLE neurons ADD COLUMN " + column + " INTEGER NOT NULL DEFAULT 1"
             );
+        }
+    }
+
+    /**
+     * Додає nullable-стовпець назви до старої таблиці, не змінюючи наявні нейрони.
+     *
+     * @param connection відкрите з'єднання з базою SQLite.
+     * @throws SQLException якщо перевірка або зміна таблиці не вдалися.
+     */
+    private static void ensureNeuronNameColumn(Connection connection) throws SQLException {
+        if (columnExists(connection, "neurons", "name")) {
+            return;
+        }
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate("ALTER TABLE neurons ADD COLUMN name TEXT");
         }
     }
 

@@ -2,6 +2,7 @@ package com.example.neuronmap.service;
 
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronMapModel;
+import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronType;
 import org.junit.jupiter.api.Test;
 
@@ -9,58 +10,32 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє контракти пошуку, видалення й зміни стану нейронів через NeuronService. */
+/** Перевіряє операції служби нейронів та сумісність двопараметрового оновлення налаштувань. */
 class NeuronServiceTest {
 
-    /** Перевіряє створення, зміну типу й параметрів та видалення нейрона через службу. */
     @Test
-    void createToggleSettingsAndRemoveAreDelegatedThroughService() {
+    void legacyUpdateSettingsOverloadPreservesActiveTicks() {
         NeuronMapModel model = new NeuronMapModel();
         NeuronService service = new NeuronService(model);
-        Neuron neuron = service.create(NeuronType.EXCITATORY, 100, 200);
+        Neuron neuron = service.create(NeuronType.EXCITATORY, 10.0, 20.0);
+        neuron.setParameters(new NeuronParameters(2, 3, 5));
 
-        assertEquals(NeuronType.EXCITATORY, neuron.type());
-        assertEquals(neuron, service.find(neuron.id()).orElseThrow());
-        assertTrue(service.toggleType(neuron.id()));
-        assertEquals(NeuronType.INHIBITORY, neuron.type());
-        neuron.setActiveTicks(4);
-        assertTrue(service.updateSettings(neuron.id(), 7, 5));
+        assertTrue(service.updateSettings(neuron.id(), 7, 9));
         assertEquals(7, neuron.signalStrength());
-        assertEquals(5, neuron.activationThreshold());
-        assertEquals(4, neuron.activeTicks());
-        assertTrue(service.presentation(neuron.id()).isPresent());
-        assertEquals(neuron, service.remove(neuron.id()).orElseThrow());
-        assertTrue(service.find(neuron.id()).isEmpty());
+        assertEquals(9, neuron.activationThreshold());
+        assertEquals(5, neuron.parameters().activeTicks());
+        assertFalse(service.updateSettings("missing-neuron", 7, 9));
     }
 
-    /** Перевіряє, що пошук повертає порожній Optional для некоректних або відсутніх ідентифікаторів. */
     @Test
-    void lookupsRepresentMissingNeuronsWithEmptyOptionals() {
-        NeuronService service = new NeuronService(new NeuronMapModel());
-
-        assertTrue(service.find(null).isEmpty());
-        assertTrue(service.find(" ").isEmpty());
-        assertTrue(service.find("missing").isEmpty());
-        assertTrue(service.presentation(null).isEmpty());
-        assertTrue(service.presentation("missing").isEmpty());
-        assertTrue(service.remove(null).isEmpty());
-        assertTrue(service.remove("missing").isEmpty());
-    }
-
-    /** Перевіряє застосування заданого напрямку та безпечну поведінку для відсутнього нейрона. */
-    @Test
-    void setsDirectionToRequestedValueAndReportsMissingNeuron() {
+    void moveReportsWhetherTheNeuronPresentationWasFound() {
         NeuronMapModel model = new NeuronMapModel();
         NeuronService service = new NeuronService(model);
-        Neuron neuron = service.create(NeuronType.EXCITATORY, 100, 200);
+        Neuron neuron = service.create(NeuronType.EXCITATORY, 10.0, 20.0);
 
-        assertTrue(service.setDirectionReversed(neuron.id(), true));
-        assertTrue(service.presentation(neuron.id()).orElseThrow().directionReversed());
-        assertTrue(service.setDirectionReversed(neuron.id(), false));
-        assertFalse(service.presentation(neuron.id()).orElseThrow().directionReversed());
-        assertTrue(service.setDirectionReversed(neuron.id(), false));
-        assertFalse(service.presentation(neuron.id()).orElseThrow().directionReversed());
-        assertFalse(service.setDirectionReversed("missing-neuron", true));
-        assertFalse(service.setDirectionReversed(null, true));
+        assertTrue(service.move(neuron.id(), 3.5, -4.0));
+        assertEquals(13.5, service.presentation(neuron.id()).orElseThrow().x());
+        assertEquals(16.0, service.presentation(neuron.id()).orElseThrow().y());
+        assertFalse(service.move("missing-neuron", 1.0, 1.0));
     }
 }

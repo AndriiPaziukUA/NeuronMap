@@ -19,6 +19,7 @@ import java.sql.Statement;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -37,15 +38,17 @@ class SqliteSchemaMigrationTest {
                         x REAL NOT NULL, y REAL NOT NULL
                     )
                     """);
+            // This insert intentionally targets the legacy schema created above.
+            //noinspection SqlResolve
             statement.executeUpdate("INSERT INTO neurons (id, type, activation, x, y) VALUES ('legacy', 'EXCITATORY', 4, 123, 456)");
         }
-        try (MapRepository ignored = new SqliteMapRepository(db)) {
-            // Створення репозиторію запускає міграцію через виробничий шлях.
+        try (MapRepository repository = new SqliteMapRepository(db)) {
+            repository.loadInto(new NeuronMapModel());
         }
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + db.toAbsolutePath());
              Statement statement = connection.createStatement()) {
-            assertFalse(hasColumn(statement, "neurons", "x"));
-            assertFalse(hasColumn(statement, "neurons", "y"));
+            assertFalse(hasNeuronColumn(statement, "x"));
+            assertFalse(hasNeuronColumn(statement, "y"));
             try (ResultSet resultSet = statement.executeQuery("SELECT neuron_id, x, y FROM neuron_presentations")) {
                 assertTrue(resultSet.next());
                 assertEquals("legacy", resultSet.getString("neuron_id"));
@@ -59,7 +62,9 @@ class SqliteSchemaMigrationTest {
     @Test
     void migratingCurrentSchemaDoesNotRewriteDatabaseFile(@TempDir Path tempDir) throws Exception {
         Path db = tempDir.resolve("current.db");
-        try (MapRepository ignored = new SqliteMapRepository(db)) { /* Готує актуальну схему. */ }
+        try (MapRepository repository = new SqliteMapRepository(db)) {
+            repository.loadInto(new NeuronMapModel());
+        }
         int currentVersion;
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + db.toAbsolutePath())) {
             currentVersion = readVersion(connection);
@@ -81,11 +86,15 @@ class SqliteSchemaMigrationTest {
     @Test
     void reopeningCurrentProjectDoesNotUpdateDatabaseTimestamp(@TempDir Path tempDir) throws Exception {
         Path db = tempDir.resolve("reopened.db");
-        try (MapRepository ignored = new SqliteMapRepository(db)) { /* Створює файл проєкту. */ }
+        try (MapRepository repository = new SqliteMapRepository(db)) {
+            repository.loadInto(new NeuronMapModel());
+        }
         FileTime marker = FileTime.fromMillis(946_684_800_000L);
         Files.setLastModifiedTime(db, marker);
         FileTime expectedModifiedTime = Files.getLastModifiedTime(db);
-        try (MapRepository ignored = new SqliteMapRepository(db)) { /* Повторне відкриття без запису. */ }
+        try (MapRepository repository = new SqliteMapRepository(db)) {
+            repository.loadInto(new NeuronMapModel());
+        }
         assertEquals(expectedModifiedTime, Files.getLastModifiedTime(db));
     }
 
@@ -93,7 +102,9 @@ class SqliteSchemaMigrationTest {
     @Test
     void rejectsNewerSchemaWithoutModifyingDatabase(@TempDir Path tempDir) throws Exception {
         Path db = tempDir.resolve("future.db");
-        try (MapRepository ignored = new SqliteMapRepository(db)) { /* Створює валідну базу. */ }
+        try (MapRepository repository = new SqliteMapRepository(db)) {
+            repository.loadInto(new NeuronMapModel());
+        }
         int futureVersion;
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + db.toAbsolutePath());
              Statement statement = connection.createStatement()) {
@@ -112,9 +123,9 @@ class SqliteSchemaMigrationTest {
         }
     }
 
-    /** Перевіряє, що раніше збережені нейрони отримують один активний такт під час міграції. */
+    /** Перевіряє, що старі нейрони отримують один активний такт і NULL у новому полі назви. */
     @Test
-    void migratesExistingNeuronRowsWithDefaultActiveTicks(@TempDir Path tempDir) throws Exception {
+    void migratesExistingNeuronRowsWithDefaultActiveTicksAndNullName(@TempDir Path tempDir) throws Exception {
         Path db = tempDir.resolve("legacy-active-ticks.db");
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + db.toAbsolutePath());
              Statement statement = connection.createStatement()) {
@@ -128,12 +139,18 @@ class SqliteSchemaMigrationTest {
                     """);
             statement.executeUpdate("INSERT INTO neurons (id, type) VALUES ('old-neuron', 'EXCITATORY')");
         }
-        try (MapRepository ignored = new SqliteMapRepository(db);
-             Connection connection = DriverManager.getConnection("jdbc:sqlite:" + db.toAbsolutePath());
+        try (MapRepository repository = new SqliteMapRepository(db)) {
+            repository.loadInto(new NeuronMapModel());
+        }
+        // SqliteSchema.migrate() adds both columns before this query is executed.
+        //noinspection SqlResolve
+        String sql = "SELECT active_ticks, name FROM neurons WHERE id = 'old-neuron'";
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + db.toAbsolutePath());
              Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery("SELECT active_ticks FROM neurons WHERE id = 'old-neuron'")) {
+             ResultSet resultSet = statement.executeQuery(sql)) {
             assertTrue(resultSet.next());
             assertEquals(1, resultSet.getInt("active_ticks"));
+            assertNull(resultSet.getString("name"));
         }
     }
 
@@ -164,9 +181,13 @@ class SqliteSchemaMigrationTest {
     }
 
     /** Перевіряє, чи містить таблиця стовпець із заданою назвою. */
-    private static boolean hasColumn(Statement statement, String table, String column) throws Exception {
-        try (ResultSet resultSet = statement.executeQuery("PRAGMA table_info(" + table + ")")) {
-            while (resultSet.next()) if (column.equalsIgnoreCase(resultSet.getString("name"))) return true;
+    private static boolean hasNeuronColumn(Statement statement, String column) throws Exception {
+        try (ResultSet resultSet = statement.executeQuery("PRAGMA table_info(neurons)")) {
+            while (resultSet.next()) {
+                if (column.equalsIgnoreCase(resultSet.getString("name"))) {
+                    return true;
+                }
+            }
         }
         return false;
     }

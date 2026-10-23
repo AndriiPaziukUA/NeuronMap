@@ -15,6 +15,7 @@ import com.example.neuronmap.view.neuron.RotationHandleView;
 import com.example.neuronmap.view.support.JavaFxNodeLookup;
 import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.Pane;
 
 import java.util.List;
@@ -109,9 +110,13 @@ public final class MapPresentationCoordinator {
         }
     }
 
-    /** Координує оновлення позицій контекстного меню та ручок обертання для поточних подань. */
+    /**
+     * Координує оновлення геометрії назв, позицій контекстного меню та ручок обертання.
+     * Назви оновлюються в тому самому проході, який камера викликає після zoom і pan.
+     */
     private void refreshOverlayPositions() {
         for (NeuronView neuronView : neuronViews.values()) {
+            neuronView.refreshHoverNameGeometry(workspace.nameLayer());
             neuronController.refreshContextMenuPosition(neuronView);
         }
         neuronController.refreshRotationHandlePosition();
@@ -146,7 +151,7 @@ public final class MapPresentationCoordinator {
             }
 
             ConnectionView connectionView = connectionViews.computeIfAbsent(
-                    connection.id(), id -> createConnectionView(connection));
+                    connection.id(), _ -> createConnectionView(connection));
             connectionView.updateModel(connection);
             connectionView.updateGeometry();
         }
@@ -198,7 +203,7 @@ public final class MapPresentationCoordinator {
         return neuronService.neurons().stream()
                 .map(Neuron::id)
                 .filter(neuronId -> !previousNeuronIds.contains(neuronId))
-                .reduce((first, last) -> last)
+                .reduce((_, last) -> last)
                 .orElse(null);
     }
 
@@ -262,7 +267,16 @@ public final class MapPresentationCoordinator {
         handle.setVisible(false);
         rotationHandles.put(neuron.id(), handle);
         workspace.overlayLayer().getChildren().add(handle);
+        workspace.nameLayer().getChildren().add(view.nameOverlayNode());
         try {
+            handle.addEventHandler(MouseEvent.MOUSE_ENTERED, _ -> view.setNameHoverActive(true));
+            handle.addEventHandler(MouseEvent.MOUSE_EXITED, _ -> view.setNameHoverActive(false));
+            handle.addEventHandler(MouseEvent.MOUSE_PRESSED, event -> {
+                if (event.getButton() == MouseButton.PRIMARY) {
+                    view.setNameHiddenWhileRotating(true);
+                }
+            });
+            handle.addEventHandler(MouseEvent.MOUSE_RELEASED, _ -> view.setNameHiddenWhileRotating(false));
             neuronController.installInteractionHandlers(view, handle);
         } catch (RuntimeException | Error failure) {
             removeNeuronView(neuron.id());
@@ -278,6 +292,7 @@ public final class MapPresentationCoordinator {
         neuronViews.remove(neuronId);
         rotationHandles.remove(neuronId);
         if (view != null) {
+            removeFromParent(view.nameOverlayNode());
             removeFromParent(view);
         }
         if (handle != null) {

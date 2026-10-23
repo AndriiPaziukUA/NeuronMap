@@ -49,21 +49,33 @@ public final class SqliteMapWriter {
     /** Очищає таблиці карти перед повним записом актуального стану. */
     private void deleteAllData() throws SQLException {
         try (Statement statement = connection.createStatement()) {
+            // A save replaces the complete map inside the repository transaction.
+            //noinspection SqlWithoutWhere
             statement.executeUpdate("DELETE FROM group_members");
+            // Clear dependent tables before their parent tables.
+            //noinspection SqlWithoutWhere
             statement.executeUpdate("DELETE FROM groups");
+            // A save replaces the complete map inside the repository transaction.
+            //noinspection SqlWithoutWhere
             statement.executeUpdate("DELETE FROM connections");
+            // A save replaces the complete map inside the repository transaction.
+            //noinspection SqlWithoutWhere
             statement.executeUpdate("DELETE FROM neuron_presentations");
+            // A save replaces the complete map inside the repository transaction.
+            //noinspection SqlWithoutWhere
             statement.executeUpdate("DELETE FROM neurons");
         }
     }
 
     /**
-     * Записує семантичні параметри всіх нейронів, включно з тривалістю активності.
+     * Записує семантичні параметри всіх нейронів, включно з назвою та тривалістю активності.
      *
      * @param model модель карти, звідки беруться нейрони.
      * @throws SQLException якщо пакетний запис нейронів не вдався.
      */
     private void insertNeurons(NeuronMapModel model) throws SQLException {
+        // SqliteSchema.migrate() ensures active_ticks and name on legacy databases.
+        //noinspection SqlResolve
         String sql = """
                 INSERT INTO neurons (
                     id,
@@ -71,9 +83,10 @@ public final class SqliteMapWriter {
                     activation,
                     signal_strength,
                     activation_threshold,
-                    active_ticks
+                    active_ticks,
+                    name
                 )
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """;
 
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -84,6 +97,7 @@ public final class SqliteMapWriter {
                 statement.setInt(4, neuron.signalStrength());
                 statement.setInt(5, neuron.activationThreshold());
                 statement.setInt(6, neuron.activeTicks());
+                statement.setString(7, neuron.name());
                 statement.addBatch();
             }
             statement.executeBatch();

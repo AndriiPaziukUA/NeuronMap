@@ -10,6 +10,7 @@ import javafx.scene.Scene;
 import javafx.scene.layout.StackPane;
 
 import java.util.Objects;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /** Координує життєвий цикл модальної накладки налаштувань та її взаємодію з головним меню. */
@@ -24,7 +25,7 @@ public final class NeuronSettingsOverlayCoordinator {
     private boolean suppressCloseAction;
     private boolean disposed;
     private final ChangeListener<Boolean> settingsVisibilityListener =
-            (observable, wasVisible, isVisible) -> {
+            (_, _, isVisible) -> {
                 if (Boolean.FALSE.equals(isVisible)) {
                     stopWatchingMainMenu();
                     if (!suppressCloseAction) {
@@ -66,7 +67,8 @@ public final class NeuronSettingsOverlayCoordinator {
      * @throws IllegalStateException якщо координатор уже звільнено.
      */
     public void show(Neuron neuron, Consumer<NeuronParameters> onSave) {
-        show(neuron, onSave, NO_CLOSE_ACTION);
+        Objects.requireNonNull(onSave, "onSave");
+        showWithName(neuron, (parameters, _) -> onSave.accept(parameters));
     }
 
     /**
@@ -80,6 +82,36 @@ public final class NeuronSettingsOverlayCoordinator {
      * @throws IllegalStateException якщо координатор уже звільнено.
      */
     public void show(Neuron neuron, Consumer<NeuronParameters> onSave, Runnable onClose) {
+        Objects.requireNonNull(onSave, "onSave");
+        showWithName(neuron, (parameters, _) -> onSave.accept(parameters), onClose);
+    }
+
+    /**
+     * Показує накладку для редагування параметрів нейрона та його назви.
+     *
+     * @param neuron нейрон, значення якого редагують.
+     * @param onSave дія застосування параметрів і назви.
+     * @throws NullPointerException якщо нейрон або callback збереження не задано.
+     * @throws IllegalStateException якщо координатор уже звільнено.
+     */
+    public void showWithName(Neuron neuron, BiConsumer<NeuronParameters, String> onSave) {
+        showWithName(neuron, onSave, NO_CLOSE_ACTION);
+    }
+
+    /**
+     * Показує накладку редагування та виконує дію після її звичайного закриття користувачем.
+     *
+     * @param neuron нейрон, значення якого редагують.
+     * @param onSave дія застосування параметрів і назви.
+     * @param onClose дія, яку виконують після закриття накладки користувачем.
+     * @throws NullPointerException якщо нейрон або callback не задано.
+     * @throws IllegalStateException якщо координатор уже звільнено.
+     */
+    public void showWithName(
+            Neuron neuron,
+            BiConsumer<NeuronParameters, String> onSave,
+            Runnable onClose
+    ) {
         ensureNotDisposed();
         Objects.requireNonNull(neuron, "neuron");
         Objects.requireNonNull(onSave, "onSave");
@@ -98,7 +130,7 @@ public final class NeuronSettingsOverlayCoordinator {
         settingsClosedAction = onClose;
         watchMainMenuVisibility();
         try {
-            settingsView.showIn(overlayHost, neuron, onSave);
+            settingsView.showWithNameIn(overlayHost, neuron, onSave);
         } catch (RuntimeException | Error failure) {
             settingsClosedAction = NO_CLOSE_ACTION;
             try {
@@ -156,7 +188,7 @@ public final class NeuronSettingsOverlayCoordinator {
         if (mainMenuVisibilityListener != null) {
             return;
         }
-        mainMenuVisibilityListener = (observable, wasVisible, isVisible) -> {
+        mainMenuVisibilityListener = (_, _, isVisible) -> {
             if (Boolean.TRUE.equals(isVisible)) {
                 hide();
             }

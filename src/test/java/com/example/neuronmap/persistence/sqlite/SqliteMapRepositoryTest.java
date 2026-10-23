@@ -34,10 +34,12 @@ class SqliteMapRepositoryTest {
         a.setSignalStrength(6);
         a.setActivationThreshold(4);
         a.setActiveTicks(5);
+        a.setName("Input ⚡ #1");
         b.setActivation(-2);
         b.setSignalStrength(3);
         b.setActivationThreshold(8);
         b.setActiveTicks(3);
+        b.setName(null);
 
         original.presentation(a.id()).setDirectionReversed(true);
         original.presentation(b.id()).setDirectionReversed(false);
@@ -65,6 +67,8 @@ class SqliteMapRepositoryTest {
         assertEquals(6, restored.neuron(a.id()).signalStrength());
         assertEquals(4, restored.neuron(a.id()).activationThreshold());
         assertEquals(5, restored.neuron(a.id()).activeTicks());
+        assertEquals("Input ⚡ #1", restored.neuron(a.id()).name());
+        assertNull(restored.neuron(b.id()).name());
         assertEquals(-2, restored.neuron(b.id()).activation());
         assertEquals(3, restored.neuron(b.id()).signalStrength());
         assertEquals(8, restored.neuron(b.id()).activationThreshold());
@@ -78,7 +82,7 @@ class SqliteMapRepositoryTest {
         Path db = tempDir.resolve("pragmas.db");
         try (Connection connection = SqliteConnectionFactory.open(db);
              Statement statement = connection.createStatement()) {
-            assertEquals("wal", pragmaText(statement, "PRAGMA journal_mode"));
+            assertEquals("wal", pragmaText(statement));
             assertEquals(2, pragmaInt(statement, "PRAGMA synchronous"));
             assertEquals(1, pragmaInt(statement, "PRAGMA foreign_keys"));
             assertEquals(5000, pragmaInt(statement, "PRAGMA busy_timeout"));
@@ -92,7 +96,7 @@ class SqliteMapRepositoryTest {
         try (MapRepository ignored = new SqliteMapRepository(db);
              Connection connection = DriverManager.getConnection("jdbc:sqlite:" + db.toAbsolutePath())) {
             assertEquals(
-                    Set.of("id", "type", "activation", "signal_strength", "activation_threshold", "active_ticks"),
+                    Set.of("id", "type", "activation", "signal_strength", "activation_threshold", "active_ticks", "name"),
                     columnNames(connection, "neurons")
             );
             assertEquals(
@@ -103,8 +107,8 @@ class SqliteMapRepositoryTest {
     }
 
     /** Читає текстове значення PRAGMA для перевірки налаштувань підключення SQLite. */
-    private static String pragmaText(Statement statement, String sql) throws Exception {
-        try (ResultSet resultSet = statement.executeQuery(sql)) {
+    private static String pragmaText(Statement statement) throws Exception {
+        try (ResultSet resultSet = statement.executeQuery("PRAGMA journal_mode")) {
             assertTrue(resultSet.next());
             return resultSet.getString(1);
         }

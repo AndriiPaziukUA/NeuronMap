@@ -39,6 +39,19 @@
     -fx-font-size: 10px;
 }
 
+/* Назва з'являється над нейроном лише під час наведення та не бере участі в hit-testing. */
+.neuron-name-label {
+    -fx-background-color: #242830;
+    -fx-background-radius: 5;
+    -fx-border-color: #454b55;
+    -fx-border-width: 1;
+    -fx-border-radius: 5;
+    -fx-padding: 4 8 4 8;
+    -fx-text-fill: #f3f4f6;
+    -fx-font-size: 12px;
+    -fx-alignment: center;
+}
+
 .port {
     -fx-fill: #d6d9de;
     -fx-stroke: #17191d;

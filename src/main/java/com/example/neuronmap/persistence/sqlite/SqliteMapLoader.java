@@ -46,12 +46,14 @@ public final class SqliteMapLoader {
     }
 
     /**
-     * Завантажує семантичні параметри нейронів, включно з кількістю активних тактів.
+     * Завантажує семантичні параметри нейронів, включно з назвою та кількістю активних тактів.
      *
      * @param model модель карти, до якої додаються відновлені нейрони.
      * @throws SQLException якщо читання нейронів або їхніх параметрів не вдається.
      */
     private void loadNeurons(NeuronMapModel model) throws SQLException {
+        // SqliteSchema.migrate() ensures active_ticks and name on legacy databases.
+        //noinspection SqlResolve
         String sql = """
                 SELECT
                     id,
@@ -59,7 +61,8 @@ public final class SqliteMapLoader {
                     activation,
                     signal_strength,
                     activation_threshold,
-                    active_ticks
+                    active_ticks,
+                    name
                 FROM neurons
                 ORDER BY rowid
                 """;
@@ -82,6 +85,7 @@ public final class SqliteMapLoader {
                 neuron.setSignalStrength(resultSet.getInt("signal_strength"));
                 neuron.setActivationThreshold(resultSet.getInt("activation_threshold"));
                 neuron.setActiveTicks(resultSet.getInt("active_ticks"));
+                neuron.setName(resultSet.getString("name"));
             }
         }
     }

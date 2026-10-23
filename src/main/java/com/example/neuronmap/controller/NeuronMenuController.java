@@ -25,7 +25,6 @@ public final class NeuronMenuController {
     private final SimulationController simulation;
     private final NeuronDeletionController deletionController;
     private final NeuronMenuView neuronMenuView;
-    private final NeuronContextMenuView menuView;
     private final NeuronOverlayPositioner overlayPositioner;
     private final NeuronSettingsOverlayCoordinator settingsOverlayCoordinator;
     private final Runnable refreshVisuals;
@@ -89,11 +88,6 @@ public final class NeuronMenuController {
                 settingsOverlayCoordinator,
                 "settingsOverlayCoordinator"
         );
-        this.menuView = new NeuronContextMenuView(
-                this.localization,
-                this.neuronMenuView::customizeMenuButton,
-                this.neuronMenuView::createDirectionButton
-        );
         this.overlayPositioner = new NeuronOverlayPositioner(workspace);
         this.refreshVisuals = Objects.requireNonNull(refreshVisuals, "refreshVisuals");
         this.refreshConnections = Objects.requireNonNull(refreshConnections, "refreshConnections");
@@ -135,6 +129,11 @@ public final class NeuronMenuController {
         activeNeuronId = neuronId;
         activeNeuronView = neuronView;
 
+        NeuronContextMenuView menuView = new NeuronContextMenuView(
+                localization,
+                neuronMenuView::customizeMenuButton,
+                neuronMenuView::createDirectionButton
+        );
         menu = menuView.createMenu(
                 connections.hasConnections(neuronId),
                 new NeuronContextMenuView.Actions(
@@ -149,8 +148,9 @@ public final class NeuronMenuController {
                             connections.beginDelete(neuronId);
                         },
                         () -> {
-                            neuronService.toggleType(neuronId);
-                            refreshViewsAndSave();
+                            if (neuronService.toggleType(neuronId)) {
+                                refreshViewsAndSave();
+                            }
                         },
                         () -> deletionController.deleteNeuron(neuronId)
                 )
@@ -245,7 +245,7 @@ public final class NeuronMenuController {
     }
 
     /**
-     * Відкриває накладку налаштувань і застосовує параметри після підтвердження.
+     * Відкриває накладку налаштувань і застосовує параметри та назву після підтвердження.
      * Запам'ятовує подання нейрона, щоб відновити його контекстне меню після звичайного закриття накладки.
      *
      * @param neuronId ідентифікатор нейрона, налаштування якого потрібно змінити.
@@ -255,10 +255,10 @@ public final class NeuronMenuController {
         NeuronView neuronView = activeNeuronView;
         neuronService.find(neuronId).ifPresent(neuron -> {
             hide();
-            settingsOverlayCoordinator.show(
+            settingsOverlayCoordinator.showWithName(
                     neuron,
-                    parameters -> {
-                        if (neuronService.updateSettings(neuronId, parameters)) {
+                    (parameters, name) -> {
+                        if (neuronService.updateSettings(neuronId, parameters, name)) {
                             save.run();
                             status.accept(localization.text("neuron.settings.saved"));
                         }

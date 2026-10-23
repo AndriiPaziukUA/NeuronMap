@@ -1,18 +1,22 @@
 package com.example.neuronmap.model;
 
 /**
- * Зберігає семантичний стан нейрона: тип, поточну активацію та налаштування сигналу.
+ * Зберігає семантичний стан нейрона: тип, назву, поточну активацію та налаштування сигналу.
  * Сила сигналу, поріг активації й тривалість активності зберігаються разом у {@link NeuronParameters}.
  */
 public final class Neuron {
 
+    /** Максимальна кількість символів у користувацькій назві нейрона. */
+    public static final int MAX_NAME_LENGTH = 30;
+
     private final String id;
     private NeuronType type;
     private int activation;
+    private String name;
     private NeuronParameters parameters;
 
     /**
-     * Створює нейрон із типовими параметрами сигналу та одним активним тактом.
+     * Створює нейрон із типовими параметрами сигналу, одним активним тактом і порожньою назвою.
      *
      * @param id унікальний ідентифікатор нейрона.
      * @param type тип нейрона.
@@ -91,6 +95,7 @@ public final class Neuron {
         this.type = type;
         this.activation = activation;
         this.parameters = parameters;
+        this.name = null;
     }
 
     /**
@@ -100,6 +105,31 @@ public final class Neuron {
      */
     public String id() {
         return id;
+    }
+
+    /**
+     * Повертає користувацьку назву нейрона або {@code null}, якщо назву не задано.
+     *
+     * @return назва довжиною від 1 до 30 символів або {@code null}.
+     */
+    public String name() {
+        return name;
+    }
+
+    /**
+     * Установлює назву нейрона; порожній рядок нормалізується до {@code null}.
+     * Пробіли та інші символи зберігаються без обрізання.
+     *
+     * @param name назва довжиною не більш як 30 символів або {@code null} для очищення назви.
+     * @throws IllegalArgumentException якщо назва перевищує 30 символів.
+     */
+    public void setName(String name) {
+        if (name != null && name.codePointCount(0, name.length()) > MAX_NAME_LENGTH) {
+            throw new IllegalArgumentException(
+                    "Neuron name must not exceed " + MAX_NAME_LENGTH + " characters."
+            );
+        }
+        this.name = name == null || name.isEmpty() ? null : name;
     }
 
     /**

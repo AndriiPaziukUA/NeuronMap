@@ -20,11 +20,12 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє оформлення, числову валідацію та компонування внутрішнього вікна налаштувань нейрона. */
+/** Перевіряє оформлення, локалізацію, введення та компонування внутрішнього вікна налаштувань нейрона. */
 final class NeuronSettingsViewTest {
 
     /** Перевіряє ізольовану таблицю стилів і однакову природну геометрію кнопок. */
@@ -60,7 +61,7 @@ final class NeuronSettingsViewTest {
         });
     }
 
-    /** Перевіряє оновлення підписів усіх параметрів відразу після зміни мови інтерфейсу. */
+    /** Перевіряє оновлення підписів назви й інших параметрів після зміни мови інтерфейсу. */
     @Test
     void refreshesSettingLabelsImmediatelyWhenLocaleChanges() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
@@ -73,9 +74,11 @@ final class NeuronSettingsViewTest {
             String englishSignalLabel = view.settingLabelTextForTest("neuron.settings.signal_strength");
             String englishThresholdLabel = view.settingLabelTextForTest("neuron.settings.activation_threshold");
             String englishActiveTicksLabel = view.settingLabelTextForTest("i18n.neuronSettings.active_ticks");
+            String englishNameLabel = view.settingLabelTextForTest("i18n.neuronSettings.name");
             assertEquals("Signal strength:", englishSignalLabel);
             assertEquals("Activation threshold:", englishThresholdLabel);
             assertEquals("Active ticks", englishActiveTicksLabel);
+            assertEquals("Name:", englishNameLabel);
 
             localization.previewLanguage(SupportedLanguage.UKRAINIAN);
             assertEquals(localization.text("neuron.settings.signal_strength"),
@@ -84,10 +87,42 @@ final class NeuronSettingsViewTest {
                     view.settingLabelTextForTest("neuron.settings.activation_threshold"));
             assertEquals(localization.textFrom("i18n.neuronSettings", "active_ticks"),
                     view.settingLabelTextForTest("i18n.neuronSettings.active_ticks"));
-            assertFalse(englishSignalLabel.equals(view.settingLabelTextForTest("neuron.settings.signal_strength")));
-            assertFalse(englishThresholdLabel.equals(view.settingLabelTextForTest("neuron.settings.activation_threshold")));
-            assertFalse(englishActiveTicksLabel.equals(view.settingLabelTextForTest("i18n.neuronSettings.active_ticks")));
+            assertEquals("Назва:", view.settingLabelTextForTest("i18n.neuronSettings.name"));
+            assertNotEquals(englishSignalLabel, view.settingLabelTextForTest("neuron.settings.signal_strength"));
+            assertNotEquals(englishThresholdLabel, view.settingLabelTextForTest("neuron.settings.activation_threshold"));
+            assertNotEquals(englishActiveTicksLabel, view.settingLabelTextForTest("i18n.neuronSettings.active_ticks"));
+            assertNotEquals(englishNameLabel, view.settingLabelTextForTest("i18n.neuronSettings.name"));
+
+            localization.previewLanguage(SupportedLanguage.RUSSIAN);
+            assertEquals("Название:", view.settingLabelTextForTest("i18n.neuronSettings.name"));
             view.hide();
+        });
+    }
+
+    /** Перевіряє, що поле назви приймає будь-які символи, обмежує довжину й зберігає порожнє значення як null. */
+    @Test
+    void acceptsUnicodeNameWithinLimitAndClearsNameOnSave() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            StackPane root = new StackPane();
+            new Scene(root, 900.0, 600.0);
+            NeuronSettingsView view = new NeuronSettingsView(new LocalizationService(Locale.ENGLISH));
+            Neuron neuron = neuron("name", NeuronType.EXCITATORY, 3, 2);
+            AtomicReference<String> savedName = new AtomicReference<>("unexpected");
+            view.showWithNameIn(root, neuron, (_, name) -> savedName.set(name));
+
+            view.nameFieldForTest().setText("😀 <> Привіт & 'quoted'");
+            assertEquals("😀 <> Привіт & 'quoted'", view.nameFieldForTest().getText());
+            view.nameFieldForTest().setText("😀".repeat(30));
+            assertEquals(30, view.nameFieldForTest().getText().codePointCount(
+                    0, view.nameFieldForTest().getText().length()));
+            String acceptedName = view.nameFieldForTest().getText();
+            view.nameFieldForTest().appendText("x");
+            assertEquals(acceptedName, view.nameFieldForTest().getText());
+
+            view.nameFieldForTest().clear();
+            view.saveButtonForTest().fire();
+            assertNull(savedName.get());
+            assertFalse(root.getChildren().contains(view));
         });
     }
 

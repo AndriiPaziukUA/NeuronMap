@@ -27,14 +27,16 @@ public final class WorkspaceView {
     private final Pane edgeLayer = new Pane();
     private final Pane pulseLayer = new Pane();
     private final Pane nodeLayer = new Pane();
+    /** Окремий екранний шар для назв, незалежний від порядку дочірніх вузлів нейронів. */
+    private final Pane nameLayer = new Pane();
     private final Pane overlayLayer = new Pane();
 
     private final Rectangle clip = new Rectangle();
     private final Scale worldScale = new Scale(1.0, 1.0, 0.0, 0.0);
     private final ChangeListener<Number> viewportWidthListener =
-            (observable, oldValue, newValue) -> redrawGrid();
+            (_, _, _) -> redrawGrid();
     private final ChangeListener<Number> viewportHeightListener =
-            (observable, oldValue, newValue) -> redrawGrid();
+            (_, _, _) -> redrawGrid();
     private final EventHandler<MouseEvent> focusRequestHandler = this::handleMousePressed;
     private boolean disposed;
 
@@ -66,14 +68,20 @@ public final class WorkspaceView {
         pulseLayer.setMouseTransparent(true);
         pulseLayer.setPickOnBounds(false);
 
+        nameLayer.setManaged(false);
+        nameLayer.setPickOnBounds(false);
+        nameLayer.setMouseTransparent(true);
+
         overlayLayer.setManaged(false);
         overlayLayer.setPickOnBounds(false);
 
         world.getChildren().addAll(groupLayer, edgeLayer, pulseLayer, nodeLayer);
-        viewport.getChildren().addAll(gridCanvas, world, overlayLayer);
+        // Назви малюються над усім вмістом world, а меню та ручки — ще вище.
+        viewport.getChildren().addAll(gridCanvas, world, nameLayer, overlayLayer);
 
         StackPane.setAlignment(gridCanvas, Pos.TOP_LEFT);
         StackPane.setAlignment(world, Pos.TOP_LEFT);
+        StackPane.setAlignment(nameLayer, Pos.TOP_LEFT);
         StackPane.setAlignment(overlayLayer, Pos.TOP_LEFT);
 
         viewport.widthProperty().addListener(viewportWidthListener);
@@ -117,55 +125,44 @@ public final class WorkspaceView {
         target.requestFocus();
     }
 
-    /**
-     * Повертає кореневий вузол інтерфейсу.
-     *
-     * @return кореневий вузол інтерфейсу.
-     */
+    /** Повертає кореневий вузол інтерфейсу. */
     public StackPane node() {
         return viewport;
     }
 
-    /**
-     * Повертає шар полотна, на якому відображаються області груп нейронів.
-     *
-     * @return шар полотна, на якому відображаються області груп нейронів.
-     */
+    /** Повертає шар полотна, на якому відображаються області груп нейронів. */
     public Pane groupLayer() {
         return groupLayer;
     }
 
-    /**
-     * Повертає шар полотна, на якому відображаються зв'язки між нейронами.
-     *
-     * @return шар полотна, на якому відображаються зв'язки між нейронами.
-     */
+    /** Повертає шар полотна, на якому відображаються зв'язки між нейронами. */
     public Pane edgeLayer() {
         return edgeLayer;
     }
 
-    /**
-     * Повертає шар полотна для анімаційних імпульсів на зв'язках.
-     *
-     * @return шар полотна для анімаційних імпульсів на зв'язках.
-     */
+    /** Повертає шар полотна для анімаційних імпульсів на зв'язках. */
     public Pane pulseLayer() {
         return pulseLayer;
     }
 
-    /**
-     * Повертає шар полотна, на якому розміщуються нейрони.
-     *
-     * @return шар полотна, на якому розміщуються нейрони.
-     */
+    /** Повертає шар полотна, на якому розміщуються нейрони. */
     public Pane nodeLayer() {
         return nodeLayer;
     }
 
     /**
+     * Повертає окремий екранний шар назв над нейронами та зв'язками, але під меню й ручками.
+     *
+     * @return шар назв нейронів.
+     */
+    public Pane nameLayer() {
+        return nameLayer;
+    }
+
+    /**
      * Повертає шар екранних накладок — меню, ручок обертання та інших елементів поверх карти.
      *
-     * @return шар екранних накладок — меню, ручок обертання та інших елементів поверх карти.
+     * @return шар екранних накладок.
      */
     public Pane overlayLayer() {
         return overlayLayer;
@@ -204,12 +201,7 @@ public final class WorkspaceView {
         }
     }
 
-    /**
-     * Перевіряє, чи є переданий вузол дочірнім елементом поточної робочої області.
-     *
-     * @param target вузол, належність якого перевіряється.
-     * @return {@code true}, якщо вузол є коренем або нащадком робочої області.
-     */
+    /** Перевіряє, чи є переданий вузол дочірнім елементом поточної робочої області. */
     private boolean belongsToViewport(Node target) {
         Node current = target;
         while (current != null) {
@@ -221,12 +213,7 @@ public final class WorkspaceView {
         return false;
     }
 
-    /**
-     * Перевіряє, чи натиснули інтерактивний елемент, який має зберігати власний фокус.
-     *
-     * @param target ціль події миші.
-     * @return {@code true}, якщо ціль або її предок є кнопкою чи текстовим полем.
-     */
+    /** Перевіряє, чи натиснули інтерактивний елемент, який має зберігати власний фокус. */
     private boolean isInteractiveTarget(Object target) {
         if (!(target instanceof Node targetNode)) {
             return false;
