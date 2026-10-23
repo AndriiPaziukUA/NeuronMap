@@ -11,6 +11,7 @@ import com.example.neuronmap.view.neuron.NeuronOverlayPositioner;
 import com.example.neuronmap.view.neuron.NeuronView;
 import javafx.scene.layout.VBox;
 
+import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -33,6 +34,8 @@ public final class NeuronMenuController {
     private final Runnable save;
     private final Consumer<String> status;
     private final LocalizationService localization;
+    /** Оновлює відкрите меню після зміни активної локалі та від'єднується під час завершення контролера. */
+    private final Consumer<Locale> localizationListener = this::refreshMenuLocalization;
 
     private VBox menu;
     private String activeNeuronId;
@@ -97,6 +100,7 @@ public final class NeuronMenuController {
         this.refreshOverlays = Objects.requireNonNull(refreshOverlays, "refreshOverlays");
         this.save = Objects.requireNonNull(save, "save");
         this.status = Objects.requireNonNull(status, "status");
+        this.localization.addListener(localizationListener);
     }
 
     /**
@@ -190,11 +194,12 @@ public final class NeuronMenuController {
         state.setSelectedNeuronForMenu(null);
     }
 
-    /** Остаточно звільняє координатор накладки та приховує контекстне меню. */
+    /** Остаточно звільняє слухача локалізації, координатор накладки та відкрите контекстне меню. */
     public void dispose() {
         if (disposed) {
             return;
         }
+        localization.removeListener(localizationListener);
         hide();
         settingsOverlayCoordinator.dispose();
         disposed = true;
@@ -224,6 +229,19 @@ public final class NeuronMenuController {
             return;
         }
         overlayPositioner.position(view, menu, null);
+    }
+
+    /**
+     * Перебудовує відкрите меню після зміни локалі, щоб підказки й доступні назви відповідали новій мові.
+     * Приховане меню не чіпає: наступний показ і так створить його з актуальними перекладами.
+     *
+     * @param ignoredLocale нова локаль, яку застосувала спільна служба локалізації.
+     */
+    private void refreshMenuLocalization(Locale ignoredLocale) {
+        if (disposed || !isVisible() || activeNeuronView == null) {
+            return;
+        }
+        show(activeNeuronView);
     }
 
     /**

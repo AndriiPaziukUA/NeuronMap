@@ -3,6 +3,7 @@ package com.example.neuronmap.controller;
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.coordinator.NeuronSettingsOverlayCoordinator;
 import com.example.neuronmap.i18n.LocalizationService;
+import com.example.neuronmap.i18n.SupportedLanguage;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronPresentation;
@@ -33,6 +34,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -81,6 +83,33 @@ final class NeuronMenuControllerDirectionTest {
         });
     }
 
+    /** Перевіряє, що відкрите меню нейрона змінює переклади після зміни мови в головному меню. */
+    @Test
+    void refreshesOpenNeuronMenuWhenLanguagePreviewChanges() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            Fixture fixture = createFixture();
+            fixture.workspace().nodeLayer().getChildren().add(fixture.neuronView());
+            new Scene(fixture.overlayHost(), 900.0, 600.0);
+            fixture.controller().show(fixture.neuronView());
+            VBox ukrainianMenu = fixture.controller().node();
+            assertEquals("Імпульс", tooltipForIcon(ukrainianMenu, "neuron-menu-icon-fire"));
+
+            fixture.mainMenu().showMenu();
+            fixture.localization().previewLanguage(SupportedLanguage.ENGLISH);
+
+            VBox englishMenu = fixture.controller().node();
+            assertTrue(fixture.controller().isVisible());
+            assertNotSame(ukrainianMenu, englishMenu,
+                    "Відкрите контекстне меню має бути перебудоване з перекладами нової локалі");
+            assertEquals("Pulse", tooltipForIcon(englishMenu, "neuron-menu-icon-fire"));
+
+            fixture.localization().discardLanguagePreview();
+            assertEquals("Імпульс", tooltipForIcon(
+                    fixture.controller().node(), "neuron-menu-icon-fire"));
+            dispose(fixture);
+        });
+    }
+
     /** Перевіряє, що після скасування налаштувань меню повторно з'являється над тим самим нейроном. */
     @Test
     void restoresContextMenuAfterSettingsAreCancelled() throws Exception {
@@ -124,6 +153,19 @@ final class NeuronMenuControllerDirectionTest {
         });
     }
 
+    /** Повертає текст підказки кнопки, визначеної за CSS-класом її векторного значка. */
+    private static String tooltipForIcon(VBox menu, String iconStyleClass) {
+        HBox buttons = (HBox) menu.getChildren().getFirst();
+        return buttons.getChildren().stream()
+                .filter(Button.class::isInstance)
+                .map(Button.class::cast)
+                .filter(button -> button.getGraphic() != null
+                        && button.getGraphic().getStyleClass().contains(iconStyleClass))
+                .map(button -> button.getTooltip().getText())
+                .findFirst()
+                .orElseThrow();
+    }
+
     /** Створює контролер із явним контейнером накладок і лічильниками побічних ефектів. */
     private static Fixture createFixture() {
         LocalizationService localization = new LocalizationService(Locale.forLanguageTag("uk"));
@@ -160,6 +202,17 @@ final class NeuronMenuControllerDirectionTest {
         NeuronMenuView menuView = new NeuronMenuView(
                 new VBox(), state::selectedNeuronForMenu, null, localization);
         MainMenuView mainMenu = new MainMenuView(localization, ignored -> { });
+        mainMenu.setActions(new MainMenuView.Actions(
+                () -> { },
+                () -> { },
+                () -> { },
+                () -> { },
+                () -> { },
+                ignored -> { },
+                (project, name) -> project,
+                ignored -> { },
+                () -> { }
+        ));
         StackPane overlayHost = new StackPane(workspace.node(), mainMenu);
         NeuronSettingsOverlayCoordinator settingsCoordinator =
                 new NeuronSettingsOverlayCoordinator(overlayHost, mainMenu, localization);
