@@ -33,7 +33,7 @@ public final class MainMenuSettingsCoordinator {
         return editSession.register(currentValue, previewAction, persistAction);
     }
 
-    /** Починає сесію за потреби та застосовує тимчасове значення налаштування. */
+    /** Починає сеанс за потреби та застосовує тимчасове значення налаштування. */
     public <T> void preview(SettingsEditSession.Setting<T> setting, T value) {
         beginIfNeeded();
         editSession.preview(setting, value);
@@ -53,6 +53,11 @@ public final class MainMenuSettingsCoordinator {
         }
         localization.discardLanguagePreview();
         editSession.begin();
+    }
+
+    /** Приймає фактичне значення одного зовні збереженого параметра без підтвердження інших змін сеансу. */
+    public <T> void acceptCurrentValue(SettingsEditSession.Setting<T> setting) {
+        editSession.acceptCurrentValue(setting);
     }
 
     /** Підтверджує всі змінені параметри активного сеансу та завершує його. */

@@ -1,15 +1,20 @@
 package com.example.neuronmap.app;
 
 import com.example.neuronmap.config.AppConfig;
+import com.example.neuronmap.controller.FullScreenShortcutEvent;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.persistence.settings.GlobalSettingsFullScreenPreferenceStore;
 import com.example.neuronmap.persistence.window.WindowState;
 import com.example.neuronmap.persistence.window.WindowStateStore;
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
+import javafx.event.Event;
+import javafx.event.EventHandler;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 
@@ -27,8 +32,10 @@ public final class MainWindowController {
     private final Runnable showWindowAction;
     private final WindowChromeLifecycle windowChromeLifecycle;
     private final GlobalSettingsFullScreenPreferenceStore fullScreenPreferenceStore;
+    private final EventHandler<KeyEvent> fullScreenShortcutHandler = this::handleFullScreenShortcut;
     private WindowLifecycleCoordinator lifecycleCoordinator;
     private WindowState lastWindowedState;
+    private Scene fullScreenShortcutScene;
     private boolean fullScreenEnabled;
     private boolean restoringWindowedGeometry;
     private boolean configured;
@@ -88,7 +95,7 @@ public final class MainWindowController {
     }
 
     /**
-     * Налаштовує Stage, відновлює геометрію, застосовує режим відображення та під'єднує завершення редактора.
+     * Налаштовує Stage, відновлює геометрію, застосовує режим відображення та під'єднує клавіатурні команди.
      *
      * @param windowConfig перевірені налаштування головного вікна.
      * @param scene сцена редактора.
@@ -128,8 +135,11 @@ public final class MainWindowController {
             lifecycleCoordinator = new WindowLifecycleCoordinator(
                     () -> windowStateStore.save(currentWindowState()), shutdownEditor);
             stage.setOnCloseRequest(event -> shutdown());
+            fullScreenShortcutScene = scene;
+            scene.addEventFilter(KeyEvent.KEY_PRESSED, fullScreenShortcutHandler);
             configured = true;
         } catch (RuntimeException | Error configurationFailure) {
+            detachFullScreenShortcut();
             windowChromeLifecycle.dispose();
             throw configurationFailure;
         }
@@ -149,6 +159,7 @@ public final class MainWindowController {
                 lastWindowedState = currentWindowState();
             }
         } catch (RuntimeException | Error exception) {
+            detachFullScreenShortcut();
             windowChromeLifecycle.dispose();
             if (stage.isShowing()) {
                 stage.hide();
@@ -227,15 +238,43 @@ public final class MainWindowController {
         fullScreenPreferenceStore.saveFullScreenEnabled(enabled);
     }
 
-    /** Завершує редактор один раз і звільняє ресурси оформлення вікна. */
+    /** Завершує редактор один раз і звільняє ресурси оформлення вікна та клавіатурних обробників. */
     public void shutdown() {
         try {
             if (lifecycleCoordinator != null) {
                 lifecycleCoordinator.shutdown();
             }
         } finally {
+            detachFullScreenShortcut();
             windowChromeLifecycle.dispose();
         }
+    }
+
+    /**
+     * Перемикає повноекранний режим через F11 і зберігає його перед застосуванням нового стану.
+     *
+     * @param event подія натискання клавіші зі сцени головного вікна.
+     */
+    private void handleFullScreenShortcut(KeyEvent event) {
+        if (event.isConsumed() || event.getCode() != KeyCode.F11 || !configured) {
+            return;
+        }
+        boolean enabled = !fullScreenEnabled;
+        if (fullScreenPreferenceStore != null) {
+            persistFullScreen(enabled);
+        }
+        previewFullScreen(enabled);
+        Event.fireEvent(fullScreenShortcutScene, new FullScreenShortcutEvent(enabled));
+        event.consume();
+    }
+
+    /** Від'єднує клавіатурний обробник від його сцени, щоб уникнути витоку після закриття вікна. */
+    private void detachFullScreenShortcut() {
+        if (fullScreenShortcutScene == null) {
+            return;
+        }
+        fullScreenShortcutScene.removeEventFilter(KeyEvent.KEY_PRESSED, fullScreenShortcutHandler);
+        fullScreenShortcutScene = null;
     }
 
     /** Повертає геометрію для збереження, не записуючи поточний розмір екрана як розмір вікна. */

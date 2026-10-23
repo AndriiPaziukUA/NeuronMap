@@ -8,6 +8,7 @@ import com.example.neuronmap.view.menu.MainMenuView;
 import com.example.neuronmap.view.support.EditorKeyboardShortcutBoundary;
 import com.example.neuronmap.view.support.SceneKeyboardModality;
 import javafx.application.Platform;
+import javafx.event.EventHandler;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -29,9 +30,12 @@ public final class MainMenuController {
     private final Runnable pauseForMenuAction;
     private final Runnable resumeAfterMenuAction;
     private final MainMenuSettingsCoordinator settingsCoordinator;
-    private final javafx.event.EventHandler<KeyEvent> keyHandler = this::handleKeyPressed;
+    private final EventHandler<KeyEvent> keyHandler = this::handleKeyPressed;
+    private final EventHandler<FullScreenShortcutEvent> fullScreenShortcutHandler = this::handleFullScreenShortcut;
 
     private Scene installedScene;
+    private SettingsEditSession.Setting<Boolean> fullScreenSetting;
+    private Supplier<Boolean> fullScreenCurrentValue;
     private boolean savingPendingProjectChanges;
     private boolean fullScreenSettingRegistered;
     private boolean disposed;
@@ -77,7 +81,7 @@ public final class MainMenuController {
                 this::handleBack));
     }
 
-    /** Під'єднує клавіатурний фільтр до сцени; при перенесенні меню від'єднує попередню сцену. */
+    /** Під'єднує клавіатурні обробники до сцени; при перенесенні меню від'єднує попередню сцену. */
     public void install(Scene scene) {
         Objects.requireNonNull(scene, "scene");
         ensureNotDisposed();
@@ -86,6 +90,7 @@ public final class MainMenuController {
         }
         detachKeyboardHandler(installedScene);
         scene.addEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
+        scene.addEventHandler(FullScreenShortcutEvent.FULL_SCREEN_CHANGED, fullScreenShortcutHandler);
         installedScene = scene;
     }
 
@@ -143,14 +148,15 @@ public final class MainMenuController {
         Supplier<Boolean> checkedCurrentValue = Objects.requireNonNull(currentValue, "currentValue");
         Consumer<Boolean> checkedPreviewAction = Objects.requireNonNull(previewAction, "previewAction");
         Consumer<Boolean> checkedPersistAction = Objects.requireNonNull(persistAction, "persistAction");
-        SettingsEditSession.Setting<Boolean> setting = registerSetting(
+        fullScreenCurrentValue = checkedCurrentValue;
+        fullScreenSetting = registerSetting(
                 checkedCurrentValue,
                 enabled -> {
                     checkedPreviewAction.accept(enabled);
                     view.refreshFullScreenValue();
                 },
                 checkedPersistAction);
-        view.setFullScreenActions(checkedCurrentValue, enabled -> previewSetting(setting, enabled));
+        view.setFullScreenActions(checkedCurrentValue, enabled -> previewSetting(fullScreenSetting, enabled));
         fullScreenSettingRegistered = true;
     }
 
@@ -389,6 +395,21 @@ public final class MainMenuController {
         resumeAfterMenuAction.run();
     }
 
+    /**
+     * Оновлює знімок лише повноекранного параметра після збереження через F11.
+     *
+     * @param event сповіщення про новий збережений стан повноекранного режиму.
+     */
+    private void handleFullScreenShortcut(FullScreenShortcutEvent event) {
+        if (disposed || !fullScreenSettingRegistered
+                || !Objects.equals(event.isEnabled(), fullScreenCurrentValue.get())) {
+            return;
+        }
+        settingsCoordinator.acceptCurrentValue(fullScreenSetting);
+        view.refreshFullScreenValue();
+        view.refreshSettingsState();
+    }
+
     /** Обробляє Escape й блокує редакторські скорочення в меню. */
     private void handleKeyPressed(KeyEvent event) {
         if (disposed || event.isConsumed()
@@ -420,10 +441,11 @@ public final class MainMenuController {
         }
     }
 
-    /** Від'єднує клавіатурний фільтр саме від сцени, якій він належить. */
+    /** Від'єднує клавіатурні обробники саме від сцени, якій вони належать. */
     private void detachKeyboardHandler(Scene scene) {
         if (scene != null) {
             scene.removeEventFilter(KeyEvent.KEY_PRESSED, keyHandler);
+            scene.removeEventHandler(FullScreenShortcutEvent.FULL_SCREEN_CHANGED, fullScreenShortcutHandler);
         }
     }
 
