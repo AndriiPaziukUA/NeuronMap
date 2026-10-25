@@ -77,7 +77,7 @@ final class NeuronSettingsViewTest {
             String englishNameLabel = view.settingLabelTextForTest("i18n.neuronSettings.name");
             assertEquals("Signal strength:", englishSignalLabel);
             assertEquals("Activation threshold:", englishThresholdLabel);
-            assertEquals("Active ticks", englishActiveTicksLabel);
+            assertEquals("Active ticks:", englishActiveTicksLabel);
             assertEquals("Name:", englishNameLabel);
 
             localization.previewLanguage(SupportedLanguage.UKRAINIAN);
