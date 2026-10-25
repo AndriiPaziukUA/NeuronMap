@@ -10,6 +10,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Перевіряє затримку першого вихідного сигналу та її взаємодію з тривалістю активності нейрона. */
@@ -31,6 +32,7 @@ final class SimulationSessionDelayTest {
         assertEquals(Set.of(source.id()), activation.emittingNeuronIds());
         assertEquals(1, activation.nextInputSums().get(target.id()));
         assertEquals(0, activation.tick().intValue());
+        assertTrue(session.isFinished(), "Недостатній сигнал не повинен спричиняти ще один такт");
     }
 
     /** Перевіряє, що затримка у два такти пропускає перший такт активації перед передаванням сигналу. */
@@ -58,12 +60,10 @@ final class SimulationSessionDelayTest {
         assertEquals(1, emission.nextInputSums().get(target.id()));
         assertTrue(emission.remainingActiveTicks().isEmpty(),
                 "Однотиковий період активності вже витрачено під час першого випуску сигналу");
+        assertTrue(session.isFinished(),
+                "Після затримки та випуску недостатнього сигналу доставка не створює додаткового такту");
 
-        SimulationStep delivery = session.nextStep();
-        assertNotNull(delivery, "Очікується результат такту доставки сигналу");
-        assertEquals(1, delivery.inputSums().get(target.id()));
-        assertTrue(delivery.nextInputSums().isEmpty());
-        assertTrue(session.isFinished());
+        assertNull(session.nextStep());
     }
 
     /** Перевіряє, що тривалість активності відраховується лише після завершення затримки та першого випуску. */
@@ -98,11 +98,9 @@ final class SimulationSessionDelayTest {
         assertEquals(Set.of(source.id()), secondEmission.emittingNeuronIds());
         assertTrue(secondEmission.remainingActiveTicks().isEmpty());
         assertEquals(1, secondEmission.nextInputSums().get(target.id()));
-
-        SimulationStep finalDelivery = session.nextStep();
-        assertNotNull(finalDelivery, "Очікується результат фінального такту доставки сигналу");
-        assertTrue(finalDelivery.nextInputSums().isEmpty());
         assertTrue(session.isFinished());
+
+        assertNull(session.nextStep(), "Недостатній сигнал не повинен створювати порожній такт доставки");
     }
 
     /** Перевіряє, що повторна активація перезапускає затримку, не залишаючи старий активний лічильник. */

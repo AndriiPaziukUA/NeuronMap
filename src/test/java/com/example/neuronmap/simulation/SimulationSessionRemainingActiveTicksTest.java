@@ -32,12 +32,18 @@ final class SimulationSessionRemainingActiveTicksTest {
         SimulationSession session = SimulationSession.manual(model, source.id());
 
         SimulationStep first = session.nextStep();
+
+        assertNotNull(first);
         assertEquals(2, first.remainingActiveTicks().get(source.id()));
 
         SimulationStep second = session.nextStep();
+
+        assertNotNull(second);
         assertEquals(1, second.remainingActiveTicks().get(source.id()));
 
         SimulationStep third = session.nextStep();
+
+        assertNotNull(third);
         assertEquals(0, third.remainingActiveTicks().getOrDefault(source.id(), 0));
         assertFalse(third.remainingActiveTicks().containsKey(source.id()));
     }
@@ -58,6 +64,8 @@ final class SimulationSessionRemainingActiveTicksTest {
 
         SimulationStep step = session.nextStep();
 
+        assertNotNull(step);
+
         assertEquals(3, step.nextInputSums().get(target.id()));
         assertTrue(step.nextActivatedNeuronIds().contains(target.id()));
         assertFalse(step.activatedNeuronIds().contains(target.id()));
@@ -76,6 +84,8 @@ final class SimulationSessionRemainingActiveTicksTest {
         SimulationSession session = SimulationSession.manual(model, source.id());
 
         SimulationStep first = session.nextStep();
+
+        assertNotNull(first);
         assertEquals(1, first.nextInputSums().get(target.id()));
         assertEquals(3, first.remainingActiveTicks().get(source.id()));
         BigInteger nextTick = session.tick();
@@ -84,12 +94,14 @@ final class SimulationSessionRemainingActiveTicksTest {
         assertEquals(nextTick, session.tick());
 
         SimulationStep next = session.nextStep();
+
+        assertNotNull(next);
         assertEquals(1, next.inputSums().get(target.id()));
         assertEquals(1, next.nextInputSums().get(target.id()));
         assertEquals(2, next.remainingActiveTicks().get(source.id()));
     }
 
-    /** Перевіряє, що два ручні запуски того самого нейрона в межах такту створюють лише один вихідний сигнал. */
+    /** Перевіряє, що повторна негайна активація не спричиняє зайвого такту для сигналу нижче порога. */
     @Test
     void repeatedImmediateActivationDoesNotAccumulateDuplicateSignals() {
         NeuronMapModel model = new NeuronMapModel();
@@ -99,12 +111,13 @@ final class SimulationSessionRemainingActiveTicksTest {
         assertTrue(model.createConnection(source.id(), target.id()));
         SimulationSession session = SimulationSession.manual(model, source.id());
         SimulationStep first = session.nextStep();
+        assertNotNull(first);
         assertEquals(1, first.nextInputSums().get(target.id()));
 
         assertNull(session.activateManualStartNow(source.id()));
-        SimulationStep next = session.nextStep();
-
-        assertEquals(1, next.inputSums().get(target.id()));
+        assertNull(session.nextStep());
+        assertTrue(session.isFinished());
+        assertFalse(session.hasPendingWork());
     }
 
     /** Перевіряє, що повторна активація перезапускає лічильник і відразу показує новий залишок. */
@@ -120,10 +133,15 @@ final class SimulationSessionRemainingActiveTicksTest {
         assertTrue(model.createConnection(retrigger.id(), source.id()));
         SimulationSession session = SimulationSession.manual(model, source.id());
 
-        assertEquals(3, session.nextStep().remainingActiveTicks().get(source.id()));
+        SimulationStep initial = session.nextStep();
+        assertNotNull(initial);
+        assertEquals(3, initial.remainingActiveTicks().get(source.id()));
         assertTrue(session.queueManualStart(retrigger.id()));
-        assertEquals(2, session.nextStep().remainingActiveTicks().get(source.id()));
+        SimulationStep beforeRetrigger = session.nextStep();
+        assertNotNull(beforeRetrigger);
+        assertEquals(2, beforeRetrigger.remainingActiveTicks().get(source.id()));
         SimulationStep retriggered = session.nextStep();
+        assertNotNull(retriggered);
 
         assertTrue(retriggered.activatedNeuronIds().contains(source.id()));
         assertEquals(3, retriggered.remainingActiveTicks().get(source.id()));
@@ -164,6 +182,8 @@ final class SimulationSessionRemainingActiveTicksTest {
         SimulationSession session = SimulationSession.manual(model, firstSource.id());
 
         SimulationStep first = session.nextStep();
+
+        assertNotNull(first);
         BigInteger nextTick = session.tick();
         SimulationStep immediate = session.activateManualStartNow(manualSource.id());
 
@@ -177,6 +197,8 @@ final class SimulationSessionRemainingActiveTicksTest {
         assertEquals(3, immediate.remainingActiveTicks().get(manualSource.id()));
 
         SimulationStep delivered = session.nextStep();
+
+        assertNotNull(delivered);
         assertEquals(nextTick, delivered.tick());
         assertEquals(2, delivered.inputSums().get(target.id()));
         assertTrue(delivered.activatedNeuronIds().contains(target.id()));

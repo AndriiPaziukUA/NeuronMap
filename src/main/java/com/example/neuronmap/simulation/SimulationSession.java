@@ -55,6 +55,7 @@ public final class SimulationSession {
 
     /**
      * Додає наявний нейрон до черги запуску на наступному такті; повторне додавання не створює дубліката.
+     * Якщо сеанс уже завершено, сигнали попереднього завершеного поширення відкидаються.
      *
      * @param sourceNeuronId ідентифікатор початкового нейрона.
      * @return {@code true}, якщо нейрон прийнято до черги; інакше {@code false}.
@@ -64,6 +65,9 @@ public final class SimulationSession {
                 || sourceNeuronId.isBlank()
                 || model.neuron(sourceNeuronId) == null) {
             return false;
+        }
+        if (finished) {
+            pendingSignals.clear();
         }
         pendingManualStarts.add(sourceNeuronId);
         finished = false;
@@ -160,7 +164,8 @@ public final class SimulationSession {
     }
 
     /**
-     * Перевіряє, чи завершено сеанс через відсутність сигналів, ручних запусків і затриманих нейронів.
+     * Перевіряє, чи завершено сеанс через відсутність активацій на наступний такт, ручних запусків,
+     * затриманих нейронів і нейронів, що ще можуть випускати сигнали.
      *
      * @return {@code true}, якщо сеанс завершено; інакше {@code false}.
      */
@@ -178,14 +183,55 @@ public final class SimulationSession {
     }
 
     /**
-     * Перевіряє, чи є робота для наступного такту, включно з нейронами, що очікують завершення затримки.
+     * Перевіряє, чи є робота для наступного такту. Самі по собі вхідні сигнали не вважаються роботою,
+     * якщо їхня сума не досягає порога жодного нейрона й немає нейронів, які ще випускають сигнали.
      *
      * @return {@code true}, якщо є очікувана робота; інакше {@code false}.
      */
     public boolean hasPendingWork() {
-        return !pendingSignals.isEmpty()
+        return hasPendingThresholdActivation()
                 || !pendingManualStarts.isEmpty()
-                || !remainingEmissionDelayTicks.isEmpty();
+                || !remainingEmissionDelayTicks.isEmpty()
+                || hasRemainingEmissionWork();
+    }
+
+    /**
+     * Перевіряє наявність сигналу, який активує щонайменше один наявний нейрон.
+     *
+     * @return {@code true}, якщо накопичена сума досягає порога активації; інакше {@code false}.
+     */
+    private boolean hasPendingThresholdActivation() {
+        Set<String> activatedNeuronIds = new LinkedHashSet<>();
+        collectThresholdActivations(pendingSignals, activatedNeuronIds);
+        return !activatedNeuronIds.isEmpty();
+    }
+
+    /**
+     * Перевіряє, чи має хоча б один нейрон із залишком активних тактів чинний вихідний зв'язок.
+     *
+     * @return {@code true}, якщо ще можливе випускання вихідних сигналів; інакше {@code false}.
+     */
+    private boolean hasRemainingEmissionWork() {
+        for (String neuronId : remainingActiveTicks.keySet()) {
+            for (Connection connection : model.connections()) {
+                if (isOutgoingConnectionToExistingNeuron(connection, neuronId)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Перевіряє, чи веде зв'язок від заданого нейрона до наявного нейрона призначення.
+     *
+     * @param connection зв'язок для перевірки.
+     * @param sourceNeuronId ідентифікатор нейрона-випромінювача.
+     * @return {@code true}, якщо зв'язок є чинним вихідним зв'язком; інакше {@code false}.
+     */
+    private boolean isOutgoingConnectionToExistingNeuron(Connection connection, String sourceNeuronId) {
+        return connection.sourceId().equals(sourceNeuronId)
+                && model.neuron(connection.targetId()) != null;
     }
 
     /**
@@ -315,10 +361,7 @@ public final class SimulationSession {
     /** Додає вагу сигналу до кожного наявного нейрона, з яким з'єднаний випромінювач. */
     private void collectOutgoingSignals(Neuron neuron, Map<String, Integer> nextSignals) {
         for (Connection connection : model.connections()) {
-            if (!connection.sourceId().equals(neuron.id())) {
-                continue;
-            }
-            if (model.neuron(connection.targetId()) == null) {
+            if (!isOutgoingConnectionToExistingNeuron(connection, neuron.id())) {
                 continue;
             }
             nextSignals.merge(connection.targetId(), neuron.signalWeight(), Integer::sum);

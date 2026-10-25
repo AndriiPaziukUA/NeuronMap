@@ -13,9 +13,9 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Перевіряє поширення сигналів, лічильники активності, цикли й ручні запуски. */
 class SimulationSessionTest {
 
-    /** Перевіряє, що видалений нейрон, на який уже очікує сигнал, не активується в наступному такті. */
+    /** Перевіряє, що видалення цільового нейрона не запускає порожній такт для сигналу, який утратив адресата. */
     @Test
-    void deletedPendingTargetDoesNotParticipateInLaterTick() {
+    void deletedPendingTargetDoesNotStartAnEmptyTick() {
         NeuronMapModel model = new NeuronMapModel();
         Neuron a = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
         Neuron b = model.createNeuron(NeuronType.EXCITATORY, 100, 0);
@@ -25,15 +25,60 @@ class SimulationSessionTest {
         SimulationSession session = SimulationSession.manual(model, a.id());
 
         SimulationStep first = session.nextStep();
+
+        assertNotNull(first);
         assertTrue(first.activatedNeuronIds().contains(a.id()));
         assertEquals(1, first.nextInputSums().get(b.id()));
         model.removeNeuron(b.id());
 
-        SimulationStep second = session.nextStep();
-        assertNotNull(second);
-        assertTrue(second.inputSums().containsKey(b.id()));
-        assertTrue(second.activatedNeuronIds().isEmpty());
-        assertTrue(second.nextInputSums().isEmpty());
+        assertNull(session.nextStep());
+        assertTrue(session.isFinished());
+        assertFalse(session.hasPendingWork());
+        assertEquals(BigInteger.ONE, session.tick());
+    }
+
+    /** Перевіряє, що сигнал нижче порога не породжує наступний такт без іншої очікуваної роботи. */
+    @Test
+    void subthresholdSignalDoesNotScheduleAnEmptyTick() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron source = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        Neuron target = model.createNeuron(NeuronType.EXCITATORY, 100, 0);
+        target.setActivationThreshold(2);
+        assertTrue(model.createConnection(source.id(), target.id()));
+        SimulationSession session = SimulationSession.manual(model, source.id());
+
+        SimulationStep emission = session.nextStep();
+
+        assertNotNull(emission);
+
+        assertEquals(1, emission.nextInputSums().get(target.id()));
+        assertTrue(emission.nextActivatedNeuronIds().isEmpty());
+        assertTrue(session.isFinished());
+        assertFalse(session.hasPendingWork());
+        assertNull(session.nextStep());
+        assertEquals(BigInteger.ONE, session.tick());
+    }
+
+    /** Перевіряє, що перетинання порога зберігає наступний такт та активує цільовий нейрон. */
+    @Test
+    void thresholdCrossingSchedulesTheNextTick() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron source = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        Neuron target = model.createNeuron(NeuronType.EXCITATORY, 100, 0);
+        source.setSignalStrength(2);
+        target.setActivationThreshold(2);
+        assertTrue(model.createConnection(source.id(), target.id()));
+        SimulationSession session = SimulationSession.manual(model, source.id());
+
+        SimulationStep emission = session.nextStep();
+
+        assertNotNull(emission);
+
+        assertTrue(emission.nextActivatedNeuronIds().contains(target.id()));
+        assertTrue(session.hasPendingWork());
+        SimulationStep activation = session.nextStep();
+        assertNotNull(activation);
+        assertTrue(activation.activatedNeuronIds().contains(target.id()));
         assertTrue(session.isFinished());
     }
 
@@ -72,10 +117,13 @@ class SimulationSessionTest {
         SimulationSession session = SimulationSession.manual(model, a.id());
 
         SimulationStep first = session.nextStep();
+
+        assertNotNull(first);
         assertEquals(BigInteger.ZERO, first.tick());
         assertEquals(Set.of(a.id()), first.activatedNeuronIds());
         assertTrue(session.queueManualStart(c.id()));
         SimulationStep second = session.nextStep();
+        assertNotNull(second);
         assertEquals(BigInteger.ONE, second.tick());
         assertEquals(Set.of(b.id(), c.id()), second.activatedNeuronIds());
         assertEquals(1, second.nextInputSums().get(a.id()));
@@ -91,15 +139,41 @@ class SimulationSessionTest {
         Neuron c = model.createNeuron(NeuronType.EXCITATORY, 300, 0);
         assertTrue(model.createConnection(a.id(), b.id()));
         SimulationSession session = SimulationSession.manual(model, a.id());
-        assertEquals(BigInteger.ZERO, session.nextStep().tick());
+        SimulationStep initial = session.nextStep();
+        assertNotNull(initial);
+        assertEquals(BigInteger.ZERO, initial.tick());
         SimulationStep last = session.nextStep();
+        assertNotNull(last);
         assertEquals(BigInteger.ONE, last.tick());
         assertTrue(session.isFinished());
         assertTrue(session.queueManualStart(c.id()));
         assertFalse(session.isFinished());
         SimulationStep resumed = session.nextStep();
+        assertNotNull(resumed);
         assertEquals(BigInteger.TWO, resumed.tick());
         assertEquals(Set.of(c.id()), resumed.activatedNeuronIds());
+    }
+
+    /** Перевіряє, що новий ручний запуск не використовує повторно сигнал нижче порога з уже завершеного сеансу. */
+    @Test
+    void manualStartAfterSubthresholdFinishDiscardsTheOldSignal() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron source = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        Neuron target = model.createNeuron(NeuronType.EXCITATORY, 100, 0);
+        Neuron newSource = model.createNeuron(NeuronType.EXCITATORY, 300, 0);
+        target.setActivationThreshold(2);
+        assertTrue(model.createConnection(source.id(), target.id()));
+        SimulationSession session = SimulationSession.manual(model, source.id());
+
+        assertNotNull(session.nextStep());
+        assertTrue(session.isFinished());
+        assertTrue(session.queueManualStart(newSource.id()));
+
+        SimulationStep restarted = session.nextStep();
+
+        assertNotNull(restarted);
+        assertTrue(restarted.inputSums().isEmpty());
+        assertEquals(Set.of(newSource.id()), restarted.activatedNeuronIds());
     }
 
     /** Перевіряє, що одночасне ручне й сигнальне активування нейрона не дублює вихідний сигнал. */
@@ -114,11 +188,12 @@ class SimulationSessionTest {
         session.nextStep();
         assertTrue(session.queueManualStart(b.id()));
         SimulationStep step = session.nextStep();
+        assertNotNull(step);
         assertEquals(Set.of(b.id()), step.activatedNeuronIds());
         assertEquals(1, step.nextInputSums().get(a.id()));
     }
 
-    /** Перевіряє, що перша активація одразу витрачає перший такт заданої тривалості. */
+    /** Перевіряє, що джерело передає задану кількість сигналів і не створює фінальний такт без активації адресата. */
     @Test
     void emitsExactlyConfiguredNumberOfSignalsIncludingActivationTick() {
         NeuronMapModel model = new NeuronMapModel();
@@ -135,11 +210,10 @@ class SimulationSessionTest {
             assertEquals(Set.of(source.id()), step.emittingNeuronIds());
             assertEquals(tick == 0, step.activatedNeuronIds().contains(source.id()));
         }
-        SimulationStep finalDelivery = session.nextStep();
-        assertNotNull(finalDelivery);
-        assertEquals(1, finalDelivery.inputSums().get(target.id()));
-        assertTrue(finalDelivery.nextInputSums().isEmpty());
         assertTrue(session.isFinished());
+        assertFalse(session.hasPendingWork());
+        assertNull(session.nextStep());
+        assertEquals(BigInteger.valueOf(4), session.tick());
     }
 
     /** Перевіряє, що повторне перетинання порога перезапускає лічильник до повної тривалості. */
@@ -154,23 +228,29 @@ class SimulationSessionTest {
         assertTrue(model.createConnection(source.id(), target.id()));
         assertTrue(model.createConnection(retrigger.id(), source.id()));
         SimulationSession session = SimulationSession.manual(model, source.id());
-        assertEquals(1, session.nextStep().nextInputSums().get(target.id()));
+        SimulationStep first = session.nextStep();
+        assertNotNull(first);
+        assertEquals(1, first.nextInputSums().get(target.id()));
         assertTrue(session.queueManualStart(retrigger.id()));
-        assertEquals(1, session.nextStep().nextInputSums().get(target.id()));
+        SimulationStep second = session.nextStep();
+        assertNotNull(second);
+        assertEquals(1, second.nextInputSums().get(target.id()));
         SimulationStep retriggered = session.nextStep();
+        assertNotNull(retriggered);
         assertTrue(retriggered.activatedNeuronIds().contains(source.id()));
         assertEquals(Set.of(source.id()), retriggered.emittingNeuronIds());
         assertEquals(1, retriggered.nextInputSums().get(target.id()));
         for (int tick = 0; tick < 3; tick++) {
             SimulationStep step = session.nextStep();
+            assertNotNull(step);
             assertEquals(1, step.nextInputSums().get(target.id()));
             assertEquals(Set.of(source.id()), step.emittingNeuronIds());
         }
-        assertTrue(session.nextStep().nextInputSums().isEmpty());
         assertTrue(session.isFinished());
+        assertNull(session.nextStep());
     }
 
-    /** Перевіряє, що типовий нейрон зберігає попередню поведінку з одним активним тактом. */
+    /** Перевіряє, що типовий нейрон зберігає один активний такт і не породжує порожню доставку нижче порога. */
     @Test
     void defaultDurationKeepsPreviousSingleTickBehavior() {
         NeuronMapModel model = new NeuronMapModel();
@@ -179,8 +259,12 @@ class SimulationSessionTest {
         target.setActivationThreshold(100);
         assertTrue(model.createConnection(source.id(), target.id()));
         SimulationSession session = SimulationSession.manual(model, source.id());
-        assertEquals(1, session.nextStep().nextInputSums().get(target.id()));
-        assertTrue(session.nextStep().nextInputSums().isEmpty());
+        SimulationStep step = session.nextStep();
+        assertNotNull(step);
+        assertEquals(1, step.nextInputSums().get(target.id()));
         assertTrue(session.isFinished());
+        assertFalse(session.hasPendingWork());
+        assertNull(session.nextStep());
+        assertEquals(BigInteger.ONE, session.tick());
     }
 }
