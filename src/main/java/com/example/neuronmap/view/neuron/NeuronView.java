@@ -146,59 +146,22 @@ public final class NeuronView extends StackPane {
                 || outputPort.contains(outputPort.parentToLocal(localX, localY));
     }
 
-    /**
-     * Повертає модель карти нейронів.
-     *
-     * @return модель карти нейронів.
-     */
-    public Neuron model() {
-        return presentation.neuron();
-    }
+    /** Повертає модель нейрона, яку відображає подання. */
+    public Neuron model() { return presentation.neuron(); }
 
-    /**
-     * Повертає візуальне подання нейрона.
-     *
-     * @return візуальне подання нейрона.
-     */
-    public NeuronPresentation presentation() {
-        return presentation;
-    }
+    /** Повертає візуальне подання нейрона. */
+    public NeuronPresentation presentation() { return presentation; }
 
-    /**
-     * Повертає ознаку фактичного переміщення під час поточного жесту миші.
-     *
-     * @return {@code true}, якщо нейрон перемістили.
-     */
-    public boolean wasDragged() {
-        return wasDragged;
-    }
+    /** Повертає ознаку фактичного переміщення під час поточного жесту миші. */
+    public boolean wasDragged() { return wasDragged; }
 
-    /**
-     * Перевіряє стан перетягування.
-     *
-     * @return {@code true}, якщо перетягування активне.
-     */
-    public boolean isDragging() {
-        return dragging;
-    }
+    /** Перевіряє, чи триває перетягування нейрона. */
+    public boolean isDragging() { return dragging; }
 
-    /**
-     * Перевіряє, чи перетягується група нейронів.
-     *
-     * @return {@code true}, якщо рух відбувається в режимі групи.
-     */
-    public boolean isDraggingGroup() {
-        return dragGroup;
-    }
+    /** Перевіряє, чи перетягується група нейронів. */
+    public boolean isDraggingGroup() { return dragGroup; }
 
-    /**
-     * Запам'ятовує початкові координати перетягування та модифікатори переміщення.
-     *
-     * @param sceneX горизонтальна координата у системі координат сцени.
-     * @param sceneY вертикальна координата у системі координат сцени.
-     * @param altPressed чи натиснуто Alt.
-     * @param belongsToGroup чи належить нейрон до групи.
-     */
+    /** Запам'ятовує початкові координати перетягування та модифікатори переміщення. */
     public void beginDrag(double sceneX, double sceneY, boolean altPressed, boolean belongsToGroup) {
         dragging = true;
         wasDragged = false;
@@ -209,36 +172,21 @@ public final class NeuronView extends StackPane {
         dragGroup = !altPressed && belongsToGroup;
     }
 
-    /**
-     * Обчислює горизонтальне зміщення від попередньої точки жесту.
-     *
-     * @param sceneX поточна координата X сцени.
-     * @return горизонтальне зміщення.
-     */
+    /** Обчислює горизонтальне зміщення від попередньої точки жесту. */
     public double dragDeltaX(double sceneX) {
         double delta = sceneX - lastSceneX;
         lastSceneX = sceneX;
         return delta;
     }
 
-    /**
-     * Обчислює вертикальне зміщення від попередньої точки жесту.
-     *
-     * @param sceneY поточна координата Y сцени.
-     * @return вертикальне зміщення.
-     */
+    /** Обчислює вертикальне зміщення від попередньої точки жесту. */
     public double dragDeltaY(double sceneY) {
         double delta = sceneY - lastSceneY;
         lastSceneY = sceneY;
         return delta;
     }
 
-    /**
-     * Позначає жест як переміщення після перевищення порога руху.
-     *
-     * @param sceneX поточна координата X сцени.
-     * @param sceneY поточна координата Y сцени.
-     */
+    /** Позначає жест як переміщення після перевищення порога руху. */
     public void updateDraggedState(double sceneX, double sceneY) {
         if (Math.hypot(sceneX - dragStartSceneX, sceneY - dragStartSceneY) > 4.0) {
             wasDragged = true;
@@ -246,15 +194,9 @@ public final class NeuronView extends StackPane {
     }
 
     /** Завершує перетягування та очищає відповідний стан. */
-    public void endDrag() {
-        dragging = false;
-    }
+    public void endDrag() { dragging = false; }
 
-    /**
-     * Показує величину запланованого вхідного сигналу й забарвлює порт за порогом активації.
-     *
-     * @param signal уже обчислена сума сигналів, спрямованих до нейрона.
-     */
+    /** Показує величину вхідного сигналу й забарвлює порт за порогом активації. */
     public void showInputSignal(int signal) {
         displayedInputSignal = signal;
         inputSignalLabel.setText(Integer.toString(signal));
@@ -269,13 +211,11 @@ public final class NeuronView extends StackPane {
     }
 
     /** Очищає текст і стан відображення вхідного сигналу. */
-    public void clearDisplayedInputSignal() {
-        hideInputSignal();
-    }
+    public void clearDisplayedInputSignal() { hideInputSignal(); }
 
     /**
      * Негайно встановлює кількість активних тактів, яка залишилася в нейрона.
-     * Значення зберігається в поданні, щоб звичайне оновлення геометрії не повертало застарілий текст.
+     * Значення зберігається в поданні, щоб оновлення геометрії не повертало застарілий текст.
      *
      * @param remainingActiveTicks залишок тактів; нуль означає, що нейрон не має активних тактів.
      * @throws IllegalArgumentException якщо залишок тактів від'ємний.
@@ -288,24 +228,14 @@ public final class NeuronView extends StackPane {
         remainingActiveTicksLabel.setText(Integer.toString(remainingActiveTicks));
     }
 
-    /**
-     * Встановлює, чи передає нейрон вихідний сигнал, із кольором відповідно до його типу.
-     *
-     * @param active {@code true}, якщо нейрон надсилає сигнал; інакше {@code false}.
-     */
+    /** Встановлює, чи передає нейрон вихідний сигнал, із кольором відповідно до його типу. */
     public void setOutputSignalActive(boolean active) {
         outputSignalActive = active;
         refreshOutputPortStyleClass();
     }
 
-    /**
-     * Перевіряє, чи розвернуто напрямок нейрона.
-     *
-     * @return {@code true}, якщо напрямок розвернуто.
-     */
-    public boolean isDirectionReversed() {
-        return presentation.directionReversed();
-    }
+    /** Перевіряє, чи розвернуто напрямок нейрона. */
+    public boolean isDirectionReversed() { return presentation.directionReversed(); }
 
     /**
      * Налаштовує локалізацію параметрів у спливаючій підказці та одразу оновлює її текст.
@@ -322,10 +252,7 @@ public final class NeuronView extends StackPane {
         refreshParameterTooltip();
     }
 
-    /**
-     * Приховує та від'єднує спливаючу підказку перед вилученням нейрона з карти.
-     * Після повторного встановлення обробників підказку можна налаштувати знову.
-     */
+    /** Приховує та від'єднує підказку перед вилученням нейрона з карти. */
     public void disposeParameterTooltip() {
         parameterTooltipDisposed = true;
         parameterTooltip.hide();
@@ -337,12 +264,7 @@ public final class NeuronView extends StackPane {
         refreshParameterTooltipText();
     }
 
-    /**
-     * Оновлює розташування та класи стилю нейрона з урахуванням типу й вибору, не змінюючи залишок активних тактів.
-     * Вибраний нейрон не показує підказку параметрів і власну назву.
-     *
-     * @param selected ознака вибраного нейрона.
-     */
+    /** Оновлює розташування й стилі нейрона, не змінюючи залишок активних тактів. */
     public void refreshVisuals(boolean selected) {
         this.selected = selected;
         setLayoutX(presentation.x());
@@ -351,7 +273,6 @@ public final class NeuronView extends StackPane {
         refreshBodyStyleClasses(selected);
         refreshInputPortStyleClass();
         refreshOutputPortStyleClass();
-
         inputSignalLabel.setText(displayedInputSignal == null
                 ? NO_INPUT_SIGNAL_TEXT
                 : Integer.toString(displayedInputSignal));
@@ -361,33 +282,19 @@ public final class NeuronView extends StackPane {
         refreshParameterTooltip();
     }
 
-    /**
-     * Повертає світову точку вихідного порту для під'єднання зв'язку.
-     *
-     * @return точка вихідного порту.
-     */
+    /** Повертає світову точку вихідного порту для під'єднання зв'язку. */
     public Point2D outputPoint() {
         return localPointToWorld(new Point2D(
                 NeuronVisualGeometry.outputTipX(presentation.directionReversed()), HEIGHT / 2.0));
     }
 
-    /**
-     * Повертає світову точку вхідного порту для під'єднання зв'язку.
-     *
-     * @return точка вхідного порту.
-     */
+    /** Повертає світову точку вхідного порту для під'єднання зв'язку. */
     public Point2D inputPoint() {
         return localPointToWorld(new Point2D(
                 NeuronVisualGeometry.inputPortX(presentation.directionReversed()), HEIGHT / 2.0));
     }
 
-    /**
-     * Оновлює положення графічних елементів усередині подання нейрона.
-     *
-     * <p>Тіло нейрона вже має незмінні локальні координати (0, 0). Його не можна повторно
-     * позиціонувати через {@code relocate}: цей метод спирається на {@code layoutBounds},
-     * які залежать від CSS-ширини рамки та могли б зрушувати тіло під час оновлень симуляції.</p>
-     */
+    /** Оновлює положення графічних елементів усередині подання нейрона. */
     private void positionFixedChildren() {
         double labelY = (HEIGHT - NUMERIC_LABEL_HEIGHT) / 2.0;
         double leftLabelX = NUMERIC_LABEL_SIDE_GAP;
@@ -403,15 +310,7 @@ public final class NeuronView extends StackPane {
                 : SELECTED_STROKE_WIDTH / 2.0);
     }
 
-    /**
-     * Синхронізує CSS-класи тіла нейрона з типом моделі та станом вибору.
-     *
-     * <p>Класи змінюються лише тоді, коли фактичний тип або стан вибору відрізняється від
-     * бажаного. Це не спричиняє зайвого повторного CSS-проходу під час кожного такту симуляції.
-     * Стан наведення визначається CSS за псевдокласом {@code :hover} батьківського вузла.</p>
-     *
-     * @param selected ознака вибраного нейрона.
-     */
+    /** Синхронізує CSS-класи тіла нейрона з його типом і станом вибору. */
     private void refreshBodyStyleClasses(boolean selected) {
         String desiredTypeClass = model().type() == NeuronType.EXCITATORY
                 ? EXCITATORY_BODY_STYLE_CLASS
@@ -419,12 +318,10 @@ public final class NeuronView extends StackPane {
         String otherTypeClass = desiredTypeClass.equals(EXCITATORY_BODY_STYLE_CLASS)
                 ? INHIBITORY_BODY_STYLE_CLASS
                 : EXCITATORY_BODY_STYLE_CLASS;
-
         if (!body.getStyleClass().contains(desiredTypeClass)) {
             body.getStyleClass().remove(otherTypeClass);
             body.getStyleClass().add(desiredTypeClass);
         }
-
         boolean currentlySelected = body.getStyleClass().contains(SELECTED_BODY_STYLE_CLASS);
         if (selected && !currentlySelected) {
             body.getStyleClass().add(SELECTED_BODY_STYLE_CLASS);
@@ -465,14 +362,7 @@ public final class NeuronView extends StackPane {
         );
     }
 
-    /**
-     * Залишає на графічному порту не більше одного класу з заданої пари.
-     *
-     * @param port графічний вузол порту.
-     * @param firstClass перший взаємовиключний клас.
-     * @param secondClass другий взаємовиключний клас.
-     * @param desiredClass потрібний клас або {@code null}, щоб прибрати обидва.
-     */
+    /** Залишає на графічному порту не більше одного класу з заданої пари. */
     private void updateExclusivePortStyleClass(
             Node port,
             String firstClass,
@@ -484,7 +374,6 @@ public final class NeuronView extends StackPane {
             port.getStyleClass().remove(secondClass);
             return;
         }
-
         String otherClass = desiredClass.equals(firstClass) ? secondClass : firstClass;
         port.getStyleClass().remove(otherClass);
         if (!port.getStyleClass().contains(desiredClass)) {
@@ -492,10 +381,7 @@ public final class NeuronView extends StackPane {
         }
     }
 
-    /**
-     * Оновлює текст підказки лише параметрами, які редагуються в налаштуваннях нейрона.
-     * Мова береться з активної служби локалізації, а не із системної локалі JVM.
-     */
+    /** Оновлює підказку параметрами з налаштувань нейрона та активної локалі застосунку. */
     private void refreshParameterTooltipText() {
         Neuron neuron = model();
         String signalLabel = tooltipLocalization == null
@@ -507,19 +393,17 @@ public final class NeuronView extends StackPane {
         String activeTicksLabel = tooltipLocalization == null
                 ? "Active ticks"
                 : tooltipLocalization.textFrom("i18n.neuronSettings", "active_ticks");
+        String delayLabel = tooltipLocalization == null
+                ? "Delay"
+                : tooltipLocalization.textFrom("i18n.neuronSettings", "delay");
         parameterTooltip.setText(String.join("\n",
                 parameterLine(signalLabel, neuron.signalStrength()),
                 parameterLine(thresholdLabel, neuron.activationThreshold()),
-                parameterLine(activeTicksLabel, neuron.activeTicks())));
+                parameterLine(activeTicksLabel, neuron.activeTicks()),
+                parameterLine(delayLabel, neuron.delayTicks())));
     }
 
-    /**
-     * Форматує один рядок підказки, нормалізуючи підпис із налаштувань до єдиного формату.
-     *
-     * @param label локалізований підпис параметра, із двокрапкою або без неї.
-     * @param value значення параметра нейрона.
-     * @return рядок формату «назва параметра: значення».
-     */
+    /** Форматує рядок підказки як «назва параметра: значення», уніфікуючи двокрапки в підписах. */
     private static String parameterLine(String label, int value) {
         String normalizedLabel = label == null ? "" : label.strip();
         while (normalizedLabel.endsWith(":")) {
@@ -528,25 +412,14 @@ public final class NeuronView extends StackPane {
         return normalizedLabel + ": " + value;
     }
 
-    /**
-     * Перераховує геометрію назви після зміни перетворень камери.
-     *
-     * <p>Викликається зі спільного проходу оновлення екранних накладок, який уже використовує
-     * контекстне меню під час zoom і pan. Метод не змінює стан наведення або вибору нейрона.</p>
-     */
-    public void refreshHoverNameGeometry() {
-        refreshNameLabel();
-    }
+    /** Перераховує геометрію назви після зміни перетворень камери. */
+    public void refreshHoverNameGeometry() { refreshNameLabel(); }
 
     /** Повертає назву як окрему накладку, щоб вона не залежала від порядку шарів нейронів. */
-    public Label nameOverlayNode() {
-        return nameLabel;
-    }
+    public Label nameOverlayNode() { return nameLabel; }
 
     /** Оновлює геометрію назви в координатах верхнього шару полотна. */
-    public void refreshHoverNameGeometry(Pane overlayLayer) {
-        refreshNameLabel(overlayLayer);
-    }
+    public void refreshHoverNameGeometry(Pane overlayLayer) { refreshNameLabel(overlayLayer); }
 
     /** Приховує назву лише на час активного жесту обертання. */
     public void setNameHiddenWhileRotating(boolean hidden) {
@@ -556,8 +429,6 @@ public final class NeuronView extends StackPane {
 
     /** Узгоджує стан наведення назви з наведенням на ручку обертання. */
     public void setNameHoverActive(boolean active) {
-        // Під час жесту обертання ручка може залишити область наведення, але назва має
-        // знову з'явитися при відпусканні ручки, навіть якщо вказівник уже поза нейроном.
         if (!active && nameHiddenWhileRotating) {
             return;
         }
@@ -585,17 +456,13 @@ public final class NeuronView extends StackPane {
         }
     }
 
-    /**
-     * Оновлює окремий підпис назви та розміщує його над тілом нейрона, зберігаючи текст горизонтальним.
-     * Підпис не є ціллю миші, тому він не заважає взаємодії з полотном.
-     */
+    /** Оновлює окремий підпис назви та розміщує його над тілом нейрона, зберігаючи текст горизонтальним. */
     private void refreshNameLabel() {
-        // У тестах та до під'єднання до полотна позначка є дочірнім вузлом самого нейрона;
-        // у редакторі її переносить координатор до окремого екранного шару.
         Node parent = nameLabel.getParent();
         refreshNameLabel(parent instanceof Pane pane && parent != this ? pane : null);
     }
 
+    /** Перераховує текст і геометрію підпису назви в локальному або окремому екранному шарі. */
     private void refreshNameLabel(Pane overlayLayer) {
         String name = model().name();
         boolean shouldShow = pointerHovered && !nameHiddenWhileRotating
@@ -610,10 +477,7 @@ public final class NeuronView extends StackPane {
                     NAME_LABEL_MIN_WIDTH,
                     NAME_LABEL_MAX_WIDTH
             );
-            double labelHeight = Math.max(
-                    NAME_LABEL_MIN_HEIGHT,
-                    nameLabel.prefHeight(labelWidth)
-            );
+            double labelHeight = Math.max(NAME_LABEL_MIN_HEIGHT, nameLabel.prefHeight(labelWidth));
             nameLabel.resize(labelWidth, labelHeight);
             positionNameLabel(labelWidth, labelHeight, overlayLayer);
         }
@@ -621,28 +485,17 @@ public final class NeuronView extends StackPane {
         nameLabel.setManaged(false);
     }
 
-    /**
-     * Розміщує прямокутник над верхньою межею повернутого нейрона та зберігає його екранний розмір.
-     *
-     * @param labelWidth виміряна ширина прямокутника назви.
-     * @param labelHeight виміряна висота прямокутника назви.
-     */
+    /** Розміщує прямокутник над верхньою межею повернутого нейрона та зберігає його екранний розмір. */
     private void positionNameLabel(double labelWidth, double labelHeight, Pane overlayLayer) {
         double screenScale = sceneScale();
         if (overlayLayer != null && overlayLayer.getScene() != null) {
-            // Використовуємо той самий принцип, що й NeuronOverlayPositioner для меню:
-            // визначаємо екранну рамку нейрона через перетворені кути, а напис ставимо
-            // горизонтально над її верхнім краєм у координатах шару накладок.
             Point2D[] corners = {
                     localToScene(0.0, 0.0),
                     localToScene(WIDTH, 0.0),
                     localToScene(0.0, HEIGHT),
                     localToScene(WIDTH, HEIGHT)
             };
-            double topY = java.util.Arrays.stream(corners)
-                    .mapToDouble(Point2D::getY)
-                    .min()
-                    .orElseThrow();
+            double topY = java.util.Arrays.stream(corners).mapToDouble(Point2D::getY).min().orElseThrow();
             Point2D centerInScene = localToScene(WIDTH / 2.0, HEIGHT / 2.0);
             Point2D center = overlayLayer.sceneToLocal(centerInScene);
             Point2D top = overlayLayer.sceneToLocal(centerInScene.getX(), topY);
@@ -654,8 +507,6 @@ public final class NeuronView extends StackPane {
                     top.getY() - NeuronOverlayPositioner.MENU_GAP - labelHeight
             );
         } else {
-            // До перенесення на екранний шар (зокрема в ізольованих тестах) напис лишається
-            // у локальній системі нейрона й компенсує його поворот та масштаб камери.
             double angle = Math.toRadians(presentation.rotationDegrees());
             double halfRotatedHeight = (
                     Math.abs(Math.sin(angle)) * WIDTH
@@ -672,12 +523,7 @@ public final class NeuronView extends StackPane {
         }
     }
 
-    /**
-     * Визначає масштаб координат сцени відносно локальних координат нейрона.
-     * Це дає змогу залишити підпис незмінного екранного розміру незалежно від масштабу карти.
-     *
-     * @return додатний скінченний масштаб або одиниця, якщо координати ще недоступні.
-     */
+    /** Визначає масштаб координат сцени відносно локальних координат нейрона. */
     private double sceneScale() {
         Point2D center = localToScene(WIDTH / 2.0, HEIGHT / 2.0);
         Point2D sample = localToScene(WIDTH / 2.0 + 1.0, HEIGHT / 2.0);
@@ -686,31 +532,18 @@ public final class NeuronView extends StackPane {
     }
 
     /** Повертає сформований текст підказки для перевірки формату в автоматизованих тестах. */
-    String parameterTooltipTextForTest() {
-        return parameterTooltip.getText();
-    }
+    String parameterTooltipTextForTest() { return parameterTooltip.getText(); }
 
     /** Повертає факт встановлення підказки для перевірки поведінки вибраного нейрона. */
-    boolean isParameterTooltipInstalledForTest() {
-        return parameterTooltipInstalled;
-    }
+    boolean isParameterTooltipInstalledForTest() { return parameterTooltipInstalled; }
 
     /** Повертає вузол назви для тестів видимості та стилізації підпису. */
-    Label nameLabelForTest() {
-        return nameLabel;
-    }
+    Label nameLabelForTest() { return nameLabel; }
 
     /** Повертає ознаку відображення назви без потреби показувати справжнє вікно. */
-    boolean isNameLabelVisibleForTest() {
-        return nameLabel.isVisible();
-    }
+    boolean isNameLabelVisibleForTest() { return nameLabel.isVisible(); }
 
-    /**
-     * Перетворює точку з локальних координат нейрона на світові координати полотна.
-     *
-     * @param localPoint локальна точка.
-     * @return світова точка на полотні.
-     */
+    /** Перетворює точку з локальних координат нейрона на світові координати полотна. */
     private Point2D localPointToWorld(Point2D localPoint) {
         double centerX = WIDTH / 2.0;
         double centerY = HEIGHT / 2.0;
@@ -724,11 +557,7 @@ public final class NeuronView extends StackPane {
         return new Point2D(presentation.x() + centerX + rotatedX, presentation.y() + centerY + rotatedY);
     }
 
-    /**
-     * Налаштовує текстову позначку вхідної суми або залишку активних тактів.
-     *
-     * @param label позначка числового стану нейрона.
-     */
+    /** Налаштовує текстову позначку вхідної суми або залишку активних тактів. */
     private void configureNumericLabel(Label label) {
         label.getStyleClass().add("neuron-activation");
         label.setAlignment(Pos.CENTER);

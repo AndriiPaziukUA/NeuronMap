@@ -2,22 +2,24 @@ package com.example.neuronmap.model;
 
 /**
  * Об'єднує налаштування вихідного сигналу нейрона та умови його активації.
- * Усі значення мають бути додатними, тому перевірка виконується в одному місці.
+ * Усі числові параметри мають бути додатними, тому їх перевірка зосереджена в одному місці.
  *
  * @param signalStrength сила сигналу, який генерує нейрон.
  * @param activationThreshold мінімальна сума вхідних сигналів, необхідна для активації нейрона.
- * @param activeTicks кількість тактів, протягом яких нейрон випускає по одному сигналу після активації.
+ * @param activeTicks кількість тактів, протягом яких нейрон випускає сигнали після початку передачі.
+ * @param delayTicks кількість тактів затримки перед першим вихідним сигналом.
  */
 public record NeuronParameters(
         int signalStrength,
         int activationThreshold,
-        int activeTicks
+        int activeTicks,
+        int delayTicks
 ) {
 
     /**
-     * Перевіряє допустимість усіх параметрів під час створення їхнього незмінного значення.
+     * Перевіряє допустимість параметрів під час створення їхнього незмінного значення.
      *
-     * @throws IllegalArgumentException якщо будь-який параметр не є додатним.
+     * @throws IllegalArgumentException якщо сила, поріг, активні такти або затримка не є додатними.
      */
     public NeuronParameters {
         if (signalStrength <= 0) {
@@ -29,15 +31,29 @@ public record NeuronParameters(
         if (activeTicks <= 0) {
             throw new IllegalArgumentException("Active ticks must be greater than zero.");
         }
+        if (delayTicks <= 0) {
+            throw new IllegalArgumentException("Delay ticks must be greater than zero.");
+        }
     }
 
     /**
-     * Створює параметри зі старого контракту, використовуючи один активний такт за замовчуванням.
+     * Створює параметри старого трьохпольового контракту, використовуючи затримку в один такт.
+     *
+     * @param signalStrength сила сигналу.
+     * @param activationThreshold поріг активації.
+     * @param activeTicks кількість активних тактів.
+     */
+    public NeuronParameters(int signalStrength, int activationThreshold, int activeTicks) {
+        this(signalStrength, activationThreshold, activeTicks, 1);
+    }
+
+    /**
+     * Створює параметри зі старого контракту, використовуючи один активний такт і затримку в один такт.
      *
      * @param signalStrength сила сигналу.
      * @param activationThreshold поріг активації.
      */
     public NeuronParameters(int signalStrength, int activationThreshold) {
-        this(signalStrength, activationThreshold, 1);
+        this(signalStrength, activationThreshold, 1, 1);
     }
 }

@@ -34,11 +34,13 @@ class SqliteMapRepositoryTest {
         a.setSignalStrength(6);
         a.setActivationThreshold(4);
         a.setActiveTicks(5);
+        a.setDelayTicks(6);
         a.setName("Input ⚡ #1");
         b.setActivation(-2);
         b.setSignalStrength(3);
         b.setActivationThreshold(8);
         b.setActiveTicks(3);
+        b.setDelayTicks(2);
         b.setName(null);
 
         original.presentation(a.id()).setDirectionReversed(true);
@@ -67,12 +69,14 @@ class SqliteMapRepositoryTest {
         assertEquals(6, restored.neuron(a.id()).signalStrength());
         assertEquals(4, restored.neuron(a.id()).activationThreshold());
         assertEquals(5, restored.neuron(a.id()).activeTicks());
+        assertEquals(6, restored.neuron(a.id()).delayTicks());
         assertEquals("Input ⚡ #1", restored.neuron(a.id()).name());
         assertNull(restored.neuron(b.id()).name());
         assertEquals(-2, restored.neuron(b.id()).activation());
         assertEquals(3, restored.neuron(b.id()).signalStrength());
         assertEquals(8, restored.neuron(b.id()).activationThreshold());
         assertEquals(3, restored.neuron(b.id()).activeTicks());
+        assertEquals(2, restored.neuron(b.id()).delayTicks());
         assertFalse(restored.presentation(b.id()).directionReversed());
     }
 
@@ -96,7 +100,8 @@ class SqliteMapRepositoryTest {
         try (MapRepository ignored = new SqliteMapRepository(db);
              Connection connection = DriverManager.getConnection("jdbc:sqlite:" + db.toAbsolutePath())) {
             assertEquals(
-                    Set.of("id", "type", "activation", "signal_strength", "activation_threshold", "active_ticks", "name"),
+                    Set.of("id", "type", "activation", "signal_strength", "activation_threshold",
+                            "active_ticks", "delay_ticks", "name"),
                     columnNames(connection, "neurons")
             );
             assertEquals(

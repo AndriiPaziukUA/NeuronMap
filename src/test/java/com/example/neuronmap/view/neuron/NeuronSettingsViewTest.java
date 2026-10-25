@@ -200,7 +200,7 @@ final class NeuronSettingsViewTest {
         });
     }
 
-    /** Перевіряє природну висоту списку та появу прокручування лише після перевищення ліміту. */
+    /** Перевіряє, що висота viewport обмежена лімітом і лишається сталою для довгих списків налаштувань. */
     @Test
     void growsSettingsViewportToContentAndCapsLongLists() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
@@ -210,7 +210,8 @@ final class NeuronSettingsViewTest {
             view.showIn(root, neuron("viewport", NeuronType.EXCITATORY, 1, 1), ignored -> { });
             ScrollPane scroll = view.settingsScrollForTest();
             double naturalHeight = scroll.getContent().prefHeight(560.0);
-            assertEquals(naturalHeight, scroll.getPrefViewportHeight(), 1.0);
+            assertEquals(Math.min(NeuronSettingsLayout.MAX_VIEWPORT_HEIGHT, naturalHeight),
+                    scroll.getPrefViewportHeight(), 1.0);
             assertEquals(ScrollPane.ScrollBarPolicy.AS_NEEDED, scroll.getVbarPolicy());
             assertEquals(ScrollPane.ScrollBarPolicy.NEVER, scroll.getHbarPolicy());
             for (int index = 0; index < 12; index++) {
@@ -220,7 +221,7 @@ final class NeuronSettingsViewTest {
                 row.setPrefHeight(40.0);
                 view.addSetting(row);
             }
-            assertEquals(260.0, scroll.getPrefViewportHeight(), 0.5);
+            assertEquals(NeuronSettingsLayout.MAX_VIEWPORT_HEIGHT, scroll.getPrefViewportHeight(), 0.5);
             assertTrue(view.panelMaxWidthForTest() <= 920.0);
             assertEquals(430.0, view.panelMaxHeightForTest(), 0.1);
             assertTrue(view.panelForTest().getChildren().contains(scroll));

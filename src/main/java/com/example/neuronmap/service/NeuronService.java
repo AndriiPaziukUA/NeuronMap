@@ -12,7 +12,7 @@ import java.util.Optional;
 
 /**
  * Надає операції над нейронами: створення, пошук, видалення, переміщення, обертання,
- * зміну типу, напрямку, назви й параметрів сигналу.
+ * зміну типу, напрямку, назви та всіх параметрів сигналу.
  */
 public final class NeuronService {
 
@@ -33,18 +33,14 @@ public final class NeuronService {
      *
      * @return модель карти нейронів.
      */
-    public NeuronMapModel model() {
-        return model;
-    }
+    public NeuronMapModel model() { return model; }
 
     /**
      * Повертає поточні нейрони моделі.
      *
      * @return колекція нейронів моделі без створення окремої копії.
      */
-    public Collection<Neuron> neurons() {
-        return model.neurons();
-    }
+    public Collection<Neuron> neurons() { return model.neurons(); }
 
     /**
      * Знаходить нейрон за його ідентифікатором.
@@ -73,16 +69,14 @@ public final class NeuronService {
     }
 
     /**
-     * Створює нейрон указаного типу в заданих координатах.
+     * Створює нейрон указаного типу в заданих координатах із параметрами за замовчуванням.
      *
      * @param type тип нейрона.
      * @param x початкова горизонтальна координата нейрона на карті.
      * @param y початкова вертикальна координата нейрона на карті.
-     * @return створений нейрон із типовою тривалістю активності в один такт.
+     * @return створений нейрон з одним активним тактом і затримкою в один такт.
      */
-    public Neuron create(NeuronType type, double x, double y) {
-        return model.createNeuron(type, x, y);
-    }
+    public Neuron create(NeuronType type, double x, double y) { return model.createNeuron(type, x, y); }
 
     /**
      * Видаляє нейрон і пов'язані з ним дані.
@@ -105,11 +99,8 @@ public final class NeuronService {
      */
     public boolean toggleType(String neuronId) {
         return find(neuronId).map(neuron -> {
-            neuron.setType(
-                    neuron.type() == NeuronType.EXCITATORY
-                            ? NeuronType.INHIBITORY
-                            : NeuronType.EXCITATORY
-            );
+            neuron.setType(neuron.type() == NeuronType.EXCITATORY
+                    ? NeuronType.INHIBITORY : NeuronType.EXCITATORY);
             return true;
         }).orElse(false);
     }
@@ -143,10 +134,10 @@ public final class NeuronService {
     }
 
     /**
-     * Атомарно замінює всі налаштування сигналу нейрона переданим value object.
+     * Атомарно замінює всі параметри нейрона переданим незмінним об'єктом, включно із затримкою передачі.
      *
      * @param neuronId ідентифікатор нейрона.
-     * @param parameters нові параметри сили сигналу, порога активації та тривалості активності.
+     * @param parameters сила сигналу, поріг активації, кількість активних тактів і затримка.
      * @return {@code true}, якщо нейрон знайдено й параметри застосовано; інакше {@code false}.
      * @throws NullPointerException якщо параметри не задано.
      */
@@ -159,10 +150,10 @@ public final class NeuronService {
     }
 
     /**
-     * Оновлює параметри сигналу й назву нейрона як одну операцію служби.
+     * Оновлює параметри нейрона й назву як одну операцію служби.
      *
      * @param neuronId ідентифікатор нейрона.
-     * @param parameters нові параметри сигналу.
+     * @param parameters усі числові параметри сигналу, включно із затримкою.
      * @param name нова назва або {@code null}, щоб очистити її.
      * @return {@code true}, якщо нейрон знайдено й обидва значення застосовано; інакше {@code false}.
      * @throws NullPointerException якщо параметри сигналу не задано.
@@ -178,7 +169,7 @@ public final class NeuronService {
     }
 
     /**
-     * Оновлює силу сигналу та поріг активації, зберігаючи поточну тривалість активності нейрона.
+     * Оновлює силу сигналу та поріг активації, зберігаючи інші параметри, зокрема затримку й активні такти.
      * Цей метод залишає чинний двопараметровий контракт для наявних викликів.
      *
      * @param neuronId ідентифікатор нейрона.

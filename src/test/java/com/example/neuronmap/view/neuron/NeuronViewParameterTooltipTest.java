@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Перевіряє вміст підказки параметрів нейрона та її поведінку для вибраного елемента. */
 final class NeuronViewParameterTooltipTest {
 
-    /** Перевіряє, що підказка містить лише три налаштовувані параметри з локалізованими назвами. */
+    /** Перевіряє, що підказка показує всі чотири параметри з локалізованими назвами. */
     @Test
     void showsOnlyLocalizedNeuronSettings() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
@@ -25,7 +25,7 @@ final class NeuronViewParameterTooltipTest {
             view.configureParameterTooltipLocalization(new LocalizationService(Locale.forLanguageTag("uk")));
 
             assertEquals(
-                    "Сила сигналу: 7\nПоріг активації: 3\nАктивні такти: 5",
+                    "Сила сигналу: 7\nПоріг активації: 3\nАктивні такти: 5\nЗатримка: 1",
                     view.parameterTooltipTextForTest()
             );
             assertTrue(view.isParameterTooltipInstalledForTest());
@@ -50,17 +50,17 @@ final class NeuronViewParameterTooltipTest {
         });
     }
 
-    /** Перевіряє, що підказка показує актуальні значення після зміни налаштувань нейрона. */
+    /** Перевіряє актуальність усіх параметрів у підказці після їх зміни в моделі нейрона. */
     @Test
     void refreshesTooltipWhenNeuronParametersChange() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
             NeuronView view = createView();
             view.configureParameterTooltipLocalization(new LocalizationService(Locale.ENGLISH));
-            view.model().setParameters(new NeuronParameters(9, 4, 2));
+            view.model().setParameters(new NeuronParameters(9, 4, 2, 3));
             view.refreshVisuals(false);
 
             assertEquals(
-                    "Signal strength: 9\nActivation threshold: 4\nActive ticks: 2",
+                    "Signal strength: 9\nActivation threshold: 4\nActive ticks: 2\nDelay: 3",
                     view.parameterTooltipTextForTest()
             );
             view.disposeParameterTooltip();

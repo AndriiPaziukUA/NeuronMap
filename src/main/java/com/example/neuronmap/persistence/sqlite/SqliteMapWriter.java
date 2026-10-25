@@ -30,13 +30,7 @@ public final class SqliteMapWriter {
         this.settings = settings;
     }
 
-    /**
-     * Записує актуальний стан карти й камери.
-     *
-     * @param model модель карти нейронів.
-     * @param cameraState стан камери, який потрібно зберегти разом із картою.
-     * @throws SQLException якщо запис будь-якої частини карти не вдався.
-     */
+    /** Записує актуальний стан карти й камери. */
     public void save(NeuronMapModel model, CameraState cameraState) throws SQLException {
         deleteAllData();
         insertNeurons(model);
@@ -46,35 +40,31 @@ public final class SqliteMapWriter {
         settings.saveCameraState(cameraState);
     }
 
-    /** Очищає таблиці карти перед повним записом актуального стану. */
+    /**
+     * Очищає залежні таблиці карти перед повним записом актуального стану в межах транзакції репозиторію.
+     *
+     * @throws SQLException якщо будь-яку з таблиць не вдалося очистити.
+     */
     private void deleteAllData() throws SQLException {
         try (Statement statement = connection.createStatement()) {
-            // A save replaces the complete map inside the repository transaction.
+            // Збереження замінює всю карту в межах транзакції репозиторію.
             //noinspection SqlWithoutWhere
             statement.executeUpdate("DELETE FROM group_members");
-            // Clear dependent tables before their parent tables.
+            // Спочатку очищуються залежні таблиці.
             //noinspection SqlWithoutWhere
             statement.executeUpdate("DELETE FROM groups");
-            // A save replaces the complete map inside the repository transaction.
             //noinspection SqlWithoutWhere
             statement.executeUpdate("DELETE FROM connections");
-            // A save replaces the complete map inside the repository transaction.
             //noinspection SqlWithoutWhere
             statement.executeUpdate("DELETE FROM neuron_presentations");
-            // A save replaces the complete map inside the repository transaction.
             //noinspection SqlWithoutWhere
             statement.executeUpdate("DELETE FROM neurons");
         }
     }
 
-    /**
-     * Записує семантичні параметри всіх нейронів, включно з назвою та тривалістю активності.
-     *
-     * @param model модель карти, звідки беруться нейрони.
-     * @throws SQLException якщо пакетний запис нейронів не вдався.
-     */
+    /** Записує семантичні параметри всіх нейронів, включно з назвою та затримкою передачі сигналу. */
     private void insertNeurons(NeuronMapModel model) throws SQLException {
-        // SqliteSchema.migrate() ensures active_ticks and name on legacy databases.
+        // SqliteSchema.migrate() забезпечує наявність стовпців для активних тактів, затримки та назви.
         //noinspection SqlResolve
         String sql = """
                 INSERT INTO neurons (
@@ -84,9 +74,10 @@ public final class SqliteMapWriter {
                     signal_strength,
                     activation_threshold,
                     active_ticks,
+                    delay_ticks,
                     name
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -97,7 +88,8 @@ public final class SqliteMapWriter {
                 statement.setInt(4, neuron.signalStrength());
                 statement.setInt(5, neuron.activationThreshold());
                 statement.setInt(6, neuron.activeTicks());
-                statement.setString(7, neuron.name());
+                statement.setInt(7, neuron.delayTicks());
+                statement.setString(8, neuron.name());
                 statement.addBatch();
             }
             statement.executeBatch();
@@ -165,7 +157,7 @@ public final class SqliteMapWriter {
     /**
      * Записує групи та кожного їхнього учасника.
      *
-     * @param model модель карти, що містить групи та учасників.
+     * @param model модель карти, що містить групи та їхніх учасників.
      * @throws SQLException якщо пакетний запис груп або учасників не вдався.
      */
     private void insertGroups(NeuronMapModel model) throws SQLException {

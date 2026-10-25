@@ -10,7 +10,7 @@ import java.sql.Statement;
 /** Створює та мігрує схему SQLite, додаючи потрібні таблиці й стовпці для актуальної версії даних. */
 public final class SqliteSchema {
 
-    private static final int CURRENT_VERSION = 6;
+    private static final int CURRENT_VERSION = 7;
 
     /** Не дозволяє створювати екземпляри утиліти керування схемою. */
     private SqliteSchema() {
@@ -44,12 +44,7 @@ public final class SqliteSchema {
         }
     }
 
-    /**
-     * Створює таблиці базової схеми лише тоді, коли вони ще не існують.
-     *
-     * @param connection відкрите з'єднання з базою SQLite.
-     * @throws SQLException якщо SQLite не може створити таблицю.
-     */
+    /** Створює таблиці базової схеми лише тоді, коли вони ще не існують. */
     private static void createBaseSchema(Connection connection) throws SQLException {
         try (Statement statement = connection.createStatement()) {
             statement.executeUpdate("""
@@ -58,9 +53,7 @@ public final class SqliteSchema {
                         type TEXT NOT NULL,
                         activation INTEGER NOT NULL DEFAULT 0,
                         signal_strength INTEGER NOT NULL DEFAULT 1,
-                        activation_threshold INTEGER NOT NULL DEFAULT 1,
-                        active_ticks INTEGER NOT NULL DEFAULT 1,
-                        name TEXT
+                        activation_threshold INTEGER NOT NULL DEFAULT 1
                     )
                     """);
             statement.executeUpdate("""
@@ -113,12 +106,7 @@ public final class SqliteSchema {
         }
     }
 
-    /**
-     * Переносить координати нейронів зі старої таблиці до таблиці подань і видаляє застарілі стовпці.
-     *
-     * @param connection відкрите з'єднання з базою SQLite.
-     * @throws SQLException якщо перенесення координат або зміна таблиці не вдалися.
-     */
+    /** Переносить координати нейронів зі старої таблиці до таблиці подань і видаляє застарілі стовпці. */
     private static void migrateLegacyNeuronLayout(Connection connection) throws SQLException {
         boolean hasX = columnExists(connection, "neurons", "x");
         boolean hasY = columnExists(connection, "neurons", "y");
@@ -129,7 +117,7 @@ public final class SqliteSchema {
         connection.setAutoCommit(false);
         try (Statement statement = connection.createStatement()) {
             if (hasX && hasY) {
-                // This query only applies to the legacy neurons layout detected above.
+                // Цей запит виконується лише для виявленої застарілої структури таблиці neurons.
                 //noinspection SqlResolve
                 statement.executeUpdate("""
                         INSERT OR IGNORE INTO neuron_presentations (
@@ -145,12 +133,12 @@ public final class SqliteSchema {
             }
 
             if (hasX) {
-                // Metadata confirms this is a legacy column before it is removed.
+                // Стовпець підтверджено як застарілий перевіркою структури таблиці.
                 //noinspection SqlResolve
                 statement.executeUpdate("ALTER TABLE neurons DROP COLUMN x");
             }
             if (hasY) {
-                // Metadata confirms this is a legacy column before it is removed.
+                // Стовпець підтверджено як застарілий перевіркою структури таблиці.
                 //noinspection SqlResolve
                 statement.executeUpdate("ALTER TABLE neurons DROP COLUMN y");
             }
@@ -164,25 +152,15 @@ public final class SqliteSchema {
         }
     }
 
-    /**
-     * Додає відсутні параметри нейрона, використовуючи початкове значення 1 для сумісності зі старими базами.
-     *
-     * @param connection відкрите з'єднання з базою SQLite.
-     * @throws SQLException якщо перевірка або зміна таблиці не вдалися.
-     */
+    /** Додає відсутні числові параметри нейрона зі значенням за замовчуванням 1. */
     private static void ensureNeuronSettingsColumns(Connection connection) throws SQLException {
         ensureIntegerColumn(connection, "signal_strength");
         ensureIntegerColumn(connection, "activation_threshold");
         ensureIntegerColumn(connection, "active_ticks");
+        ensureIntegerColumn(connection, "delay_ticks");
     }
 
-    /**
-     * Додає відсутній стовпець цілого параметра нейрона зі значенням за замовчуванням 1.
-     *
-     * @param connection відкрите з'єднання з базою SQLite.
-     * @param column назва стовпця параметра, що додається.
-     * @throws SQLException якщо перевірка або зміна таблиці не вдалися.
-     */
+    /** Додає відсутній стовпець цілого параметра нейрона зі значенням за замовчуванням 1. */
     private static void ensureIntegerColumn(Connection connection, String column) throws SQLException {
         if (columnExists(connection, "neurons", column)) {
             return;
@@ -194,12 +172,7 @@ public final class SqliteSchema {
         }
     }
 
-    /**
-     * Додає nullable-стовпець назви до старої таблиці, не змінюючи наявні нейрони.
-     *
-     * @param connection відкрите з'єднання з базою SQLite.
-     * @throws SQLException якщо перевірка або зміна таблиці не вдалися.
-     */
+    /** Додає nullable-стовпець назви до старої таблиці, не змінюючи наявні нейрони. */
     private static void ensureNeuronNameColumn(Connection connection) throws SQLException {
         if (columnExists(connection, "neurons", "name")) {
             return;
@@ -209,12 +182,7 @@ public final class SqliteSchema {
         }
     }
 
-    /**
-     * Додає стовпець напрямку нейрона, якщо його ще немає в таблиці подань.
-     *
-     * @param connection відкрите з'єднання з базою SQLite.
-     * @throws SQLException якщо перевірка або зміна таблиці не вдалися.
-     */
+    /** Додає стовпець напрямку нейрона, якщо його ще немає в таблиці подань. */
     private static void ensureDirectionColumn(Connection connection) throws SQLException {
         if (columnExists(connection, "neuron_presentations", "direction_reversed")) {
             return;
@@ -227,15 +195,7 @@ public final class SqliteSchema {
         }
     }
 
-    /**
-     * Перевіряє наявність стовпця в таблиці без зміни даних.
-     *
-     * @param connection відкрите з'єднання з базою SQLite.
-     * @param table назва таблиці, яку потрібно перевірити.
-     * @param column назва стовпця, наявність якого перевіряється.
-     * @return {@code true}, якщо стовпець існує; інакше {@code false}.
-     * @throws SQLException якщо SQLite не може прочитати опис таблиці.
-     */
+    /** Перевіряє наявність стовпця в таблиці без зміни даних. */
     private static boolean columnExists(Connection connection, String table, String column) throws SQLException {
         String sql = "PRAGMA table_info(" + table + ")";
         try (Statement statement = connection.createStatement();
@@ -249,13 +209,7 @@ public final class SqliteSchema {
         return false;
     }
 
-    /**
-     * Читає записану версію схеми, не змінюючи заголовок бази даних.
-     *
-     * @param connection відкрите з'єднання з базою SQLite.
-     * @return номер версії, записаний у {@code PRAGMA user_version}.
-     * @throws SQLException якщо SQLite не повертає значення версії.
-     */
+    /** Читає записану версію схеми, не змінюючи заголовок бази даних. */
     private static int readVersion(Connection connection) throws SQLException {
         try (Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery("PRAGMA user_version")) {
@@ -266,13 +220,7 @@ public final class SqliteSchema {
         }
     }
 
-    /**
-     * Записує версію схеми лише після першого створення або успішного оновлення старішої схеми.
-     *
-     * @param connection відкрите з'єднання з базою SQLite.
-     * @param versionAtStart версія схеми, прочитана до застосування змін.
-     * @throws SQLException якщо SQLite не може записати номер версії.
-     */
+    /** Записує версію схеми лише після першого створення або успішного оновлення старішої схеми. */
     private static void ensureVersion(Connection connection, int versionAtStart) throws SQLException {
         if (versionAtStart == CURRENT_VERSION) {
             return;

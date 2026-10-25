@@ -31,12 +31,7 @@ public final class SqliteMapLoader {
         this.connection = connection;
     }
 
-    /**
-     * Відновлює модель карти, послідовно завантажуючи нейрони, подання, зв'язки й групи.
-     *
-     * @param model модель карти, яку потрібно заповнити даними з бази.
-     * @throws SQLException якщо запит до бази даних не вдається виконати.
-     */
+    /** Відновлює модель карти, послідовно завантажуючи нейрони, подання, зв'язки й групи. */
     public void loadInto(NeuronMapModel model) throws SQLException {
         model.clear();
         loadNeurons(model);
@@ -45,14 +40,9 @@ public final class SqliteMapLoader {
         loadGroups(model);
     }
 
-    /**
-     * Завантажує семантичні параметри нейронів, включно з назвою та кількістю активних тактів.
-     *
-     * @param model модель карти, до якої додаються відновлені нейрони.
-     * @throws SQLException якщо читання нейронів або їхніх параметрів не вдається.
-     */
+    /** Завантажує семантичні параметри нейронів, включно з назвою та затримкою вихідного сигналу. */
     private void loadNeurons(NeuronMapModel model) throws SQLException {
-        // SqliteSchema.migrate() ensures active_ticks and name on legacy databases.
+        // SqliteSchema.migrate() забезпечує наявність стовпців для активних тактів, затримки та назви.
         //noinspection SqlResolve
         String sql = """
                 SELECT
@@ -62,6 +52,7 @@ public final class SqliteMapLoader {
                     signal_strength,
                     activation_threshold,
                     active_ticks,
+                    delay_ticks,
                     name
                 FROM neurons
                 ORDER BY rowid
@@ -85,17 +76,13 @@ public final class SqliteMapLoader {
                 neuron.setSignalStrength(resultSet.getInt("signal_strength"));
                 neuron.setActivationThreshold(resultSet.getInt("activation_threshold"));
                 neuron.setActiveTicks(resultSet.getInt("active_ticks"));
+                neuron.setDelayTicks(resultSet.getInt("delay_ticks"));
                 neuron.setName(resultSet.getString("name"));
             }
         }
     }
 
-    /**
-     * Завантажує координати, обертання й напрямок візуальних подань нейронів.
-     *
-     * @param model модель карти, що містить подання створених нейронів.
-     * @throws SQLException якщо читання даних подання не вдається.
-     */
+    /** Завантажує координати, обертання й напрямок візуальних подань нейронів. */
     private void loadPresentations(NeuronMapModel model) throws SQLException {
         String sql = """
                 SELECT
@@ -127,12 +114,7 @@ public final class SqliteMapLoader {
         }
     }
 
-    /**
-     * Відновлює напрямлені зв'язки між нейронами після завантаження самих нейронів.
-     *
-     * @param model модель карти, до якої додаються зв'язки.
-     * @throws SQLException якщо читання зв'язків не вдається.
-     */
+    /** Відновлює напрямлені зв'язки між нейронами після завантаження самих нейронів. */
     private void loadConnections(NeuronMapModel model) throws SQLException {
         String sql = """
                 SELECT id, source_id, target_id
@@ -152,12 +134,7 @@ public final class SqliteMapLoader {
         }
     }
 
-    /**
-     * Відновлює групи після завантаження нейронів, збираючи їхніх учасників за ідентифікатором групи.
-     *
-     * @param model модель карти, до якої додаються групи.
-     * @throws SQLException якщо читання членства груп не вдається.
-     */
+    /** Відновлює групи після завантаження нейронів, збираючи їхніх учасників за ідентифікатором групи. */
     private void loadGroups(NeuronMapModel model) throws SQLException {
         String sql = """
                 SELECT group_id, neuron_id
