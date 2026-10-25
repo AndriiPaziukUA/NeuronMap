@@ -2,6 +2,7 @@ package com.example.neuronmap.view.neuron;
 
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
+import com.example.neuronmap.model.NeuronActivationMode;
 import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.view.support.ContentSizedButtonPair;
 import com.example.neuronmap.view.support.EditorKeyboardShortcutBoundary;
@@ -12,6 +13,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
@@ -60,6 +62,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     private final TextField thresholdField;
     private final TextField activeTicksField;
     private final TextField delayTicksField;
+    private final ComboBox<NeuronActivationMode> activationModeSelector;
     private final NeuronSettingsForm settingsForm;
     private final EventHandler<KeyEvent> sceneKeyboardFilter = this::filterOutsideModalKeyboardEvents;
     private final NeuronSettingsLayout settingsLayout;
@@ -71,7 +74,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     private boolean disposed;
 
     /**
-     * Створює внутрішню накладку налаштувань з незалежною таблицею стилів.
+     * Створює внутрішню накладку налаштувань з незалежною таблицею стилів і локалізованими елементами керування.
      *
      * @param localization спільна служба локалізації застосунку.
      * @throws NullPointerException якщо службу локалізації не задано.
@@ -96,12 +99,13 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         configureBackdrop();
         configurePanel();
         settingsLayout = new NeuronSettingsLayout(this, panel, settingsRows, settingsScroll);
-        settingsForm = new NeuronSettingsForm(saveButton);
+        settingsForm = new NeuronSettingsForm(saveButton, localization);
         nameField = settingsForm.nameField();
         signalField = settingsForm.signalField();
         thresholdField = settingsForm.thresholdField();
         activeTicksField = settingsForm.activeTicksField();
         delayTicksField = settingsForm.delayTicksField();
+        activationModeSelector = settingsForm.activationModeSelector();
         configureSettingsRows();
         configureFooter();
         getChildren().addAll(backdrop, panel);
@@ -116,7 +120,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     }
 
     /**
-     * Показує накладку зі збереженням лише числових параметрів.
+     * Показує накладку та передає підтверджені параметри нейрона разом зі способом активації.
      *
      * @param applicationRoot кореневий контейнер для внутрішніх накладок.
      * @param neuron нейрон, параметри якого редагують.
@@ -128,7 +132,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     }
 
     /**
-     * Показує накладку й завантажує назву та параметри нейрона для редагування.
+     * Показує накладку й завантажує назву, параметри та режим активації нейрона для редагування.
      *
      * @param applicationRoot кореневий контейнер для внутрішніх накладок.
      * @param neuron нейрон, значення якого редагують.
@@ -225,6 +229,11 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         settingsRows.setFillWidth(true);
         addSetting(createSettingRow(SETTINGS_BUNDLE_KEY_PREFIX + "name", nameField));
         addSetting(createSettingRow("neuron.settings.signal_strength", signalField));
+        addSetting(createSettingRow(
+                SETTINGS_BUNDLE_KEY_PREFIX + "activation_by",
+                localization.textFrom(LOCALIZATION_BUNDLE, "activation_by"),
+                activationModeSelector
+        ));
         addSetting(createSettingRow("neuron.settings.activation_threshold", thresholdField));
         addSetting(createSettingRow(SETTINGS_BUNDLE_KEY_PREFIX + "active_ticks", activeTicksField));
         addSetting(createSettingRow(SETTINGS_BUNDLE_KEY_PREFIX + "delay", delayTicksField));
@@ -237,21 +246,31 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         VBox.setVgrow(settingsScroll, Priority.ALWAYS);
     }
 
-    /** Створює рядок із гнучким підписом і полем введення для вирівнювання колонок налаштувань. */
-    private HBox createSettingRow(String labelKey, TextField field) {
-        Label label = new Label(labelText(labelKey));
+    /** Створює рядок із гнучким підписом та полем введення або списком для вибору параметра. */
+    private HBox createSettingRow(String labelKey, Node control) {
+        return createSettingRow(labelKey, labelText(labelKey), control);
+    }
+
+    /** Створює рядок із уже локалізованим підписом, зберігаючи ключ для подальшої зміни мови. */
+    private HBox createSettingRow(String labelKey, String initialLabelText, Node control) {
+        Label label = new Label(initialLabelText);
         settingLabels.put(labelKey, label);
         label.getStyleClass().add("neuron-settings-label");
         label.setWrapText(true);
         label.setMinWidth(0.0);
         label.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(label, Priority.ALWAYS);
-        field.getStyleClass().add("neuron-settings-field");
-        field.setPrefColumnCount(10);
-        field.setMinWidth(INPUT_COLUMN_WIDTH);
-        field.setPrefWidth(INPUT_COLUMN_WIDTH);
-        field.setMaxWidth(INPUT_COLUMN_WIDTH);
-        HBox row = new HBox(16.0, label, field);
+
+        control.getStyleClass().add("neuron-settings-field");
+        if (control instanceof TextField textField) {
+            textField.setPrefColumnCount(10);
+        }
+        if (control instanceof Region region) {
+            region.setMinWidth(INPUT_COLUMN_WIDTH);
+            region.setPrefWidth(INPUT_COLUMN_WIDTH);
+            region.setMaxWidth(INPUT_COLUMN_WIDTH);
+        }
+        HBox row = new HBox(16.0, label, control);
         row.setAlignment(Pos.CENTER_LEFT);
         row.setPadding(new Insets(9.0, 10.0, 9.0, 10.0));
         row.setMinWidth(0.0);
@@ -311,7 +330,11 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         settingLabels.forEach((key, label) -> label.setText(labelText(key)));
         saveButton.setText(localization.text("neuron.settings.save"));
         cancelButton.setText(localization.textFrom(LOCALIZATION_BUNDLE, "cancel"));
-        settingsForm.setPromptText(localization.text("neuron.settings.positive_integer"));
+        settingsForm.refreshTexts();
+        settingsForm.setPromptText(
+                localization.text("neuron.settings.positive_integer"),
+                localization.textFrom(LOCALIZATION_BUNDLE, "percentage")
+        );
         settingsRows.requestLayout();
         settingsLayout.updateViewportHeight();
         if (getScene() != null) {
@@ -424,6 +447,9 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     /** Повертає поле порога активації для регресійних тестів. */
     TextField thresholdFieldForTest() { return thresholdField; }
 
+    /** Повертає список способів активації для перевірки вибору й локалізації. */
+    ComboBox<NeuronActivationMode> activationModeSelectorForTest() { return activationModeSelector; }
+
     /** Повертає поле кількості активних тактів для регресійних тестів. */
     TextField activeTicksFieldForTest() { return activeTicksField; }
 
@@ -436,7 +462,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     /** Повертає кнопку скасування для перевірок геометрії та закриття. */
     Button cancelButtonForTest() { return cancelButton; }
 
-    /** Повертає прокручувану область для тестів компонування. */
+    /** Повертає прокручувану область для тестів адаптивного компонування. */
     ScrollPane settingsScrollForTest() { return settingsScroll; }
 
     /** Повертає картку налаштувань для тестів адаптивного компонування. */

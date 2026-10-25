@@ -58,6 +58,33 @@
     -fx-background-color: #242a32;
 }
 
+/* Оформлення списку режимів активації відповідає темній палітрі накладки. */
+.neuron-settings-overlay .neuron-settings-panel .combo-box {
+    -fx-background-color: #282d35;
+    -fx-border-color: #47505c;
+    -fx-border-radius: 7;
+    -fx-background-radius: 7;
+    -fx-text-fill: #edf0f3;
+    -fx-cursor: hand;
+}
+
+.neuron-settings-overlay .neuron-settings-panel .combo-box .list-cell {
+    -fx-text-fill: #edf0f3;
+    -fx-background-color: #282d35;
+}
+
+.neuron-settings-overlay .neuron-settings-panel .combo-box .arrow {
+    -fx-background-color: #dfe3e8;
+}
+
+.neuron-settings-panel .combo-box-popup .list-view {
+    -fx-background-color: #242830;
+}
+
+.neuron-settings-overlay .neuron-settings-panel .combo-box-popup .list-cell:hover {
+    -fx-background-color: #343a43;
+}
+
 /* Властивості кнопок залишаються незалежними від таблиць стилів меню. */
 .neuron-settings-overlay .neuron-settings-button {
     -fx-background-color: transparent;
@@ -121,5 +148,4 @@
 .neuron-settings-overlay .neuron-settings-scroll .scroll-bar:vertical .increment-arrow,
 .neuron-settings-overlay .neuron-settings-scroll .scroll-bar:vertical .decrement-arrow {
     -fx-background-color: transparent;
-    -fx-padding: 0;
 }

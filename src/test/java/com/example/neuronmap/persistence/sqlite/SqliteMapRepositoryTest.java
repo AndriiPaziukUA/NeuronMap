@@ -2,7 +2,9 @@ package com.example.neuronmap.persistence.sqlite;
 
 import com.example.neuronmap.model.CameraState;
 import com.example.neuronmap.model.Neuron;
+import com.example.neuronmap.model.NeuronActivationMode;
 import com.example.neuronmap.model.NeuronMapModel;
+import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.persistence.MapRepository;
 import org.junit.jupiter.api.Test;
@@ -22,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Перевіряє повне збереження та відновлення семантичних даних, подань нейронів, зв’язків, груп і камери в SQLite. */
 class SqliteMapRepositoryTest {
 
-    /** Перевіряє круговий цикл збереження та завантаження карти з усіма параметрами нейронів. */
+    /** Перевіряє круговий цикл збереження та завантаження карти з усіма параметрами нейронів і їх режимами. */
     @Test
     void roundTripPersistsSemanticPresentationConnectionsGroupsAndCamera(@TempDir Path tempDir) {
         Path db = tempDir.resolve("map.db");
@@ -31,10 +33,7 @@ class SqliteMapRepositoryTest {
         Neuron b = original.createNeuron(NeuronType.INHIBITORY, 300.0, 90.0, 275.0);
 
         a.setActivation(7);
-        a.setSignalStrength(6);
-        a.setActivationThreshold(4);
-        a.setActiveTicks(5);
-        a.setDelayTicks(6);
+        a.setParameters(new NeuronParameters(6, 0, 5, 6, NeuronActivationMode.SIGNAL_COUNT));
         a.setName("Input ⚡ #1");
         b.setActivation(-2);
         b.setSignalStrength(3);
@@ -67,9 +66,10 @@ class SqliteMapRepositoryTest {
         assertEquals(45.0, restored.presentation(a.id()).rotationDegrees());
         assertTrue(restored.presentation(a.id()).directionReversed());
         assertEquals(6, restored.neuron(a.id()).signalStrength());
-        assertEquals(4, restored.neuron(a.id()).activationThreshold());
+        assertEquals(0, restored.neuron(a.id()).activationThreshold());
         assertEquals(5, restored.neuron(a.id()).activeTicks());
         assertEquals(6, restored.neuron(a.id()).delayTicks());
+        assertEquals(NeuronActivationMode.SIGNAL_COUNT, restored.neuron(a.id()).activationMode());
         assertEquals("Input ⚡ #1", restored.neuron(a.id()).name());
         assertNull(restored.neuron(b.id()).name());
         assertEquals(-2, restored.neuron(b.id()).activation());
@@ -77,7 +77,39 @@ class SqliteMapRepositoryTest {
         assertEquals(8, restored.neuron(b.id()).activationThreshold());
         assertEquals(3, restored.neuron(b.id()).activeTicks());
         assertEquals(2, restored.neuron(b.id()).delayTicks());
+        assertEquals(NeuronActivationMode.SIGNAL_STRENGTH, restored.neuron(b.id()).activationMode());
         assertFalse(restored.presentation(b.id()).directionReversed());
+    }
+
+    /** Перевіряє, що стара схема без режиму після міграції зберігає активацію за силою сигналів. */
+    @Test
+    void oldSchemaDefaultsExistingNeuronsToSignalStrength(@TempDir Path tempDir) throws Exception {
+        Path db = tempDir.resolve("legacy.db");
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + db.toAbsolutePath());
+             Statement statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    CREATE TABLE neurons (
+                        id TEXT PRIMARY KEY,
+                        type TEXT NOT NULL,
+                        activation INTEGER NOT NULL DEFAULT 0,
+                        signal_strength INTEGER NOT NULL DEFAULT 1,
+                        activation_threshold INTEGER NOT NULL DEFAULT 1,
+                        active_ticks INTEGER NOT NULL DEFAULT 1,
+                        delay_ticks INTEGER NOT NULL DEFAULT 1,
+                        name TEXT
+                    )
+                    """);
+            statement.executeUpdate("INSERT INTO neurons (id, type, activation_threshold) VALUES ('legacy', 'EXCITATORY', 4)");
+            statement.execute("PRAGMA user_version = 7");
+        }
+
+        NeuronMapModel restored = new NeuronMapModel();
+        try (MapRepository repository = new SqliteMapRepository(db)) {
+            repository.loadInto(restored);
+        }
+
+        assertEquals(4, restored.neuron("legacy").activationThreshold());
+        assertEquals(NeuronActivationMode.SIGNAL_STRENGTH, restored.neuron("legacy").activationMode());
     }
 
     /** Перевіряє, що фабрика встановлює очікувані PRAGMA для надійного збереження й конкурентного доступу. */
@@ -101,7 +133,7 @@ class SqliteMapRepositoryTest {
              Connection connection = DriverManager.getConnection("jdbc:sqlite:" + db.toAbsolutePath())) {
             assertEquals(
                     Set.of("id", "type", "activation", "signal_strength", "activation_threshold",
-                            "active_ticks", "delay_ticks", "name"),
+                            "active_ticks", "delay_ticks", "name", "activation_mode"),
                     columnNames(connection, "neurons")
             );
             assertEquals(

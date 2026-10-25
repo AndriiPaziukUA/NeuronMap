@@ -2,6 +2,7 @@ package com.example.neuronmap.view.neuron;
 
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
+import com.example.neuronmap.model.NeuronActivationMode;
 import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.view.support.TooltipFactory;
@@ -59,6 +60,7 @@ public final class NeuronView extends StackPane {
 
     private LocalizationService tooltipLocalization;
     private Integer displayedInputSignal;
+    private Boolean displayedInputSufficient;
     private int displayedRemainingActiveTicks;
     private boolean outputSignalActive;
     private boolean dragging;
@@ -196,9 +198,26 @@ public final class NeuronView extends StackPane {
     /** Завершує перетягування та очищає відповідний стан. */
     public void endDrag() { dragging = false; }
 
-    /** Показує величину вхідного сигналу й забарвлює порт за порогом активації. */
+    /** Показує величину вхідного сигналу й забарвлює порт за чинним числовим порогом нейрона. */
     public void showInputSignal(int signal) {
+        setDisplayedInputSignal(signal, null);
+    }
+
+    /**
+     * Показує вхідне значення та застосовує результат порівняння із порогом, обчислений симуляцією.
+     * Це дає змогу правильно забарвити порт, коли значення є знаковим лічильником, а поріг — відсотком.
+     *
+     * @param signal знакова сума вхідних значень для поточного режиму активації.
+     * @param sufficientForActivation {@code true}, якщо це значення досягає порога активації.
+     */
+    public void showInputSignal(int signal, boolean sufficientForActivation) {
+        setDisplayedInputSignal(signal, sufficientForActivation);
+    }
+
+    /** Оновлює текст і стан порту, зберігаючи за потреби результат порівняння, обчислений симуляцією. */
+    private void setDisplayedInputSignal(int signal, Boolean sufficientForActivation) {
         displayedInputSignal = signal;
+        displayedInputSufficient = sufficientForActivation;
         inputSignalLabel.setText(Integer.toString(signal));
         refreshInputPortStyleClass();
     }
@@ -206,6 +225,7 @@ public final class NeuronView extends StackPane {
     /** Приховує індикатор вхідного сигналу й повертає вхідний порт до нейтрального кольору. */
     public void hideInputSignal() {
         displayedInputSignal = null;
+        displayedInputSufficient = null;
         inputSignalLabel.setText(NO_INPUT_SIGNAL_TEXT);
         refreshInputPortStyleClass();
     }
@@ -334,7 +354,10 @@ public final class NeuronView extends StackPane {
     private void refreshInputPortStyleClass() {
         String desiredClass = null;
         if (displayedInputSignal != null) {
-            desiredClass = displayedInputSignal >= model().activationThreshold()
+            boolean sufficient = displayedInputSufficient != null
+                    ? displayedInputSufficient
+                    : displayedInputSignal >= model().activationThreshold();
+            desiredClass = sufficient
                     ? INPUT_SIGNAL_SUFFICIENT_STYLE_CLASS
                     : INPUT_SIGNAL_INSUFFICIENT_STYLE_CLASS;
         }
@@ -396,9 +419,13 @@ public final class NeuronView extends StackPane {
         String delayLabel = tooltipLocalization == null
                 ? "Delay"
                 : tooltipLocalization.textFrom("i18n.neuronSettings", "delay");
+        String thresholdText = parameterLine(thresholdLabel, neuron.activationThreshold());
+        if (neuron.activationMode() == NeuronActivationMode.SIGNAL_COUNT) {
+            thresholdText += "%";
+        }
         parameterTooltip.setText(String.join("\n",
                 parameterLine(signalLabel, neuron.signalStrength()),
-                parameterLine(thresholdLabel, neuron.activationThreshold()),
+                thresholdText,
                 parameterLine(activeTicksLabel, neuron.activeTicks()),
                 parameterLine(delayLabel, neuron.delayTicks())));
     }

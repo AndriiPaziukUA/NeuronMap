@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /** Перевіряє контракт схеми SQLite для таблиці нейронів. */
 final class SqliteNeuronSchemaContractTest {
 
-    /** Перевіряє наявність усіх збережуваних полів нейрона в правильному порядку. */
+    /** Перевіряє наявність усіх збережуваних полів нейрона в порядку їх створення та міграції. */
     @Test
     void neuronTableContainsAllPersistedNeuronState(@TempDir Path tempDir) throws Exception {
         Path database = tempDir.resolve("schema-contract.db");
@@ -30,7 +30,7 @@ final class SqliteNeuronSchemaContractTest {
             }
             assertEquals(List.of(
                     "id", "type", "activation", "signal_strength", "activation_threshold",
-                    "active_ticks", "delay_ticks", "name"
+                    "active_ticks", "delay_ticks", "name", "activation_mode"
             ), columns);
         }
     }

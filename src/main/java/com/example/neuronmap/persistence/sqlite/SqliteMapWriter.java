@@ -62,9 +62,9 @@ public final class SqliteMapWriter {
         }
     }
 
-    /** Записує семантичні параметри всіх нейронів, включно з назвою та затримкою передачі сигналу. */
+    /** Записує всі семантичні параметри нейронів, включно зі способом активації та назвою. */
     private void insertNeurons(NeuronMapModel model) throws SQLException {
-        // SqliteSchema.migrate() забезпечує наявність стовпців для активних тактів, затримки та назви.
+        // SqliteSchema.migrate() забезпечує наявність стовпців для всіх параметрів нейрона.
         //noinspection SqlResolve
         String sql = """
                 INSERT INTO neurons (
@@ -75,9 +75,10 @@ public final class SqliteMapWriter {
                     activation_threshold,
                     active_ticks,
                     delay_ticks,
+                    activation_mode,
                     name
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -89,7 +90,8 @@ public final class SqliteMapWriter {
                 statement.setInt(5, neuron.activationThreshold());
                 statement.setInt(6, neuron.activeTicks());
                 statement.setInt(7, neuron.delayTicks());
-                statement.setString(8, neuron.name());
+                statement.setString(8, neuron.activationMode().name());
+                statement.setString(9, neuron.name());
                 statement.addBatch();
             }
             statement.executeBatch();

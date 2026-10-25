@@ -1,5 +1,6 @@
 package com.example.neuronmap.view.simulation;
 
+import com.example.neuronmap.model.NeuronActivationMode;
 import com.example.neuronmap.simulation.SimulationStep;
 import com.example.neuronmap.view.connection.ConnectionView;
 import com.example.neuronmap.view.editor.WorkspaceView;
@@ -110,8 +111,8 @@ public class SimulationStepPresenter {
         Objects.requireNonNull(step, "step");
         clearDisplayedInputSignals();
         clearOutputSignalHighlights();
-        showIncomingSignals(step.nextInputSums());
         refreshNeuronViews.run();
+        showIncomingSignals(step.nextInputSums(), step.nextActivatedNeuronIds());
         showRemainingActiveTicks(step.remainingActiveTicks());
         showPendingActivationCounters(step.nextActivatedNeuronIds());
         for (String neuronId : step.emittingNeuronIds()) {
@@ -157,12 +158,15 @@ public class SimulationStepPresenter {
         pulseAnimations.resumeAll();
     }
 
-    /** Показує суми сигналів, запланованих для наступного такту. */
-    private void showIncomingSignals(Map<String, Integer> inputSums) {
+    /** Показує суми сигналів, запланованих на наступний такт, з фактичним результатом перевірки порога. */
+    private void showIncomingSignals(Map<String, Integer> inputSums, Set<String> nextActivatedNeuronIds) {
         inputSums.forEach((neuronId, sum) -> {
             NeuronView neuronView = neuronViews.get(neuronId);
             if (neuronView != null) {
-                neuronView.showInputSignal(sum);
+                boolean thresholdReached = neuronView.model().activationMode() == NeuronActivationMode.SIGNAL_STRENGTH
+                        ? sum >= neuronView.model().activationThreshold()
+                        : nextActivatedNeuronIds.contains(neuronId);
+                neuronView.showInputSignal(sum, thresholdReached);
             }
         });
     }
@@ -176,7 +180,7 @@ public class SimulationStepPresenter {
     /**
      * Негайно показує повний лічильник нейронів, які досягли порога від сигналів, що вже прямують до них.
      *
-     * @param neuronIds нейрони, для яких запланована сума вхідних сигналів перетинає поріг активації.
+     * @param neuronIds нейрони, для яких запланована активація в наступному такті.
      */
     private void showPendingActivationCounters(Set<String> neuronIds) {
         for (String neuronId : neuronIds) {

@@ -2,7 +2,7 @@ package com.example.neuronmap.model;
 
 /**
  * Зберігає семантичний стан нейрона: тип, назву, поточну активацію та налаштування сигналу.
- * Числові параметри згруповані в {@link NeuronParameters}, щоб оновлювати їх узгоджено.
+ * Числові параметри й режим активації згруповані в {@link NeuronParameters}, щоб оновлювати їх узгоджено.
  */
 public final class Neuron {
 
@@ -17,6 +17,7 @@ public final class Neuron {
 
     /**
      * Створює нейрон із типовими параметрами сигналу, одним активним тактом і затримкою в один такт.
+     * Типовий спосіб активації — за силою сигналів.
      *
      * @param id унікальний ідентифікатор нейрона.
      * @param type тип нейрона.
@@ -123,16 +124,12 @@ public final class Neuron {
         this.name = null;
     }
 
-    /**
-     * Повертає унікальний ідентифікатор нейрона.
-     *
+    /** Повертає унікальний ідентифікатор нейрона.
      * @return ідентифікатор нейрона.
      */
     public String id() { return id; }
 
-    /**
-     * Повертає користувацьку назву нейрона.
-     *
+    /** Повертає користувацьку назву нейрона.
      * @return назва або {@code null}, якщо її не задано.
      */
     public String name() { return name; }
@@ -150,9 +147,7 @@ public final class Neuron {
         this.name = name == null || name.isEmpty() ? null : name;
     }
 
-    /**
-     * Повертає тип нейрона, що визначає знак його вихідного сигналу.
-     *
+    /** Повертає тип нейрона, що визначає знак його вихідного сигналу.
      * @return тип нейрона.
      */
     public NeuronType type() { return type; }
@@ -170,24 +165,20 @@ public final class Neuron {
         this.type = type;
     }
 
-    /**
-     * Повертає поточне значення активації нейрона.
-     *
+    /** Повертає поточне значення активації нейрона.
      * @return значення активації.
      */
     public int activation() { return activation; }
 
-    /**
-     * Установлює поточне значення активації.
-     *
+    /** Установлює поточне значення активації.
      * @param activation нове значення активації.
      */
     public void setActivation(int activation) { this.activation = activation; }
 
     /**
-     * Повертає незмінний об'єкт числових параметрів нейрона.
+     * Повертає незмінний об'єкт параметрів нейрона, включно зі способом перевірки порога.
      *
-     * @return усі параметри сигналу, включно із затримкою.
+     * @return усі параметри сигналу та режим активації.
      */
     public NeuronParameters parameters() { return parameters; }
 
@@ -204,45 +195,55 @@ public final class Neuron {
         this.parameters = parameters;
     }
 
+    /** Повертає режим перевірки порога активації.
+     * @return спосіб інтерпретації порога.
+     */
+    public NeuronActivationMode activationMode() { return parameters.activationMode(); }
+
     /**
-     * Повертає налаштовану силу вихідного сигналу нейрона.
+     * Змінює спосіб активації, зберігаючи інші параметри й перевіряючи поріг для нового режиму.
      *
+     * @param activationMode новий спосіб активації.
+     * @throws IllegalArgumentException якщо режим не задано або поточне значення порога не підходить йому.
+     */
+    public void setActivationMode(NeuronActivationMode activationMode) {
+        parameters = new NeuronParameters(parameters.signalStrength(), parameters.activationThreshold(),
+                parameters.activeTicks(), parameters.delayTicks(), activationMode);
+    }
+
+    /** Повертає налаштовану силу вихідного сигналу нейрона.
      * @return додатна сила сигналу.
      */
     public int signalStrength() { return parameters.signalStrength(); }
 
     /**
-     * Установлює силу сигналу, зберігаючи решту параметрів, зокрема затримку.
+     * Установлює силу сигналу, зберігаючи решту параметрів, зокрема режим активації.
      *
      * @param signalStrength нова додатна сила сигналу.
      * @throws IllegalArgumentException якщо значення не є додатним.
      */
     public void setSignalStrength(int signalStrength) {
         parameters = new NeuronParameters(signalStrength, parameters.activationThreshold(),
-                parameters.activeTicks(), parameters.delayTicks());
+                parameters.activeTicks(), parameters.delayTicks(), parameters.activationMode());
     }
 
-    /**
-     * Повертає поріг суми вхідних сигналів, необхідний для активації нейрона.
-     *
-     * @return поріг активації.
+    /** Повертає поріг сили або відсоток вхідних сигналів.
+     * @return налаштований поріг активації.
      */
     public int activationThreshold() { return parameters.activationThreshold(); }
 
     /**
-     * Установлює поріг активації, зберігаючи решту параметрів, зокрема затримку.
+     * Установлює поріг активації, зберігаючи решту параметрів та поточний режим.
      *
-     * @param activationThreshold новий додатний поріг активації.
-     * @throws IllegalArgumentException якщо значення не є додатним.
+     * @param activationThreshold новий поріг сили або відсоток у межах 0–100 для режиму кількості.
+     * @throws IllegalArgumentException якщо поріг не відповідає правилам поточного режиму.
      */
     public void setActivationThreshold(int activationThreshold) {
         parameters = new NeuronParameters(parameters.signalStrength(), activationThreshold,
-                parameters.activeTicks(), parameters.delayTicks());
+                parameters.activeTicks(), parameters.delayTicks(), parameters.activationMode());
     }
 
-    /**
-     * Повертає кількість активних тактів передавання сигналу.
-     *
+    /** Повертає кількість активних тактів передавання сигналу.
      * @return кількість активних тактів.
      */
     public int activeTicks() { return parameters.activeTicks(); }
@@ -255,13 +256,11 @@ public final class Neuron {
      */
     public void setActiveTicks(int activeTicks) {
         parameters = new NeuronParameters(parameters.signalStrength(), parameters.activationThreshold(),
-                activeTicks, parameters.delayTicks());
+                activeTicks, parameters.delayTicks(), parameters.activationMode());
     }
 
-    /**
-     * Повертає налаштовану затримку перед першим вихідним сигналом.
-     *
-     * @return кількість тактів затримки, яка не менша за один.
+    /** Повертає налаштовану затримку перед першим вихідним сигналом.
+     * @return кількість тактів затримки.
      */
     public int delayTicks() { return parameters.delayTicks(); }
 
@@ -273,7 +272,7 @@ public final class Neuron {
      */
     public void setDelayTicks(int delayTicks) {
         parameters = new NeuronParameters(parameters.signalStrength(), parameters.activationThreshold(),
-                parameters.activeTicks(), delayTicks);
+                parameters.activeTicks(), delayTicks, parameters.activationMode());
     }
 
     /**

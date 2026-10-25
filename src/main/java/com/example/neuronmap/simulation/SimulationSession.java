@@ -2,7 +2,9 @@ package com.example.neuronmap.simulation;
 
 import com.example.neuronmap.model.Connection;
 import com.example.neuronmap.model.Neuron;
+import com.example.neuronmap.model.NeuronActivationMode;
 import com.example.neuronmap.model.NeuronMapModel;
+import com.example.neuronmap.model.NeuronType;
 
 import java.math.BigInteger;
 import java.util.LinkedHashMap;
@@ -184,7 +186,7 @@ public final class SimulationSession {
 
     /**
      * Перевіряє, чи є робота для наступного такту. Самі по собі вхідні сигнали не вважаються роботою,
-     * якщо їхня сума не досягає порога жодного нейрона й немає нейронів, які ще випускають сигнали.
+     * якщо вони не досягають порога активації жодного нейрона й немає нейронів, які ще випускають сигнали.
      *
      * @return {@code true}, якщо є очікувана робота; інакше {@code false}.
      */
@@ -198,7 +200,7 @@ public final class SimulationSession {
     /**
      * Перевіряє наявність сигналу, який активує щонайменше один наявний нейрон.
      *
-     * @return {@code true}, якщо накопичена сума досягає порога активації; інакше {@code false}.
+     * @return {@code true}, якщо сигнал досягає порога в режимі відповідного нейрона.
      */
     private boolean hasPendingThresholdActivation() {
         Set<String> activatedNeuronIds = new LinkedHashSet<>();
@@ -294,17 +296,46 @@ public final class SimulationSession {
         }
     }
 
-    /** Додає нейрони, чия сума вхідних сигналів досягла налаштованого порога активації. */
+    /** Додає нейрони, чий вхідний сигнал досяг порога відповідно до режиму активації. */
     private void collectThresholdActivations(
             Map<String, Integer> inputSums,
             Set<String> activatedNeuronIds
     ) {
         for (Map.Entry<String, Integer> entry : inputSums.entrySet()) {
             Neuron neuron = model.neuron(entry.getKey());
-            if (neuron != null && entry.getValue() >= neuron.activationThreshold()) {
+            if (neuron != null && hasReachedActivationThreshold(neuron, entry.getValue())) {
                 activatedNeuronIds.add(neuron.id());
             }
         }
+    }
+
+    /** Визначає, чи досягнуто порога нейрона в режимі сили або кількості вхідних сигналів. */
+    private boolean hasReachedActivationThreshold(Neuron neuron, int inputValue) {
+        if (neuron.activationMode() == NeuronActivationMode.SIGNAL_STRENGTH) {
+            return inputValue >= neuron.activationThreshold();
+        }
+        return inputValue >= requiredExcitatorySignalCount(neuron);
+    }
+
+    /**
+     * Обчислює мінімальну кількість активних збуджувальних входів за відсотковим порогом.
+     * Гальмівні входи не збільшують знаменник, але їхній знак уже враховано у вхідному лічильнику.
+     */
+    private int requiredExcitatorySignalCount(Neuron neuron) {
+        int excitatoryInputCount = 0;
+        for (Connection connection : model.connections()) {
+            if (!connection.targetId().equals(neuron.id())) {
+                continue;
+            }
+            Neuron source = model.neuron(connection.sourceId());
+            if (source != null && source.type() == NeuronType.EXCITATORY) {
+                excitatoryInputCount++;
+            }
+        }
+
+        long percentageProduct = (long) excitatoryInputCount * neuron.activationThreshold();
+        long roundedUpCount = (percentageProduct + 99L) / 100L;
+        return (int) Math.max(1L, roundedUpCount);
     }
 
     /** Витрачає один активний такт тільки після того, як нейрон фактично передав вихідний сигнал. */
@@ -358,13 +389,17 @@ public final class SimulationSession {
         return false;
     }
 
-    /** Додає вагу сигналу до кожного наявного нейрона, з яким з'єднаний випромінювач. */
+    /** Додає сигнал до кожного цільового нейрона з урахуванням його режиму активації. */
     private void collectOutgoingSignals(Neuron neuron, Map<String, Integer> nextSignals) {
         for (Connection connection : model.connections()) {
             if (!isOutgoingConnectionToExistingNeuron(connection, neuron.id())) {
                 continue;
             }
-            nextSignals.merge(connection.targetId(), neuron.signalWeight(), Integer::sum);
+            Neuron target = model.neuron(connection.targetId());
+            int signalValue = target.activationMode() == NeuronActivationMode.SIGNAL_COUNT
+                    ? Integer.signum(neuron.signalWeight())
+                    : neuron.signalWeight();
+            nextSignals.merge(target.id(), signalValue, Integer::sum);
         }
     }
 }

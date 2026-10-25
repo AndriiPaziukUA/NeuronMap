@@ -10,7 +10,7 @@ import java.sql.Statement;
 /** Створює та мігрує схему SQLite, додаючи потрібні таблиці й стовпці для актуальної версії даних. */
 public final class SqliteSchema {
 
-    private static final int CURRENT_VERSION = 7;
+    private static final int CURRENT_VERSION = 8;
 
     /** Не дозволяє створювати екземпляри утиліти керування схемою. */
     private SqliteSchema() {
@@ -37,6 +37,7 @@ public final class SqliteSchema {
             migrateLegacyNeuronLayout(connection);
             ensureNeuronSettingsColumns(connection);
             ensureNeuronNameColumn(connection);
+            ensureActivationModeColumn(connection);
             ensureDirectionColumn(connection);
             ensureVersion(connection, versionAtStart);
         } catch (SQLException exception) {
@@ -179,6 +180,19 @@ public final class SqliteSchema {
         }
         try (Statement statement = connection.createStatement()) {
             statement.executeUpdate("ALTER TABLE neurons ADD COLUMN name TEXT");
+        }
+    }
+
+    /** Додає режим активації до старої схеми; наявні нейрони залишаються в режимі сили сигналів. */
+    private static void ensureActivationModeColumn(Connection connection) throws SQLException {
+        if (columnExists(connection, "neurons", "activation_mode")) {
+            return;
+        }
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    ALTER TABLE neurons
+                    ADD COLUMN activation_mode TEXT NOT NULL DEFAULT 'SIGNAL_STRENGTH'
+                    """);
         }
     }
 

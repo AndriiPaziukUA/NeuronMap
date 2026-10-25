@@ -1,7 +1,9 @@
 package com.example.neuronmap.persistence.sqlite;
 
 import com.example.neuronmap.model.Neuron;
+import com.example.neuronmap.model.NeuronActivationMode;
 import com.example.neuronmap.model.NeuronMapModel;
+import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.model.NeuronType;
 
@@ -40,9 +42,9 @@ public final class SqliteMapLoader {
         loadGroups(model);
     }
 
-    /** Завантажує семантичні параметри нейронів, включно з назвою та затримкою вихідного сигналу. */
+    /** Завантажує всі семантичні параметри нейрона, включно з режимом активації та його назвою. */
     private void loadNeurons(NeuronMapModel model) throws SQLException {
-        // SqliteSchema.migrate() забезпечує наявність стовпців для активних тактів, затримки та назви.
+        // SqliteSchema.migrate() забезпечує наявність усіх стовпців параметрів нейрона.
         //noinspection SqlResolve
         String sql = """
                 SELECT
@@ -53,6 +55,7 @@ public final class SqliteMapLoader {
                     activation_threshold,
                     active_ticks,
                     delay_ticks,
+                    activation_mode,
                     name
                 FROM neurons
                 ORDER BY rowid
@@ -73,10 +76,13 @@ public final class SqliteMapLoader {
                     continue;
                 }
 
-                neuron.setSignalStrength(resultSet.getInt("signal_strength"));
-                neuron.setActivationThreshold(resultSet.getInt("activation_threshold"));
-                neuron.setActiveTicks(resultSet.getInt("active_ticks"));
-                neuron.setDelayTicks(resultSet.getInt("delay_ticks"));
+                neuron.setParameters(new NeuronParameters(
+                        resultSet.getInt("signal_strength"),
+                        resultSet.getInt("activation_threshold"),
+                        resultSet.getInt("active_ticks"),
+                        resultSet.getInt("delay_ticks"),
+                        NeuronActivationMode.valueOf(resultSet.getString("activation_mode"))
+                ));
                 neuron.setName(resultSet.getString("name"));
             }
         }
