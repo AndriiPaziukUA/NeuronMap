@@ -38,7 +38,8 @@
     -fx-border-width: 1;
 }
 
-.neuron-settings-overlay .neuron-settings-row .neuron-settings-field {
+/* Цей набір властивостей призначений лише текстовим полям, а не всім елементам рядка. */
+.neuron-settings-overlay .neuron-settings-row .text-field.neuron-settings-field {
     -fx-background-color: #20252c;
     -fx-text-fill: #edf0f3;
     -fx-prompt-text-fill: #858e9a;
@@ -53,36 +54,80 @@
     -fx-font-size: 12px;
 }
 
-.neuron-settings-overlay .neuron-settings-row .neuron-settings-field:focused {
+.neuron-settings-overlay .neuron-settings-row .text-field.neuron-settings-field:focused {
     -fx-border-color: #8297b3;
     -fx-background-color: #242a32;
 }
 
-/* Оформлення списку режимів активації відповідає темній палітрі накладки. */
-.neuron-settings-overlay .neuron-settings-panel .combo-box {
+/* Єдиний постійний стиль ComboBox; псевдостани не мають власних CSS-правил. */
+.neuron-settings-overlay .neuron-settings-panel .neuron-settings-activation-selector {
     -fx-background-color: #282d35;
     -fx-border-color: #47505c;
+    -fx-border-width: 1;
     -fx-border-radius: 7;
     -fx-background-radius: 7;
+    -fx-background-insets: 0;
+    -fx-border-insets: 0;
     -fx-text-fill: #edf0f3;
+    /* Modena changes -fx-color to -fx-pressed-base while ComboBox is showing. */
+    -fx-color: #282d35;
+    -fx-padding: 5 8 5 8;
+    -fx-font-size: 12px;
     -fx-cursor: hand;
+    -fx-focus-color: #47505c;
+    -fx-faint-focus-color: transparent;
 }
 
-.neuron-settings-overlay .neuron-settings-panel .combo-box .list-cell {
-    -fx-text-fill: #edf0f3;
-    -fx-background-color: #282d35;
+/* Стрілка має той самий фон незалежно від фокуса й відкриття списку. */
+.neuron-settings-overlay .neuron-settings-panel .neuron-settings-activation-selector > .arrow-button {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-background-radius: 0 6 6 0;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-padding: 0 8 0 8;
+    -fx-effect: null;
 }
 
-.neuron-settings-overlay .neuron-settings-panel .combo-box .arrow {
+.neuron-settings-overlay .neuron-settings-panel .neuron-settings-activation-selector > .arrow-button > .arrow {
     -fx-background-color: #dfe3e8;
 }
 
-.neuron-settings-panel .combo-box-popup .list-view {
-    -fx-background-color: #242830;
+/* Комірка вибраного значення стилізується окремо від пунктів випадаючого списку. */
+.neuron-settings-overlay .neuron-settings-panel .neuron-settings-activation-value {
+    -fx-background-color: #282d35;
+    -fx-background-insets: 0;
+    -fx-text-fill: #edf0f3;
+    -fx-font-size: 12px;
 }
 
-.neuron-settings-overlay .neuron-settings-panel .combo-box-popup .list-cell:hover {
+/* Фон popup залишається темним, але не задає стиль окремим пунктам. */
+.neuron-settings-overlay .neuron-settings-panel .combo-box-popup .list-view {
+    -fx-background-color: #242830;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+/* Базовий стиль усіх пунктів popup. Він не застосовується до комірки значення ComboBox. */
+.neuron-settings-overlay .neuron-settings-panel .neuron-settings-activation-selector .neuron-settings-activation-option {
+    -fx-background-color: #282d35;
+    -fx-background-insets: 0;
+    -fx-text-fill: #edf0f3;
+    -fx-padding: 6 10 6 10;
+    -fx-font-size: 12px;
+}
+
+/* Вибраність сама по собі не підсвічує пункт і не створює постійного фокуса на ньому. */
+.neuron-settings-overlay .neuron-settings-panel .neuron-settings-activation-selector .neuron-settings-activation-option:filled:selected {
+    -fx-background-color: #282d35;
+    -fx-text-fill: #edf0f3;
+}
+
+/* Обидва селектори стилізують hover комірок popup, не сам ComboBox. */
+.neuron-settings-overlay .neuron-settings-panel .combo-box-popup .list-cell:hover,
+.neuron-settings-overlay .neuron-settings-panel .neuron-settings-activation-selector .neuron-settings-activation-option:filled:hover {
     -fx-background-color: #343a43;
+    -fx-text-fill: #ffffff;
 }
 
 /* Властивості кнопок залишаються незалежними від таблиць стилів меню. */

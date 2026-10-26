@@ -4,7 +4,6 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronActivationMode;
 import com.example.neuronmap.model.NeuronParameters;
-import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ListCell;
@@ -152,13 +151,24 @@ final class NeuronSettingsForm {
         ));
     }
 
-    /** Налаштовує ComboBox за тими самими правилами комірок та геометрії popup, що й список мови в меню. */
+    /** Налаштовує селектор режиму без примусового компонування всієї сцени під час відкриття popup. */
     private void configureActivationModeSelector() {
         activationModeSelector.getItems().setAll(NeuronActivationMode.values());
         activationModeSelector.setValue(NeuronActivationMode.SIGNAL_STRENGTH);
+        activationModeSelector.getStyleClass().add("neuron-settings-activation-selector");
         activationModeSelector.setMaxWidth(Double.MAX_VALUE);
-        activationModeSelector.setCellFactory(_ -> activationModeCell());
-        activationModeSelector.setButtonCell(activationModeCell());
+        activationModeSelector.setCellFactory(_ -> activationModeCell(true));
+        activationModeSelector.setButtonCell(activationModeCell(false));
+        /*
+         * PopupControl uses the ComboBox as its styleable parent. Close the popup
+         * before the owner leaves its Scene so the popup cannot retain a stale
+         * styleable-parent chain when the settings overlay is closed.
+         */
+        activationModeSelector.sceneProperty().addListener((_, _, currentScene) -> {
+            if (currentScene == null) {
+                activationModeSelector.hide();
+            }
+        });
         activationModeSelector.setConverter(new StringConverter<>() {
             /** Повертає локалізовану назву вибраного способу активації. */
             @Override
@@ -172,10 +182,8 @@ final class NeuronSettingsForm {
                 return null;
             }
         });
-        activationModeSelector.setOnShowing(_ -> preparePopupGeometry());
         activationModeSelector.setOnAction(event -> {
             if (!updatingSelection && activationModeSelector.getValue() != null) {
-                activationModeSelector.hide();
                 updateThresholdPrompt();
                 validateInput();
             }
@@ -183,9 +191,14 @@ final class NeuronSettingsForm {
         });
     }
 
-    /** Створює комірку списку, яка показує назву режиму відповідно до активної локалі. */
-    private ListCell<NeuronActivationMode> activationModeCell() {
-        return new ListCell<>() {
+    /** Створює локалізовану комірку та, за потреби, позначає її як пункт випадаючого списку.
+     *
+     * @param popupOption {@code true}, якщо комірка відображається у випадаючому списку;
+     *                    {@code false} для комірки вибраного значення в самому ComboBox.
+     * @return комірка з локалізованим текстом і відповідним CSS-класом.
+     */
+    private ListCell<NeuronActivationMode> activationModeCell(boolean popupOption) {
+        ListCell<NeuronActivationMode> cell = new ListCell<>() {
             /** Оновлює текст комірки для поточного елемента списку. */
             @Override
             protected void updateItem(NeuronActivationMode item, boolean empty) {
@@ -193,6 +206,10 @@ final class NeuronSettingsForm {
                 setText(empty || item == null ? null : activationModeText(item));
             }
         };
+        cell.getStyleClass().add(popupOption
+                ? "neuron-settings-activation-option"
+                : "neuron-settings-activation-value");
+        return cell;
     }
 
     /** Повертає локалізовану назву конкретного способу активації. */
@@ -200,16 +217,6 @@ final class NeuronSettingsForm {
         return localization.textFrom("i18n.neuronSettings", mode == NeuronActivationMode.SIGNAL_STRENGTH
                 ? "activation_mode_strength"
                 : "activation_mode_count");
-    }
-
-    /** Оновлює CSS і компонування перед розрахунком екранної позиції випадаючого списку. */
-    private void preparePopupGeometry() {
-        if (activationModeSelector.getScene() == null) {
-            return;
-        }
-        Parent sceneRoot = activationModeSelector.getScene().getRoot();
-        sceneRoot.applyCss();
-        sceneRoot.layout();
     }
 
     /** Оновлює підказку порога відповідно до вибраного режиму активації. */

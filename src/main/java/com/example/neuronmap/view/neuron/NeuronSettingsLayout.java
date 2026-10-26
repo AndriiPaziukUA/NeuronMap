@@ -1,7 +1,10 @@
 package com.example.neuronmap.view.neuron;
 
+import javafx.collections.ListChangeListener;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.control.Labeled;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -22,6 +25,18 @@ final class NeuronSettingsLayout {
     private final VBox settingsRows;
     private final ScrollPane settingsScroll;
 
+    /** Природна ширина картки, зафіксована після первинного CSS/layout проходу. */
+    private double cachedPreferredWidth = Double.NaN;
+
+    /** Природна висота картки для конкретної фактичної ширини. */
+    private double cachedPreferredHeight = Double.NaN;
+
+    /** Ширина, для якої було виміряно кешовану природну висоту. */
+    private double cachedPreferredHeightWidth = Double.NaN;
+
+    /** Тексти, які впливають на природний розмір картки, без вибраного значення ComboBox. */
+    private String cachedLayoutTextSignature;
+
     /**
      * Створює компонувальник для вузлів одного подання налаштувань.
      *
@@ -41,6 +56,8 @@ final class NeuronSettingsLayout {
         this.panel = Objects.requireNonNull(panel, "panel");
         this.settingsRows = Objects.requireNonNull(settingsRows, "settingsRows");
         this.settingsScroll = Objects.requireNonNull(settingsScroll, "settingsScroll");
+        // Зміна реального вмісту скидає природні розміри; зміна псевдостанів ComboBox — ні.
+        this.settingsRows.getChildren().addListener((ListChangeListener<Node>) _ -> invalidatePreferredSize());
     }
 
     /** Обчислює природну висоту списку, обмежуючи viewport, а не рядки налаштувань. */
@@ -82,7 +99,7 @@ final class NeuronSettingsLayout {
         double availableHeight = Math.max(0.0, owner.getHeight() - PANEL_EDGE_SPACING);
         double preferredWidth = preferredWidthForLayout();
         double panelWidth = Math.min(availableWidth, Math.min(MAX_PANEL_WIDTH, preferredWidth));
-        double preferredHeight = Math.max(panel.minHeight(panelWidth), panel.prefHeight(panelWidth));
+        double preferredHeight = preferredHeightForLayout(panelWidth);
         double panelHeight = Math.min(availableHeight, Math.min(MAX_PANEL_HEIGHT, preferredHeight));
         panel.resizeRelocate(
                 Math.max(0.0, (owner.getWidth() - panelWidth) / 2.0),
@@ -93,8 +110,22 @@ final class NeuronSettingsLayout {
         panel.layout();
     }
 
-    /** Обчислює мінімальну потрібну ширину за вмістом і фактичною шириною scrollbar. */
+    /**
+     * Повертає природну ширину картки, вимірюючи її один раз на показ форми.
+     * Відкриття popup не є зміною вмісту форми, тому не має запускати нове природне вимірювання.
+     *
+     * @return природна ширина картки для поточної локалізації.
+     */
     private double preferredWidthForLayout() {
+        String currentTextSignature = layoutTextSignature();
+        if (!Objects.equals(cachedLayoutTextSignature, currentTextSignature)) {
+            invalidatePreferredSize();
+            cachedLayoutTextSignature = currentTextSignature;
+        }
+        if (Double.isFinite(cachedPreferredWidth)) {
+            return cachedPreferredWidth;
+        }
+
         double preferredWidth = Math.max(panel.minWidth(-1.0), panel.prefWidth(-1.0));
         Insets panelInsets = panel.getInsets();
         Insets rowInsets = settingsRows.getInsets();
@@ -105,7 +136,65 @@ final class NeuronSettingsLayout {
                 + scrollInsets.getLeft() + scrollInsets.getRight()
                 + verticalScrollbarWidth();
         double requiredPanelWidth = requiredRowsWidth + panelInsets.getLeft() + panelInsets.getRight();
-        return Math.max(preferredWidth, requiredPanelWidth);
+        cachedPreferredWidth = Math.max(preferredWidth, requiredPanelWidth);
+        return cachedPreferredWidth;
+    }
+
+    /**
+     * Вимірює природну висоту для ширини картки, повторно використовуючи результат між UI-станами.
+     * Перерахунок виконується лише тоді, коли змінюється доступна ширина або локалізація.
+     *
+     * @param panelWidth фактична ширина картки після обмеження розміром вікна.
+     * @return природна висота картки для переданої ширини.
+     */
+    private double preferredHeightForLayout(double panelWidth) {
+        if (Double.isFinite(cachedPreferredHeight)
+                && Math.abs(cachedPreferredHeightWidth - panelWidth) < 0.5) {
+            return cachedPreferredHeight;
+        }
+        cachedPreferredHeightWidth = panelWidth;
+        cachedPreferredHeight = Math.max(panel.minHeight(panelWidth), panel.prefHeight(panelWidth));
+        return cachedPreferredHeight;
+    }
+
+
+    /**
+     * Формує сигнатуру локалізованих текстів, які можуть змінити природний розмір картки.
+     * Текст вибраного значення ComboBox навмисно не входить до сигнатури: його зміна не повинна
+     * змінювати геометрію під час взаємодії зі списком.
+     *
+     * @return детермінована сигнатура заголовка, підписів і кнопок.
+     */
+    private String layoutTextSignature() {
+        StringBuilder signature = new StringBuilder();
+        appendLayoutTexts(panel, signature);
+        return signature.toString();
+    }
+
+    /** Додає до сигнатури лише тексти вузлів, які формують природну ширину картки. */
+    private void appendLayoutTexts(Node node, StringBuilder signature) {
+        if (node instanceof Labeled labeled
+                && (node.getStyleClass().contains("neuron-settings-title")
+                || node.getStyleClass().contains("neuron-settings-label")
+                || node.getStyleClass().contains("neuron-settings-button"))) {
+            String text = Objects.toString(labeled.getText(), "");
+            signature.append(node.getStyleClass()).append(':')
+                    .append(text.length()).append(':').append(text).append('|');
+        }
+        if (node instanceof Parent parent) {
+            for (Node child : parent.getChildrenUnmodifiable()) {
+                appendLayoutTexts(child, signature);
+            }
+        }
+    }
+
+    /**
+     * Скидає вимірювання після зміни текстів форми; нові розміри буде обчислено під час layout.
+     */
+    private void invalidatePreferredSize() {
+        cachedPreferredWidth = Double.NaN;
+        cachedPreferredHeight = Double.NaN;
+        cachedPreferredHeightWidth = Double.NaN;
     }
 
     /** Повертає фактичну або CSS-обчислену ширину вертикальної смуги прокручування. */
