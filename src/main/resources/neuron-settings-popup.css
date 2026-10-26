@@ -1,0 +1,43 @@
+/* Styles are scoped to the activation-mode popup ListView, not every JavaFX ListView. */
+.neuron-settings-activation-popup.list-view {
+    -fx-background-color: #242830;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+    -fx-control-inner-background: #282d35;
+    -fx-control-inner-background-alt: #282d35;
+    -fx-accent: #282d35;
+    -fx-selection-bar: #282d35;
+    -fx-selection-bar-non-focused: #282d35;
+    -fx-selection-bar-text: #edf0f3;
+}
+
+/* Style popup rows while keeping the current-value cell in the ComboBox separate. */
+.neuron-settings-activation-popup.list-view .list-cell.neuron-settings-activation-option,
+.neuron-settings-activation-popup.list-view > .virtual-flow > .clipped-container > .sheet > .list-cell.neuron-settings-activation-option {
+    -fx-background: #282d35;
+    -fx-background-color: #282d35;
+    -fx-background-insets: 0;
+    -fx-text-fill: #edf0f3;
+    -fx-padding: 6 10 6 10;
+    -fx-font-size: 12px;
+}
+
+.neuron-settings-activation-popup.list-view .list-cell.neuron-settings-activation-option:filled:selected,
+.neuron-settings-activation-popup.list-view .list-cell.neuron-settings-activation-option:filled:selected:focused,
+.neuron-settings-activation-popup.list-view > .virtual-flow > .clipped-container > .sheet > .list-cell.neuron-settings-activation-option:filled:selected,
+.neuron-settings-activation-popup.list-view > .virtual-flow > .clipped-container > .sheet > .list-cell.neuron-settings-activation-option:filled:selected:focused {
+    -fx-background: #282d35;
+    -fx-background-color: #282d35;
+    -fx-background-insets: 0;
+    -fx-text-fill: #edf0f3;
+}
+
+.neuron-settings-activation-popup.list-view .list-cell.neuron-settings-activation-option:filled:hover,
+.neuron-settings-activation-popup.list-view .list-cell.neuron-settings-activation-option:filled:selected:hover,
+.neuron-settings-activation-popup.list-view > .virtual-flow > .clipped-container > .sheet > .list-cell.neuron-settings-activation-option:filled:hover,
+.neuron-settings-activation-popup.list-view > .virtual-flow > .clipped-container > .sheet > .list-cell.neuron-settings-activation-option:filled:selected:hover {
+    -fx-background: #343a43;
+    -fx-background-color: #343a43;
+    -fx-background-insets: 0;
+    -fx-text-fill: #ffffff;
+}

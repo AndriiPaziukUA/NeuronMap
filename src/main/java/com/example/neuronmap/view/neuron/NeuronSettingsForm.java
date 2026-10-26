@@ -4,13 +4,16 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronActivationMode;
 import com.example.neuronmap.model.NeuronParameters;
+import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.util.StringConverter;
 
+import java.net.URL;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -19,6 +22,14 @@ import java.util.function.UnaryOperator;
 
 /** Володіє введенням параметрів нейрона, вибором режиму активації та перевіркою значень перед збереженням. */
 final class NeuronSettingsForm {
+
+    private static final String POPUP_STYLESHEET_RESOURCE = "/neuron-settings-popup.css";
+    private static final String POPUP_CELL_NORMAL_STYLE = "-fx-background: #282d35; "
+            + "-fx-background-color: #282d35; -fx-background-insets: 0; -fx-text-fill: #edf0f3;";
+    private static final String POPUP_CELL_HOVER_STYLE = "-fx-background: #343a43; "
+            + "-fx-background-color: #343a43; -fx-background-insets: 0; -fx-text-fill: #ffffff;";
+    private static final String ACTIVATION_VALUE_STYLE = "-fx-background: #282d35; "
+            + "-fx-background-color: #282d35; -fx-background-insets: 0; -fx-text-fill: #edf0f3;";
 
     private final Button saveButton;
     private final LocalizationService localization;
@@ -160,9 +171,8 @@ final class NeuronSettingsForm {
         activationModeSelector.setCellFactory(_ -> activationModeCell(true));
         activationModeSelector.setButtonCell(activationModeCell(false));
         /*
-         * PopupControl uses the ComboBox as its styleable parent. Close the popup
-         * before the owner leaves its Scene so the popup cannot retain a stale
-         * styleable-parent chain when the settings overlay is closed.
+         * Закриваємо popup до від'єднання власника від Scene, щоб ComboBox не зберігав
+         * застарілий ланцюжок styleable-parent після закриття накладки налаштувань.
          */
         activationModeSelector.sceneProperty().addListener((_, _, currentScene) -> {
             if (currentScene == null) {
@@ -191,7 +201,7 @@ final class NeuronSettingsForm {
         });
     }
 
-    /** Створює локалізовану комірку та, за потреби, позначає її як пункт випадаючого списку.
+    /** Створює локалізовану комірку та підключає popup-стилі лише до її окремого дерева. 
      *
      * @param popupOption {@code true}, якщо комірка відображається у випадаючому списку;
      *                    {@code false} для комірки вибраного значення в самому ComboBox.
@@ -204,12 +214,68 @@ final class NeuronSettingsForm {
             protected void updateItem(NeuronActivationMode item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : activationModeText(item));
+                if (popupOption) {
+                    refreshActivationPopupCellStyle(this);
+                }
             }
         };
         cell.getStyleClass().add(popupOption
                 ? "neuron-settings-activation-option"
                 : "neuron-settings-activation-value");
+        if (!popupOption) {
+            // The skin's display cell does not consistently resolve the view-scoped CSS text-fill
+            // before the first CSS pulse in headless tests, so keep its value appearance explicit.
+            cell.setStyle(ACTIVATION_VALUE_STYLE);
+        }
+        if (popupOption) {
+            cell.hoverProperty().addListener((_, _, _) -> refreshActivationPopupCellStyle(cell));
+            cell.sceneProperty().addListener((_, previousScene, currentScene) -> {
+                if (currentScene != null && currentScene != previousScene
+                        && currentScene != activationModeSelector.getScene()) {
+                    attachPopupStylesheetToListView(cell);
+                }
+            });
+        }
         return cell;
+    }
+
+
+    /** Застосовує inline-колір до popup-комірки, щоб стандартний синій selected Modena не перекривав тему. */
+    private void refreshActivationPopupCellStyle(ListCell<?> cell) {
+        if (cell.isEmpty()) {
+            cell.setStyle("");
+            return;
+        }
+        cell.setStyle(cell.isHover() ? POPUP_CELL_HOVER_STYLE : POPUP_CELL_NORMAL_STYLE);
+    }
+
+    /**
+     * Прикріплює таблицю стилів безпосередньо до ListView усередині popup.
+     * Список стилів Scene/кореня PopupControl може замінюватися під час показу popup;
+     * stylesheet самого ListView залишається в його дереві й стилізує його комірки.
+     */
+    static void attachPopupStylesheetToListView(ListCell<?> popupCell) {
+        Objects.requireNonNull(popupCell, "popupCell");
+        Parent ancestor = popupCell.getParent();
+        while (ancestor != null && !(ancestor instanceof ListView<?>)) {
+            ancestor = ancestor.getParent();
+        }
+        if (!(ancestor instanceof ListView<?> popupList)) {
+            return;
+        }
+
+        URL resource = NeuronSettingsForm.class.getResource(POPUP_STYLESHEET_RESOURCE);
+        if (resource == null) {
+            throw new IllegalStateException("Не знайдено таблицю стилів popup: " + POPUP_STYLESHEET_RESOURCE);
+        }
+        // A component-owner class keeps popup rules isolated from unrelated ListViews.
+        if (!popupList.getStyleClass().contains("neuron-settings-activation-popup")) {
+            popupList.getStyleClass().add("neuron-settings-activation-popup");
+        }
+        String stylesheet = resource.toExternalForm();
+        if (!popupList.getStylesheets().contains(stylesheet)) {
+            popupList.getStylesheets().add(stylesheet);
+        }
     }
 
     /** Повертає локалізовану назву конкретного способу активації. */

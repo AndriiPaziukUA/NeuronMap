@@ -157,7 +157,6 @@ final class NeuronSettingsLayout {
         return cachedPreferredHeight;
     }
 
-
     /**
      * Формує сигнатуру локалізованих текстів, які можуть змінити природний розмір картки.
      * Текст вибраного значення ComboBox навмисно не входить до сигнатури: його зміна не повинна
@@ -190,23 +189,34 @@ final class NeuronSettingsLayout {
 
     /**
      * Скидає вимірювання після зміни текстів форми; нові розміри буде обчислено під час layout.
+     * Метод доступний іншим класам пакета, які змінюють вміст форми.
      */
-    private void invalidatePreferredSize() {
+    void invalidatePreferredSize() {
         cachedPreferredWidth = Double.NaN;
         cachedPreferredHeight = Double.NaN;
         cachedPreferredHeightWidth = Double.NaN;
     }
 
-    /** Повертає фактичну або CSS-обчислену ширину вертикальної смуги прокручування. */
+    /**
+     * Читає CSS-обчислену ширину вертикальної смуги. Початкове застосування CSS виконує подання
+     * перед вимірюванням; тут не можна викликати applyCss(), оскільки метод також досягається
+     * з layout/width listeners.
+     *
+     * @return ширина смуги після застосування CSS або нуль, якщо вузол ще недоступний.
+     */
     private double verticalScrollbarWidth() {
+        if (settingsScroll.getScene() == null) {
+            return 0.0;
+        }
         Node scrollbar = settingsScroll.lookup(".scroll-bar:vertical");
         if (!(scrollbar instanceof Region region)) {
             return 0.0;
         }
-        double width = region.getWidth();
-        if (width <= 0.0) {
-            width = region.prefWidth(-1.0);
+        double preferredWidth = region.prefWidth(-1.0);
+        if (Double.isFinite(preferredWidth) && preferredWidth > 0.0) {
+            return preferredWidth;
         }
-        return Double.isFinite(width) ? Math.max(0.0, width) : 0.0;
+        double actualWidth = region.getWidth();
+        return Double.isFinite(actualWidth) ? Math.max(0.0, actualWidth) : 0.0;
     }
 }

@@ -261,8 +261,8 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         label.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(label, Priority.ALWAYS);
 
-        control.getStyleClass().add("neuron-settings-field");
         if (control instanceof TextField textField) {
+            textField.getStyleClass().add("neuron-settings-field");
             textField.setPrefColumnCount(10);
         }
         if (control instanceof Region region) {
@@ -324,7 +324,13 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         applicationRoot.layout();
     }
 
-    /** Оновлює всі локалізовані тексти під час показу накладки або зміни мови. */
+    /**
+     * Оновлює локалізовані тексти та явно скидає вимірювання природних розмірів картки.
+     *
+     * <p>Зміна локалі може змінити ширину підписів і кнопок. Усі ці зміни відбуваються в одному
+     * контрольованому місці, тому компонувальник не мусить сканувати дерево JavaFX або залежати
+     * від CSS-класів, щоб виявляти нові розміри.</p>
+     */
     private void refreshTexts() {
         title.setText(localization.textFrom(LOCALIZATION_BUNDLE, "title"));
         settingLabels.forEach((key, label) -> label.setText(labelText(key)));
@@ -335,10 +341,13 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
                 localization.text("neuron.settings.positive_integer"),
                 localization.textFrom(LOCALIZATION_BUNDLE, "percentage")
         );
-        settingsRows.requestLayout();
-        settingsLayout.updateViewportHeight();
         if (getScene() != null) {
             ContentSizedButtonPair.sizeToLargestContent(saveButton, cancelButton);
+        }
+        settingsRows.requestLayout();
+        settingsLayout.invalidatePreferredSize();
+        settingsLayout.updateViewportHeight();
+        if (getScene() != null) {
             requestLayout();
             if (host != null) {
                 host.requestLayout();

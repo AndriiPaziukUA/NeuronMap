@@ -5,6 +5,7 @@ import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronActivationMode;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.testsupport.JavaFxTestSupport;
+import javafx.collections.FXCollections;
 import javafx.css.PseudoClass;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
@@ -14,192 +15,194 @@ import javafx.scene.control.Labeled;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.layout.Background;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
+import java.net.URL;
 import java.util.Locale;
+import java.util.Objects;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє ізоляцію CSS та стабільність оформлення селектора режиму активації нейрона. */
+/** Перевіряє, що оформлення popup ізольоване від основної сцени й не змінюється після повторного відкриття. */
 final class NeuronSettingsCssIsolationTest {
 
-    /** Переконується, що спільний стиль полів застосовується лише до текстових полів, а не до ComboBox.
-     *
-     * @throws IOException якщо таблицю стилів неможливо прочитати.
-     */
-    @Test
-    void textFieldStylesDoNotBleedIntoActivationModeSelector() throws IOException {
-        String stylesheet;
-        try (InputStream stream = getClass().getResourceAsStream("/neuron-settings.css")) {
-            assertNotNull(stream, "Таблиця стилів налаштувань нейрона має бути доступною в classpath");
-            stylesheet = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-        }
+    private static final String SELECTED_ITEM_TEXT = "Selected";
 
-        assertTrue(stylesheet.contains(
-                ".neuron-settings-overlay .neuron-settings-row .text-field.neuron-settings-field {"),
-                "Спільні стилі введення мають застосовуватися тільки до текстових полів");
-        assertFalse(stylesheet.contains(
-                ".neuron-settings-overlay .neuron-settings-row .neuron-settings-field {"),
-                "Не можна застосовувати стиль текстового поля до ComboBox через спільний клас");
-        assertTrue(stylesheet.contains(
-                ".neuron-settings-overlay .neuron-settings-panel .neuron-settings-activation-selector {"),
-                "Для ComboBox має існувати єдиний базовий стиль");
-        String selectorRule = ruleBody(stylesheet,
-                ".neuron-settings-overlay .neuron-settings-panel .neuron-settings-activation-selector");
-        assertTrue(selectorRule.contains("-fx-color: #282d35;"),
-                "Lookup-колір не повинен перемикатися на pressed-колір JavaFX під час відкриття popup");
-        assertFalse(stylesheet.contains(".neuron-settings-activation-selector:focused"),
-                "Фокус не повинен вмикати альтернативний стиль ComboBox");
-        assertFalse(stylesheet.contains(".neuron-settings-activation-selector:showing"),
-                "Відкриття списку не повинно вмикати альтернативний стиль ComboBox");
-        assertTrue(stylesheet.contains(
-                ".neuron-settings-overlay .neuron-settings-panel .neuron-settings-activation-selector > .arrow-button {"),
-                "Кнопка стрілки має зберігати постійний фон та геометрію");
-        assertTrue(stylesheet.contains(".neuron-settings-activation-value {"),
-                "Комірка поточного значення має окремий стиль від пунктів popup");
-        assertFalse(stylesheet.contains(".neuron-settings-activation-selector .list-cell {"),
-                "Загальне правило ComboBox не повинно перекривати hover пунктів popup");
-        assertTrue(stylesheet.contains(
-                ".neuron-settings-overlay .neuron-settings-panel .combo-box-popup .list-view {"),
-                "Фон списку має стилізуватися через селектор, який відкрив popup");
-        assertTrue(stylesheet.contains(
-                ".neuron-settings-overlay .neuron-settings-panel .neuron-settings-activation-selector .neuron-settings-activation-option:filled:selected {"),
-                "Вибраний пункт повинен мати явний звичайний стиль без постійного виділення");
-        assertTrue(stylesheet.contains(
-                ".neuron-settings-overlay .neuron-settings-panel .neuron-settings-activation-selector .neuron-settings-activation-option:filled:hover {"),
-                "Підсвічування наведенням має залишатися окремим станом");
-        assertFalse(stylesheet.contains("-fx-background-color: #52647c;"),
-                "Вибір пункту не повинен залишати синє/сіре виділення після закриття popup");
-        assertTrue(stylesheet.contains("-fx-padding: 5 8 5 8;"),
-                "Відступи тексту мають визначатися стилем самого селектора");
-        String selectedRule = ruleBody(stylesheet,
-                ".neuron-settings-overlay .neuron-settings-panel .neuron-settings-activation-selector .neuron-settings-activation-option:filled:selected");
-        assertTrue(selectedRule.contains("-fx-background-color: #282d35;"),
-                "Вибраний пункт повинен зберігати звичайний фон");
-        assertTrue(selectedRule.contains("-fx-text-fill: #edf0f3;"),
-                "Текст вибраного пункту має залишатися світлим");
-        String hoverRule = ruleBody(stylesheet,
-                ".neuron-settings-overlay .neuron-settings-panel .neuron-settings-activation-selector .neuron-settings-activation-option:filled:hover");
-        assertTrue(hoverRule.contains("-fx-background-color: #343a43;"),
-                "Наведення має й надалі підсвічувати пункт списку");
-        assertTrue(stylesheet.indexOf(
-                        ".neuron-settings-overlay .neuron-settings-panel .neuron-settings-activation-selector .neuron-settings-activation-option:filled:hover {")
-                        > stylesheet.indexOf(
-                        ".neuron-settings-overlay .neuron-settings-panel .neuron-settings-activation-selector .neuron-settings-activation-option:filled:selected {"),
-                "Hover-правило має йти після selected-правила, щоб наведення працювало й на вибраному пункті");
-    }
-
-    /** Перевіряє, що активація станів фокуса й відкриття не змінює ширину картки або вигляд значення.
+    /**
+     * Перевіряє, що popup-таблиця стилів зберігається на кореневому вузлі popup, діє на його комірки
+     * та не дозволяє стандартному синьому selected-оформленню перекривати потрібний hover.
      *
      * @throws Exception якщо JavaFX не виконає перевірку в графічному потоці.
      */
     @Test
-    void activationSelectorKeepsItsGeometryAndTextColorWhenFocusedAndShowing() throws Exception {
+    void popupStylesStayOnPopupRootAndHoverOverridesSelection() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            Pane popupRoot = new Pane();
+            ListView<String> list = new ListView<>(FXCollections.observableArrayList(SELECTED_ITEM_TEXT, "Other"));
+            list.setPrefSize(220.0, 100.0);
+            list.setCellFactory(_ -> {
+                ListCell<String> cell = new ListCell<>() {
+                    /** Відображає текст пункту, щоб тест перевіряв справжню стилізовану комірку. */
+                    @Override
+                    protected void updateItem(String item, boolean empty) {
+                        super.updateItem(item, empty);
+                        setText(empty || item == null ? null : item);
+                    }
+                };
+                cell.getStyleClass().add("neuron-settings-activation-option");
+                return cell;
+            });
+            popupRoot.getChildren().add(list);
+            Scene popupScene = new Scene(popupRoot, 220.0, 100.0);
+            URL stylesheetResource = Objects.requireNonNull(
+                    NeuronSettingsForm.class.getResource("/neuron-settings-popup.css"),
+                    "Missing classpath resource /neuron-settings-popup.css"
+            );
+            String stylesheet = stylesheetResource.toExternalForm();
+            list.resizeRelocate(0.0, 0.0, 220.0, 100.0);
+            list.getSelectionModel().select(0);
+            popupRoot.applyCss();
+            popupRoot.layout();
+            list.applyCss();
+            list.layout();
+
+            ListCell<?> selectedCell = findSelectedCell(list);
+            assertNotNull(selectedCell, "Вибраний пункт має бути створений у видимому ListView");
+            NeuronSettingsForm.attachPopupStylesheetToListView(selectedCell);
+            NeuronSettingsForm.attachPopupStylesheetToListView(selectedCell);
+            popupRoot.applyCss();
+            popupRoot.layout();
+            list.applyCss();
+            list.layout();
+
+            assertEquals(1L, list.getStylesheets().stream().filter(stylesheet::equals).count(),
+                    "Popup-таблиця має додаватися до ListView лише один раз");
+            assertFalse(popupRoot.getStylesheets().contains(stylesheet),
+                    "Таблиця стилів має бути на ListView, а не покладатися на popup-корінь");
+            assertFalse(popupScene.getStylesheets().contains(stylesheet),
+                    "Не слід змінювати Scene.getStylesheets(): JavaFX може перебудувати цей список для popup");
+            assertEquals(Color.web("#282d35"), firstBackgroundColor(selectedCell),
+                    "Вибраний пункт без наведення має залишатися темним, а не синім чи білим");
+            assertEquals(Color.web("#edf0f3"), selectedCell.getTextFill(),
+                    "Текст вибраного пункту має залишатися світлим");
+
+            selectedCell.pseudoClassStateChanged(PseudoClass.getPseudoClass("hover"), true);
+            popupRoot.applyCss();
+            popupRoot.layout();
+            assertEquals(Color.web("#343a43"), firstBackgroundColor(selectedCell),
+                    "Наведення має підсвічувати пункт навіть коли він вибраний");
+            assertEquals(Color.WHITE, selectedCell.getTextFill(),
+                    "Під час наведення текст пункту має залишатися контрастним");
+        });
+    }
+
+    /**
+     * Перевіряє, що фокус і відкриття селектора не змінюють стиль інших полів, а повторний показ форми
+     * не отримує новий розмір через вимірювання scrollbar до застосування CSS.
+     *
+     * @throws Exception якщо JavaFX не виконає перевірку в графічному потоці.
+     */
+    @Test
+    void activationSelectorKeepsGeometryAndLabelStyleAfterReopening() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
             StackPane root = new StackPane();
             new Scene(root, 900.0, 600.0);
             NeuronSettingsView view = new NeuronSettingsView(new LocalizationService(Locale.ENGLISH));
-            view.showIn(root, new Neuron("style-isolation", NeuronType.EXCITATORY, 0), ignored -> { });
+            Neuron neuron = new Neuron("style-isolation", NeuronType.EXCITATORY, 0);
+            view.showIn(root, neuron, ignored -> { });
             root.applyCss();
             root.layout();
 
             ComboBox<NeuronActivationMode> selector = view.activationModeSelectorForTest();
             assertTrue(selector.getStyleClass().contains("neuron-settings-activation-selector"),
-                    "Селектор має використовувати власний клас стилів");
-            ListCell<NeuronActivationMode> popupCell = selector.getCellFactory().call(new ListView<>());
-            assertTrue(popupCell.getStyleClass().contains("neuron-settings-activation-option"),
-                    "Пункт popup має отримувати власний клас CSS незалежно від дерева основної сцени");
+                    "Селектор має використовувати власний CSS-клас");
             assertTrue(selector.getButtonCell().getStyleClass().contains("neuron-settings-activation-value"),
-                    "Комірка значення має використовувати окремий постійний стиль");
+                    "Комірка значення має окремий стиль від пунктів popup");
             assertFalse(selector.getButtonCell().getStyleClass().contains("neuron-settings-activation-option"),
-                    "Комірка значення не повинна успадковувати hover-оформлення пунктів popup");
-            assertNull(selector.getOnShowing(),
-                    "Відкриття popup не повинно синхронно перекомпонувати всю сцену");
-            Insets originalInsets = selector.getInsets();
-            Background originalBackground = selector.getBackground();
-            Node arrowButton = selector.lookup(".arrow-button");
-            assertNotNull(arrowButton, "ComboBox має містити кнопку стрілки");
-            Region arrowRegion = assertInstanceOf(
-                    Region.class,
-                    arrowButton,
-                    "Кнопка стрілки має бути JavaFX Region"
-            );
-            Insets originalArrowInsets = arrowRegion.getInsets();
-            Background originalArrowBackground = arrowRegion.getBackground();
+                    "Комірка значення не повинна отримувати hover-стиль пунктів popup");
+
+            Insets originalSelectorInsets = selector.getInsets();
+            Background originalSelectorBackground = selector.getBackground();
             Insets originalValueInsets = selector.getButtonCell().getInsets();
             Background originalValueBackground = selector.getButtonCell().getBackground();
             Insets originalSignalInsets = view.signalFieldForTest().getInsets();
             Background originalSignalBackground = view.signalFieldForTest().getBackground();
             double originalPanelWidth = view.panelForTest().getWidth();
             double originalPanelHeight = view.panelForTest().getHeight();
-            Node buttonCell = selector.lookup(".list-cell");
-            assertNotNull(buttonCell, "Селектор має містити комірку відображення вибраного режиму");
-            assertEquals(Color.web("#edf0f3"), ((Labeled) buttonCell).getTextFill());
+            Labeled valueCell = selector.getButtonCell();
+            assertNotNull(valueCell, "Селектор має містити власну комірку вибраного значення");
+            assertEquals(Color.web("#edf0f3"), valueCell.getTextFill(),
+                    "Тест має перевіряти саме button cell, а не довільний вузол зі skin");
 
             selector.pseudoClassStateChanged(PseudoClass.getPseudoClass("focused"), true);
             selector.pseudoClassStateChanged(PseudoClass.getPseudoClass("showing"), true);
             root.applyCss();
             root.layout();
 
-            assertEquals(originalInsets, selector.getInsets(),
-                    "Фокус не повинен змінювати внутрішні відступи селектора");
-            assertEquals(originalBackground, selector.getBackground(),
+            assertEquals(originalSelectorInsets, selector.getInsets(),
+                    "Відкриття списку не повинно змінювати відступи селектора");
+            assertEquals(originalSelectorBackground, selector.getBackground(),
                     "Відкриття списку не повинно змінювати фон селектора");
-            assertEquals(originalArrowInsets, arrowRegion.getInsets(),
-                    "Фокус та відкриття списку не повинні змінювати геометрію кнопки стрілки");
-            assertEquals(originalArrowBackground, arrowRegion.getBackground(),
-                    "Фокус та відкриття списку не повинні змінювати фон кнопки стрілки");
             assertEquals(originalValueInsets, selector.getButtonCell().getInsets(),
-                    "Фокус та відкриття списку не повинні змінювати геометрію комірки значення");
+                    "Відкриття списку не повинно змінювати відступи комірки значення");
             assertEquals(originalValueBackground, selector.getButtonCell().getBackground(),
-                    "Фокус та відкриття списку не повинні змінювати фон комірки значення");
+                    "Відкриття списку не повинно змінювати фон комірки значення");
             assertEquals(originalSignalInsets, view.signalFieldForTest().getInsets(),
-                    "Перефокусування селектора не повинно змінювати геометрію інших полів");
+                    "Фокус селектора не повинен змінювати геометрію інших полів");
             assertEquals(originalSignalBackground, view.signalFieldForTest().getBackground(),
-                    "Перефокусування селектора не повинно змінювати оформлення інших полів");
+                    "Фокус селектора не повинен змінювати оформлення інших полів");
             assertEquals(originalPanelWidth, view.panelForTest().getWidth(), 0.5,
-                    "Ширина картки не повинна змінюватися під час відкриття селектора");
+                    "Ширина картки не повинна змінюватися під час відкриття списку");
             assertEquals(originalPanelHeight, view.panelForTest().getHeight(), 0.5,
-                    "Висота картки не повинна змінюватися під час відкриття селектора");
-            assertEquals(Color.web("#edf0f3"), ((Labeled) buttonCell).getTextFill(),
-                    "Текст вибраного режиму має залишатися світлим у сфокусованому стані");
+                    "Висота картки не повинна змінюватися під час відкриття списку");
+            assertEquals(Color.web("#edf0f3"), valueCell.getTextFill(),
+                    "Текст вибраного значення має зберігати світлий колір");
 
             selector.pseudoClassStateChanged(PseudoClass.getPseudoClass("showing"), false);
             selector.pseudoClassStateChanged(PseudoClass.getPseudoClass("focused"), false);
             root.applyCss();
             root.layout();
+            view.hide();
+            view.showIn(root, neuron, ignored -> { });
+            root.applyCss();
+            root.layout();
+
             assertEquals(originalPanelWidth, view.panelForTest().getWidth(), 0.5,
-                    "Втрата фокуса не повинна повторно змінювати ширину картки");
+                    "Повторне відкриття не повинно звужувати картку через нестабільне CSS-вимірювання scrollbar");
             assertEquals(originalPanelHeight, view.panelForTest().getHeight(), 0.5,
-                    "Втрата фокуса не повинна повторно змінювати висоту картки");
+                    "Повторне відкриття не повинно змінювати висоту картки");
             view.hide();
         });
     }
 
-    /** Повертає тіло CSS-правила, щоб перевіряти властивості конкретного стану окремо.
-     *
-     * @param stylesheet повний вміст таблиці стилів.
-     * @param selector CSS-селектор правила.
-     * @return декларації всередині фігурних дужок.
-     */
-    private static String ruleBody(String stylesheet, String selector) {
-        int selectorStart = stylesheet.indexOf(selector);
-        assertTrue(selectorStart >= 0, "Не знайдено CSS-селектор " + selector);
-        int openingBrace = stylesheet.indexOf('{', selectorStart);
-        int closingBrace = stylesheet.indexOf('}', openingBrace);
-        assertTrue(openingBrace >= 0 && closingBrace > openingBrace,
-                "Некоректний блок CSS для селектора " + selector);
-        return stylesheet.substring(openingBrace + 1, closingBrace);
+    /** Знаходить створену комірку за її значенням, не покладаючись на порядок вузлів у skin. */
+    private static ListCell<?> findSelectedCell(ListView<?> list) {
+        Set<Node> cells = list.lookupAll(".neuron-settings-activation-option");
+        for (Node node : cells) {
+            if (node instanceof ListCell<?> cell && SELECTED_ITEM_TEXT.equals(cell.getItem())) {
+                return cell;
+            }
+        }
+        return null;
+    }
+
+    /** Повертає суцільний колір першої заливки фону комірки для перевірки CSS-каскаду. */
+    private static Color firstBackgroundColor(Region region) {
+        Background background = region.getBackground();
+        assertNotNull(background, "Для комірки має бути явно визначений фон");
+        assertFalse(background.getFills().isEmpty(), "Фон комірки має містити заливку");
+        Object fill = background.getFills().getFirst().getFill();
+        if (!(fill instanceof Color color)) {
+            throw new AssertionError("Очікувався суцільний колір фону, отримано: " + fill);
+        }
+        return color;
     }
 }

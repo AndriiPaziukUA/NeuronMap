@@ -59,19 +59,18 @@ final class NeuronSettingsActivationModeTest {
         });
     }
 
-
-    /** Перевіряє, що CSS-підсвічування пунктів popup має більшу специфічність і той самий колір, що й меню мови. */
+    /** Перевіряє, що popup-hover явно перекриває selected-стан у власній таблиці стилів. */
     @Test
     void popupItemsUseTheSameHoverHighlightAsLanguageMenu() throws IOException {
         String stylesheet;
-        try (InputStream stream = getClass().getResourceAsStream("/neuron-settings.css")) {
-            assertNotNull(stream, "Таблиця стилів налаштувань нейрона має бути доступною в classpath");
+        try (InputStream stream = getClass().getResourceAsStream("/neuron-settings-popup.css")) {
+            assertNotNull(stream, "Таблиця стилів popup налаштувань має бути доступною в classpath");
             stylesheet = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
         }
 
         assertTrue(stylesheet.contains(
-                ".neuron-settings-overlay .neuron-settings-panel .combo-box-popup .list-cell:hover"),
-                "Правило наведення має перевизначати базовий стиль комірки списку");
+                ".neuron-settings-activation-popup.list-view .list-cell.neuron-settings-activation-option:filled:selected:hover"),
+                "Правило наведення на вибрану комірку має явно перекривати selected-стан");
         assertTrue(stylesheet.contains("-fx-background-color: #343a43;"),
                 "Колір наведення має збігатися з підсвічуванням пунктів у меню мови");
     }

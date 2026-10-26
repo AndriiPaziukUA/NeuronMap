@@ -101,34 +101,7 @@
     -fx-font-size: 12px;
 }
 
-/* Фон popup залишається темним, але не задає стиль окремим пунктам. */
-.neuron-settings-overlay .neuron-settings-panel .combo-box-popup .list-view {
-    -fx-background-color: #242830;
-    -fx-background-insets: 0;
-    -fx-padding: 0;
-}
-
-/* Базовий стиль усіх пунктів popup. Він не застосовується до комірки значення ComboBox. */
-.neuron-settings-overlay .neuron-settings-panel .neuron-settings-activation-selector .neuron-settings-activation-option {
-    -fx-background-color: #282d35;
-    -fx-background-insets: 0;
-    -fx-text-fill: #edf0f3;
-    -fx-padding: 6 10 6 10;
-    -fx-font-size: 12px;
-}
-
-/* Вибраність сама по собі не підсвічує пункт і не створює постійного фокуса на ньому. */
-.neuron-settings-overlay .neuron-settings-panel .neuron-settings-activation-selector .neuron-settings-activation-option:filled:selected {
-    -fx-background-color: #282d35;
-    -fx-text-fill: #edf0f3;
-}
-
-/* Обидва селектори стилізують hover комірок popup, не сам ComboBox. */
-.neuron-settings-overlay .neuron-settings-panel .combo-box-popup .list-cell:hover,
-.neuron-settings-overlay .neuron-settings-panel .neuron-settings-activation-selector .neuron-settings-activation-option:filled:hover {
-    -fx-background-color: #343a43;
-    -fx-text-fill: #ffffff;
-}
+/* Popup має власне дерево CSS; його фон і комірки визначені в neuron-settings-popup.css. */
 
 /* Властивості кнопок залишаються незалежними від таблиць стилів меню. */
 .neuron-settings-overlay .neuron-settings-button {
