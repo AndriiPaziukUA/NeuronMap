@@ -15,8 +15,8 @@ import com.example.neuronmap.view.neuron.NeuronView;
 import com.example.neuronmap.view.neuron.RotationHandleView;
 import com.example.neuronmap.view.support.JavaFxNodeLookup;
 import javafx.scene.Node;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 
 import java.util.List;
@@ -259,7 +259,7 @@ public final class MapPresentationCoordinator {
     }
 
     /**
-     * Синхронізує кореневі подання та вміст шухлядок за впорядкованими ідентифікаторами моделі.
+     * Синхронізує кореневі подання та вміст шухлядок, включно зі збереженим станом відкритості.
      * Уже розміщені кореневі подання не переставляються, щоб звичайне оновлення не скидало порядок шарів.
      */
     private void synchronizeStructureDrawers() {
@@ -289,6 +289,9 @@ public final class MapPresentationCoordinator {
                     .filter(Objects::nonNull)
                     .toList();
             structureView.setStructureMembers(memberViews);
+            if (structureView.isStructureDrawerExpanded() != structure.isExpanded()) {
+                structureView.toggleStructureDrawer();
+            }
         }
     }
 
@@ -349,7 +352,7 @@ public final class MapPresentationCoordinator {
      *
      * @param current зв'язок, на який наразі посилається графічне подання.
      * @param restored зв'язок із відновленої моделі.
-     * @return {@code true}, якщо ідентифікатор джерела та цілі збігаються.
+     * @return {@code true}, якщо ідентифікатори джерела та цілі збігаються.
      */
     private static boolean hasSameEndpoints(Connection current, Connection restored) {
         return current.sourceId().equals(restored.sourceId())

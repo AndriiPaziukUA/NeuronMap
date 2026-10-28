@@ -8,8 +8,8 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Надає операції читання та зміни членства структур, делегуючи перевірку цілісності моделі карти.
- * Внутрішні нейрони не мають самостійного розміщення на дошці: їхні координати задає шухлядка.
+ * Надає операції читання та зміни членства й стану шухлядок структур, делегуючи цілісність моделі.
+ * Внутрішні нейрони не мають самостійного розміщення на дошці: розміщенням керує шухлядка.
  */
 public final class StructureService {
 
@@ -77,5 +77,21 @@ public final class StructureService {
      */
     public boolean removeMember(String structureId, String neuronId) {
         return model.removeStructureMember(structureId, neuronId);
+    }
+
+    /**
+     * Змінює стан шухлядки наявної структури, не створюючи зайвих кроків, якщо значення не змінилося.
+     *
+     * @param structureId ідентифікатор нейрона-контейнера.
+     * @param expanded {@code true}, якщо шухлядка має бути відкрита.
+     * @return {@code true}, якщо стан наявної структури справді змінився.
+     */
+    public boolean setExpanded(String structureId, boolean expanded) {
+        Optional<NeuronStructure> structure = find(structureId);
+        if (structure.isEmpty() || structure.orElseThrow().isExpanded() == expanded) {
+            return false;
+        }
+        structure.orElseThrow().setExpanded(expanded);
+        return true;
     }
 }

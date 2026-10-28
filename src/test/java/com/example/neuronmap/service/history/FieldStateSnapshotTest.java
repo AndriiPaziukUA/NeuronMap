@@ -13,14 +13,10 @@ import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Перевіряє відновлення стану карти, зокрема членства структур, та ігнорування тимчасових змін активації.
- */
+/** Перевіряє відновлення стану карти, включно з відкритістю шухлядок структур та тимчасовою активацією. */
 class FieldStateSnapshotTest {
 
-    /**
-     * Перевіряє відновлення назв, параметрів, розташування, зв’язків і груп зі знімка.
-     */
+    /** Перевіряє відновлення назв, параметрів, розташування, зв'язків і груп зі знімка. */
     @Test
     void snapshotRestoresPersistentNeuronDataPresentationAndStructure() {
         NeuronMapModel model = new NeuronMapModel();
@@ -77,11 +73,9 @@ class FieldStateSnapshotTest {
         assertEquals(2, Objects.requireNonNull(restoredGroup).memberIds().size());
     }
 
-    /**
-     * Перевіряє відновлення впорядкованого членства, вкладених і порожніх структур після змін моделі.
-     */
+    /** Перевіряє відновлення вкладених і порожніх структур, порядку учасників і стану їхніх шухлядок. */
     @Test
-    void snapshotRestoresOrderedNestedAndEmptyStructures() {
+    void snapshotRestoresOrderedNestedAndEmptyStructuresAndDrawerState() {
         NeuronMapModel model = new NeuronMapModel();
         Neuron root = model.createNeuron(NeuronType.STRUCTURE, 10, 20);
         Neuron nested = model.createNeuron(NeuronType.STRUCTURE, 100, 120);
@@ -92,10 +86,17 @@ class FieldStateSnapshotTest {
         assertTrue(model.addStructureMember(root.id(), firstMember.id()));
         assertTrue(model.addStructureMember(root.id(), nested.id()));
         assertTrue(model.addStructureMember(nested.id(), secondMember.id()));
+        model.structure(root.id()).setExpanded(true);
+        model.structure(nested.id()).setExpanded(false);
+        model.structure(empty.id()).setExpanded(true);
 
         FieldStateSnapshot snapshot = FieldStateSnapshot.capture(model);
         assertEquals(3, snapshot.structures().size());
 
+        // Зміна стану після знімка не повинна змінити його вміст.
+        model.structure(root.id()).setExpanded(false);
+        model.structure(nested.id()).setExpanded(true);
+        model.structure(empty.id()).setExpanded(false);
         assertNotNull(model.removeNeuron(firstMember.id()));
         assertNotNull(model.removeNeuron(root.id()));
         snapshot.restoreInto(model);
@@ -109,10 +110,13 @@ class FieldStateSnapshotTest {
                 List.copyOf(Objects.requireNonNull(model.structure(nested.id())).memberIds())
         );
         assertTrue(Objects.requireNonNull(model.structure(empty.id())).memberIds().isEmpty());
+        assertTrue(Objects.requireNonNull(model.structure(root.id())).isExpanded());
+        assertFalse(Objects.requireNonNull(model.structure(nested.id())).isExpanded());
+        assertTrue(Objects.requireNonNull(model.structure(empty.id())).isExpanded());
         assertEquals(snapshot, FieldStateSnapshot.capture(model));
     }
 
-    /** Перевіряє, що конструктори сумісності знімка зберігають колишню форму даних. */
+    /** Перевіряє, що старі конструктори знімка зберігають сумісність зі своїм попереднім контрактом. */
     @Test
     void legacySnapshotConstructorsRemainCompatible() {
         var parameters = new NeuronParameters(5, 3);
@@ -132,11 +136,12 @@ class FieldStateSnapshotTest {
         assertEquals(21.0, presentation.x());
         assertEquals(34.0, presentation.y());
         assertTrue(presentation.directionReversed());
+
+        var structure = new FieldStateSnapshot.StructureState("legacy-structure", List.of());
+        assertFalse(structure.expanded());
     }
 
-    /**
-     * Перевіряє, що зміна лише поточної активації не змінює знімок збереженого стану.
-     */
+    /** Перевіряє, що зміна лише поточної активації не змінює знімок збереженого стану. */
     @Test
     void activationOnlyChangesDoNotChangeSnapshot() {
         NeuronMapModel model = new NeuronMapModel();

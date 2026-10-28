@@ -2,6 +2,7 @@ package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.i18n.LocalizationService;
+import com.example.neuronmap.service.StructureService;
 import com.example.neuronmap.view.neuron.NeuronView;
 import com.example.neuronmap.view.neuron.RotationHandleView;
 import com.example.neuronmap.view.support.JavaFxNodeLookup;
@@ -21,6 +22,8 @@ public final class NeuronInteractionController {
     private final SelectionController selectionController;
     private final SimulationController simulation;
     private final LocalizationService localization;
+    private final StructureService structureService;
+    private final Runnable save;
     private NeuronClipboardController clipboardController;
     private NeuronDeletionController deletionController;
     private NeuronMenuController menuController;
@@ -35,25 +38,31 @@ public final class NeuronInteractionController {
     private boolean disposed;
 
     /**
-     * Створює основу контролера; вузька фабрика ін'єктує підконтролери після створення callback-власника.
-     * Служба локалізації передається поданням нейронів через цей самий життєвий цикл взаємодії.
+     * Створює основу контролера та зберігає відповідальні служби для зміни стану структур.
+     * Вузька фабрика ін'єктує спеціалізовані контролери після створення цього callback-власника.
      *
      * @param state спільний стан редактора.
      * @param selectionController контролер вибору нейронів.
      * @param simulation контролер симуляції.
      * @param localization спільна служба локалізації інтерфейсу.
+     * @param structureService служба зміни членства та стану структур.
+     * @param save дія збереження змін карти й фіксації стану історії.
      * @throws NullPointerException якщо обов'язкова залежність відсутня.
      */
     NeuronInteractionController(
             EditorState state,
             SelectionController selectionController,
             SimulationController simulation,
-            LocalizationService localization
+            LocalizationService localization,
+            StructureService structureService,
+            Runnable save
     ) {
         this.state = Objects.requireNonNull(state, "state");
         this.selectionController = Objects.requireNonNull(selectionController, "selectionController");
         this.simulation = Objects.requireNonNull(simulation, "simulation");
         this.localization = Objects.requireNonNull(localization, "localization");
+        this.structureService = Objects.requireNonNull(structureService, "structureService");
+        this.save = Objects.requireNonNull(save, "save");
     }
 
     /**
@@ -294,9 +303,10 @@ public final class NeuronInteractionController {
         if (event.getClickCount() == 2 && !neuronView.wasDragged() && state.isIdle()) {
             if (neuronView.hasStructureDrawer()) {
                 rotationController.hideAll();
-                neuronView.toggleStructureDrawer();
-                refreshRelatedViews();
-                refreshOverlayPositions();
+                if (toggleStructureDrawer(neuronView)) {
+                    refreshRelatedViews();
+                    refreshOverlayPositions();
+                }
             } else {
                 simulation.emitPulse(neuronView.model().id());
             }
@@ -312,6 +322,29 @@ public final class NeuronInteractionController {
         }
         rotationController.show(neuronView.model().id());
         event.consume();
+    }
+
+    /**
+     * Перемикає стан шухлядки через службу структури, синхронізує подання та зберігає карту.
+     *
+     * @param neuronView подання структури, шухлядку якої потрібно перемкнути.
+     * @return {@code true}, якщо стан існуючої структури було змінено.
+     */
+    private boolean toggleStructureDrawer(NeuronView neuronView) {
+        String structureId = neuronView.model().id();
+        var structure = structureService.find(structureId);
+        if (structure.isEmpty()) {
+            return false;
+        }
+        boolean expanded = !structure.orElseThrow().isExpanded();
+        if (!structureService.setExpanded(structureId, expanded)) {
+            return false;
+        }
+        if (neuronView.isStructureDrawerExpanded() != expanded) {
+            neuronView.toggleStructureDrawer();
+        }
+        save.run();
+        return true;
     }
 
     /** Перевіряє, що відповідна дія презентації вже була налаштована координатором-власником. */

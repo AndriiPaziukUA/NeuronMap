@@ -155,7 +155,6 @@ public final class SqliteMapWriter {
                 )
                 VALUES (?, ?, ?)
                 """;
-
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             for (Connection connectionModel : model.connections()) {
                 statement.setString(1, connectionModel.id());
@@ -200,13 +199,15 @@ public final class SqliteMapWriter {
     }
 
     /**
-     * Записує окремі сутності структур і впорядковане членство кожної з них.
+     * Записує структури з ознакою відкритості та впорядковане членство кожної з них.
      *
      * @param model модель карти, що містить структури.
      * @throws SQLException якщо запис структур або їхніх учасників не вдався.
      */
     private void insertStructures(NeuronMapModel model) throws SQLException {
-        String structureSql = "INSERT INTO structures (id) VALUES (?)";
+        // SqliteSchema.migrate() забезпечує стовпець expanded у таблиці structures.
+        //noinspection SqlResolve
+        String structureSql = "INSERT INTO structures (id, expanded) VALUES (?, ?)";
         String memberSql = """
                 INSERT INTO structure_members (
                     structure_id,
@@ -220,6 +221,7 @@ public final class SqliteMapWriter {
              PreparedStatement memberStatement = connection.prepareStatement(memberSql)) {
             for (NeuronStructure structure : model.structures()) {
                 structureStatement.setString(1, structure.id());
+                structureStatement.setInt(2, structure.isExpanded() ? 1 : 0);
                 structureStatement.addBatch();
 
                 int position = 0;

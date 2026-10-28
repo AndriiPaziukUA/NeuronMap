@@ -10,7 +10,7 @@ import java.sql.Statement;
 /** Створює та мігрує схему SQLite, додаючи потрібні таблиці й стовпці для актуальної версії даних. */
 public final class SqliteSchema {
 
-    private static final int CURRENT_VERSION = 9;
+    private static final int CURRENT_VERSION = 10;
 
     /** Не дозволяє створювати екземпляри утиліти керування схемою. */
     private SqliteSchema() {
@@ -39,6 +39,7 @@ public final class SqliteSchema {
             ensureNeuronNameColumn(connection);
             ensureActivationModeColumn(connection);
             ensureDirectionColumn(connection);
+            ensureStructureExpandedColumn(connection);
             ensureVersion(connection, versionAtStart);
         } catch (SQLException exception) {
             throw new PersistenceException("Не вдалося підготувати схему SQLite.", exception);
@@ -101,6 +102,7 @@ public final class SqliteSchema {
             statement.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS structures (
                         id TEXT PRIMARY KEY,
+                        expanded INTEGER NOT NULL DEFAULT 0,
                         FOREIGN KEY (id)
                             REFERENCES neurons(id)
                             ON DELETE CASCADE
@@ -231,6 +233,23 @@ public final class SqliteSchema {
                     ALTER TABLE neuron_presentations
                     ADD COLUMN direction_reversed INTEGER NOT NULL DEFAULT 0
                     """);
+        }
+    }
+
+    /**
+     * Додає стан відкритості до наявної таблиці структур; старі структури залишаються закритими.
+     *
+     * @param connection відкрите з'єднання з базою SQLite.
+     * @throws SQLException якщо стовпець не вдалося додати.
+     */
+    private static void ensureStructureExpandedColumn(Connection connection) throws SQLException {
+        if (columnExists(connection, "structures", "expanded")) {
+            return;
+        }
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate(
+                    "ALTER TABLE structures ADD COLUMN expanded INTEGER NOT NULL DEFAULT 0"
+            );
         }
     }
 

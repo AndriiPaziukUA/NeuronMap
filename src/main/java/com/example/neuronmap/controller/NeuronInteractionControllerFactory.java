@@ -6,6 +6,7 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.service.GroupService;
 import com.example.neuronmap.service.NeuronClipboardService;
 import com.example.neuronmap.service.NeuronService;
+import com.example.neuronmap.service.StructureService;
 import com.example.neuronmap.view.editor.WorkspaceView;
 import com.example.neuronmap.view.neuron.NeuronMenuView;
 import com.example.neuronmap.view.neuron.NeuronView;
@@ -36,7 +37,9 @@ public final class NeuronInteractionControllerFactory {
                 dependencies.state(),
                 dependencies.selectionController(),
                 dependencies.simulation(),
-                dependencies.localization()
+                dependencies.localization(),
+                new StructureService(dependencies.neuronService().model()),
+                dependencies.save()
         );
 
         NeuronClipboardController clipboardController = createClipboardController(

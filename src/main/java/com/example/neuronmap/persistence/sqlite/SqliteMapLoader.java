@@ -109,17 +109,11 @@ public final class SqliteMapLoader {
         try (Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery(sql)) {
             while (resultSet.next()) {
-                NeuronPresentation presentation = model.presentation(
-                        resultSet.getString("neuron_id")
-                );
+                NeuronPresentation presentation = model.presentation(resultSet.getString("neuron_id"));
                 if (presentation == null) {
                     continue;
                 }
-
-                presentation.setPosition(
-                        resultSet.getDouble("x"),
-                        resultSet.getDouble("y")
-                );
+                presentation.setPosition(resultSet.getDouble("x"), resultSet.getDouble("y"));
                 presentation.setRotationDegrees(resultSet.getDouble("rotation"));
                 presentation.setDirectionReversed(resultSet.getInt("direction_reversed") != 0);
             }
@@ -159,9 +153,7 @@ public final class SqliteMapLoader {
              ResultSet resultSet = statement.executeQuery(sql)) {
             while (resultSet.next()) {
                 membersByGroup.computeIfAbsent(
-                                resultSet.getString("group_id"),
-                                ignored -> new ArrayList<>()
-                        )
+                                resultSet.getString("group_id"), ignored -> new ArrayList<>())
                         .add(resultSet.getString("neuron_id"));
             }
         }
@@ -170,14 +162,16 @@ public final class SqliteMapLoader {
     }
 
     /**
-     * Відновлює окремі записи структур, а потім упорядковане членство кожної структури.
-     * Перевіряє, що кожен запис контейнера посилається на нейрон, який вже завантажено до моделі.
+     * Відновлює записи структур, стан відкритості та впорядковане членство їхніх учасників.
+     * Кожен контейнер має посилатися на нейрон, який уже завантажено до моделі.
      *
      * @param model модель карти, до якої додаються відновлені структури.
-     * @throws SQLException якщо читання таблиць не вдалося або запис структури посилається на відсутній нейрон.
+     * @throws SQLException якщо читання таблиць не вдалося або структура посилається на відсутній нейрон.
      */
     private void loadStructures(NeuronMapModel model) throws SQLException {
-        String structureSql = "SELECT id FROM structures ORDER BY rowid";
+        // SqliteSchema.migrate() додає expanded до чинних і нових таблиць structures.
+        //noinspection SqlResolve
+        String structureSql = "SELECT id, expanded FROM structures ORDER BY rowid";
         try (Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery(structureSql)) {
             while (resultSet.next()) {
@@ -188,6 +182,7 @@ public final class SqliteMapLoader {
                                     + "': відповідний нейрон відсутній у моделі."
                     );
                 }
+                model.structure(structureId).setExpanded(resultSet.getInt("expanded") != 0);
             }
         }
 
@@ -200,8 +195,7 @@ public final class SqliteMapLoader {
              ResultSet resultSet = statement.executeQuery(membersSql)) {
             while (resultSet.next()) {
                 model.addStructureMember(
-                        resultSet.getString("structure_id"),
-                        resultSet.getString("neuron_id")
+                        resultSet.getString("structure_id"), resultSet.getString("neuron_id")
                 );
             }
         }

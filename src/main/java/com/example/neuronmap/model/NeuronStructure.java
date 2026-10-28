@@ -5,16 +5,17 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
- * Представляє окрему структуру карти та зберігає впорядкований набір ідентифікаторів її нейронів.
- * На відміну від групи, структура може бути порожньою й не має мінімальної кількості учасників.
+ * Представляє структуру карти, зберігаючи впорядкованих учасників і стан її шухлядки.
+ * Стан відкритості є частиною моделі, тому відновлюється разом із картою та історією змін.
  */
 public final class NeuronStructure {
 
     private final String id;
     private final Set<String> memberIds = new LinkedHashSet<>();
+    private boolean expanded;
 
     /**
-     * Створює порожню структуру, пов'язану з ідентифікатором структурного елемента карти.
+     * Створює порожню закриту структуру, пов'язану з ідентифікатором структурного елемента карти.
      *
      * @param id ідентифікатор нейрона, що представляє структуру.
      * @throws IllegalArgumentException якщо ідентифікатор порожній.
@@ -42,6 +43,24 @@ public final class NeuronStructure {
      */
     public Set<String> memberIds() {
         return Collections.unmodifiableSet(memberIds);
+    }
+
+    /**
+     * Повертає збережений стан шухлядки структури.
+     *
+     * @return {@code true}, якщо шухлядка відкрита.
+     */
+    public boolean isExpanded() {
+        return expanded;
+    }
+
+    /**
+     * Встановлює стан шухлядки, який має переживати збереження та відновлення карти.
+     *
+     * @param expanded {@code true}, щоб шухлядка залишалася відкритою.
+     */
+    public void setExpanded(boolean expanded) {
+        this.expanded = expanded;
     }
 
     /**

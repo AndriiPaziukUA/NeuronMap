@@ -20,14 +20,15 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє окрему схему зберігання структур та круговий цикл членства у SQLite. */
+/** Перевіряє збереження, міграцію та відновлення структури й стану її шухлядки у SQLite. */
 class SqliteStructurePersistenceTest {
 
-    /** Перевіряє відновлення порожніх структур, вкладеності та порядку учасників після перезапуску репозиторію. */
+    /** Перевіряє відновлення відкритості, порожніх контейнерів, вкладеності й порядку учасників. */
     @Test
-    void roundTripPreservesStructureEntitiesAndOrderedMembership(@TempDir Path tempDir) {
+    void roundTripPreservesStructureEntitiesMembershipAndDrawerState(@TempDir Path tempDir) {
         Path databasePath = tempDir.resolve("structures.db");
         NeuronMapModel original = new NeuronMapModel();
         Neuron rootNeuron = original.createNeuron(NeuronType.STRUCTURE, 10, 20);
@@ -40,6 +41,9 @@ class SqliteStructurePersistenceTest {
         assertTrue(structures.addMember(rootNeuron.id(), firstMember.id()));
         assertTrue(structures.addMember(rootNeuron.id(), nestedNeuron.id()));
         assertTrue(structures.addMember(nestedNeuron.id(), secondMember.id()));
+        assertTrue(structures.setExpanded(rootNeuron.id(), true));
+        assertTrue(structures.setExpanded(nestedNeuron.id(), true));
+        assertTrue(structures.setExpanded(emptyStructureNeuron.id(), true));
 
         try (MapRepository repository = new SqliteMapRepository(databasePath)) {
             repository.save(original, CameraState.defaultState());
@@ -56,14 +60,14 @@ class SqliteStructurePersistenceTest {
         assertEquals(List.of(firstMember.id(), nestedNeuron.id()), List.copyOf(restoredRoot.memberIds()));
         assertEquals(Set.of(secondMember.id()), restoredNested.memberIds());
         assertTrue(restoredEmpty.memberIds().isEmpty());
+        assertTrue(restoredRoot.isExpanded());
+        assertTrue(restoredNested.isExpanded());
+        assertTrue(restoredEmpty.isExpanded());
         assertEquals(3, restored.structures().size());
         assertEquals(5, restored.neurons().size());
     }
 
-    /** Перевіряє, що контейнери та їх членство мають окремі таблиці й підтримують індекс порядку учасника.
-     *
-     * @throws SQLException якщо перевірка метаданих SQLite завершується помилкою.
-     */
+    /** Перевіряє, що структури та їхнє членство зберігаються окремо й мають індекс порядку учасників. */
     @Test
     void schemaStoresStructureMetadataSeparatelyFromNeuronRows(@TempDir Path tempDir) throws SQLException {
         Path databasePath = tempDir.resolve("structure-schema.db");
@@ -80,12 +84,42 @@ class SqliteStructurePersistenceTest {
              Statement statement = connection.createStatement()) {
             assertEquals(1, count(statement, "SELECT COUNT(*) FROM structures"));
             assertEquals(1, count(statement, "SELECT COUNT(*) FROM structure_members"));
-            assertTrue(hasStructureMemberPositionIndex(statement));
+            assertTrue(hasStructureColumn(statement, "structure_members", "position_index"));
+            assertTrue(hasStructureColumn(statement, "structures", "expanded"));
         }
     }
 
+    /** Перевіряє міграцію бази дев'ятої версії та закритий стан для раніше збережених структур. */
+    @Test
+    void migrationAddsClosedDrawerStateToExistingStructures(@TempDir Path tempDir) throws Exception {
+        Path databasePath = tempDir.resolve("legacy-structures.db");
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + databasePath.toAbsolutePath());
+             Statement statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    CREATE TABLE neurons (
+                        id TEXT PRIMARY KEY,
+                        type TEXT NOT NULL,
+                        activation INTEGER NOT NULL DEFAULT 0,
+                        signal_strength INTEGER NOT NULL DEFAULT 1,
+                        activation_threshold INTEGER NOT NULL DEFAULT 1
+                    )
+                    """);
+            statement.executeUpdate("CREATE TABLE structures (id TEXT PRIMARY KEY)");
+            statement.executeUpdate("INSERT INTO neurons (id, type) VALUES ('legacy-structure', 'STRUCTURE')");
+            statement.executeUpdate("INSERT INTO structures (id) VALUES ('legacy-structure')");
+            statement.execute("PRAGMA user_version = 9");
+        }
+
+        NeuronMapModel restored = new NeuronMapModel();
+        try (MapRepository repository = new SqliteMapRepository(databasePath)) {
+            repository.loadInto(restored);
+        }
+
+        assertEquals(1, restored.structures().size());
+        assertFalse(restored.structure("legacy-structure").isExpanded());
+    }
+
     /** Повертає кількість рядків запиту, який містить один агрегований результат.
-     *
      * @param statement оператор для виконання SQL-запиту.
      * @param sql запит, що повертає одне значення кількості.
      * @return кількість рядків, визначена запитом.
@@ -98,16 +132,18 @@ class SqliteStructurePersistenceTest {
         }
     }
 
-    /** Перевіряє, що таблиця членства структур містить стовпець для відновлення порядку учасників.
-     *
+    /** Перевіряє, чи таблиця структур має вказаний стовпець для порядку учасників або відкритості.
      * @param statement відкритий оператор для читання метаданих SQLite.
-     * @return {@code true}, якщо стовпець {@code position_index} існує.
+     * @param table назва таблиці, метадані якої перевіряються.
+     * @param column назва стовпця, наявність якого перевіряється.
+     * @return {@code true}, якщо стовпець існує.
      * @throws SQLException якщо SQLite не вдалося прочитати метадані таблиці.
      */
-    private static boolean hasStructureMemberPositionIndex(Statement statement) throws SQLException {
-        try (ResultSet resultSet = statement.executeQuery("PRAGMA table_info(structure_members)")) {
+    private static boolean hasStructureColumn(Statement statement, String table, String column)
+            throws SQLException {
+        try (ResultSet resultSet = statement.executeQuery("PRAGMA table_info(" + table + ")")) {
             while (resultSet.next()) {
-                if ("position_index".equalsIgnoreCase(resultSet.getString("name"))) {
+                if (column.equalsIgnoreCase(resultSet.getString("name"))) {
                     return true;
                 }
             }
