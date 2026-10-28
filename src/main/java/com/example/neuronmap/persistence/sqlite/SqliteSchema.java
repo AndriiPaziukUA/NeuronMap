@@ -10,7 +10,7 @@ import java.sql.Statement;
 /** Створює та мігрує схему SQLite, додаючи потрібні таблиці й стовпці для актуальної версії даних. */
 public final class SqliteSchema {
 
-    private static final int CURRENT_VERSION = 8;
+    private static final int CURRENT_VERSION = 9;
 
     /** Не дозволяє створювати екземпляри утиліти керування схемою. */
     private SqliteSchema() {
@@ -96,6 +96,31 @@ public final class SqliteSchema {
                         FOREIGN KEY (neuron_id)
                             REFERENCES neurons(id)
                             ON DELETE CASCADE
+                    )
+                    """);
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS structures (
+                        id TEXT PRIMARY KEY,
+                        FOREIGN KEY (id)
+                            REFERENCES neurons(id)
+                            ON DELETE CASCADE
+                    )
+                    """);
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS structure_members (
+                        structure_id TEXT NOT NULL,
+                        neuron_id TEXT NOT NULL UNIQUE,
+                        position_index INTEGER NOT NULL,
+                        PRIMARY KEY (structure_id, neuron_id),
+                        UNIQUE (structure_id, position_index),
+                        FOREIGN KEY (structure_id)
+                            REFERENCES structures(id)
+                            ON DELETE CASCADE,
+                        FOREIGN KEY (neuron_id)
+                            REFERENCES neurons(id)
+                            ON DELETE CASCADE,
+                        CHECK (structure_id <> neuron_id),
+                        CHECK (position_index >= 0)
                     )
                     """);
             statement.executeUpdate("""

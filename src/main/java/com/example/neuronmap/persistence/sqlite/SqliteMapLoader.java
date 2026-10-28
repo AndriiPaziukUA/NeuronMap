@@ -15,7 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Зчитує з SQLite нейрони, їхнє подання, зв’язки й групи та відновлює ними модель карти. */
+/** Зчитує з SQLite нейрони, їхнє подання, зв’язки, групи та структури й відновлює ними модель карти. */
 public final class SqliteMapLoader {
 
     private final java.sql.Connection connection;
@@ -33,13 +33,19 @@ public final class SqliteMapLoader {
         this.connection = connection;
     }
 
-    /** Відновлює модель карти, послідовно завантажуючи нейрони, подання, зв'язки й групи. */
+    /**
+     * Відновлює модель карти, послідовно завантажуючи нейрони, подання, зв'язки, групи та структури.
+     *
+     * @param model модель карти, яку потрібно заповнити.
+     * @throws SQLException якщо не вдалося прочитати будь-яку таблицю карти.
+     */
     public void loadInto(NeuronMapModel model) throws SQLException {
         model.clear();
         loadNeurons(model);
         loadPresentations(model);
         loadConnections(model);
         loadGroups(model);
+        loadStructures(model);
     }
 
     /** Завантажує всі семантичні параметри нейрона, включно з режимом активації та його назвою. */
@@ -140,7 +146,7 @@ public final class SqliteMapLoader {
         }
     }
 
-    /** Відновлює групи після завантаження нейронів, збираючи їхніх учасників за ідентифікатором групи. */
+    /** Відновлює групи після завантаження нейронів, збираючи учасників за ідентифікатором групи. */
     private void loadGroups(NeuronMapModel model) throws SQLException {
         String sql = """
                 SELECT group_id, neuron_id
@@ -161,5 +167,43 @@ public final class SqliteMapLoader {
         }
 
         membersByGroup.forEach(model::addGroup);
+    }
+
+    /**
+     * Відновлює окремі записи структур, а потім упорядковане членство кожної структури.
+     * Перевіряє, що кожен запис контейнера посилається на нейрон, який вже завантажено до моделі.
+     *
+     * @param model модель карти, до якої додаються відновлені структури.
+     * @throws SQLException якщо читання таблиць не вдалося або запис структури посилається на відсутній нейрон.
+     */
+    private void loadStructures(NeuronMapModel model) throws SQLException {
+        String structureSql = "SELECT id FROM structures ORDER BY rowid";
+        try (Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(structureSql)) {
+            while (resultSet.next()) {
+                String structureId = resultSet.getString("id");
+                if (!model.addStructure(structureId)) {
+                    throw new SQLException(
+                            "Не вдалося відновити структуру з ідентифікатором '" + structureId
+                                    + "': відповідний нейрон відсутній у моделі."
+                    );
+                }
+            }
+        }
+
+        String membersSql = """
+                SELECT structure_id, neuron_id
+                FROM structure_members
+                ORDER BY structure_id, position_index
+                """;
+        try (Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(membersSql)) {
+            while (resultSet.next()) {
+                model.addStructureMember(
+                        resultSet.getString("structure_id"),
+                        resultSet.getString("neuron_id")
+                );
+            }
+        }
     }
 }

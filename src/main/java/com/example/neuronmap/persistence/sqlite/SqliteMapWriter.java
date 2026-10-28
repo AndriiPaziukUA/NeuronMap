@@ -30,13 +30,20 @@ public final class SqliteMapWriter {
         this.settings = settings;
     }
 
-    /** Записує актуальний стан карти й камери. */
+    /**
+     * Записує актуальний стан карти, включно з групами, структурами та станом камери.
+     *
+     * @param model модель карти для збереження.
+     * @param cameraState стан камери для збереження разом із картою.
+     * @throws SQLException якщо запис будь-якої частини карти завершився помилкою.
+     */
     public void save(NeuronMapModel model, CameraState cameraState) throws SQLException {
         deleteAllData();
         insertNeurons(model);
         insertPresentations(model);
         insertConnections(model);
         insertGroups(model);
+        insertStructures(model);
         settings.saveCameraState(cameraState);
     }
 
@@ -49,8 +56,12 @@ public final class SqliteMapWriter {
         try (Statement statement = connection.createStatement()) {
             // Збереження замінює всю карту в межах транзакції репозиторію.
             //noinspection SqlWithoutWhere
+            statement.executeUpdate("DELETE FROM structure_members");
+            // Спочатку видаляються членства та контейнери, що залежать від нейронів.
+            //noinspection SqlWithoutWhere
+            statement.executeUpdate("DELETE FROM structures");
+            //noinspection SqlWithoutWhere
             statement.executeUpdate("DELETE FROM group_members");
-            // Спочатку очищуються залежні таблиці.
             //noinspection SqlWithoutWhere
             statement.executeUpdate("DELETE FROM groups");
             //noinspection SqlWithoutWhere
@@ -184,6 +195,42 @@ public final class SqliteMapWriter {
                 }
             }
             groupStatement.executeBatch();
+            memberStatement.executeBatch();
+        }
+    }
+
+    /**
+     * Записує окремі сутності структур і впорядковане членство кожної з них.
+     *
+     * @param model модель карти, що містить структури.
+     * @throws SQLException якщо запис структур або їхніх учасників не вдався.
+     */
+    private void insertStructures(NeuronMapModel model) throws SQLException {
+        String structureSql = "INSERT INTO structures (id) VALUES (?)";
+        String memberSql = """
+                INSERT INTO structure_members (
+                    structure_id,
+                    neuron_id,
+                    position_index
+                )
+                VALUES (?, ?, ?)
+                """;
+
+        try (PreparedStatement structureStatement = connection.prepareStatement(structureSql);
+             PreparedStatement memberStatement = connection.prepareStatement(memberSql)) {
+            for (NeuronStructure structure : model.structures()) {
+                structureStatement.setString(1, structure.id());
+                structureStatement.addBatch();
+
+                int position = 0;
+                for (String neuronId : structure.memberIds()) {
+                    memberStatement.setString(1, structure.id());
+                    memberStatement.setString(2, neuronId);
+                    memberStatement.setInt(3, position++);
+                    memberStatement.addBatch();
+                }
+            }
+            structureStatement.executeBatch();
             memberStatement.executeBatch();
         }
     }

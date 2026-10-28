@@ -11,7 +11,8 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Є основною моделлю карти: керує нейронами, їхнім поданням, напрямленими зв’язками та групами.
+ * Є основною моделлю карти: керує нейронами, їхнім поданням, напрямленими зв’язками, групами та структурами.
+ * Структури мають окремий життєвий цикл і правила членства, не пов'язані з мінімальним розміром груп.
  */
 public final class NeuronMapModel {
 
@@ -19,6 +20,7 @@ public final class NeuronMapModel {
     private final Map<String, NeuronPresentation> presentations = new LinkedHashMap<>();
     private final Map<String, Connection> connections = new LinkedHashMap<>();
     private final Map<String, NeuronGroup> groups = new LinkedHashMap<>();
+    private final Map<String, NeuronStructure> structures = new LinkedHashMap<>();
 
     /**
      * Створює нейрон зазначеного типу в заданих координатах і створює для нього візуальне подання.
@@ -42,11 +44,13 @@ public final class NeuronMapModel {
 
     /**
      * Створює нейрон зазначеного типу в заданих координатах і створює для нього візуальне подання.
+     * Нейрон типу {@link NeuronType#STRUCTURE} також отримує окрему порожню сутність структури.
      *
      * @param type тип нейрона або елемента.
      * @param x координата X.
      * @param y координата Y.
      * @param rotationDegrees кут обертання в градусах.
+     * @return створений нейрон із відповідним візуальним поданням.
      */
     public Neuron createNeuron(
             NeuronType type,
@@ -68,10 +72,12 @@ public final class NeuronMapModel {
 
     /**
      * Додає нейрон із заданим ідентифікатором до моделі та створює його подання.
+     * Для структурного типу додатково реєструється окрема сутність-контейнер.
      *
      * @param id унікальний ідентифікатор елемента.
      * @param type тип нейрона або елемента.
      * @param activation значення активації нейрона.
+     * @return доданий нейрон.
      */
     public Neuron addNeuron(
             String id,
@@ -94,6 +100,9 @@ public final class NeuronMapModel {
                         0.0
                 )
         );
+        if (type == NeuronType.STRUCTURE) {
+            structures.put(id, new NeuronStructure(id));
+        }
 
         return neuron;
     }
@@ -107,6 +116,7 @@ public final class NeuronMapModel {
      * @param x координата X.
      * @param y координата Y.
      * @param rotationDegrees кут обертання в градусах.
+     * @return доданий нейрон.
      */
     public Neuron addNeuron(
             String id,
@@ -248,7 +258,8 @@ public final class NeuronMapModel {
     }
 
     /**
-     * Видаляє нейрон разом із його поданням, пов’язаними зв’язками та членством у групах.
+     * Видаляє нейрон разом із його поданням, зв’язками, членством у групах і членством у структурах.
+     * Якщо видалений нейрон представляв структуру, її учасники залишаються на карті без цього контейнера.
      *
      * @param neuronId ідентифікатор нейрона.
      * @return видалений нейрон або {@code null}, якщо його не знайдено.
@@ -261,6 +272,7 @@ public final class NeuronMapModel {
         }
 
         presentations.remove(neuronId);
+        structures.remove(neuronId);
 
         connections.values().removeIf(connection ->
                 connection.sourceId().equals(neuronId)
@@ -273,6 +285,9 @@ public final class NeuronMapModel {
             if (group.memberIds().size() < 2) {
                 groups.remove(group.id());
             }
+        }
+        for (NeuronStructure structure : structures.values()) {
+            structure.removeMember(neuronId);
         }
 
         return removed;
@@ -308,6 +323,58 @@ public final class NeuronMapModel {
     }
 
     /**
+     * Реєструє сутність структури, пов'язану з наявним нейроном.
+     * Метод ідемпотентний, щоб завантажувач міг відновити окремі записи таблиці структур.
+     *
+     * @param structureId ідентифікатор нейрона-контейнера.
+     * @return {@code true}, якщо структура вже існує або її вдалося створити.
+     */
+    public boolean addStructure(String structureId) {
+        if (structureId == null || structureId.isBlank() || !neurons.containsKey(structureId)) {
+            return false;
+        }
+        structures.computeIfAbsent(structureId, NeuronStructure::new);
+        return true;
+    }
+
+    /**
+     * Додає нейрон до структури з перевіркою посилань, єдиного власника та відсутності циклів вкладеності.
+     *
+     * @param structureId ідентифікатор структури-приймача.
+     * @param neuronId ідентифікатор нейрона, який потрібно додати.
+     * @return {@code true}, якщо членство створено; інакше {@code false}.
+     */
+    public boolean addStructureMember(String structureId, String neuronId) {
+        NeuronStructure structure = structures.get(structureId);
+        if (structure == null || neuron(neuronId) == null || structureId.equals(neuronId)) {
+            return false;
+        }
+
+        NeuronStructure currentOwner = structureContaining(neuronId);
+        if (currentOwner != null && !currentOwner.id().equals(structureId)) {
+            return false;
+        }
+        if (structures.containsKey(neuronId)
+                && containsStructure(neuronId, structureId, new LinkedHashSet<>())) {
+            return false;
+        }
+
+        return structure.addMember(neuronId);
+    }
+
+    /**
+     * Вилучає нейрон із заданої структури, не змінюючи сам нейрон або структуру.
+     *
+     * @param structureId ідентифікатор структури.
+     * @param neuronId ідентифікатор учасника.
+     * @return {@code true}, якщо членство існувало й було вилучене.
+     */
+    public boolean removeStructureMember(String structureId, String neuronId) {
+        NeuronStructure structure = structures.get(structureId);
+        return structure != null && structure.removeMember(neuronId);
+    }
+
+    /**
      * Знаходить нейрон за ідентифікатором або повертає null, якщо нейрона немає в моделі.
      *
      * @param id унікальний ідентифікатор нейрона.
@@ -325,6 +392,16 @@ public final class NeuronMapModel {
      */
     public NeuronPresentation presentation(String neuronId) {
         return presentations.get(neuronId);
+    }
+
+    /**
+     * Знаходить сутність структури за ідентифікатором її контейнера.
+     *
+     * @param structureId ідентифікатор нейрона-контейнера.
+     * @return сутність структури або {@code null}, якщо структуру не зареєстровано.
+     */
+    public NeuronStructure structure(String structureId) {
+        return structures.get(structureId);
     }
 
     /**
@@ -372,6 +449,15 @@ public final class NeuronMapModel {
     }
 
     /**
+     * Повертає всі сутності структур моделі, включно з порожніми контейнерами.
+     *
+     * @return незмінна колекція структур.
+     */
+    public Collection<NeuronStructure> structures() {
+        return Collections.unmodifiableCollection(structures.values());
+    }
+
+    /**
      * Знаходить групу, до якої належить вказаний нейрон.
      *
      * @param neuronId ідентифікатор нейрона.
@@ -384,6 +470,21 @@ public final class NeuronMapModel {
             }
         }
 
+        return null;
+    }
+
+    /**
+     * Знаходить структуру, яка безпосередньо містить указаний нейрон.
+     *
+     * @param neuronId ідентифікатор учасника.
+     * @return структура-власник або {@code null}, якщо учасник не належить структурі.
+     */
+    public NeuronStructure structureContaining(String neuronId) {
+        for (NeuronStructure structure : structures.values()) {
+            if (structure.memberIds().contains(neuronId)) {
+                return structure;
+            }
+        }
         return null;
     }
 
@@ -449,17 +550,19 @@ public final class NeuronMapModel {
     public boolean isEmpty() {
         return neurons.isEmpty()
                 && connections.isEmpty()
-                && groups.isEmpty();
+                && groups.isEmpty()
+                && structures.isEmpty();
     }
 
     /**
-     * Очищає нейрони, подання, зв’язки й групи з моделі.
+     * Очищає нейрони, подання, зв’язки, групи та структури з моделі.
      */
     public void clear() {
         neurons.clear();
         presentations.clear();
         connections.clear();
         groups.clear();
+        structures.clear();
     }
 
     /**
@@ -483,6 +586,40 @@ public final class NeuronMapModel {
         connections.putAll(source.connections);
         groups.clear();
         groups.putAll(source.groups);
+        structures.clear();
+        structures.putAll(source.structures);
+    }
+
+    /**
+     * Перевіряє, чи призведе включення вкладеної структури до циклу посилань у дереві структур.
+     *
+     * @param candidateStructureId ідентифікатор структури, яку планують вкласти.
+     * @param destinationStructureId ідентифікатор структури-приймача.
+     * @param visited структури, які вже відвідано під час обходу.
+     * @return {@code true}, якщо кандидат уже містить структуру-приймач у своїй вкладеності.
+     */
+    private boolean containsStructure(
+            String candidateStructureId,
+            String destinationStructureId,
+            Set<String> visited
+    ) {
+        if (!visited.add(candidateStructureId)) {
+            return false;
+        }
+        NeuronStructure candidate = structures.get(candidateStructureId);
+        if (candidate == null) {
+            return false;
+        }
+        for (String memberId : candidate.memberIds()) {
+            if (destinationStructureId.equals(memberId)) {
+                return true;
+            }
+            if (structures.containsKey(memberId)
+                    && containsStructure(memberId, destinationStructureId, visited)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
