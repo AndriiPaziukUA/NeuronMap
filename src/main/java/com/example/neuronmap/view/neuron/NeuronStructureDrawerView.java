@@ -1,6 +1,7 @@
 package com.example.neuronmap.view.neuron;
 
 import javafx.scene.Parent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
@@ -39,6 +40,7 @@ public final class NeuronStructureDrawerView extends Pane {
         setPrefHeight(0.0);
         setVisible(false);
         getChildren().add(outline);
+        installMouseEventBoundary();
     }
 
     /**
@@ -139,6 +141,19 @@ public final class NeuronStructureDrawerView extends Pane {
                 new LineTo(0.0, height),
                 new LineTo(NeuronView.WIDTH, height),
                 new LineTo(NeuronView.WIDTH, 0.0));
+    }
+
+    /**
+     * Відокремлює події миші шухлядки від нейрона-контейнера, не заважаючи спершу обробити їх учасникам.
+     * Обробник виконується під час спливання події, тому спрацьовує після обробників вкладених нейронів.
+     */
+    private void installMouseEventBoundary() {
+        addEventHandler(MouseEvent.ANY, this::consumeBubbledMouseEvent);
+    }
+
+    /** Зупиняє спливання події миші до зовнішньої структури після обробки її цільовим вузлом. */
+    private void consumeBubbledMouseEvent(MouseEvent event) {
+        event.consume();
     }
 
     /** Створює контур шухлядки під картками, щоб він не перекривав їхні порти та рамки. */

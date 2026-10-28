@@ -65,6 +65,8 @@ public final class NeuronView extends StackPane {
     private final Label remainingActiveTicksLabel = new Label();
     private final Label nameLabel = new Label();
     private final Tooltip parameterTooltip = TooltipFactory.create("");
+    /** Видимі інтерактивні вузли, на яких показується підказка, без контейнера вкладеної шухлядки. */
+    private final List<Node> parameterTooltipTargets = List.of(body, inputPort, outputPort);
     private NeuronStructureDrawerView structureDrawer;
 
     private LocalizationService tooltipLocalization;
@@ -90,6 +92,7 @@ public final class NeuronView extends StackPane {
      * Створює подання нейрона, його графічні дочірні вузли та підказку параметрів.
      * Структурний нейрон додатково отримує приховану шухлядку для внутрішніх подань.
      * Контур тіла центрується в межах загального розміру картки, тому не виходить за межі рядка.
+     * Підказка прив'язується до видимих частин картки, а не до контейнера, який може містити вкладену шухлядку.
      *
      * @param presentation візуальне подання нейрона.
      * @throws IllegalArgumentException якщо подання не задано.
@@ -361,10 +364,7 @@ public final class NeuronView extends StackPane {
     public void disposeParameterTooltip() {
         parameterTooltipDisposed = true;
         parameterTooltip.hide();
-        if (parameterTooltipInstalled) {
-            Tooltip.uninstall(this, parameterTooltip);
-            parameterTooltipInstalled = false;
-        }
+        uninstallParameterTooltipTargets();
         tooltipLocalization = null;
         refreshParameterTooltipText();
     }
@@ -593,17 +593,35 @@ public final class NeuronView extends StackPane {
         }
         if (selected) {
             parameterTooltip.hide();
-            if (parameterTooltipInstalled) {
-                Tooltip.uninstall(this, parameterTooltip);
-                parameterTooltipInstalled = false;
-            }
+            uninstallParameterTooltipTargets();
             return;
         }
         if (!parameterTooltipInstalled) {
-            Tooltip.install(this, parameterTooltip);
-            parameterTooltipInstalled = true;
+            installParameterTooltipTargets();
         }
     }
+
+    /** Встановлює спільну підказку лише на видимі інтерактивні вузли нейрона, оминаючи його дочірню шухлядку. */
+    private void installParameterTooltipTargets() {
+        for (Node target : parameterTooltipTargets) {
+            Tooltip.install(target, parameterTooltip);
+        }
+        parameterTooltipInstalled = true;
+    }
+
+    /** Від'єднує підказку від усіх видимих вузлів нейрона під час вибору або звільнення подання. */
+    private void uninstallParameterTooltipTargets() {
+        if (!parameterTooltipInstalled) {
+            return;
+        }
+        for (Node target : parameterTooltipTargets) {
+            Tooltip.uninstall(target, parameterTooltip);
+        }
+        parameterTooltipInstalled = false;
+    }
+
+    /** Повертає вузли, на яких встановлюється підказка, для регресійної перевірки межі наведення. */
+    List<Node> parameterTooltipTargetsForTest() { return parameterTooltipTargets; }
 
     /** Оновлює окремий підпис назви та розміщує його над тілом нейрона, зберігаючи текст горизонтальним. */
     private void refreshNameLabel() {
