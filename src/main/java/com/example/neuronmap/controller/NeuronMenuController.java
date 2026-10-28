@@ -117,6 +117,7 @@ public final class NeuronMenuController {
 
     /**
      * Розміщує й показує контекстне меню біля вказаного нейрона.
+     * Для внутрішніх нейронів структури приховує кнопки зміни напрямку, типу та налаштувань.
      *
      * @param neuronView візуальне подання нейрона, для якого відкривається меню.
      */
@@ -136,6 +137,7 @@ public final class NeuronMenuController {
         );
         menu = menuView.createMenu(
                 connections.hasConnections(neuronId),
+                neuronView.isStructureMember(),
                 new NeuronContextMenuView.Actions(
                         () -> simulation.emitPulse(neuronId),
                         () -> {

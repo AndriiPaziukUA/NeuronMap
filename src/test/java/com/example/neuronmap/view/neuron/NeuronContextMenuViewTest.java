@@ -50,7 +50,7 @@ final class NeuronContextMenuViewTest {
             AtomicInteger customizedButtons = new AtomicInteger();
             NeuronContextMenuView view = new NeuronContextMenuView(
                     new LocalizationService(Locale.forLanguageTag("uk")),
-                    button -> customizedButtons.incrementAndGet(),
+                    _ -> customizedButtons.incrementAndGet(),
                     () -> null
             );
 
@@ -58,7 +58,8 @@ final class NeuronContextMenuViewTest {
             assertTrue(menu.getStyleClass().contains("connection-menu"));
             assertEquals(1, menu.getChildren().size());
             HBox buttons = (HBox) menu.getChildren().getFirst();
-            assertEquals(5, buttons.getChildren().size());
+            List<Button> menuButtons = buttons.getChildren().stream().map(Button.class::cast).toList();
+            assertEquals(5, menuButtons.size());
             assertEquals(
                     List.of(
                             "neuron-menu-icon-fire",
@@ -69,11 +70,9 @@ final class NeuronContextMenuViewTest {
                     ),
                     iconNames(buttons)
             );
-            assertTrue(((Button) buttons.getChildren().getFirst())
-                    .getStyleClass().contains("neuron-menu-activate"));
-            assertTrue(((Button) buttons.getChildren().getLast())
-                    .getStyleClass().contains("neuron-menu-delete"));
-            assertEquals("Імпульс", ((Button) buttons.getChildren().getFirst()).getAccessibleText());
+            assertTrue(menuButtons.getFirst().getStyleClass().contains("neuron-menu-activate"));
+            assertTrue(menuButtons.getLast().getStyleClass().contains("neuron-menu-delete"));
+            assertEquals("Імпульс", menuButtons.getFirst().getAccessibleText());
             assertEquals(5, customizedButtons.get());
         });
     }
@@ -89,7 +88,7 @@ final class NeuronContextMenuViewTest {
             NeuronMenuView neuronMenuView = new NeuronMenuView(() -> null, ignored -> { }, localization);
             NeuronContextMenuView view = new NeuronContextMenuView(
                     localization,
-                    button -> { },
+                    _ -> { },
                     neuronMenuView::createDirectionButton
             );
 
@@ -108,6 +107,41 @@ final class NeuronContextMenuViewTest {
                     ),
                     iconNames(buttons)
             );
+        });
+    }
+
+    /** Перевіряє, що внутрішній нейрон зберігає кнопки в поданні, але не показує їх користувачу.
+     *
+     * @throws Exception якщо JavaFX-потік не виконав перевірку вчасно.
+     */
+    @Test
+    void hidesDirectionTypeAndSettingsForStructureMembers() throws Exception {
+        runOnFxThread(() -> {
+            LocalizationService localization = new LocalizationService(Locale.ENGLISH);
+            NeuronMenuView neuronMenuView = new NeuronMenuView(() -> null, ignored -> { }, localization);
+            NeuronContextMenuView view = new NeuronContextMenuView(
+                    localization,
+                    _ -> { },
+                    neuronMenuView::createDirectionButton
+            );
+
+            HBox buttons = (HBox) view.createMenu(true, true, actions()).getChildren().getFirst();
+            List<Button> restrictedButtons = buttons.getChildren().stream()
+                    .map(Button.class::cast)
+                    .filter(button -> button.getGraphic().getStyleClass().stream().anyMatch(styleClass ->
+                            styleClass.equals("neuron-menu-icon-direction")
+                                    || styleClass.equals("neuron-menu-icon-toggle-type")
+                                    || styleClass.equals("neuron-menu-icon-settings")))
+                    .toList();
+
+            assertEquals(3, restrictedButtons.size(), "Усі три обмежені кнопки мають залишатися в поданні");
+            assertTrue(restrictedButtons.stream().noneMatch(Button::isVisible));
+            assertTrue(restrictedButtons.stream().noneMatch(Button::isManaged));
+            assertEquals(4, buttons.getChildren().stream().filter(Node::isVisible).count(),
+                    "Імпульс, додавання/видалення зв’язку та видалення нейрона мають залишитися доступними");
+            assertTrue(buttons.getChildren().stream()
+                    .filter(Node::isVisible)
+                    .allMatch(Node::isManaged));
         });
     }
 
@@ -147,16 +181,14 @@ final class NeuronContextMenuViewTest {
     private static void assertMenuTooltips(Locale locale, List<String> expectedTooltips) {
         NeuronContextMenuView view = new NeuronContextMenuView(
                 new LocalizationService(locale),
-                button -> { },
+                _ -> { },
                 () -> null
         );
         HBox buttons = (HBox) view.createMenu(true, actions()).getChildren().getFirst();
-        assertEquals(
-                expectedTooltips,
-                buttons.getChildren().stream()
-                        .map(node -> ((Button) node).getTooltip().getText())
-                        .toList()
-        );
+        List<Button> menuButtons = buttons.getChildren().stream().map(Button.class::cast).toList();
+        assertEquals(expectedTooltips, menuButtons.stream()
+                .map(button -> button.getTooltip().getText())
+                .toList());
     }
 
     /** Перевіряє, що кожна кнопка має графічний значок замість текстового Unicode-символу.
@@ -188,7 +220,7 @@ final class NeuronContextMenuViewTest {
             List<String> actionsCalled = new ArrayList<>();
             NeuronContextMenuView view = new NeuronContextMenuView(
                     new LocalizationService(Locale.forLanguageTag("uk")),
-                    button -> { },
+                    _ -> { },
                     () -> null
             );
 

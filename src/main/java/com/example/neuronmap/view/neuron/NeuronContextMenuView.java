@@ -43,14 +43,27 @@ public final class NeuronContextMenuView {
     }
 
     /**
-     * Створює меню нейрона з кнопкою налаштувань безпосередньо перед кнопкою видалення нейрона.
-     * Кнопка видалення зв’язку додається лише тоді, коли нейрон має зв’язки.
+     * Створює звичайне контекстне меню нейрона з усіма доступними кнопками.
      *
      * @param hasConnections ознака наявності зв’язків у нейрона.
      * @param actions зворотні виклики дій контекстного меню.
      * @return кореневий контейнер контекстного меню.
      */
     public VBox createMenu(boolean hasConnections, Actions actions) {
+        return createMenu(hasConnections, false, actions);
+    }
+
+    /**
+     * Створює меню нейрона та приховує зміну напрямку, типу й налаштування для учасника структури.
+     * Кнопки залишаються у дереві подання, але не відображаються та не займають місця в компонуванні.
+     * Кнопка видалення зв’язку додається лише тоді, коли нейрон має зв’язки.
+     *
+     * @param hasConnections ознака наявності зв’язків у нейрона.
+     * @param isStructureMember {@code true}, якщо нейрон є внутрішнім учасником структури.
+     * @param actions зворотні виклики дій контекстного меню.
+     * @return кореневий контейнер контекстного меню.
+     */
+    public VBox createMenu(boolean hasConnections, boolean isStructureMember, Actions actions) {
         Objects.requireNonNull(actions, "actions");
 
         VBox menu = new VBox(5.0);
@@ -120,6 +133,12 @@ public final class NeuronContextMenuView {
             event.consume();
         });
 
+        if (isStructureMember) {
+            hideButton(direction);
+            hideButton(toggleType);
+            hideButton(settings);
+        }
+
         buttons.getChildren().addAll(fire, addConnection);
         if (deleteConnection != null) {
             buttons.getChildren().add(deleteConnection);
@@ -130,6 +149,19 @@ public final class NeuronContextMenuView {
         buttons.getChildren().addAll(toggleType, settings, deleteNeuron);
         menu.getChildren().add(buttons);
         return menu;
+    }
+
+    /**
+     * Приховує кнопку в інтерфейсі, зберігаючи її вузол і налаштовану дію для інших сценаріїв.
+     *
+     * @param button кнопка, яку потрібно приховати; {@code null} допускається, якщо дія недоступна.
+     */
+    private void hideButton(Button button) {
+        if (button == null) {
+            return;
+        }
+        button.setVisible(false);
+        button.setManaged(false);
     }
 
     /**

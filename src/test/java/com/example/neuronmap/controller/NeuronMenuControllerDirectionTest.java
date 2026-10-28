@@ -83,6 +83,42 @@ final class NeuronMenuControllerDirectionTest {
         });
     }
 
+    /** Перевіряє, що контролер приховує три обмежені кнопки лише для внутрішнього нейрона структури. */
+    @Test
+    void hidesDirectionTypeAndSettingsForStructureMembers() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            Fixture fixture = createFixture();
+            fixture.neuronView().setStructureMember(true);
+            fixture.workspace().nodeLayer().getChildren().add(fixture.neuronView());
+            new Scene(fixture.overlayHost(), 900.0, 600.0);
+
+            fixture.controller().show(fixture.neuronView());
+            HBox buttons = (HBox) fixture.controller().node().getChildren().getFirst();
+
+            for (String iconStyleClass : new String[]{
+                    "neuron-menu-icon-direction",
+                    "neuron-menu-icon-toggle-type",
+                    "neuron-menu-icon-settings"
+            }) {
+                Button restrictedButton = buttons.getChildren().stream()
+                        .filter(Button.class::isInstance)
+                        .map(Button.class::cast)
+                        .filter(button -> button.getGraphic() != null
+                                && button.getGraphic().getStyleClass().contains(iconStyleClass))
+                        .findFirst()
+                        .orElseThrow();
+                assertFalse(restrictedButton.isVisible(), iconStyleClass + " не має відображатися");
+                assertFalse(restrictedButton.isManaged(), iconStyleClass + " не має займати місце в компонуванні");
+            }
+            assertEquals(3, buttons.getChildren().stream()
+                    .map(Button.class::cast)
+                    .filter(Button::isVisible)
+                    .count(), "Імпульс, додавання зв’язку та видалення мають залишатися видимими");
+
+            dispose(fixture);
+        });
+    }
+
     /** Перевіряє, що відкрите меню нейрона змінює переклади після зміни мови в головному меню. */
     @Test
     void refreshesOpenNeuronMenuWhenLanguagePreviewChanges() throws Exception {
@@ -92,7 +128,7 @@ final class NeuronMenuControllerDirectionTest {
             new Scene(fixture.overlayHost(), 900.0, 600.0);
             fixture.controller().show(fixture.neuronView());
             VBox ukrainianMenu = fixture.controller().node();
-            assertEquals("Імпульс", tooltipForIcon(ukrainianMenu, "neuron-menu-icon-fire"));
+            assertEquals("Імпульс", fireButtonTooltip(ukrainianMenu));
 
             fixture.mainMenu().showMenu();
             fixture.localization().previewLanguage(SupportedLanguage.ENGLISH);
@@ -101,11 +137,10 @@ final class NeuronMenuControllerDirectionTest {
             assertTrue(fixture.controller().isVisible());
             assertNotSame(ukrainianMenu, englishMenu,
                     "Відкрите контекстне меню має бути перебудоване з перекладами нової локалі");
-            assertEquals("Pulse", tooltipForIcon(englishMenu, "neuron-menu-icon-fire"));
+            assertEquals("Pulse", fireButtonTooltip(englishMenu));
 
             fixture.localization().discardLanguagePreview();
-            assertEquals("Імпульс", tooltipForIcon(
-                    fixture.controller().node(), "neuron-menu-icon-fire"));
+            assertEquals("Імпульс", fireButtonTooltip(fixture.controller().node()));
             dispose(fixture);
         });
     }
@@ -153,14 +188,14 @@ final class NeuronMenuControllerDirectionTest {
         });
     }
 
-    /** Повертає текст підказки кнопки, визначеної за CSS-класом її векторного значка. */
-    private static String tooltipForIcon(VBox menu, String iconStyleClass) {
+    /** Повертає текст підказки кнопки активації, щоб перевірити локалізацію меню. */
+    private static String fireButtonTooltip(VBox menu) {
         HBox buttons = (HBox) menu.getChildren().getFirst();
         return buttons.getChildren().stream()
                 .filter(Button.class::isInstance)
                 .map(Button.class::cast)
                 .filter(button -> button.getGraphic() != null
-                        && button.getGraphic().getStyleClass().contains(iconStyleClass))
+                        && button.getGraphic().getStyleClass().contains("neuron-menu-icon-fire"))
                 .map(button -> button.getTooltip().getText())
                 .findFirst()
                 .orElseThrow();
@@ -189,18 +224,18 @@ final class NeuronMenuControllerDirectionTest {
         ConnectionController connections = ConnectionControllerFactory.create(
                 new ConnectionControllerFactory.Dependencies(
                         new ConnectionService(model), state, workspace, neuronViews,
-                        () -> { }, () -> { }, message -> { }, localization));
+                        () -> { }, () -> { }, _ -> { }, localization));
         SimulationStepPresenter stepPresenter = new SimulationStepPresenter(
                 workspace, neuronViews, () -> { }, new PulseAnimationController(workspace));
         SimulationController simulation = new SimulationController(
                 neuronService, new SimulationService(), stepPresenter,
-                () -> { }, message -> { }, paused -> { }, active -> { },
+                () -> { }, _ -> { }, _ -> { }, _ -> { },
                 100.0, 10.0, 1000.0, localization);
         NeuronDeletionController deletion = new NeuronDeletionController(
                 neuronService, state, workspace, () -> { }, () -> { }, () -> { },
-                message -> { }, localization);
+                _ -> { }, localization);
         NeuronMenuView menuView = new NeuronMenuView(
-                new VBox(), state::selectedNeuronForMenu, null, localization);
+                new VBox(), state::selectedNeuronForMenu, ignored -> { }, localization);
         MainMenuView mainMenu = new MainMenuView(localization, ignored -> { });
         mainMenu.setActions(new MainMenuView.Actions(
                 () -> { },
@@ -209,7 +244,7 @@ final class NeuronMenuControllerDirectionTest {
                 () -> { },
                 () -> { },
                 ignored -> { },
-                (project, name) -> project,
+                (project, _) -> project,
                 ignored -> { },
                 () -> { }
         ));
