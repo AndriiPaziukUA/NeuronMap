@@ -7,6 +7,7 @@ import com.example.neuronmap.model.NeuronGroup;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronPresentation;
+import com.example.neuronmap.model.NeuronStructure;
 import com.example.neuronmap.model.NeuronType;
 
 import java.util.ArrayList;
@@ -20,6 +21,7 @@ public final class FieldStateSnapshot {
     private final List<PresentationState> presentations;
     private final List<ConnectionState> connections;
     private final List<GroupState> groups;
+    private final List<StructureState> structures;
 
     /**
      * Створює знімок із незмінних списків станів елементів карти.
@@ -28,17 +30,20 @@ public final class FieldStateSnapshot {
      * @param presentations знімки візуальних подань нейронів.
      * @param connections знімки зв'язків між нейронами.
      * @param groups знімки груп нейронів.
+     * @param structures знімки структур та їхнього впорядкованого членства.
      */
     private FieldStateSnapshot(
             List<NeuronState> neurons,
             List<PresentationState> presentations,
             List<ConnectionState> connections,
-            List<GroupState> groups
+            List<GroupState> groups,
+            List<StructureState> structures
     ) {
         this.neurons = List.copyOf(neurons);
         this.presentations = List.copyOf(presentations);
         this.connections = List.copyOf(connections);
         this.groups = List.copyOf(groups);
+        this.structures = List.copyOf(structures);
     }
 
     /**
@@ -88,7 +93,21 @@ public final class FieldStateSnapshot {
             ));
         }
 
-        return new FieldStateSnapshot(neuronStates, presentationStates, connectionStates, groupStates);
+        List<StructureState> structureStates = new ArrayList<>();
+        for (NeuronStructure structure : model.structures()) {
+            structureStates.add(new StructureState(
+                    structure.id(),
+                    List.copyOf(structure.memberIds())
+            ));
+        }
+
+        return new FieldStateSnapshot(
+                neuronStates,
+                presentationStates,
+                connectionStates,
+                groupStates,
+                structureStates
+        );
     }
 
     /**
@@ -96,7 +115,8 @@ public final class FieldStateSnapshot {
      *
      * @param model модель, стан якої потрібно відновити.
      * @throws IllegalArgumentException якщо модель не задано.
-     * @throws IllegalStateException якщо в знімку відсутнє подання потрібного нейрона.
+     * @throws IllegalStateException якщо в знімку відсутнє подання потрібного нейрона або не вдалося
+     * відновити структуру чи її членство.
      */
     public void restoreInto(NeuronMapModel model) {
         requireModel(model);
@@ -107,6 +127,8 @@ public final class FieldStateSnapshot {
             neuron.setParameters(neuronState.parameters());
             neuron.setName(neuronState.name());
         }
+
+        restoreStructures(model);
 
         for (PresentationState presentationState : presentations) {
             NeuronPresentation presentation = model.presentation(presentationState.neuronId());
@@ -130,6 +152,33 @@ public final class FieldStateSnapshot {
 
         for (GroupState groupState : groups) {
             model.addGroup(groupState.id(), groupState.memberIds());
+        }
+    }
+
+    /**
+     * Відновлює спершу всі контейнери структур, а потім їхнє членство після створення всіх нейронів.
+     *
+     * @param model модель карти, до якої потрібно повернути структури.
+     * @throws IllegalStateException якщо контейнер або його учасника неможливо відновити.
+     */
+    private void restoreStructures(NeuronMapModel model) {
+        for (StructureState structureState : structures) {
+            if (!model.addStructure(structureState.id())) {
+                throw new IllegalStateException(
+                        "Missing neuron for structure " + structureState.id()
+                );
+            }
+        }
+
+        for (StructureState structureState : structures) {
+            for (String memberId : structureState.memberIds()) {
+                if (!model.addStructureMember(structureState.id(), memberId)) {
+                    throw new IllegalStateException(
+                            "Unable to restore member " + memberId
+                                    + " in structure " + structureState.id()
+                    );
+                }
+            }
         }
     }
 
@@ -170,6 +219,15 @@ public final class FieldStateSnapshot {
     }
 
     /**
+     * Повертає незмінний список станів структур зі знімка.
+     *
+     * @return структури з упорядкованими списками учасників.
+     */
+    public List<StructureState> structures() {
+        return structures;
+    }
+
+    /**
      * Порівнює знімки за всіма даними карти, що зберігаються в історії.
      *
      * @param other об'єкт для порівняння з поточним знімком.
@@ -186,7 +244,8 @@ public final class FieldStateSnapshot {
         return neurons.equals(that.neurons)
                 && presentations.equals(that.presentations)
                 && connections.equals(that.connections)
-                && groups.equals(that.groups);
+                && groups.equals(that.groups)
+                && structures.equals(that.structures);
     }
 
     /**
@@ -196,7 +255,7 @@ public final class FieldStateSnapshot {
      */
     @Override
     public int hashCode() {
-        return Objects.hash(neurons, presentations, connections, groups);
+        return Objects.hash(neurons, presentations, connections, groups, structures);
     }
 
     /**
@@ -301,7 +360,7 @@ public final class FieldStateSnapshot {
          * @param neuronId ідентифікатор нейрона.
          * @param x горизонтальна координата.
          * @param y вертикальна координата.
-         * @param rotationDegrees кут обертання в градусах.
+         * @param rotationDegrees кут обертання у градусах.
          * @param directionReversed ознака зворотного напрямку.
          */
         public PresentationState(
@@ -356,6 +415,23 @@ public final class FieldStateSnapshot {
          * @throws NullPointerException якщо список учасників не задано.
          */
         public GroupState {
+            memberIds = List.copyOf(memberIds);
+        }
+    }
+
+    /**
+     * Зберігає ідентифікатор структури та впорядкований перелік її учасників.
+     *
+     * @param id ідентифікатор нейрона-контейнера.
+     * @param memberIds ідентифікатори учасників у порядку їх додавання.
+     */
+    public record StructureState(String id, List<String> memberIds) {
+        /**
+         * Створює незмінний знімок членства структури.
+         *
+         * @throws NullPointerException якщо список учасників не задано.
+         */
+        public StructureState {
             memberIds = List.copyOf(memberIds);
         }
     }

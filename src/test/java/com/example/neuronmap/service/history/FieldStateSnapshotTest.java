@@ -14,7 +14,7 @@ import java.util.Objects;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Перевіряє повне відновлення знімка та ігнорування тимчасових змін активації під час порівняння станів.
+ * Перевіряє відновлення стану карти, зокрема членства структур, та ігнорування тимчасових змін активації.
  */
 class FieldStateSnapshotTest {
 
@@ -75,6 +75,41 @@ class FieldStateSnapshotTest {
         var restoredGroup = model.groupContaining(first.id());
         assertNotNull(restoredGroup);
         assertEquals(2, Objects.requireNonNull(restoredGroup).memberIds().size());
+    }
+
+    /**
+     * Перевіряє відновлення впорядкованого членства, вкладених і порожніх структур після змін моделі.
+     */
+    @Test
+    void snapshotRestoresOrderedNestedAndEmptyStructures() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron root = model.createNeuron(NeuronType.STRUCTURE, 10, 20);
+        Neuron nested = model.createNeuron(NeuronType.STRUCTURE, 100, 120);
+        Neuron empty = model.createNeuron(NeuronType.STRUCTURE, 160, 180);
+        Neuron firstMember = model.createNeuron(NeuronType.EXCITATORY, 30, 40);
+        Neuron secondMember = model.createNeuron(NeuronType.INHIBITORY, 50, 60);
+
+        assertTrue(model.addStructureMember(root.id(), firstMember.id()));
+        assertTrue(model.addStructureMember(root.id(), nested.id()));
+        assertTrue(model.addStructureMember(nested.id(), secondMember.id()));
+
+        FieldStateSnapshot snapshot = FieldStateSnapshot.capture(model);
+        assertEquals(3, snapshot.structures().size());
+
+        assertNotNull(model.removeNeuron(firstMember.id()));
+        assertNotNull(model.removeNeuron(root.id()));
+        snapshot.restoreInto(model);
+
+        assertEquals(
+                List.of(firstMember.id(), nested.id()),
+                List.copyOf(Objects.requireNonNull(model.structure(root.id())).memberIds())
+        );
+        assertEquals(
+                List.of(secondMember.id()),
+                List.copyOf(Objects.requireNonNull(model.structure(nested.id())).memberIds())
+        );
+        assertTrue(Objects.requireNonNull(model.structure(empty.id())).memberIds().isEmpty());
+        assertEquals(snapshot, FieldStateSnapshot.capture(model));
     }
 
     /** Перевіряє, що конструктори сумісності знімка зберігають колишню форму даних. */
