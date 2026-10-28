@@ -1,35 +1,43 @@
 package com.example.neuronmap.view.neuron;
 
+import javafx.geometry.Point2D;
 import javafx.scene.Parent;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.Pane;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.Border;
+import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.LineTo;
 import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
+import javafx.scene.shape.PathElement;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-/** Відображає впорядкований список учасників структури як висувну шухлядку під нейроном-контейнером. */
+/** Відображає впорядкований список учасників структури; фон і контур малює окремий нижній графічний шар. */
 public final class NeuronStructureDrawerView extends Pane {
 
     private static final String STYLE_CLASS = "neuron-structure-drawer";
     private static final double OUTLINE_STROKE_WIDTH = 2.0;
+    private static final double CONTENT_VIEW_ORDER = 1.0;
 
+    /** Геометричний шаблон контуру, який окреме подання переносить у шар поверхні шухлядки. */
     private final Path outline = createOutlinePath();
     private List<NeuronView> memberViews = List.of();
     private boolean expanded;
 
-    /** Створює приховану шухлядку сталої ширини, що дорівнює ширині тіла нейрона без портів. */
+    /**
+     * Створює приховану шухлядку сталої ширини з прозорим тлом власного контейнера.
+     * Видиме непрозоре тло й контур відображаються окремо в нижньому шарі полотна, під зв'язками.
+     */
     public NeuronStructureDrawerView() {
         getStyleClass().add(STYLE_CLASS);
-        setBackground(new Background(new BackgroundFill(Color.web("#242830"), null, null)));
+        setBackground(new Background(new BackgroundFill(Color.TRANSPARENT, null, null)));
         setBorder(Border.EMPTY);
         setManaged(false);
         setPickOnBounds(true);
@@ -45,7 +53,6 @@ public final class NeuronStructureDrawerView extends Pane {
 
     /**
      * Замінює відображений список учасників, зберігаючи порядок моделі та розміщуючи картки впритул.
-     * Контур шухлядки малюється окремим прозорим для миші шляхом за межами карток, щоб не перекривати їхні рамки.
      * Подання від'єднуються від попередніх контейнерів до додавання в цю шухлядку.
      *
      * @param members впорядковані подання нейронів структури.
@@ -120,8 +127,27 @@ public final class NeuronStructureDrawerView extends Pane {
         return memberViews;
     }
 
+    /**
+     * Повертає геометричні точки контуру в локальних координатах шухлядки.
+     * Точки беруться з одного шаблону, щоб шар поверхні й розміщення вмісту використовували ту саму геометрію.
+     *
+     * @return незмінні точки контуру в порядку обходу.
+     */
+    List<Point2D> outlinePoints() {
+        List<Point2D> points = new ArrayList<>(outline.getElements().size());
+        for (PathElement element : outline.getElements()) {
+            if (element instanceof MoveTo moveTo) {
+                points.add(new Point2D(moveTo.getX(), moveTo.getY()));
+            } else if (element instanceof LineTo lineTo) {
+                points.add(new Point2D(lineTo.getX(), lineTo.getY()));
+            }
+        }
+        return List.copyOf(points);
+    }
+
     /** Перераховує висоту шухлядки й укладає рядки впритул з урахуванням відкритих вкладених структур. */
     public void refreshLayout() {
+        setViewOrder(CONTENT_VIEW_ORDER);
         double height = 0.0;
         for (NeuronView member : memberViews) {
             height += member.displayedStructureRowHeight();
@@ -143,10 +169,7 @@ public final class NeuronStructureDrawerView extends Pane {
                 new LineTo(NeuronView.WIDTH, 0.0));
     }
 
-    /**
-     * Відокремлює події миші шухлядки від нейрона-контейнера, не заважаючи спершу обробити їх учасникам.
-     * Обробник виконується під час спливання події, тому спрацьовує після обробників вкладених нейронів.
-     */
+    /** Відокремлює події миші шухлядки від нейрона-контейнера після обробки цільовим вузлом. */
     private void installMouseEventBoundary() {
         addEventHandler(MouseEvent.ANY, this::consumeBubbledMouseEvent);
     }
@@ -156,11 +179,11 @@ public final class NeuronStructureDrawerView extends Pane {
         event.consume();
     }
 
-    /** Створює контур шухлядки під картками, щоб він не перекривав їхні порти та рамки. */
+    /** Створює невидимий у цьому шарі шаблон контуру для окремого відображення над шарами зв'язків. */
     private static Path createOutlinePath() {
         Path path = new Path();
         path.setFill(null);
-        path.setStroke(Color.web("#25292f"));
+        path.setStroke(Color.TRANSPARENT);
         path.setStrokeWidth(OUTLINE_STROKE_WIDTH);
         path.setMouseTransparent(true);
         return path;

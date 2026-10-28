@@ -11,6 +11,7 @@ import com.example.neuronmap.view.connection.ConnectionView;
 import com.example.neuronmap.view.editor.NeuronLayerOrderManager;
 import com.example.neuronmap.view.editor.WorkspaceView;
 import com.example.neuronmap.view.group.GroupView;
+import com.example.neuronmap.view.neuron.NeuronStructureDrawerSurfaceView;
 import com.example.neuronmap.view.neuron.NeuronView;
 import com.example.neuronmap.view.neuron.RotationHandleView;
 import com.example.neuronmap.view.support.JavaFxNodeLookup;
@@ -19,6 +20,8 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -34,6 +37,7 @@ public final class MapPresentationCoordinator {
     private final Map<String, NeuronView> neuronViews;
     private final Map<String, ConnectionView> connectionViews;
     private final Map<String, RotationHandleView> rotationHandles;
+    private final Map<String, NeuronStructureDrawerSurfaceView> structureDrawerSurfaces = new HashMap<>();
     private final NeuronInteractionController neuronController;
     private final ConnectionController connectionController;
     private final NeuronLayerOrderManager layerOrderController;
@@ -123,18 +127,54 @@ public final class MapPresentationCoordinator {
         neuronController.refreshRotationHandlePosition();
     }
 
-    /** Оновлює вигляд кожного нейрона відповідно до моделі та поточного вибору. */
+    /** Оновлює вигляд нейронів і синхронізує геометрію винесених поверхонь шухлядок. */
     private void refreshNeuronVisuals() {
         for (NeuronView neuronView : neuronViews.values()) {
             neuronView.refreshVisuals(neuronController.isNeuronSelected(neuronView.model().id()));
         }
+        refreshStructureDrawerSurfaces();
     }
 
-    /** Оновлює залежну геометрію без повторного створення нейронних подань. */
+    /** Оновлює геометрію поверхонь шухлядок перед зв'язками та іншими залежними графічними елементами. */
     private void refreshRelatedGeometry() {
+        refreshStructureDrawerSurfaces();
         refreshConnections();
         refreshGroups();
         connectionController.refreshDeleteHighlights();
+    }
+
+    /**
+     * Оновлює або створює нижні поверхні шухлядок і вилучає поверхні структур, яких більше немає в моделі.
+     * Поверхні розташовані у шарі під зв'язками; вкладені нейрони залишаються всередині відповідних подань
+     * у верхньому шарі вузлів.
+     */
+    private void refreshStructureDrawerSurfaces() {
+        List<NeuronStructure> structures = List.copyOf(neuronService.model().structures());
+        Set<String> currentStructureIds = new HashSet<>();
+        for (NeuronStructure structure : structures) {
+            currentStructureIds.add(structure.id());
+        }
+
+        for (String structureId : List.copyOf(structureDrawerSurfaces.keySet())) {
+            if (!currentStructureIds.contains(structureId)) {
+                NeuronStructureDrawerSurfaceView staleSurface = structureDrawerSurfaces.remove(structureId);
+                workspace.structureDrawerLayer().getChildren().remove(staleSurface);
+            }
+        }
+
+        for (NeuronStructure structure : structures) {
+            NeuronView structureView = neuronViews.get(structure.id());
+            if (structureView == null) {
+                continue;
+            }
+            NeuronStructureDrawerSurfaceView surface = structureDrawerSurfaces.computeIfAbsent(
+                    structure.id(), _ -> {
+                        NeuronStructureDrawerSurfaceView newSurface = new NeuronStructureDrawerSurfaceView();
+                        workspace.structureDrawerLayer().getChildren().add(newSurface);
+                        return newSurface;
+                    });
+            surface.refreshGeometry(structureView, workspace.structureDrawerLayer());
+        }
     }
 
     /**
@@ -293,6 +333,7 @@ public final class MapPresentationCoordinator {
                 structureView.toggleStructureDrawer();
             }
         }
+        refreshStructureDrawerSurfaces();
     }
 
     /** Створює нейронне подання, додає його до графічних шарів і реєструє обробники взаємодії. */

@@ -24,6 +24,8 @@ public final class WorkspaceView {
 
     private final Pane world = new Pane();
     private final Pane groupLayer = new Pane();
+    /** Шар фону й контуру шухлядок, який навмисно розташований під зв'язками карти. */
+    private final Pane structureDrawerLayer = new Pane();
     private final Pane edgeLayer = new Pane();
     private final Pane pulseLayer = new Pane();
     private final Pane nodeLayer = new Pane();
@@ -60,11 +62,14 @@ public final class WorkspaceView {
         world.getTransforms().add(worldScale);
 
         groupLayer.setManaged(false);
+        structureDrawerLayer.setManaged(false);
         edgeLayer.setManaged(false);
         pulseLayer.setManaged(false);
         nodeLayer.setManaged(false);
 
         groupLayer.setMouseTransparent(true);
+        structureDrawerLayer.setMouseTransparent(true);
+        structureDrawerLayer.setPickOnBounds(false);
         pulseLayer.setMouseTransparent(true);
         pulseLayer.setPickOnBounds(false);
 
@@ -75,7 +80,7 @@ public final class WorkspaceView {
         overlayLayer.setManaged(false);
         overlayLayer.setPickOnBounds(false);
 
-        world.getChildren().addAll(groupLayer, edgeLayer, pulseLayer, nodeLayer);
+        world.getChildren().addAll(groupLayer, structureDrawerLayer, edgeLayer, pulseLayer, nodeLayer);
         // Назви малюються над усім вмістом world, а меню та ручки — ще вище.
         viewport.getChildren().addAll(gridCanvas, world, nameLayer, overlayLayer);
 
@@ -133,6 +138,11 @@ public final class WorkspaceView {
     /** Повертає шар полотна, на якому відображаються області груп нейронів. */
     public Pane groupLayer() {
         return groupLayer;
+    }
+
+    /** Повертає шар фону й контуру шухлядок під зв'язками карти. */
+    public Pane structureDrawerLayer() {
+        return structureDrawerLayer;
     }
 
     /** Повертає шар полотна, на якому відображаються зв'язки між нейронами. */

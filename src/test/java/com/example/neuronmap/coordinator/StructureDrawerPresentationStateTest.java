@@ -24,17 +24,23 @@ import com.example.neuronmap.view.editor.NeuronLayerOrderManager;
 import com.example.neuronmap.view.editor.WorkspaceView;
 import com.example.neuronmap.view.menu.MainMenuView;
 import com.example.neuronmap.view.neuron.NeuronMenuView;
+import com.example.neuronmap.view.neuron.NeuronStructureDrawerSurfaceView;
+import com.example.neuronmap.view.neuron.NeuronStructureDrawerView;
 import com.example.neuronmap.view.neuron.NeuronView;
 import com.example.neuronmap.view.neuron.RotationHandleView;
 import com.example.neuronmap.view.simulation.SimulationStepPresenter;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.shape.MoveTo;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -42,9 +48,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє синхронізацію відкритості шухлядки з моделлю та збереження стану після подвійного клацання. */
+/** Перевіряє стан шухлядки, збереження відкритості та порядок її графічних шарів. */
 class StructureDrawerPresentationStateTest {
 
     /** Перевіряє, що оновлення подань відновлює відкриту й закриту шухлядку за станом моделі. */
@@ -77,6 +84,60 @@ class StructureDrawerPresentationStateTest {
                 fixture.model.structure(structure.id()).setExpanded(false);
                 fixture.presentation.refreshAll();
                 assertFalse(restoredStructureView.isStructureDrawerExpanded());
+            } finally {
+                fixture.dispose();
+            }
+        });
+    }
+
+    /** Перевіряє, що поверхня шухлядки знаходиться під зв'язками, а учасники й сяйво — над ними. */
+    @Test
+    void expandedDrawerSurfaceIsBelowConnectionsAndMemberViewsRemainAboveThem() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            Fixture fixture = new Fixture();
+            try {
+                Neuron structure = fixture.model.createNeuron(NeuronType.STRUCTURE, 80.0, 60.0);
+                Neuron member = fixture.model.createNeuron(NeuronType.EXCITATORY, 120.0, 110.0);
+                Neuron outside = fixture.model.createNeuron(NeuronType.INHIBITORY, 500.0, 120.0);
+                assertTrue(fixture.model.addStructureMember(structure.id(), member.id()));
+                assertTrue(fixture.model.createConnection(member.id(), outside.id()));
+                fixture.model.structure(structure.id()).setExpanded(true);
+
+                fixture.presentation.refreshAll();
+
+                NeuronStructureDrawerSurfaceView surface = fixture.workspace.structureDrawerLayer()
+                        .getChildren().stream()
+                        .filter(NeuronStructureDrawerSurfaceView.class::isInstance)
+                        .map(NeuronStructureDrawerSurfaceView.class::cast)
+                        .findFirst().orElse(null);
+                assertNotNull(surface, "Координатор має створити окрему поверхню шухлядки");
+                assertTrue(surface.isVisible(), "Відкрита шухлядка має показувати суцільний фон і контур");
+                assertSame(fixture.workspace.structureDrawerLayer(), surface.getParent());
+                assertTrue(fixture.workspace.edgeLayer().getChildren().stream().anyMatch(ConnectionView.class::isInstance));
+
+                Pane world = (Pane) fixture.workspace.nodeLayer().getParent();
+                List<Node> layers = List.copyOf(world.getChildren());
+                assertTrue(layers.indexOf(fixture.workspace.structureDrawerLayer())
+                                < layers.indexOf(fixture.workspace.edgeLayer()),
+                        "Фон і контур шухлядки мають малюватися перед зв'язками");
+                assertTrue(layers.indexOf(fixture.workspace.edgeLayer())
+                                < layers.indexOf(fixture.workspace.nodeLayer()),
+                        "Нейрони на шухлядці мають малюватися після зв'язків");
+
+                MoveTo surfaceOrigin = (MoveTo) surface.getElements().getFirst();
+                assertEquals(80.0, surfaceOrigin.getX(), 0.001);
+                assertEquals(60.0 + NeuronView.HEIGHT, surfaceOrigin.getY(), 0.001);
+                NeuronView memberView = fixture.neuronViews.get(member.id());
+                NeuronStructureDrawerView drawer = (NeuronStructureDrawerView) memberView.getParent();
+                assertSame(fixture.neuronViews.get(structure.id()).getChildren().stream()
+                        .filter(NeuronStructureDrawerView.class::isInstance).findFirst().orElseThrow(), drawer);
+                Node structureBody = fixture.neuronViews.get(structure.id()).getChildren().getFirst();
+                assertTrue(drawer.getViewOrder() > structureBody.getViewOrder(),
+                        "Вміст шухлядки має малюватися раніше за тіло структури, щоб сяйво було поверх учасників");
+
+                fixture.model.structure(structure.id()).setExpanded(false);
+                fixture.presentation.refreshAll();
+                assertFalse(surface.isVisible(), "Поверхня закритої шухлядки має ховатися");
             } finally {
                 fixture.dispose();
             }
@@ -167,7 +228,7 @@ class StructureDrawerPresentationStateTest {
                 neuronController, connectionController,
                 new NeuronLayerOrderManager(neuronViews, connectionViews, model::connections));
 
-        /** Створює сцену тестового редактора, щоб події й обчислення геометрії працювали в реальному дереві вузлів. */
+        /** Створює сцену тестового редактора до синхронізації моделей і подань. */
         private Fixture() {
             Scene scene = new Scene(settingsOverlayHost, 1_000.0, 700.0);
             scene.getRoot().applyCss();
@@ -185,6 +246,7 @@ class StructureDrawerPresentationStateTest {
             simulationController.shutdown();
             connectionController.dispose();
             mainMenu.dispose();
+            workspace.dispose();
         }
     }
 }

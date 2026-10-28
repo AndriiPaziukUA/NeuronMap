@@ -155,8 +155,15 @@
     -fx-text-fill: white;
 }
 
-/* Контур шухлядки малюється окремим шляхом за межами карток, не перекриваючи їхні рамки. */
+/* Контейнер лишається прозорим, бо фон і контур малюються окремо під зв'язками. */
 .neuron-structure-drawer {
-    -fx-background-color: #242830;
+    -fx-background-color: transparent;
     -fx-background-insets: 0;
+}
+
+/* Поверхня шухлядки має бути нижче зв'язків, а вкладені нейрони малюються над ними. */
+.neuron-structure-drawer-surface {
+    -fx-fill: #242830;
+    -fx-stroke: #25292f;
+    -fx-stroke-width: 2;
 }
