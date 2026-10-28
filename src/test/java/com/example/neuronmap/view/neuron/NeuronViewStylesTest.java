@@ -15,25 +15,29 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Path;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.StrokeType;
 import javafx.scene.transform.Scale;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє кольори типів нейронів, стани вибору та наведення, а також прямокутник назви нейрона. */
+/** Перевіряє оформлення нейронів, ізоляцію наведення та геометрію карток у шухлядці структури. */
 final class NeuronViewStylesTest {
 
     private static final double EPSILON = 0.001;
     private static final PseudoClass HOVER_PSEUDO_CLASS = PseudoClass.getPseudoClass("hover");
 
-    /** Перевіряє палітру всіх типів, світіння вибраного нейрона та незмінну товщину його рамки. */
+    /** Перевіряє палітру типів, вибір, наведення та контур картки, що не виходить за її межі. */
     @Test
     void cssControlsNeuronTypeSelectionGlowHoverBorderAndStableThickness() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
@@ -61,6 +65,8 @@ final class NeuronViewStylesTest {
             assertEquals(Color.web("#f59e0b"), structureBody.getFill());
             assertEquals(Color.web("#25292f"), excitatoryBody.getStroke());
             assertEquals(2.0, excitatoryBody.getStrokeWidth(), EPSILON);
+            assertEquals(StrokeType.CENTERED, excitatoryBody.getStrokeType(),
+                    "Центрований контур має залишатися в межах картки завдяки внутрішньому відступу тіла");
             assertNull(excitatoryBody.getEffect(), "Невибраний нейрон не повинен світитися");
             assertBodyRemainsAtLocalOrigin(excitatoryBody);
 
@@ -80,15 +86,15 @@ final class NeuronViewStylesTest {
             assertEquals(2.0, excitatoryBody.getStrokeWidth(), EPSILON);
             assertBodyRemainsAtLocalOrigin(excitatoryBody);
 
-            inhibitory.pseudoClassStateChanged(HOVER_PSEUDO_CLASS, true);
+            inhibitoryBody.pseudoClassStateChanged(HOVER_PSEUDO_CLASS, true);
             root.applyCss();
             assertEquals(Color.WHITE, inhibitoryBody.getStroke(),
-                    "Наведення має показувати білу рамку навколо невибраного нейрона");
+                    "Наведення має показувати білу рамку навколо самої картки нейрона");
             assertEquals(2.0, inhibitoryBody.getStrokeWidth(), EPSILON);
             assertNull(inhibitoryBody.getEffect(), "Наведення не повинно підсвічувати тіло нейрона");
             assertBodyRemainsAtLocalOrigin(inhibitoryBody);
 
-            inhibitory.pseudoClassStateChanged(HOVER_PSEUDO_CLASS, false);
+            inhibitoryBody.pseudoClassStateChanged(HOVER_PSEUDO_CLASS, false);
             root.applyCss();
             assertEquals(Color.web("#25292f"), inhibitoryBody.getStroke(),
                     "Після завершення наведення має відновитися звичайна рамка");
@@ -104,6 +110,119 @@ final class NeuronViewStylesTest {
             excitatory.disposeParameterTooltip();
             inhibitory.disposeParameterTooltip();
             structure.disposeParameterTooltip();
+        });
+    }
+
+    /** Перевіряє, що наведення на вкладений нейрон не підсвічує тіло його структурного предка. */
+    @Test
+    void hoveringOverStructureMemberDoesNotHighlightStructureContainer() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            NeuronView structure = createView("hover-structure", NeuronType.STRUCTURE);
+            NeuronView member = createView("hover-member", NeuronType.EXCITATORY);
+            structure.setStructureMembers(List.of(member));
+            structure.toggleStructureDrawer();
+
+            StackPane root = new StackPane(structure);
+            Scene scene = new Scene(root, 400.0, 300.0);
+            scene.getStylesheets().add(
+                    Objects.requireNonNull(
+                            NeuronViewStylesTest.class.getResource("/app.css"),
+                            "Missing /app.css test resource"
+                    ).toExternalForm()
+            );
+            root.applyCss();
+            root.layout();
+
+            Rectangle structureBody = (Rectangle) structure.getChildren().getFirst();
+            Rectangle memberBody = (Rectangle) member.getChildren().getFirst();
+            structure.pseudoClassStateChanged(HOVER_PSEUDO_CLASS, true);
+            member.pseudoClassStateChanged(HOVER_PSEUDO_CLASS, true);
+            root.applyCss();
+
+            assertEquals(Color.web("#25292f"), structureBody.getStroke(),
+                    "Hover псевдоклас контейнера не повинен підсвічувати його картку через дочірній вузол");
+            assertEquals(Color.web("#25292f"), memberBody.getStroke(),
+                    "Hover контейнера нейрона не повинен сам по собі стилізувати внутрішню картку");
+
+            memberBody.pseudoClassStateChanged(HOVER_PSEUDO_CLASS, true);
+            root.applyCss();
+            assertEquals(Color.WHITE, memberBody.getStroke(), "Має підсвічуватися саме наведена картка");
+            assertEquals(Color.web("#25292f"), structureBody.getStroke(),
+                    "Наведення на картку учасника не повинно підсвічувати зовнішню структуру");
+
+            structure.disposeParameterTooltip();
+            member.disposeParameterTooltip();
+        });
+    }
+
+    /** Перевіряє, що контури карток у шухлядці лежать у межах рядків і не перекривають окрему рамку контейнера. */
+    @Test
+    void structureDrawerKeepsMemberFramesWithinAdjacentRows() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            NeuronView structure = createView("drawer-layout-structure", NeuronType.STRUCTURE);
+            NeuronView first = createView("drawer-layout-first", NeuronType.EXCITATORY);
+            NeuronView second = createView("drawer-layout-second", NeuronType.INHIBITORY);
+            structure.setStructureMembers(List.of(first, second));
+            structure.toggleStructureDrawer();
+
+            StackPane root = new StackPane(structure);
+            Scene scene = new Scene(root, 500.0, 400.0);
+            scene.getStylesheets().add(
+                    Objects.requireNonNull(
+                            NeuronViewStylesTest.class.getResource("/app.css"),
+                            "Missing /app.css test resource"
+                    ).toExternalForm()
+            );
+            root.applyCss();
+            root.layout();
+
+            NeuronStructureDrawerView drawer = structure.getChildren().stream()
+                    .filter(NeuronStructureDrawerView.class::isInstance)
+                    .map(NeuronStructureDrawerView.class::cast)
+                    .findFirst()
+                    .orElseThrow();
+            Rectangle firstBody = (Rectangle) first.getChildren().getFirst();
+            Rectangle secondBody = (Rectangle) second.getChildren().getFirst();
+
+            assertNotNull(drawer.getBorder(), "Шухлядка має зберігати окремий контракт контуру");
+            Path outline = drawer.getChildren().stream()
+                    .filter(Path.class::isInstance)
+                    .map(Path.class::cast)
+                    .findFirst()
+                    .orElseThrow();
+            Bounds outlineBounds = outline.getBoundsInLocal();
+            assertTrue(outline.isMouseTransparent(), "Контур шухлядки не повинен перехоплювати події миші");
+            assertTrue(drawer.getChildren().indexOf(outline) < drawer.getChildren().indexOf(first),
+                    "Контур шухлядки має малюватися позаду карток, щоб не перекривати порти");
+            assertTrue(outlineBounds.getMinX() < 0.0,
+                    "Ліва лінія контуру має бути зовні карток, а не поверх їхніх рамок");
+            assertTrue(outlineBounds.getMaxX() > NeuronView.WIDTH,
+                    "Права лінія контуру має бути зовні карток, а не поверх їхніх рамок");
+            assertTrue(outlineBounds.getMaxY() > drawer.getHeight(),
+                    "Нижня лінія контуру має бути поза останнім рядком нейронів");
+            assertEquals(NeuronView.WIDTH, drawer.getWidth(), EPSILON);
+            assertEquals(NeuronView.HEIGHT * 2.0, drawer.getHeight(), EPSILON);
+            assertEquals(0.0, first.getLayoutX(), EPSILON);
+            assertEquals(0.0, first.getLayoutY(), EPSILON);
+            assertEquals(0.0, second.getLayoutX(), EPSILON);
+            assertEquals(NeuronView.HEIGHT, second.getLayoutY(), EPSILON,
+                    "Наступний рядок має починатися після попереднього, без накладання");
+
+            assertEquals(StrokeType.CENTERED, firstBody.getStrokeType());
+            assertEquals(StrokeType.CENTERED, secondBody.getStrokeType());
+            assertEquals(0.0, firstBody.getBoundsInLocal().getMinX(), EPSILON);
+            assertEquals(NeuronView.WIDTH, firstBody.getBoundsInLocal().getMaxX(), EPSILON);
+            assertEquals(0.0, firstBody.getBoundsInLocal().getMinY(), EPSILON);
+            assertEquals(NeuronView.HEIGHT, firstBody.getBoundsInLocal().getMaxY(), EPSILON);
+            assertEquals(0.0, secondBody.getBoundsInLocal().getMinX(), EPSILON);
+            assertEquals(NeuronView.WIDTH, secondBody.getBoundsInLocal().getMaxX(), EPSILON);
+            assertEquals(0.0, secondBody.getBoundsInLocal().getMinY(), EPSILON);
+            assertEquals(NeuronView.HEIGHT, secondBody.getBoundsInLocal().getMaxY(), EPSILON);
+            assertTrue(drawer.isExpanded());
+
+            structure.disposeParameterTooltip();
+            first.disposeParameterTooltip();
+            second.disposeParameterTooltip();
         });
     }
 
@@ -214,12 +333,14 @@ final class NeuronViewStylesTest {
         });
     }
 
-    /** Перевіряє, що CSS-рамка не зсуває прямокутник від незмінного локального початку координат. */
+    /** Перевіряє, що геометрія тіла враховує рамку всередині загального розміру картки. */
     private static void assertBodyRemainsAtLocalOrigin(Rectangle body) {
-        assertEquals(0.0, body.getLayoutX(), EPSILON, "CSS-рамка не повинна змінювати горизонтальне розташування тіла");
-        assertEquals(0.0, body.getLayoutY(), EPSILON, "CSS-рамка не повинна змінювати вертикальне розташування тіла");
-        assertEquals(0.0, body.getX(), EPSILON, "Ліва межа тіла має залишатися в локальній координаті X = 0");
-        assertEquals(0.0, body.getY(), EPSILON, "Верхня межа тіла має залишатися в локальній координаті Y = 0");
+        assertEquals(0.0, body.getLayoutX(), EPSILON, "Контур не повинен змінювати горизонтальне розташування тіла");
+        assertEquals(0.0, body.getLayoutY(), EPSILON, "Контур не повинен змінювати вертикальне розташування тіла");
+        assertEquals(NeuronView.SELECTED_STROKE_WIDTH / 2.0, body.getX(), EPSILON,
+                "Тіло має бути трохи зміщене всередину, щоб центрована рамка не виходила за межі картки");
+        assertEquals(NeuronView.SELECTED_STROKE_WIDTH / 2.0, body.getY(), EPSILON,
+                "Тіло має бути трохи зміщене всередину, щоб центрована рамка не виходила за межі картки");
     }
 
     /** Створює нейронний вузол заданого типу для перевірки таблиці стилів. */

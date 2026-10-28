@@ -23,7 +23,8 @@
     -fx-stroke-width: 2;
 }
 
-.neuron-view:hover .neuron-card {
+/* Hover належить самій картці, а не її контейнеру з вкладеними нейронами. */
+.neuron-card:hover {
     -fx-stroke: white;
     -fx-stroke-width: 2;
 }
@@ -154,11 +155,8 @@
     -fx-text-fill: white;
 }
 
-/* Шухлядка належить структурному нейрону, має ширину його тіла та не залишає проміжків між учасниками. */
+/* Контур шухлядки малюється окремим шляхом за межами карток, не перекриваючи їхні рамки. */
 .neuron-structure-drawer {
     -fx-background-color: #242830;
-    -fx-border-color: #25292f;
-    -fx-border-width: 0 2 2 2;
     -fx-background-insets: 0;
-    -fx-border-insets: 0;
 }

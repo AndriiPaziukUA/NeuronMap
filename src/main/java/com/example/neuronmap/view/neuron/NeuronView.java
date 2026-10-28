@@ -57,7 +57,8 @@ public final class NeuronView extends StackPane {
     private static final double NAME_LABEL_MIN_HEIGHT = 26.0;
 
     private final NeuronPresentation presentation;
-    private final Rectangle body = new Rectangle(WIDTH, HEIGHT);
+    private final Rectangle body = new Rectangle(
+            WIDTH - SELECTED_STROKE_WIDTH, HEIGHT - SELECTED_STROKE_WIDTH);
     private final Circle inputPort = new Circle(NeuronVisualGeometry.INPUT_PORT_RADIUS);
     private final Polygon outputPort = new Polygon();
     private final Label inputSignalLabel = new Label();
@@ -88,6 +89,7 @@ public final class NeuronView extends StackPane {
     /**
      * Створює подання нейрона, його графічні дочірні вузли та підказку параметрів.
      * Структурний нейрон додатково отримує приховану шухлядку для внутрішніх подань.
+     * Контур тіла центрується в межах загального розміру картки, тому не виходить за межі рядка.
      *
      * @param presentation візуальне подання нейрона.
      * @throws IllegalArgumentException якщо подання не задано.
@@ -107,6 +109,8 @@ public final class NeuronView extends StackPane {
         setPickOnBounds(false);
         setRotate(presentation.rotationDegrees());
 
+        body.setX(SELECTED_STROKE_WIDTH / 2.0);
+        body.setY(SELECTED_STROKE_WIDTH / 2.0);
         body.getStyleClass().add("neuron-card");
         body.setArcWidth(BODY_ARC_SIZE);
         body.setArcHeight(BODY_ARC_SIZE);

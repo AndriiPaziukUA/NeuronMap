@@ -5,10 +5,10 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.Border;
-import javafx.scene.layout.BorderStroke;
-import javafx.scene.layout.BorderStrokeStyle;
-import javafx.scene.layout.BorderWidths;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.LineTo;
+import javafx.scene.shape.MoveTo;
+import javafx.scene.shape.Path;
 
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -19,17 +19,17 @@ import java.util.Set;
 public final class NeuronStructureDrawerView extends Pane {
 
     private static final String STYLE_CLASS = "neuron-structure-drawer";
+    private static final double OUTLINE_STROKE_WIDTH = 2.0;
 
+    private final Path outline = createOutlinePath();
     private List<NeuronView> memberViews = List.of();
     private boolean expanded;
 
-    /** Створює приховану шухлядку сталої ширини, яка дорівнює ширині тіла нейрона без портів. */
+    /** Створює приховану шухлядку сталої ширини, що дорівнює ширині тіла нейрона без портів. */
     public NeuronStructureDrawerView() {
         getStyleClass().add(STYLE_CLASS);
         setBackground(new Background(new BackgroundFill(Color.web("#242830"), null, null)));
-        setBorder(new Border(new BorderStroke(
-                Color.web("#25292f"), BorderStrokeStyle.SOLID, null,
-                new BorderWidths(0.0, 2.0, 2.0, 2.0))));
+        setBorder(Border.EMPTY);
         setManaged(false);
         setPickOnBounds(true);
         setMinWidth(NeuronView.WIDTH);
@@ -38,10 +38,12 @@ public final class NeuronStructureDrawerView extends Pane {
         setMinHeight(0.0);
         setPrefHeight(0.0);
         setVisible(false);
+        getChildren().add(outline);
     }
 
     /**
      * Замінює відображений список учасників, зберігаючи порядок моделі та розміщуючи картки впритул.
+     * Контур шухлядки малюється окремим прозорим для миші шляхом за межами карток, щоб не перекривати їхні рамки.
      * Подання від'єднуються від попередніх контейнерів до додавання в цю шухлядку.
      *
      * @param members впорядковані подання нейронів структури.
@@ -73,6 +75,7 @@ public final class NeuronStructureDrawerView extends Pane {
             }
         }
         getChildren().clear();
+        getChildren().add(outline);
         memberViews = updatedMembers;
         for (NeuronView member : memberViews) {
             member.setStructureMember(true);
@@ -115,7 +118,7 @@ public final class NeuronStructureDrawerView extends Pane {
         return memberViews;
     }
 
-    /** Перераховує розмір шухлядки й укладає рядки впритул з урахуванням відкритих вкладених структур. */
+    /** Перераховує висоту шухлядки й укладає рядки впритул з урахуванням відкритих вкладених структур. */
     public void refreshLayout() {
         double height = 0.0;
         for (NeuronView member : memberViews) {
@@ -131,6 +134,21 @@ public final class NeuronStructureDrawerView extends Pane {
             member.resizeRelocate(0.0, rowY, NeuronView.WIDTH, NeuronView.HEIGHT);
             rowY += member.displayedStructureRowHeight();
         }
+        outline.getElements().setAll(
+                new MoveTo(0.0, 0.0),
+                new LineTo(0.0, height),
+                new LineTo(NeuronView.WIDTH, height),
+                new LineTo(NeuronView.WIDTH, 0.0));
+    }
+
+    /** Створює контур шухлядки під картками, щоб він не перекривав їхні порти та рамки. */
+    private static Path createOutlinePath() {
+        Path path = new Path();
+        path.setFill(null);
+        path.setStroke(Color.web("#25292f"));
+        path.setStrokeWidth(OUTLINE_STROKE_WIDTH);
+        path.setMouseTransparent(true);
+        return path;
     }
 
     /** Оновлює висоту всіх предків-шухлядок після зміни складу або відкритості вкладеної структури. */
