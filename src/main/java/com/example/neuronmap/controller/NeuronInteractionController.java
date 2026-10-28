@@ -14,7 +14,7 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Objects;
 
-/** Обробляє користувацьку взаємодію з нейронами та координує підлеглі контролери. */
+/** Обробляє взаємодію з нейронами, подвійний клік по структурах та закріплення їхніх внутрішніх елементів. */
 public final class NeuronInteractionController {
 
     private final EditorState state;
@@ -114,6 +114,7 @@ public final class NeuronInteractionController {
 
     /**
      * Встановлює обробники подій на поданні нейрона й ручці обертання та зберігає їх для від'єднання.
+     * Перетягування перевіряє актуальний стан закріплення, тому внутрішні нейрони залишаються нерухомими.
      * Повторне встановлення на те саме подання не створює дубльованих обробників.
      *
      * @param neuronView подання нейрона, події якого обробляються.
@@ -131,8 +132,20 @@ public final class NeuronInteractionController {
         rotationController.installHandleHandlers(neuronView, rotationHandle);
         neuronView.configureParameterTooltipLocalization(localization);
         EventHandler<MouseEvent> pressed = event -> dragController.handlePressed(neuronView, event);
-        EventHandler<MouseEvent> dragged = event -> dragController.handleDragged(neuronView, event);
-        EventHandler<MouseEvent> released = event -> dragController.handleReleased(neuronView);
+        EventHandler<MouseEvent> dragged = event -> {
+            if (neuronView.isStructureMember()) {
+                event.consume();
+            } else {
+                dragController.handleDragged(neuronView, event);
+            }
+        };
+        EventHandler<MouseEvent> released = event -> {
+            if (neuronView.isStructureMember()) {
+                event.consume();
+            } else {
+                dragController.handleReleased(neuronView);
+            }
+        };
         EventHandler<MouseEvent> clicked = event -> handleNeuronClicked(neuronView, event);
         neuronView.addEventHandler(MouseEvent.MOUSE_PRESSED, pressed);
         neuronView.addEventHandler(MouseEvent.MOUSE_DRAGGED, dragged);
@@ -261,7 +274,7 @@ public final class NeuronInteractionController {
         state.clearTransientModes();
     }
 
-    /** Обробляє клацання по нейрону з урахуванням кнопки миші та активного режиму редактора. */
+    /** Обробляє клацання, подвійним кліком відкриваючи шухлядку структури замість активації пульсу. */
     private void handleNeuronClicked(NeuronView neuronView, MouseEvent event) {
         if (disposed) {
             return;
@@ -279,7 +292,18 @@ public final class NeuronInteractionController {
             return;
         }
         if (event.getClickCount() == 2 && !neuronView.wasDragged() && state.isIdle()) {
-            simulation.emitPulse(neuronView.model().id());
+            if (neuronView.hasStructureDrawer()) {
+                rotationController.hideAll();
+                neuronView.toggleStructureDrawer();
+                refreshRelatedViews();
+                refreshOverlayPositions();
+            } else {
+                simulation.emitPulse(neuronView.model().id());
+            }
+            event.consume();
+            return;
+        }
+        if (neuronView.isStructureMember()) {
             event.consume();
             return;
         }

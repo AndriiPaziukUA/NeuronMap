@@ -20,9 +20,7 @@ import javafx.util.Duration;
 import java.util.Objects;
 import java.util.function.Function;
 
-/**
- * Відображає напрямлений зв'язок між двома нейронами та керує геометрією, стрілкою й підсвічуванням для видалення.
- */
+/** Відображає напрямлений зв'язок між двома нейронами та керує геометрією, стрілкою й підсвічуванням для видалення. */
 public final class ConnectionView extends Pane {
 
     private static final Color HIT_TEST_STROKE_COLOR = Color.rgb(255, 255, 255, 0.001);
@@ -43,9 +41,9 @@ public final class ConnectionView extends Pane {
     /**
      * Створює зв'язок зі стандартним власним стилем компонента.
      *
-     * @param model модель карти нейронів.
-     * @param viewLookup функція пошуку подання нейрона.
-     * @param neuronLookup функція пошуку нейрона в моделі.
+     * @param model модель зв'язку, який потрібно відобразити.
+     * @param viewLookup функція пошуку подання нейрона за ідентифікатором.
+     * @param neuronLookup функція пошуку нейрона в моделі за ідентифікатором.
      */
     public ConnectionView(
             Connection model,
@@ -58,9 +56,9 @@ public final class ConnectionView extends Pane {
     /**
      * Створює зв'язок із переданим локальним описом стилю.
      *
-     * @param model модель карти нейронів.
-     * @param viewLookup функція пошуку подання нейрона.
-     * @param neuronLookup функція пошуку нейрона в моделі.
+     * @param model модель зв'язку, який потрібно відобразити.
+     * @param viewLookup функція пошуку подання нейрона за ідентифікатором.
+     * @param neuronLookup функція пошуку нейрона в моделі за ідентифікатором.
      * @param style кольори та геометричні параметри саме цього виду зв'язку.
      * @throws NullPointerException якщо будь-яку залежність не задано.
      */
@@ -125,15 +123,23 @@ public final class ConnectionView extends Pane {
     /** Перевіряє стан підсвічування видалення. @return {@code true}, якщо анімація видалення активна. */
     public boolean isDeleteHighlighted() { return deleteHighlighted; }
 
-    /** Перераховує кінцеві точки зв'язку за поточними положеннями нейронів. */
+    /**
+     * Оновлює геометрію за фактичними координатами портів. Зв'язки, що ведуть до прихованих учасників
+     * структури, також приховуються, щоб не залишати видимих ліній до нейронів закритої шухлядки.
+     */
     public void updateGeometry() {
         NeuronView source = viewLookup.apply(model.sourceId());
         NeuronView target = viewLookup.apply(model.targetId());
         if (source == null || target == null) {
             return;
         }
-        Point2D start = source.outputPoint();
-        Point2D end = target.inputPoint();
+        if (source.isHiddenInClosedStructureDrawer() || target.isHiddenInClosedStructureDrawer()) {
+            setVisible(false);
+            return;
+        }
+        setVisible(true);
+        Point2D start = connectionPoint(source, true);
+        Point2D end = connectionPoint(target, false);
         line.setStartX(start.getX());
         line.setStartY(start.getY());
         line.setEndX(end.getX());
@@ -148,10 +154,14 @@ public final class ConnectionView extends Pane {
 
     /**
      * Створює знімок геометрії та палітри зв'язку для анімації імпульсу.
+     * Прихований зв'язок не створює імпульсу на застарілих координатах.
      *
-     * @return знімок або {@code null}, якщо джерело чи довжина відсутні.
+     * @return знімок або {@code null}, якщо зв'язок прихований, джерело відсутнє чи довжина дорівнює нулю.
      */
     public ConnectionPulseSnapshot capturePulseSnapshot() {
+        if (!isVisible()) {
+            return null;
+        }
         Neuron source = neuronLookup.apply(model.sourceId());
         if (source == null) {
             return null;
@@ -220,6 +230,21 @@ public final class ConnectionView extends Pane {
         deleteHighlighted = false;
         line.setStroke(baseColor());
         arrow.setFill(baseArrowColor());
+    }
+
+    /**
+     * Обчислює кінцеву точку зв'язку в його локальних координатах з урахуванням вкладених подань.
+     *
+     * @param neuronView подання нейрона, до порту якого потрібно приєднатися.
+     * @param output {@code true} для вихідного порту джерела; {@code false} для вхідного порту цілі.
+     * @return координати порту в системі координат цього подання зв'язку.
+     */
+    private Point2D connectionPoint(NeuronView neuronView, boolean output) {
+        if (getParent() == null) {
+            return output ? neuronView.outputPoint() : neuronView.inputPoint();
+        }
+        Point2D scenePoint = output ? neuronView.outputPointInScene() : neuronView.inputPointInScene();
+        return sceneToLocal(scenePoint);
     }
 
     /**

@@ -12,11 +12,13 @@ import java.util.Optional;
 
 /**
  * Надає операції над нейронами: створення, пошук, видалення, переміщення, обертання,
- * зміну типу, напрямку, назви та всіх параметрів сигналу.
+ * зміну типу, напрямку, назви та параметрів сигналу. Під час створення структури додає її початкового учасника.
  */
 public final class NeuronService {
 
     private final NeuronMapModel model;
+    /** Єдина служба, через яку ця служба змінює членство нейронів у структурах. */
+    private final StructureService structureService;
 
     /**
      * Створює службу операцій над нейронами для заданої моделі карти.
@@ -26,6 +28,7 @@ public final class NeuronService {
      */
     public NeuronService(NeuronMapModel model) {
         this.model = Objects.requireNonNull(model, "model");
+        this.structureService = new StructureService(this.model);
     }
 
     /** Повертає модель карти, якою керує ця служба. @return модель карти нейронів. */
@@ -62,13 +65,38 @@ public final class NeuronService {
 
     /**
      * Створює нейрон указаного типу в заданих координатах із параметрами за замовчуванням.
+     * Структура одразу отримує одного збуджувального учасника; наступні учасники додаються окремо без ліміту.
      *
      * @param type тип нейрона.
      * @param x початкова горизонтальна координата нейрона на карті.
      * @param y початкова вертикальна координата нейрона на карті.
      * @return створений нейрон з одним активним тактом і затримкою в один такт.
+     * @throws NullPointerException якщо тип нейрона не задано.
+     * @throws IllegalStateException якщо не вдалося зареєструвати початкового учасника нової структури.
      */
-    public Neuron create(NeuronType type, double x, double y) { return model.createNeuron(type, x, y); }
+    public Neuron create(NeuronType type, double x, double y) {
+        Objects.requireNonNull(type, "type");
+        Neuron created = model.createNeuron(type, x, y);
+        if (type != NeuronType.STRUCTURE) {
+            return created;
+        }
+
+        Neuron initialMember = null;
+        try {
+            // Внутрішній нейрон не має власної позиції на дошці; його координати задає шухлядка.
+            initialMember = model.createNeuron(NeuronType.EXCITATORY, 0.0, 0.0);
+            if (!structureService.addMember(created.id(), initialMember.id())) {
+                throw new IllegalStateException("Could not register the initial neuron in the new structure");
+            }
+            return created;
+        } catch (RuntimeException failure) {
+            if (initialMember != null) {
+                model.removeNeuron(initialMember.id());
+            }
+            model.removeNeuron(created.id());
+            throw failure;
+        }
+    }
 
     /**
      * Видаляє нейрон і пов'язані з ним дані.
@@ -80,7 +108,29 @@ public final class NeuronService {
         if (neuronId == null || neuronId.isBlank()) {
             return Optional.empty();
         }
+        Neuron removed = model.neuron(neuronId);
+        if (removed == null) {
+            return Optional.empty();
+        }
+        removeStructureMembersRecursively(neuronId, new java.util.LinkedHashSet<>());
         return Optional.ofNullable(model.removeNeuron(neuronId));
+    }
+
+    /** Видаляє всіх вкладених учасників перед видаленням структури-власника.
+     *
+     * @param structureId ідентифікатор структури або нейрона, який може містити учасників.
+     * @param visited ідентифікатори, уже оброблені під час рекурсивного обходу.
+     */
+    private void removeStructureMembersRecursively(String structureId, java.util.Set<String> visited) {
+        if (!visited.add(structureId)) {
+            return;
+        }
+        structureService.find(structureId).ifPresent(structure -> {
+            for (String memberId : java.util.List.copyOf(structure.memberIds())) {
+                removeStructureMembersRecursively(memberId, visited);
+                model.removeNeuron(memberId);
+            }
+        });
     }
 
     /**

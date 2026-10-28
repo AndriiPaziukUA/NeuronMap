@@ -4,6 +4,7 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronActivationMode;
 import com.example.neuronmap.model.NeuronPresentation;
+import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.view.support.TooltipFactory;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
@@ -17,17 +18,23 @@ import javafx.scene.shape.Circle;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
 
+import java.util.List;
+
 /**
  * Відображає нейрон, його порти, залишок активних тактів, підказку параметрів, назву й стани взаємодії.
+ * Для структурного нейрона також утримує шухлядку та закріплює подання її внутрішніх нейронів.
  *
  * <p>Область взаємодії визначається геометрією тіла з округленими кутами та видимими портами;
- * тінь і прямокутні межі контейнера не розширюють її.</p>
+ * тінь і прямокутні межі контейнера не розширюють її. Для структурного нейрона подання також містить
+ * висувну шухлядку з прикріпленими поданнями внутрішніх нейронів.</p>
  */
 public final class NeuronView extends StackPane {
 
     public static final double WIDTH = NeuronVisualGeometry.WIDTH;
     public static final double HEIGHT = NeuronVisualGeometry.HEIGHT;
     public static final double SELECTED_STROKE_WIDTH = 2.0;
+
+    private static final double BODY_ARC_SIZE = 28.0;
 
     /** Текстова позначка вхідного сигналу, коли тимчасове значення відсутнє. */
     private static final String NO_INPUT_SIGNAL_TEXT = "0";
@@ -57,6 +64,7 @@ public final class NeuronView extends StackPane {
     private final Label remainingActiveTicksLabel = new Label();
     private final Label nameLabel = new Label();
     private final Tooltip parameterTooltip = TooltipFactory.create("");
+    private NeuronStructureDrawerView structureDrawer;
 
     private LocalizationService tooltipLocalization;
     private Integer displayedInputSignal;
@@ -71,6 +79,7 @@ public final class NeuronView extends StackPane {
     private boolean nameHiddenWhileRotating;
     private boolean parameterTooltipInstalled;
     private boolean parameterTooltipDisposed;
+    private boolean structureMember;
     private double dragStartSceneX;
     private double dragStartSceneY;
     private double lastSceneX;
@@ -78,6 +87,7 @@ public final class NeuronView extends StackPane {
 
     /**
      * Створює подання нейрона, його графічні дочірні вузли та підказку параметрів.
+     * Структурний нейрон додатково отримує приховану шухлядку для внутрішніх подань.
      *
      * @param presentation візуальне подання нейрона.
      * @throws IllegalArgumentException якщо подання не задано.
@@ -88,6 +98,8 @@ public final class NeuronView extends StackPane {
         }
 
         this.presentation = presentation;
+        structureDrawer = presentation.neuron().type() == NeuronType.STRUCTURE
+                ? new NeuronStructureDrawerView() : null;
         getStyleClass().add(NEURON_VIEW_STYLE_CLASS);
         setPrefSize(WIDTH, HEIGHT);
         setMinSize(WIDTH, HEIGHT);
@@ -96,8 +108,8 @@ public final class NeuronView extends StackPane {
         setRotate(presentation.rotationDegrees());
 
         body.getStyleClass().add("neuron-card");
-        body.setArcWidth(28);
-        body.setArcHeight(28);
+        body.setArcWidth(BODY_ARC_SIZE);
+        body.setArcHeight(BODY_ARC_SIZE);
         body.setMouseTransparent(false);
         body.setManaged(false);
 
@@ -115,6 +127,10 @@ public final class NeuronView extends StackPane {
         inputSignalLabel.setText(NO_INPUT_SIGNAL_TEXT);
         remainingActiveTicksLabel.setText(Integer.toString(displayedRemainingActiveTicks));
         getChildren().addAll(body, inputSignalLabel, remainingActiveTicksLabel, inputPort, outputPort, nameLabel);
+        if (structureDrawer != null) {
+            structureDrawer.setViewOrder(-1.0);
+            getChildren().add(structureDrawer);
+        }
         addEventHandler(MouseEvent.MOUSE_ENTERED, _ -> {
             pointerHovered = true;
             refreshNameLabel();
@@ -163,8 +179,73 @@ public final class NeuronView extends StackPane {
     /** Перевіряє, чи перетягується група нейронів. */
     public boolean isDraggingGroup() { return dragGroup; }
 
+    /** Перевіряє, чи закріплене подання всередині структури.
+     * @return {@code true}, якщо нейрон не можна переміщувати окремо.
+     */
+    public boolean isStructureMember() { return structureMember; }
+
+    /** Позначає подання як внутрішній елемент структури або як звичайний нейрон карти.
+     * @param structureMember {@code true}, щоб закріпити нейрон усередині структури.
+     */
+    public void setStructureMember(boolean structureMember) {
+        this.structureMember = structureMember;
+        body.setArcWidth(BODY_ARC_SIZE);
+        body.setArcHeight(BODY_ARC_SIZE);
+        if (structureMember) {
+            endDrag();
+        }
+    }
+
+    /**
+     * Установлює подання учасників структури в порядку моделі.
+     * Шухлядка створюється за потреби, оскільки структура є окремою сутністю моделі.
+     *
+     * @param members подання нейронів, які зберігає структура.
+     */
+    public void setStructureMembers(List<NeuronView> members) {
+        if (structureDrawer == null) {
+            structureDrawer = new NeuronStructureDrawerView();
+            structureDrawer.setViewOrder(-1.0);
+            getChildren().add(structureDrawer);
+        }
+        structureDrawer.setMembers(members);
+        structureDrawer.refreshLayout();
+    }
+
+    /** Перевіряє, чи має це подання шухлядку сутності структури.
+     * @return {@code true}, якщо подання містить шухлядку структури.
+     */
+    public boolean hasStructureDrawer() {
+        return structureDrawer != null;
+    }
+
+    /** Обчислює висоту рядка з урахуванням відкритої шухлядки вкладеної структури.
+     * @return висота картки та її видимого вкладеного вмісту.
+     */
+    double displayedStructureRowHeight() {
+        return HEIGHT + (structureDrawer != null && structureDrawer.isExpanded()
+                ? structureDrawer.getHeight() : 0.0);
+    }
+
+    /** Відкриває або закриває шухлядку структури.
+     * @return {@code true}, якщо шухлядка відкрита після перемикання.
+     */
+    public boolean toggleStructureDrawer() {
+        return structureDrawer != null && structureDrawer.toggleExpanded();
+    }
+
+    /** Повертає поточний стан шухлядки.
+     * @return {@code true}, якщо шухлядка структури відкрита.
+     */
+    public boolean isStructureDrawerExpanded() {
+        return structureDrawer != null && structureDrawer.isExpanded();
+    }
+
     /** Запам'ятовує початкові координати перетягування та модифікатори переміщення. */
     public void beginDrag(double sceneX, double sceneY, boolean altPressed, boolean belongsToGroup) {
+        if (structureMember) {
+            return;
+        }
         dragging = true;
         wasDragged = false;
         dragStartSceneX = sceneX;
@@ -190,7 +271,7 @@ public final class NeuronView extends StackPane {
 
     /** Позначає жест як переміщення після перевищення порога руху. */
     public void updateDraggedState(double sceneX, double sceneY) {
-        if (Math.hypot(sceneX - dragStartSceneX, sceneY - dragStartSceneY) > 4.0) {
+        if (!structureMember && Math.hypot(sceneX - dragStartSceneX, sceneY - dragStartSceneY) > 4.0) {
             wasDragged = true;
         }
     }
@@ -287,8 +368,10 @@ public final class NeuronView extends StackPane {
     /** Оновлює розташування й стилі нейрона, не змінюючи залишок активних тактів. */
     public void refreshVisuals(boolean selected) {
         this.selected = selected;
-        setLayoutX(presentation.x());
-        setLayoutY(presentation.y());
+        if (!structureMember) {
+            setLayoutX(presentation.x());
+            setLayoutY(presentation.y());
+        }
         setRotate(presentation.rotationDegrees());
         refreshBodyStyleClasses(selected);
         refreshInputPortStyleClass();
@@ -298,20 +381,55 @@ public final class NeuronView extends StackPane {
                 : Integer.toString(displayedInputSignal));
         remainingActiveTicksLabel.setText(Integer.toString(displayedRemainingActiveTicks));
         positionFixedChildren();
+        if (structureDrawer != null) {
+            structureDrawer.refreshLayout();
+        }
         refreshNameLabel();
         refreshParameterTooltip();
     }
 
-    /** Повертає світову точку вихідного порту для під'єднання зв'язку. */
+    /** Повертає світову точку вихідного порту за координатами моделі. */
     public Point2D outputPoint() {
         return localPointToWorld(new Point2D(
                 NeuronVisualGeometry.outputTipX(presentation.directionReversed()), HEIGHT / 2.0));
     }
 
-    /** Повертає світову точку вхідного порту для під'єднання зв'язку. */
+    /** Повертає світову точку вхідного порту за координатами моделі. */
     public Point2D inputPoint() {
         return localPointToWorld(new Point2D(
                 NeuronVisualGeometry.inputPortX(presentation.directionReversed()), HEIGHT / 2.0));
+    }
+
+    /**
+     * Повертає вихідну точку порту з урахуванням фактичного положення вузла в дереві JavaFX.
+     * @return координати вихідного порту в системі координат сцени.
+     */
+    public Point2D outputPointInScene() {
+        return localToScene(new Point2D(
+                NeuronVisualGeometry.outputTipX(presentation.directionReversed()), HEIGHT / 2.0));
+    }
+
+    /**
+     * Повертає вхідну точку порту з урахуванням фактичного положення вузла в дереві JavaFX.
+     * @return координати вхідного порту в системі координат сцени.
+     */
+    public Point2D inputPointInScene() {
+        return localToScene(new Point2D(
+                NeuronVisualGeometry.inputPortX(presentation.directionReversed()), HEIGHT / 2.0));
+    }
+
+    /** Перевіряє, чи ховає закрита шухлядка цей нейрон або будь-яку з його вкладених структур.
+     * @return {@code true}, якщо хоча б одна батьківська шухлядка закрита.
+     */
+    public boolean isHiddenInClosedStructureDrawer() {
+        Node ancestor = getParent();
+        while (ancestor != null) {
+            if (ancestor instanceof NeuronStructureDrawerView drawer && !drawer.isVisible()) {
+                return true;
+            }
+            ancestor = ancestor.getParent();
+        }
+        return false;
     }
 
     /** Оновлює положення графічних елементів усередині подання нейрона. */
@@ -493,6 +611,7 @@ public final class NeuronView extends StackPane {
     private void refreshNameLabel(Pane overlayLayer) {
         String name = model().name();
         boolean shouldShow = pointerHovered && !nameHiddenWhileRotating
+                && !isHiddenInClosedStructureDrawer()
                 && name != null && !name.isEmpty();
         nameLabel.setText(name == null ? "" : name);
         nameLabel.setRotate(-presentation.rotationDegrees());

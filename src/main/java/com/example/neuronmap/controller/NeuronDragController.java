@@ -12,7 +12,7 @@ import javafx.scene.input.MouseEvent;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-/** Обробляє перетягування нейронів і груп, синхронізуючи залежну геометрію та завершення жесту. */
+/** Обробляє перетягування нейронів і груп, не переміщуючи закріплених учасників структур. */
 public final class NeuronDragController {
 
     private final NeuronService neuronService;
@@ -33,7 +33,7 @@ public final class NeuronDragController {
      * @param neuronService служба операцій над нейронами.
      * @param groupService служба операцій над групами нейронів.
      * @param selectionController контролер вибору нейронів.
-     * @param state стан взаємодії редактора.
+     * @param state спільний стан редактора.
      * @param workspace полотно редактора.
      * @param hideMenu дія приховування контекстного меню.
      * @param showRotationHandle дія показу ручки обертання.
@@ -68,7 +68,7 @@ public final class NeuronDragController {
         this.save = Objects.requireNonNull(save, "save");
     }
 
-    /** Починає обробку натискання миші для вибору та перетягування нейрона. */
+    /** Починає обробку натискання для вибору нейрона та, якщо він не закріплений, його перетягування. */
     public void handlePressed(NeuronView neuronView, MouseEvent event) {
         if (event.getButton() == MouseButton.SECONDARY) {
             if (!state.isIdle()) {
@@ -83,6 +83,10 @@ public final class NeuronDragController {
         }
         hideMenu.run();
         selectionController.selectForPrimaryPress(neuronView.model().id(), event.isControlDown());
+        if (neuronView.isStructureMember()) {
+            event.consume();
+            return;
+        }
         boolean grouped = groupService.containing(neuronView.model().id()).isPresent();
         neuronView.beginDrag(event.getSceneX(), event.getSceneY(), event.isAltDown(), grouped);
         showRotationHandle.accept(neuronView.model().id());

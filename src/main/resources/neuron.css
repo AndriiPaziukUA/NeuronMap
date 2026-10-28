@@ -153,3 +153,12 @@
     -fx-background-color: #d64545;
     -fx-text-fill: white;
 }
+
+/* Шухлядка належить структурному нейрону, має ширину його тіла та не залишає проміжків між учасниками. */
+.neuron-structure-drawer {
+    -fx-background-color: #242830;
+    -fx-border-color: #25292f;
+    -fx-border-width: 0 2 2 2;
+    -fx-background-insets: 0;
+    -fx-border-insets: 0;
+}

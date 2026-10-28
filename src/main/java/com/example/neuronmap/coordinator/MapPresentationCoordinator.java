@@ -5,6 +5,7 @@ import com.example.neuronmap.controller.NeuronInteractionController;
 import com.example.neuronmap.model.Connection;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronPresentation;
+import com.example.neuronmap.model.NeuronStructure;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.view.connection.ConnectionView;
 import com.example.neuronmap.view.editor.NeuronLayerOrderManager;
@@ -96,7 +97,7 @@ public final class MapPresentationCoordinator {
     /** Переміщує клацнутий нейрон вище в порядку шарів, якщо цього вимагає взаємодія. */
     public void bringClickedNeuronToFront(MouseEvent event) {
         NeuronView neuronView = JavaFxNodeLookup.findAncestor(event.getTarget(), NeuronView.class);
-        if (neuronView != null) {
+        if (neuronView != null && !neuronView.isStructureMember()) {
             layerOrderController.bringNeuronToFront(neuronView.model().id());
         }
     }
@@ -240,7 +241,7 @@ public final class MapPresentationCoordinator {
         refreshAll();
     }
 
-    /** Узгоджує набір графічних вузлів із моделлю, видаляючи застарілі й створюючи відсутні подання. */
+    /** Узгоджує набір подань, а потім вкладає внутрішні нейрони у шухлядки їхніх структур. */
     private void synchronizeNeuronViews() {
         for (String neuronId : List.copyOf(neuronViews.keySet())) {
             var presentation = neuronService.presentation(neuronId);
@@ -253,6 +254,41 @@ public final class MapPresentationCoordinator {
             if (!neuronViews.containsKey(neuron.id())) {
                 createNeuronView(neuron);
             }
+        }
+        synchronizeStructureDrawers();
+    }
+
+    /**
+     * Синхронізує кореневі подання та вміст шухлядок за впорядкованими ідентифікаторами моделі.
+     * Уже розміщені кореневі подання не переставляються, щоб звичайне оновлення не скидало порядок шарів.
+     */
+    private void synchronizeStructureDrawers() {
+        boolean hasNewStructureMembers = false;
+        for (NeuronView view : neuronViews.values()) {
+            boolean structureMember = neuronService.model().structureContaining(view.model().id()) != null;
+            hasNewStructureMembers |= structureMember && !view.isStructureMember();
+            view.setStructureMember(structureMember);
+            if (structureMember && view.getParent() == workspace.nodeLayer()) {
+                workspace.nodeLayer().getChildren().remove(view);
+            } else if (!structureMember && view.getParent() != workspace.nodeLayer()) {
+                removeFromParent(view);
+                workspace.nodeLayer().getChildren().add(view);
+            }
+        }
+        if (hasNewStructureMembers) {
+            neuronController.hideMenu();
+        }
+
+        for (NeuronStructure structure : neuronService.model().structures()) {
+            NeuronView structureView = neuronViews.get(structure.id());
+            if (structureView == null) {
+                continue;
+            }
+            List<NeuronView> memberViews = structure.memberIds().stream()
+                    .map(neuronViews::get)
+                    .filter(Objects::nonNull)
+                    .toList();
+            structureView.setStructureMembers(memberViews);
         }
     }
 

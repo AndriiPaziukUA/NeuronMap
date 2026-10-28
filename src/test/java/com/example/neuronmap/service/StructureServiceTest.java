@@ -8,13 +8,13 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє публічний контракт служби структур і делегування правил членства моделі карти. */
+/** Перевіряє контракт служби структур, закріплення учасників і відсутність їхніх координат дошки. */
 class StructureServiceTest {
 
-    /** Перевіряє додавання, пошук і вилучення учасника без видалення самого нейрона. */
+    /** Перевіряє додавання та вилучення учасника без видалення самого нейрона. */
     @Test
     void managesStructureMembershipThroughModel() {
         NeuronMapModel model = new NeuronMapModel();
@@ -25,6 +25,8 @@ class StructureServiceTest {
         assertTrue(service.find(structureNeuron.id()).isPresent());
         assertTrue(service.addMember(structureNeuron.id(), member.id()));
         assertEquals(structureNeuron.id(), service.containing(member.id()).orElseThrow().id());
+        assertEquals(0.0, model.presentation(member.id()).x());
+        assertEquals(0.0, model.presentation(member.id()).y());
         assertEquals(1, service.structures().size());
         assertTrue(service.removeMember(structureNeuron.id(), member.id()));
         assertTrue(service.containing(member.id()).isEmpty());
@@ -47,7 +49,7 @@ class StructureServiceTest {
         assertEquals(0, service.structures().size());
     }
 
-    /** Перевіряє, що структура може зберігати одного учасника й надалі залишатися зареєстрованою. */
+    /** Перевіряє, що структура з одним учасником залишається зареєстрованою. */
     @Test
     void oneMemberDoesNotRemoveStructure() {
         NeuronMapModel model = new NeuronMapModel();
