@@ -101,7 +101,9 @@ public final class NeuronMapModel {
                 )
         );
         if (type == NeuronType.STRUCTURE) {
-            structures.put(id, new NeuronStructure(id));
+            NeuronStructure structure = new NeuronStructure(id);
+            structures.put(id, structure);
+            neuron.shareSettingsWith(structure.settings());
         }
 
         return neuron;
@@ -284,20 +286,25 @@ public final class NeuronMapModel {
 
     /**
      * Видаляє нейрон разом із його поданням, зв’язками, членством у групах і членством у структурах.
-     * Якщо видалений нейрон представляв структуру, її учасники залишаються на карті без цього контейнера.
+     * Якщо видалений нейрон представляв структуру, її учасники залишаються на карті з поточними налаштуваннями.
      *
      * @param neuronId ідентифікатор нейрона.
      * @return видалений нейрон або {@code null}, якщо його не знайдено.
      */
     public Neuron removeNeuron(String neuronId) {
-        Neuron removed = neurons.remove(neuronId);
-
+        Neuron removed = neurons.get(neuronId);
         if (removed == null) {
             return null;
         }
 
+        detachStructureMembers(neuronId);
+        removed.detachSettings();
+        neurons.remove(neuronId);
         presentations.remove(neuronId);
-        structures.remove(neuronId);
+        NeuronStructure removedStructure = structures.remove(neuronId);
+        if (removedStructure != null) {
+            removedStructure.detachSettings();
+        }
 
         connections.values().removeIf(connection ->
                 connection.sourceId().equals(neuronId)
@@ -358,12 +365,20 @@ public final class NeuronMapModel {
         if (structureId == null || structureId.isBlank() || !neurons.containsKey(structureId)) {
             return false;
         }
-        structures.computeIfAbsent(structureId, NeuronStructure::new);
+        Neuron neuron = neurons.get(structureId);
+        NeuronStructure structure = structures.get(structureId);
+        if (structure == null) {
+            structure = new NeuronStructure(structureId);
+            structure.shareSettingsWith(neuron.settings());
+            structures.put(structureId, structure);
+        }
+        neuron.shareSettingsWith(structure.settings());
         return true;
     }
 
     /**
      * Додає нейрон до структури з перевіркою посилань, єдиного власника та відсутності циклів вкладеності.
+     * Після успішного додавання всі прямі й вкладені учасники делегують налаштування контейнеру.
      *
      * @param structureId ідентифікатор структури-приймача.
      * @param neuronId ідентифікатор нейрона, який потрібно додати.
@@ -384,11 +399,16 @@ public final class NeuronMapModel {
             return false;
         }
 
-        return structure.addMember(neuronId);
+        if (!structure.addMember(neuronId)) {
+            return false;
+        }
+        synchronizeStructureMemberSettings(structureId, new LinkedHashSet<>());
+        return true;
     }
 
     /**
-     * Вилучає нейрон із заданої структури, не змінюючи сам нейрон або структуру.
+     * Вилучає нейрон зі структури та зберігає в ньому поточні спільні налаштування.
+     * Якщо учасник сам є структурою, її внутрішні нейрони продовжують ділити налаштування з нею.
      *
      * @param structureId ідентифікатор структури.
      * @param neuronId ідентифікатор учасника.
@@ -396,7 +416,20 @@ public final class NeuronMapModel {
      */
     public boolean removeStructureMember(String structureId, String neuronId) {
         NeuronStructure structure = structures.get(structureId);
-        return structure != null && structure.removeMember(neuronId);
+        if (structure == null || !structure.removeMember(neuronId)) {
+            return false;
+        }
+        Neuron member = neuron(neuronId);
+        if (member != null) {
+            NeuronSettings independentSettings = member.settings().copy();
+            member.shareSettingsWith(independentSettings);
+            NeuronStructure nestedStructure = structures.get(neuronId);
+            if (nestedStructure != null) {
+                nestedStructure.shareSettingsWith(independentSettings);
+            }
+            synchronizeStructureMemberSettings(neuronId, new LinkedHashSet<>());
+        }
+        return true;
     }
 
     /**
@@ -546,7 +579,7 @@ public final class NeuronMapModel {
     /**
      * Прибирає вибраних нейронів із групування відповідно до поточного складу груп.
      *
-     * @param selectedIds ідентифікатори вибраних нейронів.
+     * @param selectedIds ідентифікатори нейронів, які потрібно вилучити з груп.
      */
     public void ungroup(Set<String> selectedIds) {
         for (NeuronGroup group : groups.values()) {
@@ -580,9 +613,11 @@ public final class NeuronMapModel {
     }
 
     /**
-     * Очищає нейрони, подання, зв’язки, групи та структури з моделі.
+     * Очищає нейрони, подання, зв’язки, групи та структури з моделі, завершуючи успадкування налаштувань.
      */
     public void clear() {
+        neurons.values().forEach(Neuron::detachSettings);
+        structures.values().forEach(NeuronStructure::detachSettings);
         neurons.clear();
         presentations.clear();
         connections.clear();
@@ -592,7 +627,8 @@ public final class NeuronMapModel {
 
     /**
      * Замінює весь вміст моделі даними вже підготовленої моделі, зберігаючи ідентичність цього екземпляра.
-     * Цей метод дає службам змогу спершу повністю завантажити новий стан, а потім замінити вміст спільної моделі без створення нового екземпляра.
+     * Перед заміною старі нейрони від'єднуються від спільних налаштувань, щоб їхні зовнішні посилання не утримували старе дерево.
+     * Це дає службам змогу спершу повністю завантажити новий стан, а потім замінити вміст спільної моделі без створення нового екземпляра.
      *
      * @param source модель із підготовленим вмістом.
      * @throws NullPointerException якщо підготовлену модель не передано.
@@ -603,6 +639,8 @@ public final class NeuronMapModel {
             return;
         }
 
+        neurons.values().forEach(Neuron::detachSettings);
+        structures.values().forEach(NeuronStructure::detachSettings);
         neurons.clear();
         neurons.putAll(source.neurons);
         presentations.clear();
@@ -613,6 +651,64 @@ public final class NeuronMapModel {
         groups.putAll(source.groups);
         structures.clear();
         structures.putAll(source.structures);
+    }
+
+    /**
+     * Прив'язує всіх прямих і вкладених учасників до єдиного об'єкта налаштувань структури.
+     *
+     * @param structureId ідентифікатор структури, чиї налаштування успадковують учасники.
+     * @param visited ідентифікатори елементів, уже оброблених у поточному обході.
+     */
+    private void synchronizeStructureMemberSettings(String structureId, Set<String> visited) {
+        if (!visited.add(structureId)) {
+            return;
+        }
+        Neuron owner = neurons.get(structureId);
+        NeuronStructure structure = structures.get(structureId);
+        if (owner == null || structure == null) {
+            return;
+        }
+
+        NeuronSettings sharedSettings = structure.settings();
+        owner.shareSettingsWith(sharedSettings);
+        for (String memberId : structure.memberIds()) {
+            Neuron member = neurons.get(memberId);
+            if (member == null) {
+                continue;
+            }
+            member.shareSettingsWith(sharedSettings);
+            NeuronStructure nestedStructure = structures.get(memberId);
+            if (nestedStructure != null) {
+                nestedStructure.shareSettingsWith(sharedSettings);
+            }
+            synchronizeStructureMemberSettings(memberId, visited);
+        }
+    }
+
+    /**
+     * Від'єднує учасників структури, що видаляється, створюючи для кожного окремі налаштування.
+     * Вкладені структури після цього залишаються власниками налаштувань для своїх внутрішніх нейронів.
+     *
+     * @param structureId ідентифікатор контейнера, який видаляється.
+     */
+    private void detachStructureMembers(String structureId) {
+        NeuronStructure structure = structures.get(structureId);
+        if (structure == null) {
+            return;
+        }
+        for (String memberId : new ArrayList<>(structure.memberIds())) {
+            Neuron member = neurons.get(memberId);
+            if (member == null) {
+                continue;
+            }
+            NeuronSettings independentSettings = structure.settings().copy();
+            member.shareSettingsWith(independentSettings);
+            NeuronStructure nestedStructure = structures.get(memberId);
+            if (nestedStructure != null) {
+                nestedStructure.shareSettingsWith(independentSettings);
+            }
+            synchronizeStructureMemberSettings(memberId, new LinkedHashSet<>());
+        }
     }
 
     /**

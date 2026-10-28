@@ -73,7 +73,16 @@ public final class SqliteMapWriter {
         }
     }
 
-    /** Записує всі семантичні параметри нейронів, включно зі способом активації та назвою. */
+    /**
+     * Записує параметри кожного нейрона, зберігаючи спільні налаштування лише в рядку структури-власника.
+     *
+     * <p>Для членів структур у таблиці зберігаються типові значення та порожня назва як технічні
+     * заповнювачі. Після завантаження таблиця членства відновлює спільні посилання, тому ці поля не стають
+     * альтернативним джерелом налаштувань.</p>
+     *
+     * @param model модель карти з нейронами та структурним членством.
+     * @throws SQLException якщо пакетний запис нейронів не вдався.
+     */
     private void insertNeurons(NeuronMapModel model) throws SQLException {
         // SqliteSchema.migrate() забезпечує наявність стовпців для всіх параметрів нейрона.
         //noinspection SqlResolve
@@ -94,15 +103,20 @@ public final class SqliteMapWriter {
 
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             for (Neuron neuron : model.neurons()) {
+                boolean sharesStructureSettings = model.structure(neuron.id()) != null
+                        || model.structureContaining(neuron.id()) != null;
+                NeuronParameters parameters = sharesStructureSettings
+                        ? NeuronParameters.DEFAULT
+                        : neuron.parameters();
                 statement.setString(1, neuron.id());
                 statement.setString(2, neuron.type().name());
                 statement.setInt(3, neuron.activation());
-                statement.setInt(4, neuron.signalStrength());
-                statement.setInt(5, neuron.activationThreshold());
-                statement.setInt(6, neuron.activeTicks());
-                statement.setInt(7, neuron.delayTicks());
-                statement.setString(8, neuron.activationMode().name());
-                statement.setString(9, neuron.name());
+                statement.setInt(4, parameters.signalStrength());
+                statement.setInt(5, parameters.activationThreshold());
+                statement.setInt(6, parameters.activeTicks());
+                statement.setInt(7, parameters.delayTicks());
+                statement.setString(8, parameters.activationMode().name());
+                statement.setString(9, sharesStructureSettings ? null : neuron.name());
                 statement.addBatch();
             }
             statement.executeBatch();
@@ -199,15 +213,21 @@ public final class SqliteMapWriter {
     }
 
     /**
-     * Записує структури з ознакою відкритості та впорядковане членство кожної з них.
+     * Записує спільні налаштування кореневих структур, ознаку відкритості та впорядковане членство.
+     * Для вкладених структур у поля налаштувань записуються типові заповнювачі, щоб не дублювати налаштування батька.
      *
      * @param model модель карти, що містить структури.
      * @throws SQLException якщо запис структур або їхніх учасників не вдався.
      */
     private void insertStructures(NeuronMapModel model) throws SQLException {
-        // SqliteSchema.migrate() забезпечує стовпець expanded у таблиці structures.
+        // SqliteSchema.migrate() забезпечує всі поля спільних налаштувань у таблиці structures.
         //noinspection SqlResolve
-        String structureSql = "INSERT INTO structures (id, expanded) VALUES (?, ?)";
+        String structureSql = """
+                INSERT INTO structures (
+                    id, expanded, name, signal_strength, activation_threshold,
+                    active_ticks, delay_ticks, activation_mode
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """;
         String memberSql = """
                 INSERT INTO structure_members (
                     structure_id,
@@ -220,8 +240,19 @@ public final class SqliteMapWriter {
         try (PreparedStatement structureStatement = connection.prepareStatement(structureSql);
              PreparedStatement memberStatement = connection.prepareStatement(memberSql)) {
             for (NeuronStructure structure : model.structures()) {
+                boolean sharesParentSettings = model.structureContaining(structure.id()) != null;
+                NeuronSettings settings = structure.settings();
+                NeuronParameters parameters = sharesParentSettings
+                        ? NeuronParameters.DEFAULT
+                        : settings.parameters();
                 structureStatement.setString(1, structure.id());
                 structureStatement.setInt(2, structure.isExpanded() ? 1 : 0);
+                structureStatement.setString(3, sharesParentSettings ? null : settings.name());
+                structureStatement.setInt(4, parameters.signalStrength());
+                structureStatement.setInt(5, parameters.activationThreshold());
+                structureStatement.setInt(6, parameters.activeTicks());
+                structureStatement.setInt(7, parameters.delayTicks());
+                structureStatement.setString(8, parameters.activationMode().name());
                 structureStatement.addBatch();
 
                 int position = 0;

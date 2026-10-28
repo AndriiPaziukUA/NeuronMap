@@ -10,7 +10,7 @@ import java.sql.Statement;
 /** Створює та мігрує схему SQLite, додаючи потрібні таблиці й стовпці для актуальної версії даних. */
 public final class SqliteSchema {
 
-    private static final int CURRENT_VERSION = 10;
+    private static final int CURRENT_VERSION = 11;
 
     /** Не дозволяє створювати екземпляри утиліти керування схемою. */
     private SqliteSchema() {
@@ -36,10 +36,14 @@ public final class SqliteSchema {
             createBaseSchema(connection);
             migrateLegacyNeuronLayout(connection);
             ensureNeuronSettingsColumns(connection);
-            ensureNeuronNameColumn(connection);
-            ensureActivationModeColumn(connection);
+            ensureNameColumn(connection, "neurons");
+            ensureActivationModeColumn(connection, "neurons");
             ensureDirectionColumn(connection);
             ensureStructureExpandedColumn(connection);
+            ensureStructureSettingsColumns(connection);
+            if (versionAtStart < CURRENT_VERSION) {
+                migrateStructureSettingsFromNeuronRows(connection);
+            }
             ensureVersion(connection, versionAtStart);
         } catch (SQLException exception) {
             throw new PersistenceException("Не вдалося підготувати схему SQLite.", exception);
@@ -103,6 +107,12 @@ public final class SqliteSchema {
                     CREATE TABLE IF NOT EXISTS structures (
                         id TEXT PRIMARY KEY,
                         expanded INTEGER NOT NULL DEFAULT 0,
+                        name TEXT,
+                        signal_strength INTEGER NOT NULL DEFAULT 1,
+                        activation_threshold INTEGER NOT NULL DEFAULT 1,
+                        active_ticks INTEGER NOT NULL DEFAULT 1,
+                        delay_ticks INTEGER NOT NULL DEFAULT 1,
+                        activation_mode TEXT NOT NULL DEFAULT 'SIGNAL_STRENGTH',
                         FOREIGN KEY (id)
                             REFERENCES neurons(id)
                             ON DELETE CASCADE
@@ -182,44 +192,54 @@ public final class SqliteSchema {
 
     /** Додає відсутні числові параметри нейрона зі значенням за замовчуванням 1. */
     private static void ensureNeuronSettingsColumns(Connection connection) throws SQLException {
-        ensureIntegerColumn(connection, "signal_strength");
-        ensureIntegerColumn(connection, "activation_threshold");
-        ensureIntegerColumn(connection, "active_ticks");
-        ensureIntegerColumn(connection, "delay_ticks");
+        ensureIntegerColumn(connection, "neurons", "signal_strength");
+        ensureIntegerColumn(connection, "neurons", "activation_threshold");
+        ensureIntegerColumn(connection, "neurons", "active_ticks");
+        ensureIntegerColumn(connection, "neurons", "delay_ticks");
     }
 
-    /** Додає відсутній стовпець цілого параметра нейрона зі значенням за замовчуванням 1. */
-    private static void ensureIntegerColumn(Connection connection, String column) throws SQLException {
-        if (columnExists(connection, "neurons", column)) {
+    /** Додає параметри спільних налаштувань структури до старої таблиці structures. */
+    private static void ensureStructureSettingsColumns(Connection connection) throws SQLException {
+        ensureNameColumn(connection, "structures");
+        ensureIntegerColumn(connection, "structures", "signal_strength");
+        ensureIntegerColumn(connection, "structures", "activation_threshold");
+        ensureIntegerColumn(connection, "structures", "active_ticks");
+        ensureIntegerColumn(connection, "structures", "delay_ticks");
+        ensureActivationModeColumn(connection, "structures");
+    }
+
+    /** Додає відсутній стовпець цілого параметра в указаній таблиці зі значенням за замовчуванням 1. */
+    private static void ensureIntegerColumn(Connection connection, String table, String column) throws SQLException {
+        if (columnExists(connection, table, column)) {
             return;
         }
         try (Statement statement = connection.createStatement()) {
             statement.executeUpdate(
-                    "ALTER TABLE neurons ADD COLUMN " + column + " INTEGER NOT NULL DEFAULT 1"
+                    "ALTER TABLE " + table + " ADD COLUMN " + column + " INTEGER NOT NULL DEFAULT 1"
             );
         }
     }
 
-    /** Додає nullable-стовпець назви до старої таблиці, не змінюючи наявні нейрони. */
-    private static void ensureNeuronNameColumn(Connection connection) throws SQLException {
-        if (columnExists(connection, "neurons", "name")) {
+    /** Додає nullable-стовпець назви, не змінюючи наявні рядки таблиці. */
+    private static void ensureNameColumn(Connection connection, String table) throws SQLException {
+        if (columnExists(connection, table, "name")) {
             return;
         }
         try (Statement statement = connection.createStatement()) {
-            statement.executeUpdate("ALTER TABLE neurons ADD COLUMN name TEXT");
+            statement.executeUpdate("ALTER TABLE " + table + " ADD COLUMN name TEXT");
         }
     }
 
-    /** Додає режим активації до старої схеми; наявні нейрони залишаються в режимі сили сигналів. */
-    private static void ensureActivationModeColumn(Connection connection) throws SQLException {
-        if (columnExists(connection, "neurons", "activation_mode")) {
+    /** Додає режим активації до таблиці; наявні рядки залишаються в режимі сили сигналів. */
+    private static void ensureActivationModeColumn(Connection connection, String table) throws SQLException {
+        if (columnExists(connection, table, "activation_mode")) {
             return;
         }
         try (Statement statement = connection.createStatement()) {
             statement.executeUpdate("""
-                    ALTER TABLE neurons
+                    ALTER TABLE %s
                     ADD COLUMN activation_mode TEXT NOT NULL DEFAULT 'SIGNAL_STRENGTH'
-                    """);
+                    """.formatted(table));
         }
     }
 
@@ -236,12 +256,7 @@ public final class SqliteSchema {
         }
     }
 
-    /**
-     * Додає стан відкритості до наявної таблиці структур; старі структури залишаються закритими.
-     *
-     * @param connection відкрите з'єднання з базою SQLite.
-     * @throws SQLException якщо стовпець не вдалося додати.
-     */
+    /** Додає стан відкритості до наявної таблиці структур; старі структури залишаються закритими. */
     private static void ensureStructureExpandedColumn(Connection connection) throws SQLException {
         if (columnExists(connection, "structures", "expanded")) {
             return;
@@ -250,6 +265,34 @@ public final class SqliteSchema {
             statement.executeUpdate(
                     "ALTER TABLE structures ADD COLUMN expanded INTEGER NOT NULL DEFAULT 0"
             );
+        }
+    }
+
+    /**
+     * Переносить налаштування структур із рядків нейронів до таблиці структур під час міграції до версії 11.
+     * Для старих баз, у яких ще немає рядків структур, створює їх для структурних нейронів.
+     *
+     * @param connection відкрите з'єднання з базою SQLite.
+     * @throws SQLException якщо перенесення даних не вдалося.
+     */
+    private static void migrateStructureSettingsFromNeuronRows(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    INSERT OR IGNORE INTO structures (id)
+                    SELECT id FROM neurons WHERE type = 'STRUCTURE'
+                    """);
+            // Поля structures додаються вище міграційними ensure-методами.
+            //noinspection SqlResolve
+            statement.executeUpdate("""
+                    UPDATE structures
+                    SET name = (SELECT name FROM neurons WHERE neurons.id = structures.id),
+                        signal_strength = (SELECT signal_strength FROM neurons WHERE neurons.id = structures.id),
+                        activation_threshold = (SELECT activation_threshold FROM neurons WHERE neurons.id = structures.id),
+                        active_ticks = (SELECT active_ticks FROM neurons WHERE neurons.id = structures.id),
+                        delay_ticks = (SELECT delay_ticks FROM neurons WHERE neurons.id = structures.id),
+                        activation_mode = (SELECT activation_mode FROM neurons WHERE neurons.id = structures.id)
+                    WHERE EXISTS (SELECT 1 FROM neurons WHERE neurons.id = structures.id)
+                    """);
         }
     }
 

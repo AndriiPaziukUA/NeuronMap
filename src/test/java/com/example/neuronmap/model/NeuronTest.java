@@ -10,23 +10,19 @@ import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Перевіряє семантичні дані нейрона, назву, вагу сигналу, параметри активації та валідацію некоректних значень. */
+/** Перевіряє контракт зберігання даних нейрона, параметри сигналу, назву та валідацію значень. */
 class NeuronTest {
 
     /**
-     * Перевіряє, що Neuron зберігає семантичні дані, включно з назвою, а параметри сигналу групуються в value object.
+     * Перевіряє, що нейрон зберігає власні семантичні дані, а назва й параметри містяться у спільному об'єкті налаштувань.
      */
     @Test
     void storesOnlySemanticDataAndGroupsSignalParameters() {
-        Set<String> instanceFields = Arrays.stream(Neuron.class.getDeclaredFields())
-                .filter(field -> !Modifier.isStatic(field.getModifiers()))
-                .map(Field::getName)
-                .collect(Collectors.toSet());
+        Set<String> neuronFields = instanceFieldNames(Neuron.class);
+        Set<String> settingsFields = instanceFieldNames(NeuronSettings.class);
 
-        assertEquals(
-                Set.of("id", "type", "activation", "name", "parameters"),
-                instanceFields
-        );
+        assertEquals(Set.of("id", "type", "activation", "settings"), neuronFields);
+        assertEquals(Set.of("name", "parameters"), settingsFields);
     }
 
     /**
@@ -115,5 +111,13 @@ class NeuronTest {
         assertEquals("  <Вхід> & Output?  ", neuron.name());
         assertThrows(IllegalArgumentException.class, () -> neuron.setName("x".repeat(31)));
         assertThrows(IllegalArgumentException.class, () -> neuron.setName("🚀".repeat(31)));
+    }
+
+    /** Повертає назви нестатичних полів класу для архітектурної перевірки його стану. */
+    private static Set<String> instanceFieldNames(Class<?> type) {
+        return Arrays.stream(type.getDeclaredFields())
+                .filter(field -> !Modifier.isStatic(field.getModifiers()))
+                .map(Field::getName)
+                .collect(Collectors.toSet());
     }
 }

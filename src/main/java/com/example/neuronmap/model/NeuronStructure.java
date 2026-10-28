@@ -5,17 +5,18 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
- * Представляє структуру карти, зберігаючи впорядкованих учасників і стан її шухлядки.
- * Стан відкритості є частиною моделі, тому відновлюється разом із картою та історією змін.
+ * Представляє структуру карти, зберігаючи впорядкованих учасників, спільні налаштування та стан її шухлядки.
+ * Стан відкритості й налаштування є частиною моделі, тому відновлюються разом із картою та історією змін.
  */
 public final class NeuronStructure {
 
     private final String id;
     private final Set<String> memberIds = new LinkedHashSet<>();
+    private NeuronSettings settings = new NeuronSettings();
     private boolean expanded;
 
     /**
-     * Створює порожню закриту структуру, пов'язану з ідентифікатором структурного елемента карти.
+     * Створює порожню закриту структуру з власними типовими налаштуваннями.
      *
      * @param id ідентифікатор нейрона, що представляє структуру.
      * @throws IllegalArgumentException якщо ідентифікатор порожній.
@@ -43,6 +44,15 @@ public final class NeuronStructure {
      */
     public Set<String> memberIds() {
         return Collections.unmodifiableSet(memberIds);
+    }
+
+    /**
+     * Повертає спільні налаштування, які є єдиним джерелом назви та параметрів структури й її учасників.
+     *
+     * @return об'єкт налаштувань структури.
+     */
+    public NeuronSettings settings() {
+        return settings;
     }
 
     /**
@@ -85,5 +95,23 @@ public final class NeuronStructure {
      */
     boolean removeMember(String neuronId) {
         return memberIds.remove(neuronId);
+    }
+
+    /**
+     * Встановлює посилання на спільні налаштування батьківської структури для вкладеної структури.
+     *
+     * @param sharedSettings об'єкт налаштувань, який має використовувати це дерево структури.
+     * @throws IllegalArgumentException якщо налаштування не задано.
+     */
+    void shareSettingsWith(NeuronSettings sharedSettings) {
+        if (sharedSettings == null) {
+            throw new IllegalArgumentException("Shared settings must not be null.");
+        }
+        settings = sharedSettings;
+    }
+
+    /** Створює власний знімок налаштувань, коли структура перестає бути частиною зовнішнього дерева. */
+    void detachSettings() {
+        settings = settings.copy();
     }
 }

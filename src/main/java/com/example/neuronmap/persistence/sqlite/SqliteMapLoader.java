@@ -5,6 +5,7 @@ import com.example.neuronmap.model.NeuronActivationMode;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronPresentation;
+import com.example.neuronmap.model.NeuronStructure;
 import com.example.neuronmap.model.NeuronType;
 
 import java.sql.ResultSet;
@@ -144,22 +145,35 @@ public final class SqliteMapLoader {
     }
 
     /**
-     * Відновлює записи структур, стан відкритості та впорядковане членство їхніх учасників.
-     * Кожен контейнер має посилатися на нейрон, який уже завантажено до моделі.
+     * Відновлює спільні налаштування структур, стан відкритості та впорядковане членство учасників.
+     * Спочатку завантажуються налаштування всіх контейнерів, після чого членство об'єднує їхні дерева посилань.
      *
      * @param model модель карти, до якої додаються відновлені структури.
      * @throws SQLException якщо читання таблиць не вдалося або структура посилається на відсутній нейрон.
      */
     private void loadStructures(NeuronMapModel model) throws SQLException {
-        // SqliteSchema.migrate() додає expanded до чинних і нових таблиць structures.
+        // SqliteSchema.migrate() додає стан шухлядки й налаштування до старих і нових таблиць structures.
         //noinspection SqlResolve
-        String structureSql = "SELECT id, expanded FROM structures ORDER BY rowid";
+        String structureSql = """
+                SELECT id, expanded, name, signal_strength, activation_threshold,
+                       active_ticks, delay_ticks, activation_mode
+                FROM structures ORDER BY rowid
+                """;
         try (Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery(structureSql)) {
             while (resultSet.next()) {
                 String structureId = resultSet.getString("id");
                 if (model.addStructure(structureId)) {
-                    model.structure(structureId).setExpanded(resultSet.getInt("expanded") != 0);
+                    NeuronStructure structure = model.structure(structureId);
+                    structure.setExpanded(resultSet.getInt("expanded") != 0);
+                    structure.settings().setName(resultSet.getString("name"));
+                    structure.settings().setParameters(new NeuronParameters(
+                            resultSet.getInt("signal_strength"),
+                            resultSet.getInt("activation_threshold"),
+                            resultSet.getInt("active_ticks"),
+                            resultSet.getInt("delay_ticks"),
+                            NeuronActivationMode.valueOf(resultSet.getString("activation_mode"))
+                    ));
                 } else {
                     throw new SQLException(
                             "Не вдалося відновити структуру з ідентифікатором '" + structureId

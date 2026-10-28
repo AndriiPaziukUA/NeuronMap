@@ -18,6 +18,9 @@ public record NeuronParameters(
         NeuronActivationMode activationMode
 ) {
 
+    /** Типовий набір параметрів для нового нейрона та тимчасових записів членів структури у сховищі. */
+    public static final NeuronParameters DEFAULT = new NeuronParameters(1, 1, 1, 1);
+
     /**
      * Перевіряє допустимість параметрів під час створення їхнього незмінного значення.
      *

@@ -2,18 +2,17 @@ package com.example.neuronmap.model;
 
 /**
  * Зберігає семантичний стан нейрона: тип, назву, поточну активацію та налаштування сигналу.
- * Числові параметри й режим активації згруповані в {@link NeuronParameters}, щоб оновлювати їх узгоджено.
+ * Нейрон, що входить до структури, делегує назву й параметри її контейнеру, не зберігаючи окрему копію налаштувань.
  */
 public final class Neuron {
 
     /** Максимальна кількість символів у користувацькій назві нейрона. */
-    public static final int MAX_NAME_LENGTH = 30;
+    public static final int MAX_NAME_LENGTH = NeuronSettings.MAX_NAME_LENGTH;
 
     private final String id;
     private NeuronType type;
     private int activation;
-    private String name;
-    private NeuronParameters parameters;
+    private NeuronSettings settings;
 
     /**
      * Створює нейрон із типовими параметрами сигналу, одним активним тактом і затримкою в один такт.
@@ -25,7 +24,7 @@ public final class Neuron {
      * @throws IllegalArgumentException якщо ідентифікатор порожній або тип не задано.
      */
     public Neuron(String id, NeuronType type, int activation) {
-        this(id, type, activation, new NeuronParameters(1, 1, 1, 1));
+        this(id, type, activation, NeuronParameters.DEFAULT);
     }
 
     /**
@@ -78,7 +77,7 @@ public final class Neuron {
     }
 
     /**
-     * Створює нейрон зі спільним незмінним об'єктом його параметрів.
+     * Створює нейрон із заданим незмінним набором параметрів сигналу.
      *
      * @param id унікальний ідентифікатор нейрона.
      * @param type тип нейрона.
@@ -100,8 +99,7 @@ public final class Neuron {
         this.id = id;
         this.type = type;
         this.activation = activation;
-        this.parameters = parameters;
-        this.name = null;
+        this.settings = new NeuronSettings(null, parameters);
     }
 
     /** Повертає унікальний ідентифікатор нейрона.
@@ -109,22 +107,19 @@ public final class Neuron {
      */
     public String id() { return id; }
 
-    /** Повертає користувацьку назву нейрона.
+    /** Повертає назву нейрона або спільну назву його структури-власника.
      * @return назва або {@code null}, якщо її не задано.
      */
-    public String name() { return name; }
+    public String name() { return settings.name(); }
 
     /**
-     * Установлює назву нейрона; порожній рядок нормалізується до {@code null}.
+     * Установлює назву нейрона або структури, яка володіє його налаштуваннями; порожній рядок нормалізується до {@code null}.
      *
      * @param name назва довжиною не більш як 30 символів або {@code null} для очищення.
      * @throws IllegalArgumentException якщо назва перевищує 30 символів.
      */
     public void setName(String name) {
-        if (name != null && name.codePointCount(0, name.length()) > MAX_NAME_LENGTH) {
-            throw new IllegalArgumentException("Neuron name must not exceed " + MAX_NAME_LENGTH + " characters.");
-        }
-        this.name = name == null || name.isEmpty() ? null : name;
+        settings.setName(name);
     }
 
     /** Повертає тип нейрона, що визначає знак його вихідного сигналу.
@@ -156,14 +151,14 @@ public final class Neuron {
     public void setActivation(int activation) { this.activation = activation; }
 
     /**
-     * Повертає незмінний об'єкт параметрів нейрона, включно зі способом перевірки порога.
+     * Повертає спільний незмінний набір параметрів, якщо нейрон є внутрішнім елементом структури.
      *
      * @return усі параметри сигналу та режим активації.
      */
-    public NeuronParameters parameters() { return parameters; }
+    public NeuronParameters parameters() { return settings.parameters(); }
 
     /**
-     * Замінює всі параметри нейрона однією перевіреною операцією.
+     * Замінює набір параметрів активного власника налаштувань однією перевіреною операцією.
      *
      * @param parameters повний набір нових параметрів.
      * @throws IllegalArgumentException якщо параметри не задано.
@@ -172,13 +167,13 @@ public final class Neuron {
         if (parameters == null) {
             throw new IllegalArgumentException("Neuron parameters must not be null.");
         }
-        this.parameters = parameters;
+        settings.setParameters(parameters);
     }
 
     /** Повертає режим перевірки порога активації.
      * @return спосіб інтерпретації порога.
      */
-    public NeuronActivationMode activationMode() { return parameters.activationMode(); }
+    public NeuronActivationMode activationMode() { return parameters().activationMode(); }
 
     /**
      * Змінює спосіб активації, зберігаючи інші параметри й перевіряючи поріг для нового режиму.
@@ -187,14 +182,15 @@ public final class Neuron {
      * @throws IllegalArgumentException якщо режим не задано або поточне значення порога не підходить йому.
      */
     public void setActivationMode(NeuronActivationMode activationMode) {
-        parameters = new NeuronParameters(parameters.signalStrength(), parameters.activationThreshold(),
-                parameters.activeTicks(), parameters.delayTicks(), activationMode);
+        NeuronParameters current = parameters();
+        setParameters(new NeuronParameters(current.signalStrength(), current.activationThreshold(),
+                current.activeTicks(), current.delayTicks(), activationMode));
     }
 
     /** Повертає налаштовану силу вихідного сигналу нейрона.
      * @return додатна сила сигналу.
      */
-    public int signalStrength() { return parameters.signalStrength(); }
+    public int signalStrength() { return parameters().signalStrength(); }
 
     /**
      * Установлює силу сигналу, зберігаючи решту параметрів, зокрема режим активації.
@@ -203,14 +199,15 @@ public final class Neuron {
      * @throws IllegalArgumentException якщо значення не є додатним.
      */
     public void setSignalStrength(int signalStrength) {
-        parameters = new NeuronParameters(signalStrength, parameters.activationThreshold(),
-                parameters.activeTicks(), parameters.delayTicks(), parameters.activationMode());
+        NeuronParameters current = parameters();
+        setParameters(new NeuronParameters(signalStrength, current.activationThreshold(),
+                current.activeTicks(), current.delayTicks(), current.activationMode()));
     }
 
     /** Повертає поріг сили або відсоток вхідних сигналів.
      * @return налаштований поріг активації.
      */
-    public int activationThreshold() { return parameters.activationThreshold(); }
+    public int activationThreshold() { return parameters().activationThreshold(); }
 
     /**
      * Установлює поріг активації, зберігаючи решту параметрів та поточний режим.
@@ -219,14 +216,15 @@ public final class Neuron {
      * @throws IllegalArgumentException якщо поріг не відповідає правилам поточного режиму.
      */
     public void setActivationThreshold(int activationThreshold) {
-        parameters = new NeuronParameters(parameters.signalStrength(), activationThreshold,
-                parameters.activeTicks(), parameters.delayTicks(), parameters.activationMode());
+        NeuronParameters current = parameters();
+        setParameters(new NeuronParameters(current.signalStrength(), activationThreshold,
+                current.activeTicks(), current.delayTicks(), current.activationMode()));
     }
 
     /** Повертає кількість активних тактів передавання сигналу.
      * @return кількість активних тактів.
      */
-    public int activeTicks() { return parameters.activeTicks(); }
+    public int activeTicks() { return parameters().activeTicks(); }
 
     /**
      * Установлює тривалість передавання сигналу, зберігаючи решту параметрів.
@@ -235,14 +233,15 @@ public final class Neuron {
      * @throws IllegalArgumentException якщо значення не є додатним.
      */
     public void setActiveTicks(int activeTicks) {
-        parameters = new NeuronParameters(parameters.signalStrength(), parameters.activationThreshold(),
-                activeTicks, parameters.delayTicks(), parameters.activationMode());
+        NeuronParameters current = parameters();
+        setParameters(new NeuronParameters(current.signalStrength(), current.activationThreshold(),
+                activeTicks, current.delayTicks(), current.activationMode()));
     }
 
     /** Повертає налаштовану затримку перед першим вихідним сигналом.
      * @return кількість тактів затримки.
      */
-    public int delayTicks() { return parameters.delayTicks(); }
+    public int delayTicks() { return parameters().delayTicks(); }
 
     /**
      * Установлює затримку перед першим вихідним сигналом, зберігаючи решту параметрів.
@@ -251,8 +250,9 @@ public final class Neuron {
      * @throws IllegalArgumentException якщо затримка менша за один такт.
      */
     public void setDelayTicks(int delayTicks) {
-        parameters = new NeuronParameters(parameters.signalStrength(), parameters.activationThreshold(),
-                parameters.activeTicks(), delayTicks, parameters.activationMode());
+        NeuronParameters current = parameters();
+        setParameters(new NeuronParameters(current.signalStrength(), current.activationThreshold(),
+                current.activeTicks(), delayTicks, current.activationMode()));
     }
 
     /**
@@ -261,6 +261,31 @@ public final class Neuron {
      * @return додатна вага для активуючих типів або від'ємна для гальмівного типу.
      */
     public int signalWeight() {
-        return type.isActivating() ? parameters.signalStrength() : -parameters.signalStrength();
+        return type.isActivating() ? signalStrength() : -signalStrength();
+    }
+
+    /**
+     * Прив'язує нейрон до спільного об'єкта налаштувань, не створюючи локальної копії значень.
+     *
+     * @param sharedSettings об'єкт налаштувань контейнера, на який посилатиметься нейрон.
+     * @throws IllegalArgumentException якщо об'єкт налаштувань не задано.
+     */
+    void shareSettingsWith(NeuronSettings sharedSettings) {
+        if (sharedSettings == null) {
+            throw new IllegalArgumentException("Shared settings must not be null.");
+        }
+        settings = sharedSettings;
+    }
+
+    /** Повертає об'єкт налаштувань для синхронізації моделі в межах пакета.
+     * @return поточний об'єкт налаштувань нейрона.
+     */
+    NeuronSettings settings() {
+        return settings;
+    }
+
+    /** Від'єднує нейрон від спільних налаштувань, зберігаючи їхній поточний стан як власний. */
+    void detachSettings() {
+        settings = settings.copy();
     }
 }

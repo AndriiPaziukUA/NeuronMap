@@ -4,6 +4,7 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronActivationMode;
 import com.example.neuronmap.model.NeuronParameters;
+import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.view.support.ContentSizedButtonPair;
 import com.example.neuronmap.view.support.EditorKeyboardShortcutBoundary;
 import com.example.neuronmap.view.support.SceneKeyboardModality;
@@ -37,6 +38,7 @@ import java.util.function.Consumer;
 
 /**
  * Відображає налаштування нейрона як внутрішню модальну накладку головного вікна.
+ * Для структурного нейрона подання використовує окремий заголовок, а самі значення делегуються моделі.
  * Подання ізолює власне оформлення та клавіатурні команди редактора, доки воно відкрите.
  */
 public final class NeuronSettingsView extends StackPane implements EditorKeyboardShortcutBoundary {
@@ -70,6 +72,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     private StackPane host;
     private Scene keyboardFilterScene;
     private BiConsumer<NeuronParameters, String> saveAction;
+    private boolean structureSettingsTitle;
     private boolean localizationListenerRegistered;
     private boolean disposed;
 
@@ -121,10 +124,12 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
 
     /**
      * Показує накладку та передає підтверджені параметри нейрона разом зі способом активації.
+     * Заголовок вибирається з типу нейрона й не змінює заголовки інших вікон.
      *
      * @param applicationRoot кореневий контейнер для внутрішніх накладок.
      * @param neuron нейрон, параметри якого редагують.
      * @param onSave дія застосування підтверджених числових параметрів.
+     * @throws NullPointerException якщо нейрон або callback не задано.
      */
     public void showIn(StackPane applicationRoot, Neuron neuron, Consumer<NeuronParameters> onSave) {
         Objects.requireNonNull(onSave, "onSave");
@@ -133,6 +138,8 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
 
     /**
      * Показує накладку й завантажує назву, параметри та режим активації нейрона для редагування.
+     * Для {@link NeuronType#STRUCTURE} встановлюється локалізований заголовок «Налаштування структури»;
+     * для всіх інших типів залишається звичайний заголовок налаштувань нейрона.
      *
      * @param applicationRoot кореневий контейнер для внутрішніх накладок.
      * @param neuron нейрон, значення якого редагують.
@@ -157,6 +164,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
             throw new IllegalStateException("Neuron settings view is already showing");
         }
 
+        structureSettingsTitle = neuron.type() == NeuronType.STRUCTURE;
         settingsForm.load(neuron);
         saveAction = onSave;
         host = applicationRoot;
@@ -332,7 +340,9 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
      * від CSS-класів, щоб виявляти нові розміри.</p>
      */
     private void refreshTexts() {
-        title.setText(localization.textFrom(LOCALIZATION_BUNDLE, "title"));
+        title.setText(structureSettingsTitle
+                ? localization.textFrom(LOCALIZATION_BUNDLE, "structure_title")
+                : localization.textFrom(LOCALIZATION_BUNDLE, "title"));
         settingLabels.forEach((key, label) -> label.setText(labelText(key)));
         saveButton.setText(localization.text("neuron.settings.save"));
         cancelButton.setText(localization.textFrom(LOCALIZATION_BUNDLE, "cancel"));
@@ -477,7 +487,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     /** Повертає картку налаштувань для тестів адаптивного компонування. */
     VBox panelForTest() { return panel; }
 
-    /** Повертає заголовок для перевірки його вирівнювання. */
+    /** Повертає заголовок для перевірки його вирівнювання та вибору за типом нейрона. */
     Label titleForTest() { return title; }
 
     /** Повертає затемнений фон для перевірки скасування натисканням поза карткою. */
