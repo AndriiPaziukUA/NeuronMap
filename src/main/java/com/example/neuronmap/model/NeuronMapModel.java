@@ -139,9 +139,9 @@ public final class NeuronMapModel {
     }
 
     /**
-     * Додає імпортований напрямлений зв’язок після перевірки допустимості його кінців.
+     * Додає імпортований напрямлений зв’язок лише після перевірки всіх правил сумісності його кінців.
      *
-     * @param id унікальний ідентифікатор елемента.
+     * @param id унікальний ідентифікатор зв’язку.
      * @param sourceId ідентифікатор початкового нейрона зв’язку.
      * @param targetId ідентифікатор кінцевого нейрона зв’язку.
      */
@@ -151,12 +151,7 @@ public final class NeuronMapModel {
             String targetId
     ) {
         if (id == null || id.isBlank()
-                || sourceId == null
-                || targetId == null
-                || !neurons.containsKey(sourceId)
-                || !neurons.containsKey(targetId)
-                || sourceId.equals(targetId)
-                || hasConnection(sourceId, targetId)) {
+                || validateConnection(sourceId, targetId) != ConnectionValidationResult.VALID) {
             return;
         }
 
@@ -171,7 +166,39 @@ public final class NeuronMapModel {
     }
 
     /**
-     * Створює напрямлений зв’язок, якщо пара нейронів допустима й такого зв’язку ще немає.
+     * Перевіряє, чи дозволено створити напрямлений зв’язок між указаними нейронами.
+     * Ураховує самозв’язки, дублікати, межі структур і внутрішні зв’язки в межах спільної структури.
+     *
+     * @param sourceId ідентифікатор початкового нейрона.
+     * @param targetId ідентифікатор кінцевого нейрона.
+     * @return причина відмови або {@link ConnectionValidationResult#VALID}, якщо зв’язок дозволено.
+     */
+    public ConnectionValidationResult validateConnection(String sourceId, String targetId) {
+        if (sourceId == null || targetId == null
+                || neuron(sourceId) == null || neuron(targetId) == null) {
+            return ConnectionValidationResult.INVALID_ENDPOINT;
+        }
+        if (sourceId.equals(targetId)) {
+            return ConnectionValidationResult.SELF_CONNECTION;
+        }
+        if (hasConnection(sourceId, targetId)) {
+            return ConnectionValidationResult.ALREADY_EXISTS;
+        }
+        if (sharesStructureScope(sourceId, targetId)) {
+            return ConnectionValidationResult.SAME_STRUCTURE_SCOPE;
+        }
+
+        boolean sourceIsStructure = structures.containsKey(sourceId);
+        boolean targetIsStructure = structures.containsKey(targetId);
+        if (sourceIsStructure != targetIsStructure) {
+            return ConnectionValidationResult.STRUCTURE_ENDPOINT_TYPE_MISMATCH;
+        }
+
+        return ConnectionValidationResult.VALID;
+    }
+
+    /**
+     * Створює напрямлений зв’язок, якщо пара нейронів відповідає всім правилам карти.
      *
      * @param sourceId ідентифікатор початкового нейрона.
      * @param targetId ідентифікатор кінцевого нейрона.
@@ -181,21 +208,19 @@ public final class NeuronMapModel {
             String sourceId,
             String targetId
     ) {
-        if (sourceId == null
-                || targetId == null
-                || sourceId.equals(targetId)
-                || neuron(sourceId) == null
-                || neuron(targetId) == null
-                || hasConnection(sourceId, targetId)) {
+        if (validateConnection(sourceId, targetId) != ConnectionValidationResult.VALID) {
             return false;
         }
 
-        addConnection(
-                UUID.randomUUID().toString(),
-                sourceId,
-                targetId
+        String connectionId = UUID.randomUUID().toString();
+        connections.put(
+                connectionId,
+                new Connection(
+                        connectionId,
+                        sourceId,
+                        targetId
+                )
         );
-
         return true;
     }
 
@@ -355,7 +380,7 @@ public final class NeuronMapModel {
             return false;
         }
         if (structures.containsKey(neuronId)
-                && containsStructure(neuronId, structureId, new LinkedHashSet<>())) {
+                && containsMemberRecursively(neuronId, structureId, new LinkedHashSet<>())) {
             return false;
         }
 
@@ -591,16 +616,45 @@ public final class NeuronMapModel {
     }
 
     /**
-     * Перевіряє, чи призведе включення вкладеної структури до циклу посилань у дереві структур.
+     * Перевіряє, чи входять обидва нейрони до одного дерева структури, ураховуючи вкладені контейнери.
      *
-     * @param candidateStructureId ідентифікатор структури, яку планують вкласти.
-     * @param destinationStructureId ідентифікатор структури-приймача.
-     * @param visited структури, які вже відвідано під час обходу.
-     * @return {@code true}, якщо кандидат уже містить структуру-приймач у своїй вкладеності.
+     * @param firstNeuronId ідентифікатор першого нейрона.
+     * @param secondNeuronId ідентифікатор другого нейрона.
+     * @return {@code true}, якщо обидва елементи належать спільній структурній області.
      */
-    private boolean containsStructure(
+    private boolean sharesStructureScope(String firstNeuronId, String secondNeuronId) {
+        for (NeuronStructure structure : structures.values()) {
+            if (isInStructureScope(structure.id(), firstNeuronId)
+                    && isInStructureScope(structure.id(), secondNeuronId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Перевіряє, чи є нейрон самою структурою або її прямим чи вкладеним учасником.
+     *
+     * @param structureId ідентифікатор структури, яка визначає область.
+     * @param neuronId ідентифікатор нейрона для перевірки.
+     * @return {@code true}, якщо нейрон належить цій області.
+     */
+    private boolean isInStructureScope(String structureId, String neuronId) {
+        return structureId.equals(neuronId)
+                || containsMemberRecursively(structureId, neuronId, new LinkedHashSet<>());
+    }
+
+    /**
+     * Перевіряє, чи містить структура вказаного учасника безпосередньо або через вкладені структури.
+     *
+     * @param candidateStructureId ідентифікатор структури-кандидата.
+     * @param memberId ідентифікатор очікуваного учасника.
+     * @param visited структури, які вже відвідано під час обходу.
+     * @return {@code true}, якщо учасник входить до дерева структури.
+     */
+    private boolean containsMemberRecursively(
             String candidateStructureId,
-            String destinationStructureId,
+            String memberId,
             Set<String> visited
     ) {
         if (!visited.add(candidateStructureId)) {
@@ -610,12 +664,12 @@ public final class NeuronMapModel {
         if (candidate == null) {
             return false;
         }
-        for (String memberId : candidate.memberIds()) {
-            if (destinationStructureId.equals(memberId)) {
+        for (String candidateMemberId : candidate.memberIds()) {
+            if (memberId.equals(candidateMemberId)) {
                 return true;
             }
-            if (structures.containsKey(memberId)
-                    && containsStructure(memberId, destinationStructureId, visited)) {
+            if (structures.containsKey(candidateMemberId)
+                    && containsMemberRecursively(candidateMemberId, memberId, visited)) {
                 return true;
             }
         }

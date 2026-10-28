@@ -15,7 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Зчитує з SQLite нейрони, їхнє подання, зв’язки, групи та структури й відновлює ними модель карти. */
+/** Зчитує з SQLite нейрони, їхнє подання, групи, структури та зв’язки й відновлює ними модель карти. */
 public final class SqliteMapLoader {
 
     private final java.sql.Connection connection;
@@ -34,7 +34,9 @@ public final class SqliteMapLoader {
     }
 
     /**
-     * Відновлює модель карти, послідовно завантажуючи нейрони, подання, зв'язки, групи та структури.
+     * Відновлює модель карти в порядку, потрібному для перевірки зв’язків:
+     * спочатку завантажує нейрони й подання, потім групи та структури з учасниками,
+     * а наприкінці — зв’язки.
      *
      * @param model модель карти, яку потрібно заповнити.
      * @throws SQLException якщо не вдалося прочитати будь-яку таблицю карти.
@@ -43,9 +45,9 @@ public final class SqliteMapLoader {
         model.clear();
         loadNeurons(model);
         loadPresentations(model);
-        loadConnections(model);
         loadGroups(model);
         loadStructures(model);
+        loadConnections(model);
     }
 
     /** Завантажує всі семантичні параметри нейрона, включно з режимом активації та його назвою. */
@@ -120,26 +122,6 @@ public final class SqliteMapLoader {
         }
     }
 
-    /** Відновлює напрямлені зв'язки між нейронами після завантаження самих нейронів. */
-    private void loadConnections(NeuronMapModel model) throws SQLException {
-        String sql = """
-                SELECT id, source_id, target_id
-                FROM connections
-                ORDER BY rowid
-                """;
-
-        try (Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery(sql)) {
-            while (resultSet.next()) {
-                model.addConnection(
-                        resultSet.getString("id"),
-                        resultSet.getString("source_id"),
-                        resultSet.getString("target_id")
-                );
-            }
-        }
-    }
-
     /** Відновлює групи після завантаження нейронів, збираючи учасників за ідентифікатором групи. */
     private void loadGroups(NeuronMapModel model) throws SQLException {
         String sql = """
@@ -176,13 +158,14 @@ public final class SqliteMapLoader {
              ResultSet resultSet = statement.executeQuery(structureSql)) {
             while (resultSet.next()) {
                 String structureId = resultSet.getString("id");
-                if (!model.addStructure(structureId)) {
+                if (model.addStructure(structureId)) {
+                    model.structure(structureId).setExpanded(resultSet.getInt("expanded") != 0);
+                } else {
                     throw new SQLException(
                             "Не вдалося відновити структуру з ідентифікатором '" + structureId
                                     + "': відповідний нейрон відсутній у моделі."
                     );
                 }
-                model.structure(structureId).setExpanded(resultSet.getInt("expanded") != 0);
             }
         }
 
@@ -196,6 +179,26 @@ public final class SqliteMapLoader {
             while (resultSet.next()) {
                 model.addStructureMember(
                         resultSet.getString("structure_id"), resultSet.getString("neuron_id")
+                );
+            }
+        }
+    }
+
+    /** Відновлює зв’язки після структури та її членства, щоб відхилити заборонені внутрішні зв’язки. */
+    private void loadConnections(NeuronMapModel model) throws SQLException {
+        String sql = """
+                SELECT id, source_id, target_id
+                FROM connections
+                ORDER BY rowid
+                """;
+
+        try (Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(sql)) {
+            while (resultSet.next()) {
+                model.addConnection(
+                        resultSet.getString("id"),
+                        resultSet.getString("source_id"),
+                        resultSet.getString("target_id")
                 );
             }
         }

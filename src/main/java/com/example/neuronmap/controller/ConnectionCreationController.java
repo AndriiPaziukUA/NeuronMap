@@ -2,6 +2,7 @@ package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.i18n.LocalizationService;
+import com.example.neuronmap.model.ConnectionValidationResult;
 import com.example.neuronmap.service.ConnectionService;
 import com.example.neuronmap.view.connection.ConnectionPreviewView;
 import com.example.neuronmap.view.support.JavaFxNodeLookup;
@@ -137,8 +138,8 @@ final class ConnectionCreationController {
     }
 
     /**
-     * Створює зв’язок із цільовим нейроном, не вимикаючи інструмент після успішного додавання.
-     * Лівий клік по порожньому полотну нічого не змінює, а скасування виконується окремим обробником правої кнопки.
+     * Створює зв’язок із цільовим нейроном і повідомляє про порушення правил структури через рядок стану.
+     * Успішне додавання не вимикає інструмент, щоб можна було створити кілька зв’язків поспіль.
      *
      * @param event подія клацання миші.
      */
@@ -155,9 +156,10 @@ final class ConnectionCreationController {
 
         String sourceId = state.connectionSourceId();
         String targetId = target.model().id();
+        ConnectionValidationResult validation = connectionService.validateCreation(sourceId, targetId);
 
-        if (sourceId == null || sourceId.equals(targetId)) {
-            status.accept(localization.text("status.connection_self_forbidden"));
+        if (validation != ConnectionValidationResult.VALID) {
+            status.accept(localization.text(validationMessageKey(validation)));
             event.consume();
             return;
         }
@@ -171,6 +173,22 @@ final class ConnectionCreationController {
         }
 
         event.consume();
+    }
+
+    /**
+     * Визначає ключ локалізації для причини, через яку модель відхилила створення зв’язку.
+     *
+     * @param validation результат перевірки зв’язку.
+     * @return ключ повідомлення для статус-бару.
+     */
+    private String validationMessageKey(ConnectionValidationResult validation) {
+        return switch (validation) {
+            case SELF_CONNECTION -> "status.connection_self_forbidden";
+            case ALREADY_EXISTS -> "status.connection_exists";
+            case STRUCTURE_ENDPOINT_TYPE_MISMATCH -> "status.connection_structure_only";
+            case SAME_STRUCTURE_SCOPE -> "status.connection_structure_internal";
+            case INVALID_ENDPOINT, VALID -> "status.connection_invalid";
+        };
     }
 
     /**

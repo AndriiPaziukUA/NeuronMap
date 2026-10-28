@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Перевіряє взаємодію контролера створення зв’язків із поданням прев’ю та службою зв’язків.
+ * Перевіряє взаємодію контролера створення зв’язків із поданням прев’ю, службою зв’язків і правилами структур.
  */
 final class ConnectionCreationControllerTest {
 
@@ -192,6 +192,130 @@ final class ConnectionCreationControllerTest {
             assertEquals(0, fixture.saveCalls().get());
             fixture.controller().cancelCreate();
         });
+    }
+
+    /**
+     * Перевіряє повідомлення про заборону внутрішніх зв’язків, сумісність структурних кінців і дозволені зовнішні зв’язки.
+     */
+    @Test
+    void structureRulesShowLocalizedStatusAndAllowOnlyValidExternalConnections() throws Exception {
+        runOnFxThread(() -> {
+            NeuronMapModel model = new NeuronMapModel();
+            Neuron structureA = model.createNeuron(NeuronType.STRUCTURE, 0.0, 0.0);
+            Neuron memberA = model.createNeuron(NeuronType.EXCITATORY, 20.0, 20.0);
+            Neuron siblingA = model.createNeuron(NeuronType.INHIBITORY, 40.0, 40.0);
+            Neuron structureB = model.createNeuron(NeuronType.STRUCTURE, 200.0, 0.0);
+            Neuron memberB = model.createNeuron(NeuronType.EXCITATORY, 220.0, 20.0);
+            Neuron boardNeuron = model.createNeuron(NeuronType.INHIBITORY, 400.0, 0.0);
+
+            assertTrue(model.addStructureMember(structureA.id(), memberA.id()));
+            assertTrue(model.addStructureMember(structureA.id(), siblingA.id()));
+            assertTrue(model.addStructureMember(structureB.id(), memberB.id()));
+
+            WorkspaceView workspace = new WorkspaceView();
+            Map<String, NeuronView> views = new HashMap<>();
+            NeuronView structureAView = createView(model, structureA, views);
+            NeuronView memberAView = createView(model, memberA, views);
+            NeuronView siblingAView = createView(model, siblingA, views);
+            NeuronView structureBView = createView(model, structureB, views);
+            NeuronView memberBView = createView(model, memberB, views);
+            NeuronView boardView = createView(model, boardNeuron, views);
+            workspace.nodeLayer().getChildren().addAll(
+                    structureAView, memberAView, siblingAView, structureBView, memberBView, boardView
+            );
+            Scene scene = new Scene(workspace.node(), 900.0, 600.0);
+            scene.getRoot().applyCss();
+            scene.getRoot().layout();
+
+            EditorState state = new EditorState(1.0, 0.0, 0.0);
+            ConnectionService connectionService = new ConnectionService(model);
+            AtomicInteger refreshCalls = new AtomicInteger();
+            AtomicInteger saveCalls = new AtomicInteger();
+            AtomicReference<String> lastStatus = new AtomicReference<>();
+            LocalizationService localization = new LocalizationService(Locale.ENGLISH);
+            ConnectionCreationController controller = new ConnectionCreationController(
+                    connectionService,
+                    state,
+                    workspace,
+                    views,
+                    refreshCalls::incrementAndGet,
+                    saveCalls::incrementAndGet,
+                    lastStatus::set,
+                    () -> { },
+                    localization
+            );
+
+            controller.beginCreate(structureA.id());
+            controller.handleCreateClick(mouseEvent(
+                    memberAView, MouseEvent.MOUSE_CLICKED, MouseButton.PRIMARY, 10.0, 10.0
+            ));
+            assertEquals(localization.text("status.connection_structure_internal"), lastStatus.get());
+            assertFalse(connectionService.contains(structureA.id(), memberA.id()));
+            assertEquals(0, refreshCalls.get());
+            assertEquals(0, saveCalls.get());
+            controller.cancelCreate();
+
+            controller.beginCreate(structureA.id());
+            controller.handleCreateClick(mouseEvent(
+                    boardView, MouseEvent.MOUSE_CLICKED, MouseButton.PRIMARY, 10.0, 10.0
+            ));
+            assertEquals(localization.text("status.connection_structure_only"), lastStatus.get());
+            assertFalse(connectionService.contains(structureA.id(), boardNeuron.id()));
+            controller.cancelCreate();
+
+            controller.beginCreate(boardNeuron.id());
+            controller.handleCreateClick(mouseEvent(
+                    structureBView, MouseEvent.MOUSE_CLICKED, MouseButton.PRIMARY, 10.0, 10.0
+            ));
+            assertEquals(localization.text("status.connection_structure_only"), lastStatus.get());
+            assertFalse(connectionService.contains(boardNeuron.id(), structureB.id()));
+            controller.cancelCreate();
+
+            controller.beginCreate(memberA.id());
+            controller.handleCreateClick(mouseEvent(
+                    siblingAView, MouseEvent.MOUSE_CLICKED, MouseButton.PRIMARY, 10.0, 10.0
+            ));
+            assertEquals(localization.text("status.connection_structure_internal"), lastStatus.get());
+            assertFalse(connectionService.contains(memberA.id(), siblingA.id()));
+            controller.cancelCreate();
+
+            controller.beginCreate(memberA.id());
+            controller.handleCreateClick(mouseEvent(
+                    memberBView, MouseEvent.MOUSE_CLICKED, MouseButton.PRIMARY, 10.0, 10.0
+            ));
+            assertEquals(localization.text("status.connection_created"), lastStatus.get());
+            assertTrue(connectionService.contains(memberA.id(), memberB.id()));
+            controller.cancelCreate();
+
+            controller.beginCreate(structureA.id());
+            controller.handleCreateClick(mouseEvent(
+                    structureBView, MouseEvent.MOUSE_CLICKED, MouseButton.PRIMARY, 10.0, 10.0
+            ));
+            assertEquals(localization.text("status.connection_created"), lastStatus.get());
+            assertTrue(connectionService.contains(structureA.id(), structureB.id()));
+            assertEquals(2, refreshCalls.get());
+            assertEquals(2, saveCalls.get());
+            assertEquals(EditorState.Mode.CREATE_CONNECTION, state.mode());
+            controller.cancelCreate();
+        });
+    }
+
+    /**
+     * Створює подання нейрона та додає його до мапи подань, щоб тест міг адресувати клік до конкретного нейрона.
+     *
+     * @param model модель, що зберігає нейрон і його подання.
+     * @param neuron нейрон, для якого створюється графічне подання.
+     * @param views мапа подань, індексована ідентифікаторами нейронів.
+     * @return нове подання нейрона.
+     */
+    private static NeuronView createView(
+            NeuronMapModel model,
+            Neuron neuron,
+            Map<String, NeuronView> views
+    ) {
+        NeuronView view = new NeuronView(model.presentation(neuron.id()));
+        views.put(neuron.id(), view);
+        return view;
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.example.neuronmap.service;
 
 import com.example.neuronmap.model.Connection;
+import com.example.neuronmap.model.ConnectionValidationResult;
 import com.example.neuronmap.model.NeuronMapModel;
 
 import java.util.Objects;
@@ -30,6 +31,17 @@ public final class ConnectionService {
      */
     public NeuronMapModel model() {
         return model;
+    }
+
+    /**
+     * Перевіряє можливість створити зв’язок, не змінюючи стан карти.
+     *
+     * @param sourceNeuronId ідентифікатор початкового нейрона.
+     * @param targetNeuronId ідентифікатор цільового нейрона.
+     * @return результат перевірки правил створення зв’язку.
+     */
+    public ConnectionValidationResult validateCreation(String sourceNeuronId, String targetNeuronId) {
+        return model.validateConnection(sourceNeuronId, targetNeuronId);
     }
 
     /**

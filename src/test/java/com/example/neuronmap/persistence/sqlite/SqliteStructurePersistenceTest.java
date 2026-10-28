@@ -13,6 +13,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -65,6 +66,41 @@ class SqliteStructurePersistenceTest {
         assertTrue(restoredEmpty.isExpanded());
         assertEquals(3, restored.structures().size());
         assertEquals(5, restored.neurons().size());
+    }
+
+    /**
+     * Перевіряє, що завантаження відхиляє старий збережений зв’язок між двома учасниками однієї структури.
+     */
+    @Test
+    void loadingRejectsLegacyConnectionsInsideOneStructure(@TempDir Path tempDir) throws SQLException {
+        Path databasePath = tempDir.resolve("invalid-internal-connection.db");
+        NeuronMapModel original = new NeuronMapModel();
+        Neuron structure = original.createNeuron(NeuronType.STRUCTURE, 10, 20);
+        Neuron firstMember = original.createNeuron(NeuronType.EXCITATORY, 30, 40);
+        Neuron secondMember = original.createNeuron(NeuronType.INHIBITORY, 50, 60);
+        assertTrue(original.addStructureMember(structure.id(), firstMember.id()));
+        assertTrue(original.addStructureMember(structure.id(), secondMember.id()));
+
+        try (MapRepository repository = new SqliteMapRepository(databasePath)) {
+            repository.save(original, CameraState.defaultState());
+        }
+
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + databasePath.toAbsolutePath());
+             PreparedStatement statement = connection.prepareStatement(
+                     "INSERT INTO connections (id, source_id, target_id) VALUES (?, ?, ?)")) {
+            statement.setString(1, "legacy-internal-connection");
+            statement.setString(2, firstMember.id());
+            statement.setString(3, secondMember.id());
+            assertEquals(1, statement.executeUpdate());
+        }
+
+        NeuronMapModel restored = new NeuronMapModel();
+        try (MapRepository repository = new SqliteMapRepository(databasePath)) {
+            repository.loadInto(restored);
+        }
+
+        assertTrue(restored.connections().isEmpty());
+        assertEquals(Set.of(firstMember.id(), secondMember.id()), restored.structure(structure.id()).memberIds());
     }
 
     /** Перевіряє, що структури та їхнє членство зберігаються окремо й мають індекс порядку учасників. */

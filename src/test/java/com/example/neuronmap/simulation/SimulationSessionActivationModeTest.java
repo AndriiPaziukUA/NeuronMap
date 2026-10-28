@@ -51,12 +51,12 @@ class SimulationSessionActivationModeTest {
         assertTrue(step.nextActivatedNeuronIds().contains(target.id()));
     }
 
-    /** Перевіряє, що структурний нейрон подає додатний сигнал і входить до знаменника відсоткового порога. */
+    /** Перевіряє, що структурний нейрон подає додатний сигнал іншій структурі у відсотковому режимі. */
     @Test
     void structureNeuronActsAsPositiveInputInPercentageMode() {
         NeuronMapModel model = new NeuronMapModel();
         Neuron structure = model.createNeuron(NeuronType.STRUCTURE, 0, 0);
-        Neuron target = countModeTarget(model, 100);
+        Neuron target = countModeTarget(model, 100, NeuronType.STRUCTURE);
         assertTrue(model.createConnection(structure.id(), target.id()));
 
         SimulationStep step = SimulationSession.manual(model, structure.id()).nextStep();
@@ -154,11 +154,16 @@ class SimulationSessionActivationModeTest {
         assertTrue(step.nextActivatedNeuronIds().contains(target.id()));
     }
 
-    /** Створює нейрон призначення з відсотковим порогом для тестів поширення сигналів. */
-    private static Neuron countModeTarget(NeuronMapModel model, int percentage) {
-        Neuron target = model.createNeuron(NeuronType.EXCITATORY, 300, 0);
+    /** Створює нейрон заданого типу з відсотковим порогом для перевірки поширення сигналів. */
+    private static Neuron countModeTarget(NeuronMapModel model, int percentage, NeuronType type) {
+        Neuron target = model.createNeuron(type, 300, 0);
         target.setParameters(new NeuronParameters(1, percentage, 1, 1, NeuronActivationMode.SIGNAL_COUNT));
         return target;
+    }
+
+    /** Створює звичайний збуджувальний нейрон-приймач з відсотковим порогом. */
+    private static Neuron countModeTarget(NeuronMapModel model, int percentage) {
+        return countModeTarget(model, percentage, NeuronType.EXCITATORY);
     }
 
     /** Створює три активуючі входи, запускає задану кількість і перевіряє активацію за відсотковим порогом. */

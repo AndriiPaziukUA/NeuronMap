@@ -162,4 +162,108 @@ class NeuronMapModelTest {
         );
         assertNull(model.groupContaining(b.id()));
     }
+
+    /**
+     * Перевіряє, що структури з’єднуються лише з іншими структурами, а учасники — поза спільною областю.
+     */
+    @Test
+    void structureConnectionsRespectBoundariesAndAllowExternalTargets() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron structureA = model.createNeuron(NeuronType.STRUCTURE, 0, 0);
+        Neuron memberA = model.createNeuron(NeuronType.EXCITATORY, 10, 10);
+        Neuron siblingA = model.createNeuron(NeuronType.INHIBITORY, 20, 20);
+        Neuron structureB = model.createNeuron(NeuronType.STRUCTURE, 100, 0);
+        Neuron memberB = model.createNeuron(NeuronType.EXCITATORY, 110, 10);
+        Neuron boardNeuron = model.createNeuron(NeuronType.INHIBITORY, 200, 0);
+
+        assertTrue(model.addStructureMember(structureA.id(), memberA.id()));
+        assertTrue(model.addStructureMember(structureA.id(), siblingA.id()));
+        assertTrue(model.addStructureMember(structureB.id(), memberB.id()));
+
+        assertEquals(ConnectionValidationResult.SAME_STRUCTURE_SCOPE,
+                model.validateConnection(structureA.id(), memberA.id()));
+        assertEquals(ConnectionValidationResult.SAME_STRUCTURE_SCOPE,
+                model.validateConnection(memberA.id(), structureA.id()));
+        assertEquals(ConnectionValidationResult.SAME_STRUCTURE_SCOPE,
+                model.validateConnection(memberA.id(), siblingA.id()));
+        assertEquals(ConnectionValidationResult.STRUCTURE_ENDPOINT_TYPE_MISMATCH,
+                model.validateConnection(structureA.id(), boardNeuron.id()));
+        assertEquals(ConnectionValidationResult.STRUCTURE_ENDPOINT_TYPE_MISMATCH,
+                model.validateConnection(boardNeuron.id(), structureB.id()));
+        assertEquals(ConnectionValidationResult.VALID,
+                model.validateConnection(structureA.id(), structureB.id()));
+        assertEquals(ConnectionValidationResult.VALID,
+                model.validateConnection(memberA.id(), memberB.id()));
+        assertEquals(ConnectionValidationResult.VALID,
+                model.validateConnection(memberA.id(), boardNeuron.id()));
+
+        assertTrue(model.createConnection(structureA.id(), structureB.id()));
+        assertTrue(model.createConnection(memberA.id(), memberB.id()));
+        assertTrue(model.createConnection(memberA.id(), boardNeuron.id()));
+        assertFalse(model.createConnection(structureA.id(), boardNeuron.id()));
+    }
+
+    /**
+     * Перевіряє межі зв’язків для вкладених структур і заборону зв’язків у спільній області батьківської структури.
+     */
+    @Test
+    void nestedStructureMembersCannotConnectInsideTheirOuterStructure() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron outerStructure = model.createNeuron(NeuronType.STRUCTURE, 0, 0);
+        Neuron innerStructure = model.createNeuron(NeuronType.STRUCTURE, 20, 20);
+        Neuron innerMember = model.createNeuron(NeuronType.EXCITATORY, 30, 30);
+        Neuron outerSibling = model.createNeuron(NeuronType.INHIBITORY, 40, 40);
+        Neuron externalStructure = model.createNeuron(NeuronType.STRUCTURE, 200, 0);
+        Neuron externalBoardNeuron = model.createNeuron(NeuronType.EXCITATORY, 300, 0);
+
+        assertTrue(model.addStructureMember(outerStructure.id(), innerStructure.id()));
+        assertTrue(model.addStructureMember(innerStructure.id(), innerMember.id()));
+        assertTrue(model.addStructureMember(outerStructure.id(), outerSibling.id()));
+
+        assertEquals(ConnectionValidationResult.SAME_STRUCTURE_SCOPE,
+                model.validateConnection(outerStructure.id(), innerStructure.id()));
+        assertEquals(ConnectionValidationResult.SAME_STRUCTURE_SCOPE,
+                model.validateConnection(innerMember.id(), outerSibling.id()));
+        assertEquals(ConnectionValidationResult.SAME_STRUCTURE_SCOPE,
+                model.validateConnection(innerStructure.id(), outerSibling.id()));
+        assertEquals(ConnectionValidationResult.VALID,
+                model.validateConnection(innerStructure.id(), externalStructure.id()));
+        assertEquals(ConnectionValidationResult.VALID,
+                model.validateConnection(innerMember.id(), externalBoardNeuron.id()));
+
+        assertTrue(model.createConnection(innerStructure.id(), externalStructure.id()));
+        assertTrue(model.createConnection(innerMember.id(), externalBoardNeuron.id()));
+        assertFalse(model.createConnection(innerMember.id(), outerSibling.id()));
+    }
+
+    /**
+     * Перевіряє, що імпорт зв’язків не обходить правила структур і що дубльовані зв’язки не створюються.
+     */
+    @Test
+    void lowLevelConnectionCreationRejectsStructuralViolationsAndDuplicates() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron structure = model.createNeuron(NeuronType.STRUCTURE, 0, 0);
+        Neuron firstMember = model.createNeuron(NeuronType.EXCITATORY, 10, 10);
+        Neuron secondMember = model.createNeuron(NeuronType.INHIBITORY, 20, 20);
+        assertTrue(model.addStructureMember(structure.id(), firstMember.id()));
+        assertTrue(model.addStructureMember(structure.id(), secondMember.id()));
+
+        assertEquals(ConnectionValidationResult.INVALID_ENDPOINT,
+                model.validateConnection(firstMember.id(), "missing"));
+        assertEquals(ConnectionValidationResult.SELF_CONNECTION,
+                model.validateConnection(firstMember.id(), firstMember.id()));
+        assertFalse(model.createConnection(firstMember.id(), secondMember.id()));
+
+        model.addConnection("same-scope", firstMember.id(), secondMember.id());
+        model.addConnection("structure-to-member", structure.id(), firstMember.id());
+        assertTrue(model.connections().isEmpty());
+
+        Neuron outsideA = model.createNeuron(NeuronType.EXCITATORY, 100, 0);
+        Neuron outsideB = model.createNeuron(NeuronType.INHIBITORY, 200, 0);
+        assertTrue(model.createConnection(outsideA.id(), outsideB.id()));
+        assertEquals(ConnectionValidationResult.ALREADY_EXISTS,
+                model.validateConnection(outsideA.id(), outsideB.id()));
+        assertFalse(model.createConnection(outsideA.id(), outsideB.id()));
+        assertEquals(1, model.connections().size());
+    }
 }
