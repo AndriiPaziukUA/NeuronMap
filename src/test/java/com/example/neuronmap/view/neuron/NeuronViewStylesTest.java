@@ -27,24 +27,21 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє кольори, стани вибору та наведення, а також прямокутник назви нейрона. */
+/** Перевіряє кольори типів нейронів, стани вибору та наведення, а також прямокутник назви нейрона. */
 final class NeuronViewStylesTest {
 
     private static final double EPSILON = 0.001;
     private static final PseudoClass HOVER_PSEUDO_CLASS = PseudoClass.getPseudoClass("hover");
 
-    /**
-     * Переконується, що вибір додає світіння, наведення лише змінює колір рамки, а її товщина не змінюється.
-     *
-     * @throws Exception якщо JavaFX-потік не виконав перевірку вчасно.
-     */
+    /** Перевіряє палітру всіх типів, світіння вибраного нейрона та незмінну товщину його рамки. */
     @Test
     void cssControlsNeuronTypeSelectionGlowHoverBorderAndStableThickness() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
             NeuronView excitatory = createView("style-excitatory", NeuronType.EXCITATORY);
             NeuronView inhibitory = createView("style-inhibitory", NeuronType.INHIBITORY);
-            HBox root = new HBox(excitatory, inhibitory);
-            Scene scene = new Scene(root, 400.0, 200.0);
+            NeuronView structure = createView("style-structure", NeuronType.STRUCTURE);
+            HBox root = new HBox(excitatory, inhibitory, structure);
+            Scene scene = new Scene(root, 600.0, 200.0);
             scene.getStylesheets().add(
                     Objects.requireNonNull(
                             NeuronViewStylesTest.class.getResource("/app.css"),
@@ -55,10 +52,13 @@ final class NeuronViewStylesTest {
 
             Rectangle excitatoryBody = (Rectangle) excitatory.getChildren().getFirst();
             Rectangle inhibitoryBody = (Rectangle) inhibitory.getChildren().getFirst();
+            Rectangle structureBody = (Rectangle) structure.getChildren().getFirst();
             assertTrue(excitatoryBody.getStyleClass().contains("neuron-card-excitatory"));
             assertTrue(inhibitoryBody.getStyleClass().contains("neuron-card-inhibitory"));
+            assertTrue(structureBody.getStyleClass().contains("neuron-card-structure"));
             assertEquals(Color.web("#328b55"), excitatoryBody.getFill());
             assertEquals(Color.web("#646971"), inhibitoryBody.getFill());
+            assertEquals(Color.web("#f59e0b"), structureBody.getFill());
             assertEquals(Color.web("#25292f"), excitatoryBody.getStroke());
             assertEquals(2.0, excitatoryBody.getStrokeWidth(), EPSILON);
             assertNull(excitatoryBody.getEffect(), "Невибраний нейрон не повинен світитися");
@@ -101,6 +101,9 @@ final class NeuronViewStylesTest {
             assertEquals(2.0, excitatoryBody.getStrokeWidth(), EPSILON);
             assertNull(excitatoryBody.getEffect(), "Після зняття вибору світіння має зникнути");
             assertBodyRemainsAtLocalOrigin(excitatoryBody);
+            excitatory.disposeParameterTooltip();
+            inhibitory.disposeParameterTooltip();
+            structure.disposeParameterTooltip();
         });
     }
 
@@ -133,18 +136,13 @@ final class NeuronViewStylesTest {
         });
     }
 
-    /**
-     * Перевіряє, що підпис лишається горизонтальним і розташовується над повернутим нейроном зі сталим екранним відступом.
-     *
-     * @throws Exception якщо JavaFX-потік не виконав перевірку вчасно.
-     */
+    /** Перевіряє, що підпис лишається горизонтальним і розташовується над повернутим нейроном зі сталим екранним відступом. */
     @Test
     void positionsNameAboveRotatedNeuronWithFixedScreenGapWhenZoomed() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
             Neuron neuron = new Neuron("rotated-name", NeuronType.EXCITATORY, 0);
             neuron.setName("Rotated label");
-            NeuronView view = new NeuronView(
-                    new NeuronPresentation(neuron, 40.0, 50.0, 67.0));
+            NeuronView view = new NeuronView(new NeuronPresentation(neuron, 40.0, 50.0, 67.0));
             StackPane root = new StackPane(view);
             Scale cameraScale = new Scale(1.75, 1.75, 0.0, 0.0);
             root.getTransforms().add(cameraScale);
@@ -163,19 +161,13 @@ final class NeuronViewStylesTest {
             root.layout();
 
             Point2D[] corners = {
-                    view.localToScene(0.0, 0.0),
-                    view.localToScene(NeuronView.WIDTH, 0.0),
-                    view.localToScene(0.0, NeuronView.HEIGHT),
-                    view.localToScene(NeuronView.WIDTH, NeuronView.HEIGHT)
+                    view.localToScene(0.0, 0.0), view.localToScene(NeuronView.WIDTH, 0.0),
+                    view.localToScene(0.0, NeuronView.HEIGHT), view.localToScene(NeuronView.WIDTH, NeuronView.HEIGHT)
             };
-            double topY = java.util.Arrays.stream(corners)
-                    .mapToDouble(Point2D::getY)
-                    .min()
-                    .orElseThrow();
+            double topY = java.util.Arrays.stream(corners).mapToDouble(Point2D::getY).min().orElseThrow();
             Label label = view.nameLabelForTest();
             Bounds labelBounds = label.localToScene(label.getBoundsInLocal());
-            double neuronCenterX = view.localToScene(
-                    NeuronView.WIDTH / 2.0, NeuronView.HEIGHT / 2.0).getX();
+            double neuronCenterX = view.localToScene(NeuronView.WIDTH / 2.0, NeuronView.HEIGHT / 2.0).getX();
 
             assertTrue(view.isNameLabelVisibleForTest());
             assertEquals(topY - NeuronOverlayPositioner.MENU_GAP, labelBounds.getMaxY(), 1.0);
@@ -184,7 +176,7 @@ final class NeuronViewStylesTest {
             assertEquals(1.0 / 1.75, label.getScaleX(), 0.01);
             assertEquals(1.0 / 1.75, label.getScaleY(), 0.01);
 
-            // Імітує звичайний callback оновлення екранних накладок після zoom без руху миші.
+            // Імітує callback оновлення екранних накладок після zoom без руху миші.
             cameraScale.setX(2.25);
             cameraScale.setY(2.25);
             view.refreshHoverNameGeometry();
@@ -192,22 +184,15 @@ final class NeuronViewStylesTest {
             root.layout();
 
             Bounds zoomedLabelBounds = label.localToScene(label.getBoundsInLocal());
-            Point2D zoomedNeuronCenter = view.localToScene(
-                    NeuronView.WIDTH / 2.0, NeuronView.HEIGHT / 2.0);
+            Point2D zoomedNeuronCenter = view.localToScene(NeuronView.WIDTH / 2.0, NeuronView.HEIGHT / 2.0);
             Point2D[] zoomedCorners = {
-                    view.localToScene(0.0, 0.0),
-                    view.localToScene(NeuronView.WIDTH, 0.0),
-                    view.localToScene(0.0, NeuronView.HEIGHT),
-                    view.localToScene(NeuronView.WIDTH, NeuronView.HEIGHT)
+                    view.localToScene(0.0, 0.0), view.localToScene(NeuronView.WIDTH, 0.0),
+                    view.localToScene(0.0, NeuronView.HEIGHT), view.localToScene(NeuronView.WIDTH, NeuronView.HEIGHT)
             };
-            double zoomedTopY = java.util.Arrays.stream(zoomedCorners)
-                    .mapToDouble(Point2D::getY)
-                    .min()
-                    .orElseThrow();
+            double zoomedTopY = java.util.Arrays.stream(zoomedCorners).mapToDouble(Point2D::getY).min().orElseThrow();
             assertEquals(1.0 / 2.25, label.getScaleX(), 0.01);
             assertEquals(1.0 / 2.25, label.getScaleY(), 0.01);
-            assertEquals(zoomedTopY - NeuronOverlayPositioner.MENU_GAP,
-                    zoomedLabelBounds.getMaxY(), 1.0);
+            assertEquals(zoomedTopY - NeuronOverlayPositioner.MENU_GAP, zoomedLabelBounds.getMaxY(), 1.0);
             assertEquals(labelBounds.getWidth(), zoomedLabelBounds.getWidth(), 1.0,
                     "Підпис має негайно зберігати екранну ширину після zoom");
             assertEquals(labelBounds.getHeight(), zoomedLabelBounds.getHeight(), 1.0,
@@ -224,35 +209,20 @@ final class NeuronViewStylesTest {
         JavaFxTestSupport.runAndWait(() -> {
             NeuronView view = createView("unnamed-neuron", NeuronType.EXCITATORY);
             view.fireEvent(mouseEvent(MouseEvent.MOUSE_ENTERED));
-
             assertFalse(view.isNameLabelVisibleForTest());
             view.disposeParameterTooltip();
         });
     }
 
-    /**
-     * Перевіряє, що CSS-рамка не зсуває прямокутник від незмінного локального початку координат.
-     *
-     * @param body графічне тіло нейрона.
-     */
+    /** Перевіряє, що CSS-рамка не зсуває прямокутник від незмінного локального початку координат. */
     private static void assertBodyRemainsAtLocalOrigin(Rectangle body) {
-        assertEquals(0.0, body.getLayoutX(), EPSILON,
-                "CSS-рамка не повинна змінювати горизонтальне розташування тіла");
-        assertEquals(0.0, body.getLayoutY(), EPSILON,
-                "CSS-рамка не повинна змінювати вертикальне розташування тіла");
-        assertEquals(0.0, body.getX(), EPSILON,
-                "Ліва межа тіла має залишатися в локальній координаті X = 0");
-        assertEquals(0.0, body.getY(), EPSILON,
-                "Верхня межа тіла має залишатися в локальній координаті Y = 0");
+        assertEquals(0.0, body.getLayoutX(), EPSILON, "CSS-рамка не повинна змінювати горизонтальне розташування тіла");
+        assertEquals(0.0, body.getLayoutY(), EPSILON, "CSS-рамка не повинна змінювати вертикальне розташування тіла");
+        assertEquals(0.0, body.getX(), EPSILON, "Ліва межа тіла має залишатися в локальній координаті X = 0");
+        assertEquals(0.0, body.getY(), EPSILON, "Верхня межа тіла має залишатися в локальній координаті Y = 0");
     }
 
-    /**
-     * Створює нейронний вузол заданого типу для перевірки таблиці стилів.
-     *
-     * @param id унікальний ідентифікатор нейрона.
-     * @param type тип нейрона.
-     * @return графічне подання нейрона.
-     */
+    /** Створює нейронний вузол заданого типу для перевірки таблиці стилів. */
     private static NeuronView createView(String id, NeuronType type) {
         Neuron neuron = new Neuron(id, type, 0);
         return new NeuronView(new NeuronPresentation(neuron, 40.0, 50.0, 0.0));
@@ -261,12 +231,7 @@ final class NeuronViewStylesTest {
     /** Створює синтетичну подію миші для перевірки реакції подання без відображення окремого вікна. */
     private static MouseEvent mouseEvent(javafx.event.EventType<MouseEvent> eventType) {
         return new MouseEvent(
-                eventType,
-                0.0, 0.0, 0.0, 0.0,
-                MouseButton.NONE, 0,
-                false, false, false, false,
-                false, false, false,
-                false, false, false, null
-        );
+                eventType, 0.0, 0.0, 0.0, 0.0, MouseButton.NONE, 0,
+                false, false, false, false, false, false, false, false, false, false, null);
     }
 }

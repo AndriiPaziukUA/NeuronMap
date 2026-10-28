@@ -1,6 +1,7 @@
 package com.example.neuronmap.view.editor;
 
 import com.example.neuronmap.i18n.LocalizationService;
+import com.example.neuronmap.model.NeuronType;
 import javafx.application.Platform;
 import javafx.css.StyleOrigin;
 import javafx.css.StyleableProperty;
@@ -16,19 +17,20 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Перевіряє склад панелі інструментів, введення швидкості, CSS-оформлення та значки симуляції.
- */
+/** Перевіряє склад панелі інструментів, створення типів нейронів, введення швидкості та значки симуляції. */
 final class ToolbarViewTest {
 
     /** Запускає JavaFX перед тестами, які створюють і перевіряють компоненти інтерфейсу. */
@@ -45,32 +47,55 @@ final class ToolbarViewTest {
         }
     }
 
+    /** Перевіряє, що кнопка структури локалізована, використовує стандартний стиль і передає правильний тип. */
+    @Test
+    void structureButtonCreatesStructureNeuronWithLocalizedLabel() throws Exception {
+        runOnFxThread(() -> {
+            AtomicReference<NeuronType> createdType = new AtomicReference<>();
+            ToolbarView toolbar = new ToolbarView(
+                    createdType::set,
+                    () -> { },
+                    () -> { },
+                    () -> { },
+                    () -> { },
+                    ignored -> { },
+                    650.0,
+                    new LocalizationService(Locale.forLanguageTag("uk"))
+            );
+
+            Button button = toolbar.addStructureButton();
+            assertEquals("Структура", button.getText());
+            assertEquals("Додати нейрон структури", button.getTooltip().getText());
+            assertTrue(button.getStyleClass().contains("tool-button"));
+            assertFalse(button.getStyleClass().contains("tool-button-structure"),
+                    "Кнопка структури повинна використовувати спільний стиль усіх інструментів");
+            button.fire();
+            assertEquals(NeuronType.STRUCTURE, createdType.get());
+            toolbar.dispose();
+        });
+    }
+
     /** Перевіряє числове введення й підтверджує, що вирівнювання задається CSS, а не inline-стилем. */
     @Test
     void speedFieldAcceptsOnlyNumericInputAndKeepsCssLeftAlignment() throws Exception {
         runOnFxThread(() -> {
             ToolbarView toolbar = toolbar();
             Scene scene = new Scene(toolbar.node(), 800.0, 100.0);
-            scene.getStylesheets().add(ToolbarViewTest.class.getResource("/app.css").toExternalForm());
+            scene.getStylesheets().add(appStylesheetUrl());
             scene.getRoot().applyCss();
             TextField field = speedField(toolbar);
 
             assertEquals(Pos.CENTER_LEFT, field.getAlignment());
-            assertEquals(
-                    StyleOrigin.AUTHOR,
-                    ((StyleableProperty<?>) field.alignmentProperty()).getStyleOrigin());
+            assertEquals(StyleOrigin.AUTHOR, ((StyleableProperty<?>) field.alignmentProperty()).getStyleOrigin());
             assertTrue(field.getStyle().isBlank());
 
             field.clear();
             field.replaceText(0, 0, "12abc");
             assertEquals("", field.getText());
-
             field.replaceText(0, 0, "12.5");
             assertEquals("12.5", field.getText());
-
             field.replaceText(0, 4, "12.5.7");
             assertEquals("12.5", field.getText());
-
             field.replaceText(0, 4, "-50");
             assertEquals("12.5", field.getText());
             toolbar.dispose();
@@ -85,10 +110,10 @@ final class ToolbarViewTest {
             Button button = simulationButton(toolbar, "simulation-icon-button");
             Node graphic = button.getGraphic();
             assertNotNull(graphic, "Кнопка паузи має містити векторний значок");
-            assertTrue(graphic instanceof SVGPath, "Значок має бути масштабованим векторним контуром");
-            SVGPath icon = (SVGPath) graphic;
+            SVGPath icon = assertInstanceOf(
+                    SVGPath.class, graphic, "Значок має бути масштабованим векторним контуром");
             Scene scene = new Scene(toolbar.node(), 800.0, 100.0);
-            scene.getStylesheets().add(ToolbarViewTest.class.getResource("/app.css").toExternalForm());
+            scene.getStylesheets().add(appStylesheetUrl());
             scene.getRoot().applyCss();
 
             assertEquals(ContentDisplay.GRAPHIC_ONLY, button.getContentDisplay());
@@ -122,7 +147,7 @@ final class ToolbarViewTest {
             AtomicInteger stopCalls = new AtomicInteger();
             ToolbarView toolbar = toolbar(stopCalls::incrementAndGet);
             Scene scene = new Scene(toolbar.node(), 800.0, 100.0);
-            scene.getStylesheets().add(ToolbarViewTest.class.getResource("/app.css").toExternalForm());
+            scene.getStylesheets().add(appStylesheetUrl());
             scene.getRoot().applyCss();
             Button button = simulationButton(toolbar, "simulation-icon-button-danger");
             assertTrue(button.getText().isBlank(), "Кнопка зупинки не повинна містити Unicode-символ");
@@ -185,23 +210,22 @@ final class ToolbarViewTest {
         });
     }
 
-    /** Створює панель інструментів із тестовими callback-ами та явно переданою локалізацією. */
-    private static ToolbarView toolbar() {
-        return toolbar(() -> { });
+    /** Повертає URL обов'язкової таблиці стилів тестів із зрозумілою помилкою для відсутнього ресурсу. */
+    private static String appStylesheetUrl() {
+        return Objects.requireNonNull(
+                ToolbarViewTest.class.getResource("/app.css"),
+                "Missing test stylesheet: /app.css"
+        ).toExternalForm();
     }
 
-    /** Створює панель із переданою дією зупинки для перевірки збереження поведінки кнопки. */
+    /** Створює панель інструментів із тестовими callback-ами та явно переданою локалізацією. */
+    private static ToolbarView toolbar() { return toolbar(() -> { }); }
+
+    /** Створює панель із переданою дією зупинки для перевірки поведінки кнопки. */
     private static ToolbarView toolbar(Runnable stopSignals) {
         return new ToolbarView(
-                ignored -> { },
-                () -> { },
-                () -> { },
-                () -> { },
-                stopSignals,
-                ignored -> { },
-                650.0,
-                new LocalizationService(Locale.forLanguageTag("uk"))
-        );
+                ignored -> { }, () -> { }, () -> { }, () -> { }, stopSignals,
+                ignored -> { }, 650.0, new LocalizationService(Locale.forLanguageTag("uk")));
     }
 
     /** Повертає кнопку керування симуляцією за її CSS-класом. */
@@ -214,17 +238,10 @@ final class ToolbarViewTest {
                 .orElseThrow();
     }
 
-    /**
-     * Повертає текстове поле швидкості з кореневого вузла панелі.
-     *
-     * @param toolbar панель інструментів.
-     * @return поле швидкості.
-     */
+    /** Повертає текстове поле швидкості з кореневого вузла панелі. */
     private static TextField speedField(ToolbarView toolbar) {
         return (TextField) toolbar.node().getChildren().stream()
-                .filter(TextField.class::isInstance)
-                .findFirst()
-                .orElseThrow();
+                .filter(TextField.class::isInstance).findFirst().orElseThrow();
     }
 
     /** Знаходить індекс текстового поля швидкості серед дочірніх вузлів панелі. */

@@ -21,7 +21,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Перевіряє повне збереження та відновлення семантичних даних, подань нейронів, зв’язків, груп і камери в SQLite. */
+/** Перевіряє збереження та відновлення семантики нейронів, подань, зв'язків, груп і камери в SQLite. */
 class SqliteMapRepositoryTest {
 
     /** Перевіряє круговий цикл збереження та завантаження карти з усіма параметрами нейронів і їх режимами. */
@@ -79,6 +79,27 @@ class SqliteMapRepositoryTest {
         assertEquals(2, restored.neuron(b.id()).delayTicks());
         assertEquals(NeuronActivationMode.SIGNAL_STRENGTH, restored.neuron(b.id()).activationMode());
         assertFalse(restored.presentation(b.id()).directionReversed());
+    }
+
+    /** Перевіряє, що новий структурний тип проходить крізь стандартний цикл збереження та завантаження. */
+    @Test
+    void roundTripPersistsStructureNeuronType(@TempDir Path tempDir) {
+        Path db = tempDir.resolve("structure.db");
+        NeuronMapModel original = new NeuronMapModel();
+        Neuron structure = original.createNeuron(NeuronType.STRUCTURE, 42.0, 84.0);
+
+        try (MapRepository repository = new SqliteMapRepository(db)) {
+            repository.save(original, new CameraState(1.0, 0.0, 0.0));
+        }
+
+        NeuronMapModel restored = new NeuronMapModel();
+        try (MapRepository repository = new SqliteMapRepository(db)) {
+            repository.loadInto(restored);
+        }
+
+        assertEquals(NeuronType.STRUCTURE, restored.neuron(structure.id()).type());
+        assertEquals(42.0, restored.presentation(structure.id()).x());
+        assertEquals(84.0, restored.presentation(structure.id()).y());
     }
 
     /** Перевіряє, що стара схема без режиму після міграції зберігає активацію за силою сигналів. */
@@ -159,12 +180,14 @@ class SqliteMapRepositoryTest {
         }
     }
 
-    /** Повертає набір назв стовпців указаною таблиці без залежності від їхнього порядку. */
+    /** Повертає набір назв стовпців указаної таблиці без залежності від їхнього порядку. */
     private static Set<String> columnNames(Connection connection, String table) throws Exception {
         Set<String> names = new LinkedHashSet<>();
         try (Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery("PRAGMA table_info(" + table + ")")) {
-            while (resultSet.next()) names.add(resultSet.getString("name"));
+            while (resultSet.next()) {
+                names.add(resultSet.getString("name"));
+            }
         }
         return names;
     }

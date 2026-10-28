@@ -11,7 +11,7 @@ import java.util.Objects;
  * @param excitatoryColor основний колір зв'язку зі збуджувального нейрона.
  * @param inhibitoryColor основний колір зв'язку з гальмівного нейрона.
  * @param missingSourceColor резервний колір, якщо модель джерела недоступна.
- * @param excitatoryPulseColor колір імпульсу зі збуджувального нейрона.
+ * @param excitatoryPulseColor колір імпульсу з активуючого нейрона.
  * @param inhibitoryPulseColor колір імпульсу з гальмівного нейрона.
  * @param deleteHighlightColor колір анімованого підсвічування під час видалення.
  * @param strokeWidth товщина видимої лінії зв'язку.
@@ -31,8 +31,12 @@ public record ConnectionStyle(
         double arrowSize,
         double arrowHalfWidth
 ) {
+    private static final Color STRUCTURE_COLOR = Color.web("#f59e0b");
+    private static final Color STRUCTURE_ARROW_COLOR = Color.web("#f59e0b");
+    private static final Color STRUCTURE_PULSE_COLOR = Color.web("#38bdf8");
+
     /**
-     * Стандартний стиль зв'язків; кольори імпульсів налаштовуються окремо від кольорів самих зв'язків.
+     * Стандартний стиль зв'язків; лінія й наконечник структури помаранчеві, а сигнал — блакитний.
      */
     public static final ConnectionStyle DEFAULT = new ConnectionStyle(
             Color.web("#55bf78"),
@@ -76,18 +80,35 @@ public record ConnectionStyle(
         if (sourceType == null) {
             return missingSourceColor;
         }
-        return sourceType == NeuronType.EXCITATORY ? excitatoryColor : inhibitoryColor;
+        return switch (sourceType) {
+            case EXCITATORY -> excitatoryColor;
+            case INHIBITORY -> inhibitoryColor;
+            case STRUCTURE -> STRUCTURE_COLOR;
+        };
     }
 
     /**
-     * Повертає колір імпульсу відповідно до типу джерела.
-     * Колір задається незалежно від основного кольору зв'язку та стилю вихідного порту нейрона.
+     * Повертає колір наконечника стрілки відповідно до типу нейрона-джерела.
+     * Структурні нейрони мають помаранчевий наконечник, як і лінію зв'язку.
+     *
+     * @param sourceType тип джерела або {@code null}.
+     * @return колір наконечника стрілки.
+     */
+    public Color arrowColor(NeuronType sourceType) {
+        return sourceType == NeuronType.STRUCTURE ? STRUCTURE_ARROW_COLOR : sourceColor(sourceType);
+    }
+
+    /**
+     * Повертає колір рухомого імпульсу відповідно до активуючого чи гальмівного типу джерела.
      *
      * @param sourceType тип нейрона-джерела.
      * @return колір імпульсу.
      */
     public Color pulseColor(NeuronType sourceType) {
-        return sourceType == NeuronType.EXCITATORY ? excitatoryPulseColor : inhibitoryPulseColor;
+        if (sourceType == NeuronType.STRUCTURE) {
+            return STRUCTURE_PULSE_COLOR;
+        }
+        return sourceType != null && sourceType.isActivating() ? excitatoryPulseColor : inhibitoryPulseColor;
     }
 
     /**
@@ -95,6 +116,7 @@ public record ConnectionStyle(
      *
      * @param value значення для перевірки.
      * @param name назва параметра для повідомлення про помилку.
+     * @throws IllegalArgumentException якщо значення не є додатним скінченним числом.
      */
     private static void requirePositiveFinite(double value, String name) {
         if (!Double.isFinite(value) || value <= 0.0) {

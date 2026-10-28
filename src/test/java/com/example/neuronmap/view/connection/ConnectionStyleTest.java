@@ -7,14 +7,10 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/**
- * Перевіряє ізольовану палітру й валідацію стилю зв'язків.
- */
+/** Перевіряє палітру, вибір кольорів за типом джерела й валідацію стилю зв'язків. */
 final class ConnectionStyleTest {
 
-    /**
-     * Відрізняє кольори збуджувальних, гальмівних і зв'язків без доступного джерела.
-     */
+    /** Перевіряє базові кольори лінії, наконечника та імпульсу для всіх типів нейронів. */
     @Test
     void selectsBaseAndPulseColorsByNeuronType() {
         ConnectionStyle style = ConnectionStyle.DEFAULT;
@@ -22,13 +18,15 @@ final class ConnectionStyleTest {
         assertEquals(Color.web("#55bf78"), style.sourceColor(NeuronType.EXCITATORY));
         assertEquals(Color.web("#8b929c"), style.sourceColor(NeuronType.INHIBITORY));
         assertEquals(Color.web("#8b929c"), style.sourceColor(null));
+        assertEquals(Color.web("#f59e0b"), style.sourceColor(NeuronType.STRUCTURE));
+        assertEquals(Color.web("#f59e0b"), style.arrowColor(NeuronType.STRUCTURE));
+        assertEquals(Color.web("#55bf78"), style.arrowColor(NeuronType.EXCITATORY));
         assertEquals(Color.web("#facc15"), style.pulseColor(NeuronType.EXCITATORY));
         assertEquals(Color.web("#ef4444"), style.pulseColor(NeuronType.INHIBITORY));
+        assertEquals(Color.web("#38bdf8"), style.pulseColor(NeuronType.STRUCTURE));
     }
 
-    /**
-     * Перевіряє, що кольори рухомих імпульсів можна налаштовувати незалежно від основних кольорів зв'язків.
-     */
+    /** Перевіряє, що кольори рухомих імпульсів можна налаштовувати незалежно від основних кольорів зв'язків. */
     @Test
     void configuresPulseColorsIndependentlyFromConnectionColors() {
         ConnectionStyle style = new ConnectionStyle(
@@ -48,11 +46,11 @@ final class ConnectionStyleTest {
         assertEquals(Color.YELLOW, style.pulseColor(NeuronType.EXCITATORY));
         assertEquals(Color.GRAY, style.sourceColor(NeuronType.INHIBITORY));
         assertEquals(Color.RED, style.pulseColor(NeuronType.INHIBITORY));
+        assertEquals(Color.web("#f59e0b"), style.sourceColor(NeuronType.STRUCTURE));
+        assertEquals(Color.web("#f59e0b"), style.arrowColor(NeuronType.STRUCTURE));
     }
 
-    /**
-     * Відхиляє неприпустиму товщину лінії, не створюючи частково валідний стиль.
-     */
+    /** Відхиляє неприпустиму товщину лінії, не створюючи частково валідний стиль. */
     @Test
     void rejectsInvalidGeometryParameters() {
         assertThrows(IllegalArgumentException.class, () -> new ConnectionStyle(
@@ -60,9 +58,7 @@ final class ConnectionStyleTest {
                 0.0, 18.0, 11.0, 5.5));
     }
 
-    /**
-     * Вимагає наявності всіх кольорів.
-     */
+    /** Вимагає наявності всіх кольорів. */
     @Test
     void requiresAllStyleColors() {
         assertThrows(NullPointerException.class, () -> new ConnectionStyle(

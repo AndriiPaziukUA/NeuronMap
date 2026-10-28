@@ -17,6 +17,12 @@
     -fx-stroke-width: 2;
 }
 
+.neuron-card-structure {
+    -fx-fill: #f59e0b;
+    -fx-stroke: #25292f;
+    -fx-stroke-width: 2;
+}
+
 .neuron-view:hover .neuron-card {
     -fx-stroke: white;
     -fx-stroke-width: 2;

@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє відсотковий поріг, знаковий лічильник входів і регресію старого режиму симуляції. */
+/** Перевіряє відсотковий поріг, знаковий лічильник входів і поведінку активуючих типів симуляції. */
 class SimulationSessionActivationModeTest {
 
     /** Перевіряє приклади округлення порога вгору на межах відсоткових діапазонів. */
@@ -45,6 +45,21 @@ class SimulationSessionActivationModeTest {
         assertTrue(model.createConnection(inhibitory.id(), target.id()));
 
         SimulationStep step = SimulationSession.manual(model, excitatory.id()).nextStep();
+
+        assertNotNull(step);
+        assertEquals(1, step.nextInputSums().get(target.id()));
+        assertTrue(step.nextActivatedNeuronIds().contains(target.id()));
+    }
+
+    /** Перевіряє, що структурний нейрон подає додатний сигнал і входить до знаменника відсоткового порога. */
+    @Test
+    void structureNeuronActsAsPositiveInputInPercentageMode() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron structure = model.createNeuron(NeuronType.STRUCTURE, 0, 0);
+        Neuron target = countModeTarget(model, 100);
+        assertTrue(model.createConnection(structure.id(), target.id()));
+
+        SimulationStep step = SimulationSession.manual(model, structure.id()).nextStep();
 
         assertNotNull(step);
         assertEquals(1, step.nextInputSums().get(target.id()));
@@ -122,7 +137,7 @@ class SimulationSessionActivationModeTest {
         assertFalse(second.nextActivatedNeuronIds().contains(target.id()));
     }
 
-    /** Переконується, що в режимі сили сигналів величини сигналів і попередня умова активації не змінилися. */
+    /** Переконується, що в режимі сили сигналів зберігаються величини сигналів і звичайна умова активації. */
     @Test
     void signalStrengthModeRetainsWeightedSignalBehavior() {
         NeuronMapModel model = new NeuronMapModel();
@@ -146,7 +161,7 @@ class SimulationSessionActivationModeTest {
         return target;
     }
 
-    /** Створює три збуджувальні входи, запускає задану кількість і перевіряє активацію за відсотковим порогом. */
+    /** Створює три активуючі входи, запускає задану кількість і перевіряє активацію за відсотковим порогом. */
     private static void assertActivation(int percentage, int activeSourceCount, boolean expectedActivation) {
         NeuronMapModel model = new NeuronMapModel();
         List<Neuron> sources = new ArrayList<>();

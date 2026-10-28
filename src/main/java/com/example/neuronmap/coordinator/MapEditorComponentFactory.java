@@ -201,7 +201,8 @@ final class MapEditorComponentFactory {
         );
         interaction.configureToolbarButtons(Map.of(
                 NeuronType.EXCITATORY, inputs.view().toolbar().addExcitatoryButton(),
-                NeuronType.INHIBITORY, inputs.view().toolbar().addInhibitoryButton()
+                NeuronType.INHIBITORY, inputs.view().toolbar().addInhibitoryButton(),
+                NeuronType.STRUCTURE, inputs.view().toolbar().addStructureButton()
         ));
         return new InteractionComponents(presentation, interaction);
     }
@@ -295,7 +296,7 @@ final class MapEditorComponentFactory {
      * Залежності, що надходять від координатора та використовуються під час складання компонентів.
      *
      * @param config конфігурація симуляції й камери.
-     * @param localization служба локалізації інтерфейсу.
+     * @param localization служба перекладів інтерфейсу.
      * @param mapService служба доступу до активної карти.
      * @param neuronService служба операцій над нейронами.
      * @param connectionService служба операцій над зв'язками.

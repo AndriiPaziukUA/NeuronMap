@@ -83,20 +83,14 @@ public final class ConnectionView extends Pane {
         hitLine.setStrokeWidth(style.hitStrokeWidth());
         hitLine.setFill(null);
         hitLine.setMouseTransparent(false);
-        arrow.setFill(baseColor());
+        arrow.setFill(baseArrowColor());
         arrow.setMouseTransparent(true);
         getChildren().addAll(line, hitLine, arrow);
         updateGeometry();
     }
 
-    /**
-     * Повертає модель карти нейронів.
-     *
-     * @return модель зв'язку.
-     */
-    public Connection model() {
-        return model;
-    }
+    /** Повертає модель карти нейронів. @return модель зв'язку. */
+    public Connection model() { return model; }
 
     /**
      * Повертає властивість, що змінюється після оновлення геометрії зв'язку.
@@ -123,20 +117,13 @@ public final class ConnectionView extends Pane {
         }
         model = restoredModel;
         if (!deleteHighlighted) {
-            Color normal = baseColor();
-            line.setStroke(normal);
-            arrow.setFill(normal);
+            line.setStroke(baseColor());
+            arrow.setFill(baseArrowColor());
         }
     }
 
-    /**
-     * Перевіряє стан підсвічування видалення.
-     *
-     * @return {@code true}, якщо анімація видалення активна.
-     */
-    public boolean isDeleteHighlighted() {
-        return deleteHighlighted;
-    }
+    /** Перевіряє стан підсвічування видалення. @return {@code true}, якщо анімація видалення активна. */
+    public boolean isDeleteHighlighted() { return deleteHighlighted; }
 
     /** Перераховує кінцеві точки зв'язку за поточними положеннями нейронів. */
     public void updateGeometry() {
@@ -195,11 +182,12 @@ public final class ConnectionView extends Pane {
         }
         deleteHighlighted = true;
         Color normal = baseColor();
+        Color normalArrow = baseArrowColor();
         Color highlight = style.deleteHighlightColor();
         blinkTimeline = new Timeline(
                 new KeyFrame(Duration.ZERO,
                         new KeyValue(line.strokeProperty(), normal),
-                        new KeyValue(arrow.fillProperty(), normal)),
+                        new KeyValue(arrow.fillProperty(), normalArrow)),
                 new KeyFrame(Duration.millis(DELETE_BLINK_MILLIS),
                         new KeyValue(line.strokeProperty(), highlight),
                         new KeyValue(arrow.fillProperty(), highlight))
@@ -223,18 +211,15 @@ public final class ConnectionView extends Pane {
         }
     }
 
-    /**
-     * Зупиняє анімацію підсвічування та повертає зв'язок до базового кольору.
-     */
+    /** Зупиняє анімацію підсвічування та повертає зв'язок до базових кольорів лінії й наконечника. */
     public void stopDeleteHighlight() {
         if (blinkTimeline != null) {
             blinkTimeline.stop();
             blinkTimeline = null;
         }
         deleteHighlighted = false;
-        Color normal = baseColor();
-        line.setStroke(normal);
-        arrow.setFill(normal);
+        line.setStroke(baseColor());
+        arrow.setFill(baseArrowColor());
     }
 
     /**
@@ -251,20 +236,21 @@ public final class ConnectionView extends Pane {
         }
         Point2D normalized = direction.normalize();
         Point2D perpendicular = GeometryUtils.perpendicularUnitVector(direction);
-        Point2D tip = end;
-        Point2D back = tip.subtract(normalized.multiply(style.arrowSize()));
+        Point2D back = end.subtract(normalized.multiply(style.arrowSize()));
         Point2D left = back.add(perpendicular.multiply(style.arrowHalfWidth()));
         Point2D right = back.subtract(perpendicular.multiply(style.arrowHalfWidth()));
-        arrow.getPoints().setAll(tip.getX(), tip.getY(), left.getX(), left.getY(), right.getX(), right.getY());
+        arrow.getPoints().setAll(end.getX(), end.getY(), left.getX(), left.getY(), right.getX(), right.getY());
     }
 
-    /**
-     * Повертає базовий колір, заданий локальним стилем за типом джерела.
-     *
-     * @return базовий колір зв'язку.
-     */
+    /** Повертає базовий колір лінії зв'язку за типом джерела. */
     private Color baseColor() {
         Neuron source = neuronLookup.apply(model.sourceId());
         return style.sourceColor(source == null ? null : source.type());
+    }
+
+    /** Повертає базовий колір наконечника стрілки за типом джерела. */
+    private Color baseArrowColor() {
+        Neuron source = neuronLookup.apply(model.sourceId());
+        return style.arrowColor(source == null ? null : source.type());
     }
 }

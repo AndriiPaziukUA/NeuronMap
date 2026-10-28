@@ -4,7 +4,6 @@ import com.example.neuronmap.model.Connection;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronActivationMode;
 import com.example.neuronmap.model.NeuronMapModel;
-import com.example.neuronmap.model.NeuronType;
 
 import java.math.BigInteger;
 import java.util.LinkedHashMap;
@@ -29,14 +28,8 @@ public final class SimulationSession {
     private SimulationStep lastStep;
     private boolean finished;
 
-    /**
-     * Створює сеанс симуляції для моделі.
-     *
-     * @param model модель карти нейронів.
-     */
-    private SimulationSession(NeuronMapModel model) {
-        this.model = model;
-    }
+    /** Створює сеанс симуляції для моделі. @param model модель карти нейронів. */
+    private SimulationSession(NeuronMapModel model) { this.model = model; }
 
     /**
      * Створює сеанс симуляції та ставить початковий нейрон у чергу ручного запуску.
@@ -63,9 +56,7 @@ public final class SimulationSession {
      * @return {@code true}, якщо нейрон прийнято до черги; інакше {@code false}.
      */
     public boolean queueManualStart(String sourceNeuronId) {
-        if (sourceNeuronId == null
-                || sourceNeuronId.isBlank()
-                || model.neuron(sourceNeuronId) == null) {
+        if (sourceNeuronId == null || sourceNeuronId.isBlank() || model.neuron(sourceNeuronId) == null) {
             return false;
         }
         if (finished) {
@@ -165,28 +156,14 @@ public final class SimulationSession {
         );
     }
 
-    /**
-     * Перевіряє, чи завершено сеанс через відсутність активацій на наступний такт, ручних запусків,
-     * затриманих нейронів і нейронів, що ще можуть випускати сигнали.
-     *
-     * @return {@code true}, якщо сеанс завершено; інакше {@code false}.
-     */
-    public boolean isFinished() {
-        return finished;
-    }
+    /** Перевіряє, чи завершено сеанс. @return {@code true}, якщо сеанс завершено; інакше {@code false}. */
+    public boolean isFinished() { return finished; }
+
+    /** Повертає номер наступного глобального такту симуляції. @return номер такту. */
+    public BigInteger tick() { return tick.value(); }
 
     /**
-     * Повертає номер наступного глобального такту симуляції.
-     *
-     * @return номер наступного глобального такту.
-     */
-    public BigInteger tick() {
-        return tick.value();
-    }
-
-    /**
-     * Перевіряє, чи є робота для наступного такту. Самі по собі вхідні сигнали не вважаються роботою,
-     * якщо вони не досягають порога активації жодного нейрона й немає нейронів, які ще випускають сигнали.
+     * Перевіряє, чи є робота для наступного такту, включно з пороговими активаціями та затримками.
      *
      * @return {@code true}, якщо є очікувана робота; інакше {@code false}.
      */
@@ -197,22 +174,14 @@ public final class SimulationSession {
                 || hasRemainingEmissionWork();
     }
 
-    /**
-     * Перевіряє наявність сигналу, який активує щонайменше один наявний нейрон.
-     *
-     * @return {@code true}, якщо сигнал досягає порога в режимі відповідного нейрона.
-     */
+    /** Перевіряє наявність сигналу, який активує щонайменше один наявний нейрон. */
     private boolean hasPendingThresholdActivation() {
         Set<String> activatedNeuronIds = new LinkedHashSet<>();
         collectThresholdActivations(pendingSignals, activatedNeuronIds);
         return !activatedNeuronIds.isEmpty();
     }
 
-    /**
-     * Перевіряє, чи має хоча б один нейрон із залишком активних тактів чинний вихідний зв'язок.
-     *
-     * @return {@code true}, якщо ще можливе випускання вихідних сигналів; інакше {@code false}.
-     */
+    /** Перевіряє, чи має хоча б один нейрон із залишком активних тактів чинний вихідний зв'язок. */
     private boolean hasRemainingEmissionWork() {
         for (String neuronId : remainingActiveTicks.keySet()) {
             for (Connection connection : model.connections()) {
@@ -232,8 +201,7 @@ public final class SimulationSession {
      * @return {@code true}, якщо зв'язок є чинним вихідним зв'язком; інакше {@code false}.
      */
     private boolean isOutgoingConnectionToExistingNeuron(Connection connection, String sourceNeuronId) {
-        return connection.sourceId().equals(sourceNeuronId)
-                && model.neuron(connection.targetId()) != null;
+        return connection.sourceId().equals(sourceNeuronId) && model.neuron(connection.targetId()) != null;
     }
 
     /**
@@ -273,14 +241,8 @@ public final class SimulationSession {
         }
 
         SimulationStep step = new SimulationStep(
-                tick.value(),
-                inputSums,
-                activatedNeuronIds,
-                emittingNeuronIds,
-                nextSignals,
-                remainingActiveTicks,
-                nextActivatedNeuronIds
-        );
+                tick.value(), inputSums, activatedNeuronIds, emittingNeuronIds,
+                nextSignals, remainingActiveTicks, nextActivatedNeuronIds);
         lastStep = step;
         tick = tick.next();
         return step;
@@ -297,10 +259,7 @@ public final class SimulationSession {
     }
 
     /** Додає нейрони, чий вхідний сигнал досяг порога відповідно до режиму активації. */
-    private void collectThresholdActivations(
-            Map<String, Integer> inputSums,
-            Set<String> activatedNeuronIds
-    ) {
+    private void collectThresholdActivations(Map<String, Integer> inputSums, Set<String> activatedNeuronIds) {
         for (Map.Entry<String, Integer> entry : inputSums.entrySet()) {
             Neuron neuron = model.neuron(entry.getKey());
             if (neuron != null && hasReachedActivationThreshold(neuron, entry.getValue())) {
@@ -314,26 +273,29 @@ public final class SimulationSession {
         if (neuron.activationMode() == NeuronActivationMode.SIGNAL_STRENGTH) {
             return inputValue >= neuron.activationThreshold();
         }
-        return inputValue >= requiredExcitatorySignalCount(neuron);
+        return inputValue >= requiredActivatingSignalCount(neuron);
     }
 
     /**
-     * Обчислює мінімальну кількість активних збуджувальних входів за відсотковим порогом.
-     * Гальмівні входи не збільшують знаменник, але їхній знак уже враховано у вхідному лічильнику.
+     * Обчислює мінімальну кількість активних входів за відсотковим порогом.
+     * До знаменника входять збуджувальні та структурні нейрони; гальмівні сигнали враховуються лише зі знаком.
+     *
+     * @param neuron нейрон, чий поріг потрібно оцінити.
+     * @return мінімальна кількість активуючих сигналів, округлена вгору, але не менша за одиницю.
      */
-    private int requiredExcitatorySignalCount(Neuron neuron) {
-        int excitatoryInputCount = 0;
+    private int requiredActivatingSignalCount(Neuron neuron) {
+        int activatingInputCount = 0;
         for (Connection connection : model.connections()) {
             if (!connection.targetId().equals(neuron.id())) {
                 continue;
             }
             Neuron source = model.neuron(connection.sourceId());
-            if (source != null && source.type() == NeuronType.EXCITATORY) {
-                excitatoryInputCount++;
+            if (source != null && source.type().isActivating()) {
+                activatingInputCount++;
             }
         }
 
-        long percentageProduct = (long) excitatoryInputCount * neuron.activationThreshold();
+        long percentageProduct = (long) activatingInputCount * neuron.activationThreshold();
         long roundedUpCount = (percentageProduct + 99L) / 100L;
         return (int) Math.max(1L, roundedUpCount);
     }

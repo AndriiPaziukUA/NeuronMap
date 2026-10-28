@@ -28,18 +28,10 @@ public final class NeuronService {
         this.model = Objects.requireNonNull(model, "model");
     }
 
-    /**
-     * Повертає модель карти, якою керує ця служба.
-     *
-     * @return модель карти нейронів.
-     */
+    /** Повертає модель карти, якою керує ця служба. @return модель карти нейронів. */
     public NeuronMapModel model() { return model; }
 
-    /**
-     * Повертає поточні нейрони моделі.
-     *
-     * @return колекція нейронів моделі без створення окремої копії.
-     */
+    /** Повертає поточні нейрони моделі. @return колекція нейронів моделі без створення окремої копії. */
     public Collection<Neuron> neurons() { return model.neurons(); }
 
     /**
@@ -92,15 +84,14 @@ public final class NeuronService {
     }
 
     /**
-     * Перемикає тип наявного нейрона між збуджувальним і гальмівним.
+     * Перемикає нейрон між активуючою та гальмівною категоріями; структурний нейрон також є активуючим.
      *
      * @param neuronId ідентифікатор нейрона.
      * @return {@code true}, якщо нейрон знайдено й тип змінено; інакше {@code false}.
      */
     public boolean toggleType(String neuronId) {
         return find(neuronId).map(neuron -> {
-            neuron.setType(neuron.type() == NeuronType.EXCITATORY
-                    ? NeuronType.INHIBITORY : NeuronType.EXCITATORY);
+            neuron.setType(neuron.type().isActivating() ? NeuronType.INHIBITORY : NeuronType.EXCITATORY);
             return true;
         }).orElse(false);
     }

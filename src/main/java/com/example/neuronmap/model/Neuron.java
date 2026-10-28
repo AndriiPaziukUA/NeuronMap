@@ -38,13 +38,7 @@ public final class Neuron {
      * @param activationThreshold поріг суми вхідних сигналів для активації нейрона.
      * @throws IllegalArgumentException якщо ідентифікатор порожній, тип не задано або параметри некоректні.
      */
-    public Neuron(
-            String id,
-            NeuronType type,
-            int activation,
-            int signalStrength,
-            int activationThreshold
-    ) {
+    public Neuron(String id, NeuronType type, int activation, int signalStrength, int activationThreshold) {
         this(id, type, activation, new NeuronParameters(signalStrength, activationThreshold));
     }
 
@@ -60,16 +54,9 @@ public final class Neuron {
      * @param activeTicks кількість тактів, протягом яких нейрон передає сигнал.
      * @throws IllegalArgumentException якщо ідентифікатор порожній, тип не задано або параметри некоректні.
      */
-    public Neuron(
-            String id,
-            NeuronType type,
-            int activation,
-            int signalStrength,
-            int activationThreshold,
-            int activeTicks
-    ) {
-        this(id, type, activation,
-                new NeuronParameters(signalStrength, activationThreshold, activeTicks));
+    public Neuron(String id, NeuronType type, int activation, int signalStrength,
+                  int activationThreshold, int activeTicks) {
+        this(id, type, activation, new NeuronParameters(signalStrength, activationThreshold, activeTicks));
     }
 
     /**
@@ -84,15 +71,8 @@ public final class Neuron {
      * @param delayTicks кількість тактів затримки перед першим вихідним сигналом.
      * @throws IllegalArgumentException якщо ідентифікатор порожній, тип не задано або параметри некоректні.
      */
-    public Neuron(
-            String id,
-            NeuronType type,
-            int activation,
-            int signalStrength,
-            int activationThreshold,
-            int activeTicks,
-            int delayTicks
-    ) {
+    public Neuron(String id, NeuronType type, int activation, int signalStrength,
+                  int activationThreshold, int activeTicks, int delayTicks) {
         this(id, type, activation,
                 new NeuronParameters(signalStrength, activationThreshold, activeTicks, delayTicks));
     }
@@ -276,11 +256,11 @@ public final class Neuron {
     }
 
     /**
-     * Повертає вагу сигналу з урахуванням типу нейрона та налаштованої сили.
+     * Повертає вагу сигналу з урахуванням того, чи є тип нейрона активуючим, та налаштованої сили.
      *
-     * @return знакова вага сигналу.
+     * @return додатна вага для активуючих типів або від'ємна для гальмівного типу.
      */
     public int signalWeight() {
-        return type == NeuronType.EXCITATORY ? parameters.signalStrength() : -parameters.signalStrength();
+        return type.isActivating() ? parameters.signalStrength() : -parameters.signalStrength();
     }
 }

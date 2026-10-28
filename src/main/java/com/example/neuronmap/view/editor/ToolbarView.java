@@ -41,6 +41,7 @@ public final class ToolbarView {
     private final LocalizationService localization;
     private final Button addExcitatoryButton = toolButton();
     private final Button addInhibitoryButton = toolButton();
+    private final Button addStructureButton = toolButton();
     private final Button groupButton = toolButton();
     private final Button ungroupButton = toolButton();
     private final Button pauseResumeButton = iconButton();
@@ -48,7 +49,6 @@ public final class ToolbarView {
     private final Button stopSignalsButton = iconButton();
     private final StepOnceShelfView stepOnceShelf =
             new StepOnceShelfView(root, pauseResumeButton, stopSignalsButton, RESUME_ICON_PATH);
-    private final SVGPath stopSignalsIcon = createStopSignalsIcon();
     private final Separator simulationSeparator = new Separator();
     private final Label speedLabel = new Label();
     private final TextField speedField = new TextField();
@@ -64,7 +64,7 @@ public final class ToolbarView {
         commitSpeedEdit();
         event.consume();
     };
-    private final ChangeListener<Boolean> speedFocusListener = (observable, oldFocused, focused) -> {
+    private final ChangeListener<Boolean> speedFocusListener = (_, _, focused) -> {
         if (!focused && !committingSpeed && !disposed) {
             commitSpeedEdit();
         }
@@ -73,6 +73,7 @@ public final class ToolbarView {
     private final Consumer<Locale> localizationListener = ignored -> refreshTexts();
     private final EventHandler<ActionEvent> addExcitatoryHandler;
     private final EventHandler<ActionEvent> addInhibitoryHandler;
+    private final EventHandler<ActionEvent> addStructureHandler;
     private final EventHandler<ActionEvent> groupHandler;
     private final EventHandler<ActionEvent> ungroupHandler;
     private final EventHandler<ActionEvent> pauseResumeHandler;
@@ -105,12 +106,13 @@ public final class ToolbarView {
     ) {
         this.localization = Objects.requireNonNull(localization, "localization");
         this.speedChanged = Objects.requireNonNull(speedChanged, "speedChanged");
-        this.addExcitatoryHandler = event -> addNeuron.accept(NeuronType.EXCITATORY);
-        this.addInhibitoryHandler = event -> addNeuron.accept(NeuronType.INHIBITORY);
-        this.groupHandler = event -> group.run();
-        this.ungroupHandler = event -> ungroup.run();
-        this.pauseResumeHandler = event -> pauseResume.run();
-        this.stopSignalsHandler = event -> stopSignals.run();
+        this.addExcitatoryHandler = _ -> addNeuron.accept(NeuronType.EXCITATORY);
+        this.addInhibitoryHandler = _ -> addNeuron.accept(NeuronType.INHIBITORY);
+        this.addStructureHandler = _ -> addNeuron.accept(NeuronType.STRUCTURE);
+        this.groupHandler = _ -> group.run();
+        this.ungroupHandler = _ -> ungroup.run();
+        this.pauseResumeHandler = _ -> pauseResume.run();
+        this.stopSignalsHandler = _ -> stopSignals.run();
         root.getStyleClass().add("topbar");
         root.setAlignment(Pos.CENTER_LEFT);
         root.setPadding(new Insets(8, 10, 8, 10));
@@ -126,6 +128,7 @@ public final class ToolbarView {
         pauseResumeButton.setGraphic(simulationIcon);
         setManagedAndVisible(pauseResumeButton, false);
         stopSignalsButton.getStyleClass().add("simulation-icon-button-danger");
+        SVGPath stopSignalsIcon = createStopSignalsIcon();
         stopSignalsButton.setGraphic(stopSignalsIcon);
         stepOnceShelf.setSimulationControlsVisible(false);
         setManagedAndVisible(stopSignalsButton, false);
@@ -149,13 +152,14 @@ public final class ToolbarView {
         cameraCoordinatesLabel.setAlignment(Pos.CENTER_RIGHT);
         addExcitatoryButton.addEventHandler(ActionEvent.ACTION, addExcitatoryHandler);
         addInhibitoryButton.addEventHandler(ActionEvent.ACTION, addInhibitoryHandler);
+        addStructureButton.addEventHandler(ActionEvent.ACTION, addStructureHandler);
         groupButton.addEventHandler(ActionEvent.ACTION, groupHandler);
         ungroupButton.addEventHandler(ActionEvent.ACTION, ungroupHandler);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         root.getChildren().addAll(
-                title, addExcitatoryButton, addInhibitoryButton, new Separator(),
+                title, addExcitatoryButton, addInhibitoryButton, addStructureButton, new Separator(),
                 groupButton, ungroupButton, speedLabel, speedField, simulationSeparator,
                 pauseResumeButton, stepOnceShelf.node(), stopSignalsButton, spacer,
                 cameraCoordinatesLabel, stepOnceShelf.underline());
@@ -164,28 +168,23 @@ public final class ToolbarView {
     }
 
     /** Повертає кореневий вузол інтерфейсу. */
-    public HBox node() {
-        return root;
-    }
+    public HBox node() { return root; }
 
     /** Повертає кнопку додавання збуджувального нейрона. */
-    public Button addExcitatoryButton() {
-        return addExcitatoryButton;
-    }
+    public Button addExcitatoryButton() { return addExcitatoryButton; }
 
     /** Повертає кнопку додавання гальмівного нейрона. */
-    public Button addInhibitoryButton() {
-        return addInhibitoryButton;
-    }
+    public Button addInhibitoryButton() { return addInhibitoryButton; }
+
+    /** Повертає кнопку створення структурного нейрона. */
+    public Button addStructureButton() { return addStructureButton; }
 
     /**
      * Повертає кнопку однотактного продовження для доступу до відповідного елемента керування.
      *
      * @return кнопка «Наступний такт».
      */
-    public Button stepOnceButton() {
-        return stepOnceShelf.button();
-    }
+    public Button stepOnceButton() { return stepOnceShelf.button(); }
 
     /**
      * Установлює дію, що просуває симуляцію до початку наступного такту й залишає її на ручній паузі.
@@ -193,9 +192,7 @@ public final class ToolbarView {
      * @param action дія однотактного продовження.
      * @throws NullPointerException якщо дію не задано.
      */
-    public void setStepSimulationOnceAction(Runnable action) {
-        stepOnceShelf.setAction(action);
-    }
+    public void setStepSimulationOnceAction(Runnable action) { stepOnceShelf.setAction(action); }
 
     /**
      * Відображає або приховує елементи керування активною симуляцією.
@@ -254,6 +251,7 @@ public final class ToolbarView {
         speedField.focusedProperty().removeListener(speedFocusListener);
         addExcitatoryButton.removeEventHandler(ActionEvent.ACTION, addExcitatoryHandler);
         addInhibitoryButton.removeEventHandler(ActionEvent.ACTION, addInhibitoryHandler);
+        addStructureButton.removeEventHandler(ActionEvent.ACTION, addStructureHandler);
         groupButton.removeEventHandler(ActionEvent.ACTION, groupHandler);
         ungroupButton.removeEventHandler(ActionEvent.ACTION, ungroupHandler);
         pauseResumeButton.removeEventHandler(ActionEvent.ACTION, pauseResumeHandler);
@@ -298,6 +296,8 @@ public final class ToolbarView {
         addExcitatoryButton.setTooltip(new Tooltip(localization.text("toolbar.excitatory.tooltip")));
         addInhibitoryButton.setText(localization.text("toolbar.inhibitory"));
         addInhibitoryButton.setTooltip(new Tooltip(localization.text("toolbar.inhibitory.tooltip")));
+        addStructureButton.setText(localization.textFrom("i18n.neuronTypes", "structure"));
+        addStructureButton.setTooltip(new Tooltip(localization.textFrom("i18n.neuronTypes", "structure.tooltip")));
         groupButton.setText(localization.text("toolbar.group"));
         groupButton.setTooltip(new Tooltip(localization.text("toolbar.group.tooltip")));
         ungroupButton.setText(localization.text("toolbar.ungroup"));

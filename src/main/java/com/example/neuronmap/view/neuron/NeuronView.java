@@ -4,7 +4,6 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronActivationMode;
 import com.example.neuronmap.model.NeuronPresentation;
-import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.view.support.TooltipFactory;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
@@ -35,6 +34,7 @@ public final class NeuronView extends StackPane {
     private static final String NEURON_VIEW_STYLE_CLASS = "neuron-view";
     private static final String EXCITATORY_BODY_STYLE_CLASS = "neuron-card-excitatory";
     private static final String INHIBITORY_BODY_STYLE_CLASS = "neuron-card-inhibitory";
+    private static final String STRUCTURE_BODY_STYLE_CLASS = "neuron-card-structure";
     private static final String SELECTED_BODY_STYLE_CLASS = "neuron-card-selected";
     private static final String INPUT_SIGNAL_INSUFFICIENT_STYLE_CLASS = "port-input-insufficient";
     private static final String INPUT_SIGNAL_SUFFICIENT_STYLE_CLASS = "port-input-sufficient";
@@ -332,14 +332,14 @@ public final class NeuronView extends StackPane {
 
     /** Синхронізує CSS-класи тіла нейрона з його типом і станом вибору. */
     private void refreshBodyStyleClasses(boolean selected) {
-        String desiredTypeClass = model().type() == NeuronType.EXCITATORY
-                ? EXCITATORY_BODY_STYLE_CLASS
-                : INHIBITORY_BODY_STYLE_CLASS;
-        String otherTypeClass = desiredTypeClass.equals(EXCITATORY_BODY_STYLE_CLASS)
-                ? INHIBITORY_BODY_STYLE_CLASS
-                : EXCITATORY_BODY_STYLE_CLASS;
+        String desiredTypeClass = switch (model().type()) {
+            case EXCITATORY -> EXCITATORY_BODY_STYLE_CLASS;
+            case INHIBITORY -> INHIBITORY_BODY_STYLE_CLASS;
+            case STRUCTURE -> STRUCTURE_BODY_STYLE_CLASS;
+        };
         if (!body.getStyleClass().contains(desiredTypeClass)) {
-            body.getStyleClass().remove(otherTypeClass);
+            body.getStyleClass().removeAll(
+                    EXCITATORY_BODY_STYLE_CLASS, INHIBITORY_BODY_STYLE_CLASS, STRUCTURE_BODY_STYLE_CLASS);
             body.getStyleClass().add(desiredTypeClass);
         }
         boolean currentlySelected = body.getStyleClass().contains(SELECTED_BODY_STYLE_CLASS);
@@ -369,11 +369,11 @@ public final class NeuronView extends StackPane {
         );
     }
 
-    /** Визначає колір вихідного порту за активністю передачі й типом нейрона. */
+    /** Визначає колір вихідного порту за активністю передачі й активуючою властивістю типу нейрона. */
     private void refreshOutputPortStyleClass() {
         String desiredClass = null;
         if (outputSignalActive) {
-            desiredClass = model().type() == NeuronType.EXCITATORY
+            desiredClass = model().type().isActivating()
                     ? OUTPUT_SIGNAL_EXCITATORY_STYLE_CLASS
                     : OUTPUT_SIGNAL_INHIBITORY_STYLE_CLASS;
         }
