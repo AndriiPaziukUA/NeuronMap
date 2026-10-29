@@ -42,8 +42,6 @@ public final class RotationHandleView extends Button {
 
     private final StackPane graphicPane = new StackPane();
     private final Circle background = new Circle(SIZE / 2.0);
-    private final Arc rotationArc = createRotationArc();
-    private final Path arrowHead = createRotationArrowHead();
 
     private LocalizationService localization;
     private Consumer<Locale> localizationListener;
@@ -52,6 +50,9 @@ public final class RotationHandleView extends Button {
 
     /** Створює круглу ручку та обмежує її інтерактивну область видимою формою кола. */
     public RotationHandleView() {
+        Arc rotationArc = createRotationArc();
+        Path arrowHead = createRotationArrowHead();
+
         getStyleClass().add("rotation-handle-button");
 
         setMinSize(SIZE, SIZE);
@@ -105,7 +106,7 @@ public final class RotationHandleView extends Button {
         unbindLocalizedTooltip();
         this.localization = localization;
         String tooltipText = localization.textFrom(TOOLTIP_BUNDLE, ROTATE_TOOLTIP_KEY);
-        localizedTooltip = TooltipFactory.create(tooltipText);
+        localizedTooltip = TooltipFactory.createTimed(tooltipText);
         setTooltip(localizedTooltip);
         setAccessibleText(tooltipText);
         localizationListener = ignored -> refreshLocalizedTooltip();
@@ -236,13 +237,12 @@ public final class RotationHandleView extends Button {
         double offset = ROTATION_ICON_RADIUS / Math.sqrt(2.0);
         double tipX = center + offset;
         double tipY = center - offset;
-        Path path = new Path(
+        return new Path(
                 new MoveTo(tipX, tipY),
                 new LineTo(tipX - ROTATION_ARROW_HEAD_LENGTH, tipY),
                 new MoveTo(tipX, tipY),
                 new LineTo(tipX, tipY - ROTATION_ARROW_HEAD_LENGTH)
         );
-        return path;
     }
 
     /** Синхронізує текст збереженої підказки й доступну назву з активною локаллю. */

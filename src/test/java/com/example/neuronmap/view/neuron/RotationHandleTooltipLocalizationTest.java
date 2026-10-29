@@ -3,6 +3,7 @@ package com.example.neuronmap.view.neuron;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.i18n.SupportedLanguage;
 import com.example.neuronmap.testsupport.JavaFxTestSupport;
+import com.example.neuronmap.view.support.UiTiming;
 import javafx.scene.control.Tooltip;
 import org.junit.jupiter.api.Test;
 
@@ -12,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
-/** Перевіряє локалізацію підказки, її призупинення під час взаємодії та очищення слухача після від'єднання. */
+/** Перевіряє локалізацію підказки, її часову поведінку, призупинення та очищення слухача. */
 final class RotationHandleTooltipLocalizationTest {
 
     /** Перевіряє переклад підказки й доступної назви для всіх мов та їх очищення після завершення життєвого циклу. */
@@ -24,6 +25,7 @@ final class RotationHandleTooltipLocalizationTest {
             handle.bindLocalizedTooltip(localization);
 
             assertEquals("Rotate", handle.getTooltip().getText());
+            assertEquals(UiTiming.TOOLTIP_VISIBLE_DURATION, handle.getTooltip().getShowDuration());
             assertEquals("Rotate", handle.getAccessibleText());
 
             localization.setLanguage(SupportedLanguage.UKRAINIAN);
@@ -67,6 +69,7 @@ final class RotationHandleTooltipLocalizationTest {
             handle.resumeTooltip();
             handle.resumeTooltip();
             assertSame(tooltip, handle.getTooltip());
+            assertEquals(UiTiming.TOOLTIP_VISIBLE_DURATION, handle.getTooltip().getShowDuration());
             assertEquals("Повернути", handle.getTooltip().getText());
             assertEquals("Повернути", handle.getAccessibleText());
 

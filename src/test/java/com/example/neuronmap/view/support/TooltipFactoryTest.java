@@ -11,22 +11,31 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/** Перевіряє централізоване створення підказок, розмір шрифту, часові параметри та передавання Escape вікну-власнику. */
+/** Перевіряє оформлення, часову поведінку підказок і передавання Escape вікну-власнику. */
 final class TooltipFactoryTest {
 
-    /** Перевіряє текст, збільшений спільний шрифт, часові параметри та непоглинання Escape новою підказкою. */
+    /** Перевіряє, що створена без прив'язки до контролу підказка не має таймера автоматичного приховування. */
     @Test
-    void createUsesSharedFontSizeAndTimingWithoutConsumingAutoHideEvents() throws Exception {
+    void createUsesIndefiniteDurationAndSharedFontSize() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
             Tooltip tooltip = TooltipFactory.create("Підказка");
 
             assertEquals("Підказка", tooltip.getText());
             assertEquals(14.0, tooltip.getFont().getSize(), 0.001);
             assertEquals(UiTiming.TOOLTIP_SHOW_DELAY.toMillis(), tooltip.getShowDelay().toMillis());
-            assertEquals(UiTiming.TOOLTIP_VISIBLE_DURATION.toMillis(), tooltip.getShowDuration().toMillis());
+            assertEquals(Duration.INDEFINITE, tooltip.getShowDuration());
             assertEquals(UiTiming.TOOLTIP_HIDE_DELAY.toMillis(), tooltip.getHideDelay().toMillis());
             assertFalse(tooltip.getConsumeAutoHidingEvents());
         });
+    }
+
+    /** Перевіряє стандартну тривалість для підказок, яким належить автоматично приховуватися. */
+    @Test
+    void createTimedUsesSharedVisibleDuration() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> assertEquals(
+                UiTiming.TOOLTIP_VISIBLE_DURATION,
+                TooltipFactory.createTimed("Часова підказка").getShowDuration()
+        ));
     }
 
     /** Перевіряє, що відсутній текст підказки перетворюється на порожній рядок. */
@@ -35,7 +44,7 @@ final class TooltipFactoryTest {
         JavaFxTestSupport.runAndWait(() -> assertEquals("", TooltipFactory.create(null).getText()));
     }
 
-    /** Перевіряє, що налаштування наявної підказки відновлює спільний шрифт, часові параметри та політику подій. */
+    /** Перевіряє, що повторне налаштування підказки сценою повертає стандартний таймер і політику подій. */
     @Test
     void configureResetsFontSizeTimingAndAutoHideEventPolicy() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
@@ -58,15 +67,16 @@ final class TooltipFactoryTest {
         });
     }
 
-    /** Перевіряє, що встановлення підказки через фабрику одразу застосовує спільний шрифт і політику подій. */
+    /** Перевіряє, що підказки елементів керування зберігають стандартну тривалість показу. */
     @Test
-    void installConfiguresTooltipBeforeItIsShown() throws Exception {
+    void installKeepsStandardDurationForControls() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
             Button button = new Button();
             TooltipFactory.install(button, "Підказка кнопки");
 
             assertEquals("Підказка кнопки", button.getTooltip().getText());
             assertEquals(14.0, button.getTooltip().getFont().getSize(), 0.001);
+            assertEquals(UiTiming.TOOLTIP_VISIBLE_DURATION, button.getTooltip().getShowDuration());
             assertFalse(button.getTooltip().getConsumeAutoHidingEvents());
         });
     }
