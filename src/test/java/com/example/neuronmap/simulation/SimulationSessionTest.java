@@ -1,5 +1,6 @@
 package com.example.neuronmap.simulation;
 
+import com.example.neuronmap.model.Connection;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronType;
@@ -10,7 +11,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Перевіряє поширення сигналів, лічильники активності, цикли й ручні запуски. */
+/** Перевіряє поширення сигналів, лічильники активності, цикли, ручні запуски й індикатори структур. */
 class SimulationSessionTest {
 
     /** Перевіряє, що видалення цільового нейрона не запускає порожній такт для сигналу, який утратив адресата. */
@@ -50,7 +51,6 @@ class SimulationSessionTest {
         SimulationStep emission = session.nextStep();
 
         assertNotNull(emission);
-
         assertEquals(1, emission.nextInputSums().get(target.id()));
         assertTrue(emission.nextActivatedNeuronIds().isEmpty());
         assertTrue(session.isFinished());
@@ -73,7 +73,6 @@ class SimulationSessionTest {
         SimulationStep emission = session.nextStep();
 
         assertNotNull(emission);
-
         assertTrue(emission.nextActivatedNeuronIds().contains(target.id()));
         assertTrue(session.hasPendingWork());
         SimulationStep activation = session.nextStep();
@@ -193,7 +192,7 @@ class SimulationSessionTest {
         assertEquals(1, step.nextInputSums().get(a.id()));
     }
 
-    /** Перевіряє, що джерело передає задану кількість сигналів і не створює фінальний такт без активації адресата. */
+    /** Перевіряє, що джерело передає задану кількість сигналів і не створює такт доставки нижче порога. */
     @Test
     void emitsExactlyConfiguredNumberOfSignalsIncludingActivationTick() {
         NeuronMapModel model = new NeuronMapModel();
@@ -250,7 +249,7 @@ class SimulationSessionTest {
         assertNull(session.nextStep());
     }
 
-    /** Перевіряє, що типовий нейрон зберігає один активний такт і не породжує порожню доставку нижче порога. */
+    /** Перевіряє, що типовий нейрон зберігає один активний такт і не створює зайвого такту доставки. */
     @Test
     void defaultDurationKeepsPreviousSingleTickBehavior() {
         NeuronMapModel model = new NeuronMapModel();
@@ -267,4 +266,138 @@ class SimulationSessionTest {
         assertNull(session.nextStep());
         assertEquals(BigInteger.ONE, session.tick());
     }
+
+    /** Перевіряє точкову анімацію зовнішніх зв'язків і підрахунок внутрішніх сигналів, включно з гальмівними. */
+    @Test
+    void structureLinksReflectOnlyActualCrossStructureMemberSignals() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron sourceStructure = model.createNeuron(NeuronType.STRUCTURE, 0, 0);
+        Neuron targetStructure = model.createNeuron(NeuronType.STRUCTURE, 200, 0);
+        Neuron idleStructure = model.createNeuron(NeuronType.STRUCTURE, 400, 0);
+        Neuron inhibitoryStructure = model.createNeuron(NeuronType.STRUCTURE, 600, 0);
+        Neuron sourceMember = model.createNeuron(NeuronType.EXCITATORY, 0, 100);
+        Neuron targetMember = model.createNeuron(NeuronType.EXCITATORY, 200, 100);
+        Neuron idleMember = model.createNeuron(NeuronType.EXCITATORY, 400, 100);
+        Neuron inhibitoryMember = model.createNeuron(NeuronType.EXCITATORY, 600, 100);
+        assertTrue(model.addStructureMember(sourceStructure.id(), sourceMember.id()));
+        assertTrue(model.addStructureMember(targetStructure.id(), targetMember.id()));
+        assertTrue(model.addStructureMember(idleStructure.id(), idleMember.id()));
+        assertTrue(model.addStructureMember(inhibitoryStructure.id(), inhibitoryMember.id()));
+        inhibitoryMember.setType(NeuronType.INHIBITORY);
+        targetMember.setActivationThreshold(1);
+        idleMember.setActivationThreshold(2);
+
+        assertTrue(model.createConnection(sourceMember.id(), targetMember.id()));
+        assertTrue(model.createConnection(sourceMember.id(), idleMember.id()));
+        assertTrue(model.createConnection(sourceStructure.id(), targetStructure.id()));
+        assertTrue(model.createConnection(sourceStructure.id(), idleStructure.id()));
+        assertTrue(model.createConnection(inhibitoryStructure.id(), idleStructure.id()));
+
+        Connection activeStructureLink = model.connections().stream()
+                .filter(connection -> connection.sourceId().equals(sourceStructure.id())
+                        && connection.targetId().equals(targetStructure.id()))
+                .findFirst().orElseThrow();
+        Connection subthresholdStructureLink = model.connections().stream()
+                .filter(connection -> connection.sourceId().equals(sourceStructure.id())
+                        && connection.targetId().equals(idleStructure.id()))
+                .findFirst().orElseThrow();
+        Connection inhibitoryStructureLink = model.connections().stream()
+                .filter(connection -> connection.sourceId().equals(inhibitoryStructure.id())
+                        && connection.targetId().equals(idleStructure.id()))
+                .findFirst().orElseThrow();
+
+        SimulationSession session = SimulationSession.manual(model, sourceMember.id());
+        assertTrue(session.queueManualStart(inhibitoryMember.id()));
+        SimulationStep step = session.nextStep();
+
+        assertNotNull(step);
+        assertTrue(step.emittingNeuronIds().contains(sourceMember.id()));
+        assertTrue(step.emittingNeuronIds().contains(inhibitoryMember.id()));
+        assertFalse(step.emittingNeuronIds().contains(sourceStructure.id()));
+        assertFalse(step.emittingNeuronIds().contains(inhibitoryStructure.id()));
+        assertEquals(1, step.nextInputSums().get(targetMember.id()));
+        assertEquals(1, step.nextInputSums().get(idleMember.id()));
+        assertFalse(step.nextActivatedNeuronIds().contains(idleMember.id()));
+        assertFalse(step.nextInputSums().containsKey(targetStructure.id()));
+        assertFalse(step.nextInputSums().containsKey(idleStructure.id()));
+        assertEquals(0, step.structureInputActivationCounts().get(sourceStructure.id()));
+        assertEquals(1, step.structureInputActivationCounts().get(targetStructure.id()));
+        assertEquals(0, step.structureInputActivationCounts().get(idleStructure.id()));
+        assertEquals(1, step.structureEmittingNeuronCounts().get(sourceStructure.id()));
+        assertEquals(0, step.structureEmittingNeuronCounts().get(targetStructure.id()));
+        assertEquals(0, step.structureEmittingNeuronCounts().get(idleStructure.id()));
+        assertEquals(1, step.structureEmittingNeuronCounts().get(inhibitoryStructure.id()));
+        assertEquals(Set.of(activeStructureLink.id(), subthresholdStructureLink.id()),
+                step.structureConnectionIdsToAnimate());
+        assertTrue(step.structureConnectionIdsToAnimate().contains(subthresholdStructureLink.id()),
+                "структурний імпульс показується навіть тоді, коли внутрішній сигнал нижче порога активації");
+        assertFalse(step.structureConnectionIdsToAnimate().contains(inhibitoryStructureLink.id()));
+    }
+
+    /** Перевіряє, що негайна ручна активація обчислює структурні індикатори й вибирає лише відповідний зв'язок. */
+    @Test
+    void immediateMemberActivationUpdatesStructureIndicators() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron sourceStructure = model.createNeuron(NeuronType.STRUCTURE, 0, 0);
+        Neuron targetStructure = model.createNeuron(NeuronType.STRUCTURE, 200, 0);
+        Neuron idleStructure = model.createNeuron(NeuronType.STRUCTURE, 400, 0);
+        Neuron sourceMember = model.createNeuron(NeuronType.EXCITATORY, 0, 100);
+        Neuron targetMember = model.createNeuron(NeuronType.EXCITATORY, 200, 100);
+        assertTrue(model.addStructureMember(sourceStructure.id(), sourceMember.id()));
+        assertTrue(model.addStructureMember(targetStructure.id(), targetMember.id()));
+        assertTrue(model.createConnection(sourceMember.id(), targetMember.id()));
+        assertTrue(model.createConnection(sourceStructure.id(), targetStructure.id()));
+        assertTrue(model.createConnection(sourceStructure.id(), idleStructure.id()));
+        String activeConnectionId = model.connections().stream()
+                .filter(connection -> connection.sourceId().equals(sourceStructure.id())
+                        && connection.targetId().equals(targetStructure.id()))
+                .map(Connection::id)
+                .findFirst().orElseThrow();
+
+        SimulationSession session = SimulationSession.manual(model, sourceMember.id());
+        SimulationStep step = session.activateManualStartNow(sourceMember.id());
+
+        assertNotNull(step);
+        assertTrue(step.emittingNeuronIds().contains(sourceMember.id()));
+        assertEquals(1, step.structureEmittingNeuronCounts().get(sourceStructure.id()));
+        assertEquals(1, step.structureInputActivationCounts().get(targetStructure.id()));
+        assertEquals(Set.of(activeConnectionId), step.structureConnectionIdsToAnimate());
+    }
+
+    /** Перевіряє, що лічильники й індикаторні зв'язки враховують звичайних нейронів у вкладеній структурі. */
+    @Test
+    void nestedStructureIndicatorsIncludeDescendantSignals() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron outerStructure = model.createNeuron(NeuronType.STRUCTURE, 0, 0);
+        Neuron nestedStructure = model.createNeuron(NeuronType.STRUCTURE, 100, 0);
+        Neuron targetStructure = model.createNeuron(NeuronType.STRUCTURE, 300, 0);
+        Neuron sourceMember = model.createNeuron(NeuronType.EXCITATORY, 100, 100);
+        Neuron targetMember = model.createNeuron(NeuronType.EXCITATORY, 300, 100);
+        assertTrue(model.addStructureMember(outerStructure.id(), nestedStructure.id()));
+        assertTrue(model.addStructureMember(nestedStructure.id(), sourceMember.id()));
+        assertTrue(model.addStructureMember(targetStructure.id(), targetMember.id()));
+        targetMember.setActivationThreshold(1);
+        assertTrue(model.createConnection(sourceMember.id(), targetMember.id()));
+        assertTrue(model.createConnection(outerStructure.id(), targetStructure.id()));
+        assertTrue(model.createConnection(nestedStructure.id(), targetStructure.id()));
+
+        Set<String> expectedStructuralConnections = model.connections().stream()
+                .filter(connection -> connection.sourceId().equals(outerStructure.id())
+                        || connection.sourceId().equals(nestedStructure.id()))
+                .map(Connection::id)
+                .collect(java.util.stream.Collectors.toSet());
+        SimulationStep step = SimulationSession.manual(model, sourceMember.id()).nextStep();
+
+        assertNotNull(step);
+        // Ручний запуск sourceMember вмикає його вихід, але не вхідний індикатор.
+        // Жовтим стає лише вхід targetMember, який отримав сигнал.
+        assertEquals(0, step.structureInputActivationCounts().get(outerStructure.id()));
+        assertEquals(0, step.structureInputActivationCounts().get(nestedStructure.id()));
+        assertEquals(1, step.structureInputActivationCounts().get(targetStructure.id()));
+        assertEquals(1, step.structureEmittingNeuronCounts().get(outerStructure.id()));
+        assertEquals(1, step.structureEmittingNeuronCounts().get(nestedStructure.id()));
+        assertEquals(0, step.structureEmittingNeuronCounts().get(targetStructure.id()));
+        assertEquals(expectedStructuralConnections, step.structureConnectionIdsToAnimate());
+    }
+
 }

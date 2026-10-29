@@ -13,6 +13,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Перевіряє відсотковий поріг, знаковий лічильник входів і поведінку активуючих типів симуляції. */
@@ -51,19 +52,24 @@ class SimulationSessionActivationModeTest {
         assertTrue(step.nextActivatedNeuronIds().contains(target.id()));
     }
 
-    /** Перевіряє, що структурний нейрон подає додатний сигнал іншій структурі у відсотковому режимі. */
+    /** Перевіряє, що зв'язок між контейнерами не створює нейронного сигналу в режимі кількості входів. */
     @Test
-    void structureNeuronActsAsPositiveInputInPercentageMode() {
+    void structureConnectionDoesNotBecomeANeuralSignalInPercentageMode() {
         NeuronMapModel model = new NeuronMapModel();
-        Neuron structure = model.createNeuron(NeuronType.STRUCTURE, 0, 0);
-        Neuron target = countModeTarget(model, 100, NeuronType.STRUCTURE);
-        assertTrue(model.createConnection(structure.id(), target.id()));
+        Neuron sourceStructure = model.createNeuron(NeuronType.STRUCTURE, 0, 0);
+        sourceStructure.setSignalStrength(9);
+        sourceStructure.setActivationThreshold(1);
+        sourceStructure.setActiveTicks(5);
+        sourceStructure.setDelayTicks(6);
+        Neuron targetStructure = countModeTarget(model, 100, NeuronType.STRUCTURE);
+        assertTrue(model.createConnection(sourceStructure.id(), targetStructure.id()));
 
-        SimulationStep step = SimulationSession.manual(model, structure.id()).nextStep();
+        SimulationSession session = SimulationSession.manual(model, sourceStructure.id());
 
-        assertNotNull(step);
-        assertEquals(1, step.nextInputSums().get(target.id()));
-        assertTrue(step.nextActivatedNeuronIds().contains(target.id()));
+        assertFalse(session.queueManualStart(sourceStructure.id()));
+        assertNull(session.nextStep());
+        assertTrue(session.isFinished());
+        assertFalse(session.hasPendingWork());
     }
 
     /** Перевіряє, що збуджувальний і гальмівний сигнали взаємно компенсуються в одному такті. */
