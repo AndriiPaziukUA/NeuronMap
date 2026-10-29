@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє копіювання й вставлення параметрів, назв, позицій, груп та спільних налаштувань структури. */
+/** Перевіряє копіювання й вставлення нейронів, груп і структур із новими внутрішніми учасниками. */
 class NeuronClipboardServiceTest {
 
     /** Перевіряє, що вставлення відновлює скопійований стан незалежно від подальших змін оригіналу. */
@@ -53,6 +53,50 @@ class NeuronClipboardServiceTest {
         assertTrue(neurons.presentation(copy.id()).orElseThrow().directionReversed());
     }
 
+    /** Перевіряє, що копія структури зберігає кількість учасників, а кожен учасник має новий ідентифікатор. */
+    @Test
+    void copiesStructureWithSameNumberOfNewMembers() {
+        NeuronMapModel model = new NeuronMapModel();
+        NeuronService neurons = new NeuronService(model);
+        GroupService groups = new GroupService(model);
+        StructureService structures = new StructureService(model);
+        NeuronClipboardService clipboard = new NeuronClipboardService(neurons, groups);
+        Neuron source = neurons.create(NeuronType.STRUCTURE, 100.0, 200.0);
+
+        Neuron secondMember = neurons.create(NeuronType.EXCITATORY, 0.0, 0.0);
+        Neuron thirdMember = neurons.create(NeuronType.EXCITATORY, 0.0, 0.0);
+        assertTrue(structures.addMember(source.id(), secondMember.id()));
+        assertTrue(structures.addMember(source.id(), thirdMember.id()));
+        Set<String> originalMemberIds = Set.copyOf(model.structure(source.id()).memberIds());
+        assertEquals(3, originalMemberIds.size());
+
+        assertTrue(clipboard.copy(Set.of(source.id())));
+        Neuron copiedStructure = clipboard.paste(500.0, 600.0).getFirst();
+        Set<String> copiedMemberIds = model.structure(copiedStructure.id()).memberIds();
+
+        assertEquals(originalMemberIds.size(), copiedMemberIds.size());
+        assertTrue(originalMemberIds.stream().allMatch(id -> model.neuron(id) != null));
+        assertTrue(copiedMemberIds.stream().allMatch(id -> model.neuron(id) != null));
+        assertTrue(copiedMemberIds.stream().noneMatch(originalMemberIds::contains));
+    }
+
+    /** Перевіряє, що копіювання порожньої структури не залишає створеного за замовчуванням учасника. */
+    @Test
+    void copiesEmptyStructureWithoutAddingDefaultMember() {
+        NeuronMapModel model = new NeuronMapModel();
+        NeuronService neurons = new NeuronService(model);
+        NeuronClipboardService clipboard = new NeuronClipboardService(neurons, new GroupService(model));
+        Neuron source = neurons.create(NeuronType.STRUCTURE, 100.0, 200.0);
+        String initialMemberId = model.structure(source.id()).memberIds().iterator().next();
+        assertTrue(neurons.remove(initialMemberId).isPresent());
+        assertTrue(model.structure(source.id()).memberIds().isEmpty());
+
+        assertTrue(clipboard.copy(Set.of(source.id())));
+        Neuron copiedStructure = clipboard.paste(500.0, 600.0).getFirst();
+
+        assertTrue(model.structure(copiedStructure.id()).memberIds().isEmpty());
+    }
+
     /** Перевіряє, що копія структурного елемента зберігає спільний тип майбутніх учасників і їхній напрямок. */
     @Test
     void copiesSharedStructureMemberTypeAndDirection() {
@@ -84,6 +128,17 @@ class NeuronClipboardServiceTest {
         assertThrows(NullPointerException.class, () -> clipboard.copy(null));
         assertFalse(clipboard.copy(Set.of()));
         assertTrue(clipboard.content().isEmpty());
+    }
+
+    /** Перевіряє, що кількість учасників у даних буфера дозволена лише для структури й не може бути від'ємною. */
+    @Test
+    void rejectsInvalidStructureMemberCounts() {
+        NeuronParameters parameters = new NeuronParameters(1, 1, 1);
+
+        assertThrows(IllegalArgumentException.class, () -> new NeuronClipboardService.NeuronData(
+                NeuronType.STRUCTURE, parameters, 0.0, 0.0, 0.0, false, null, null, -1));
+        assertThrows(IllegalArgumentException.class, () -> new NeuronClipboardService.NeuronData(
+                NeuronType.EXCITATORY, parameters, 0.0, 0.0, 0.0, false, null, null, 1));
     }
 
     /** Перевіряє нормалізацію порожньої назви та граничну довжину даних буфера копіювання. */
@@ -125,6 +180,12 @@ class NeuronClipboardServiceTest {
         assertTrue(fromParameters.directionReversed());
         assertNull(fromParameters.name());
         assertNull(fromParameters.structureMemberType());
+        assertNull(fromParameters.structureMemberCount());
+
+        NeuronClipboardService.NeuronData fromSharedMemberType = new NeuronClipboardService.NeuronData(
+                NeuronType.STRUCTURE, parameters, 11.0, -8.0, 25.0, true, "Structure", NeuronType.INHIBITORY);
+        assertEquals(NeuronType.INHIBITORY, fromSharedMemberType.structureMemberType());
+        assertNull(fromSharedMemberType.structureMemberCount());
 
         NeuronClipboardService.NeuronData fromSeparateValues = new NeuronClipboardService.NeuronData(
                 NeuronType.INHIBITORY, 7, 5, 3.0, 4.0, -15.0, false);
@@ -136,6 +197,7 @@ class NeuronClipboardServiceTest {
         assertFalse(fromSeparateValues.directionReversed());
         assertNull(fromSeparateValues.name());
         assertNull(fromSeparateValues.structureMemberType());
+        assertNull(fromSeparateValues.structureMemberCount());
     }
 
     /** Перевіряє, що вибір одного учасника групи копіює та вставляє всю групу. */
