@@ -258,6 +258,7 @@ class SimulationSessionTest {
         target.setActivationThreshold(100);
         assertTrue(model.createConnection(source.id(), target.id()));
         SimulationSession session = SimulationSession.manual(model, source.id());
+
         SimulationStep step = session.nextStep();
         assertNotNull(step);
         assertEquals(1, step.nextInputSums().get(target.id()));
@@ -327,14 +328,15 @@ class SimulationSessionTest {
         assertEquals(0, step.structureEmittingNeuronCounts().get(targetStructure.id()));
         assertEquals(0, step.structureEmittingNeuronCounts().get(idleStructure.id()));
         assertEquals(1, step.structureEmittingNeuronCounts().get(inhibitoryStructure.id()));
-        assertEquals(Set.of(activeStructureLink.id(), subthresholdStructureLink.id()),
+        assertEquals(Set.of(activeStructureLink.id(), subthresholdStructureLink.id(), inhibitoryStructureLink.id()),
                 step.structureConnectionIdsToAnimate());
         assertTrue(step.structureConnectionIdsToAnimate().contains(subthresholdStructureLink.id()),
                 "структурний імпульс показується навіть тоді, коли внутрішній сигнал нижче порога активації");
-        assertFalse(step.structureConnectionIdsToAnimate().contains(inhibitoryStructureLink.id()));
+        assertTrue(step.structureConnectionIdsToAnimate().contains(inhibitoryStructureLink.id()),
+                "новий зв'язок до спільного центру відображає фактичне передавання гальмівного сигналу");
     }
 
-    /** Перевіряє, що негайна ручна активація обчислює структурні індикатори й вибирає лише відповідний зв'язок. */
+    /** Перевіряє структурні індикатори й анімацію кожного зв'язку до цільової структури зі спільним центром. */
     @Test
     void immediateMemberActivationUpdatesStructureIndicators() {
         NeuronMapModel model = new NeuronMapModel();
@@ -353,6 +355,11 @@ class SimulationSessionTest {
                         && connection.targetId().equals(targetStructure.id()))
                 .map(Connection::id)
                 .findFirst().orElseThrow();
+        String secondTargetConnectionId = model.connections().stream()
+                .filter(connection -> connection.sourceId().equals(sourceStructure.id())
+                        && connection.targetId().equals(idleStructure.id()))
+                .map(Connection::id)
+                .findFirst().orElseThrow();
 
         SimulationSession session = SimulationSession.manual(model, sourceMember.id());
         SimulationStep step = session.activateManualStartNow(sourceMember.id());
@@ -361,7 +368,9 @@ class SimulationSessionTest {
         assertTrue(step.emittingNeuronIds().contains(sourceMember.id()));
         assertEquals(1, step.structureEmittingNeuronCounts().get(sourceStructure.id()));
         assertEquals(1, step.structureInputActivationCounts().get(targetStructure.id()));
-        assertEquals(Set.of(activeConnectionId), step.structureConnectionIdsToAnimate());
+        assertEquals(1, step.structureInputActivationCounts().get(idleStructure.id()),
+                "кожна цільова структура зі структурним зв'язком отримує власний спільний центр");
+        assertEquals(Set.of(activeConnectionId, secondTargetConnectionId), step.structureConnectionIdsToAnimate());
     }
 
     /** Перевіряє, що лічильники й індикаторні зв'язки враховують звичайних нейронів у вкладеній структурі. */
@@ -399,5 +408,4 @@ class SimulationSessionTest {
         assertEquals(0, step.structureEmittingNeuronCounts().get(targetStructure.id()));
         assertEquals(expectedStructuralConnections, step.structureConnectionIdsToAnimate());
     }
-
 }

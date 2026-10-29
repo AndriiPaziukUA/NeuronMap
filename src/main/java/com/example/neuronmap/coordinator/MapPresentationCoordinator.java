@@ -83,10 +83,16 @@ public final class MapPresentationCoordinator {
         connectionController.refreshPreviewAfterCameraChange();
     }
 
-    /** Узгоджує набір подань нейронів із моделлю та оновлює їхню геометрію й видимий стан. */
+    /**
+     * Узгоджує подання нейронів, вміст шухлядок і зв'язки, якщо їхній склад змінився.
+     * Звичайне оновлення індикаторів не перебудовує графічні зв'язки без потреби.
+     */
     public void refreshNeurons() {
         synchronizeNeuronViews();
         refreshNeuronVisuals();
+        if (!connectionViewsMatchModel()) {
+            refreshConnections();
+        }
     }
 
     /**
@@ -185,7 +191,7 @@ public final class MapPresentationCoordinator {
     public void refreshConnections() {
         for (Connection connection : neuronService.model().connections()) {
             ConnectionView existingView = connectionViews.get(connection.id());
-            if (existingView != null && !hasSameEndpoints(existingView.model(), connection)) {
+            if (existingView != null && hasDifferentEndpoints(existingView.model(), connection)) {
                 existingView.stopDeleteHighlight();
                 workspace.edgeLayer().getChildren().remove(existingView);
                 connectionViews.remove(connection.id());
@@ -208,6 +214,26 @@ public final class MapPresentationCoordinator {
             }
             return !exists;
         });
+    }
+
+    /**
+     * Перевіряє, чи відповідає набір графічних зв'язків поточній топології моделі.
+     *
+     * @return {@code true}, якщо кожен зв'язок моделі має подання з такими самими кінцями
+     *         та кількість подань збігається з кількістю зв'язків.
+     */
+    private boolean connectionViewsMatchModel() {
+        var connections = neuronService.model().connections();
+        if (connectionViews.size() != connections.size()) {
+            return false;
+        }
+        for (Connection connection : connections) {
+            ConnectionView view = connectionViews.get(connection.id());
+            if (view == null || hasDifferentEndpoints(view.model(), connection)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Створює видиме подання для напрямленого зв'язку та додає його до відповідного шару. */
@@ -389,15 +415,15 @@ public final class MapPresentationCoordinator {
     }
 
     /**
-     * Перевіряє ідентичність кінців зв'язку для безпечного повторного використання його подання.
+     * Перевіряє, чи відрізняються кінці зв'язку, перш ніж повторно використати його графічне подання.
      *
      * @param current зв'язок, на який наразі посилається графічне подання.
      * @param restored зв'язок із відновленої моделі.
-     * @return {@code true}, якщо ідентифікатори джерела та цілі збігаються.
+     * @return {@code true}, якщо відрізняється джерело або ціль зв'язку.
      */
-    private static boolean hasSameEndpoints(Connection current, Connection restored) {
-        return current.sourceId().equals(restored.sourceId())
-                && current.targetId().equals(restored.targetId());
+    private static boolean hasDifferentEndpoints(Connection current, Connection restored) {
+        return !current.sourceId().equals(restored.sourceId())
+                || !current.targetId().equals(restored.targetId());
     }
 
     /** Вилучає графічний вузол із батьківського контейнера, якщо вузол до нього приєднаний. */

@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -67,7 +66,7 @@ final class SimulationStepPresenterPulseSynchronizationTest {
                     () -> neuronViews.values().forEach(view -> view.refreshVisuals(false)),
                     pulseController
             );
-            List<com.example.neuronmap.view.simulation.PulseAnimationView> previousPulses;
+            List<PulseAnimationView> previousPulses;
             try {
                 presenter.apply(new SimulationStep(
                         BigInteger.ZERO,
@@ -80,14 +79,14 @@ final class SimulationStepPresenterPulseSynchronizationTest {
                 ));
                 assertEquals(2, workspace.pulseLayer().getChildren().size());
                 previousPulses = workspace.pulseLayer().getChildren().stream()
-                        .map(com.example.neuronmap.view.simulation.PulseAnimationView.class::cast)
+                        .map(PulseAnimationView.class::cast)
                         .toList();
 
                 presenter.completeAnimationsAtTickBoundary();
 
-                assertTrue(previousPulses.stream().allMatch(com.example.neuronmap.view.simulation.PulseAnimationView::isFinished));
+                assertTrue(previousPulses.stream().allMatch(PulseAnimationView::isFinished));
                 assertTrue(workspace.pulseLayer().getChildren().isEmpty());
-                for (com.example.neuronmap.view.simulation.PulseAnimationView previousPulse : previousPulses) {
+                for (PulseAnimationView previousPulse : previousPulses) {
                     Polygon arrivedArrow = (Polygon) previousPulse.getChildren().getFirst();
                     double tipX = arrivedArrow.getPoints().getFirst();
                     double tipY = arrivedArrow.getPoints().get(1);
@@ -109,8 +108,7 @@ final class SimulationStepPresenterPulseSynchronizationTest {
                 ));
 
                 assertEquals(1, workspace.pulseLayer().getChildren().size());
-                com.example.neuronmap.view.simulation.PulseAnimationView nextPulse =
-                        (com.example.neuronmap.view.simulation.PulseAnimationView) workspace.pulseLayer().getChildren().getFirst();
+                PulseAnimationView nextPulse = (PulseAnimationView) workspace.pulseLayer().getChildren().getFirst();
                 assertTrue(previousPulses.stream().noneMatch(previousPulse -> previousPulse == nextPulse));
             } finally {
                 presenter.clearRuntime();
@@ -119,9 +117,9 @@ final class SimulationStepPresenterPulseSynchronizationTest {
         });
     }
 
-    /** Перевіряє числа структури та вибіркову анімацію лише структурного зв'язку з фактичним внутрішнім сигналом. */
+    /** Перевіряє числа структур і анімацію кожного зв'язку до структури, для якої створено спільний центр. */
     @Test
-    void structureNumbersAggregateMemberActivityAndOnlyMatchingLinkIsAnimated() throws Exception {
+    void structureNumbersAggregateMemberActivityAndAnimateEachLinkedTargetCenter() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
             NeuronMapModel model = new NeuronMapModel();
             Neuron sourceStructure = model.createNeuron(NeuronType.STRUCTURE, 50.0, 80.0);
@@ -162,7 +160,7 @@ final class SimulationStepPresenterPulseSynchronizationTest {
             );
 
             String activeStructureConnectionId = null;
-            String inactiveStructureConnectionId = null;
+            String secondTargetStructureConnectionId = null;
             for (Connection connection : model.connections()) {
                 if (model.structure(connection.sourceId()) == null || model.structure(connection.targetId()) == null) {
                     continue;
@@ -172,7 +170,7 @@ final class SimulationStepPresenterPulseSynchronizationTest {
                 if (connection.targetId().equals(targetStructure.id())) {
                     activeStructureConnectionId = connection.id();
                 } else if (connection.targetId().equals(idleStructure.id())) {
-                    inactiveStructureConnectionId = connection.id();
+                    secondTargetStructureConnectionId = connection.id();
                 }
             }
 
@@ -185,16 +183,18 @@ final class SimulationStepPresenterPulseSynchronizationTest {
                 assertEquals("1", ((Label) neuronViews.get(sourceStructure.id()).getChildren().get(2)).getText());
                 assertEquals("1", ((Label) neuronViews.get(targetStructure.id()).getChildren().get(1)).getText());
                 assertEquals("0", ((Label) neuronViews.get(targetStructure.id()).getChildren().get(2)).getText());
-                assertEquals("0", ((Label) neuronViews.get(idleStructure.id()).getChildren().get(1)).getText());
+                assertEquals("1", ((Label) neuronViews.get(idleStructure.id()).getChildren().get(1)).getText(),
+                        "структура-приймач із власним центром також отримує сигнал");
                 assertEquals("0", ((Label) neuronViews.get(idleStructure.id()).getChildren().get(2)).getText());
                 Circle targetInputPort = (Circle) neuronViews.get(targetMember.id()).getChildren().get(3);
                 assertTrue(targetInputPort.getStyleClass().contains("port-input-sufficient"));
 
                 assertNotNull(activeStructureConnectionId);
-                assertNotNull(inactiveStructureConnectionId);
+                assertNotNull(secondTargetStructureConnectionId);
                 assertTrue(pulseAnimator.playedConnectionIds.contains(activeStructureConnectionId));
-                assertFalse(pulseAnimator.playedConnectionIds.contains(inactiveStructureConnectionId));
-                assertEquals(Set.of(activeStructureConnectionId), step.structureConnectionIdsToAnimate());
+                assertTrue(pulseAnimator.playedConnectionIds.contains(secondTargetStructureConnectionId));
+                assertEquals(Set.of(activeStructureConnectionId, secondTargetStructureConnectionId),
+                        step.structureConnectionIdsToAnimate());
             } finally {
                 presenter.clearRuntime();
                 workspace.dispose();
@@ -241,7 +241,7 @@ final class SimulationStepPresenterPulseSynchronizationTest {
             play(connectionView);
         }
 
-        /** Тестовий компонент не керує реальними часовими шкалами. */
+        /** Тестовий компонент не керує реальними часовими шкалами JavaFX. */
         @Override
         public void setTickDurationMillis(double tickDurationMillis) { }
     }

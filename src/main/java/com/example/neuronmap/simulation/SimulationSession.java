@@ -13,12 +13,13 @@ import java.util.Set;
 
 /**
  * Обробляє глобальні такти симуляції, накопичує вхідні сигнали та керує затримкою і тривалістю їх передавання.
- * Структурні нейрони є індикаторними контейнерами: сигнал випускають лише звичайні нейрони, що містяться в них.
+ * Для активованих внутрішніх нейронів готує спільні центри цільових структур до випуску вихідних сигналів.
  */
 public final class SimulationSession {
 
     private final NeuronMapModel model;
     private final StructureSignalIndicatorCalculator structureSignalIndicators;
+    private final StructureActivationCoordinator structureActivationCoordinator;
     private final Map<String, Integer> pendingSignals = new LinkedHashMap<>();
     private final Set<String> pendingManualStarts = new LinkedHashSet<>();
     private final Map<String, Integer> remainingActiveTicks = new LinkedHashMap<>();
@@ -37,6 +38,7 @@ public final class SimulationSession {
     private SimulationSession(NeuronMapModel model) {
         this.model = model;
         structureSignalIndicators = new StructureSignalIndicatorCalculator(model);
+        structureActivationCoordinator = new StructureActivationCoordinator(model);
     }
 
     /**
@@ -78,8 +80,7 @@ public final class SimulationSession {
 
     /**
      * Активує звичайний нейрон у поточному такті без просування глобального лічильника.
-     * Якщо затримка перевищує один такт, перший вихідний сигнал буде передано після її завершення.
-     * Структурний контейнер не може бути активований як джерело сигналу.
+     * Перед першим вихідним сигналом готує спільні центри структур, до яких ведуть структурні зв'язки.
      *
      * @param sourceNeuronId ідентифікатор нейрона для негайної активації.
      * @return знімок поточного стану або {@code null}, якщо нейрон відсутній, є структурою
@@ -98,6 +99,7 @@ public final class SimulationSession {
         if (emittingNeuronIdsThisTick.contains(sourceNeuronId)) {
             return null;
         }
+        structureActivationCoordinator.prepareSharedCenters(Set.of(sourceNeuronId));
         scheduleActivationDelay(Set.of(sourceNeuronId));
         if (remainingEmissionDelayTicks.get(sourceNeuronId) == 0) {
             emitFirstSignalImmediately(sourceNeuron);
@@ -210,7 +212,7 @@ public final class SimulationSession {
 
     /**
      * Перевіряє, чи веде зв'язок від звичайного нейрона до наявного звичайного нейрона призначення.
-     * Структурні зв'язки не є каналами передавання сигналів.
+     * Структурні зв'язки не є каналами прямого передавання сигналів.
      *
      * @param connection зв'язок для перевірки.
      * @param sourceNeuronId ідентифікатор нейрона-випромінювача.
@@ -224,6 +226,7 @@ public final class SimulationSession {
 
     /**
      * Обробляє один такт, доставляє сигнали й обчислює індикатори для зовнішніх структурних зв'язків.
+     * Спільні центри цільових структур створюються до передавання сигналів активованих нейронів.
      *
      * @return незмінний результат такту або {@code null}, якщо роботи немає.
      */
@@ -246,6 +249,7 @@ public final class SimulationSession {
         Map<String, Integer> nextSignals = new LinkedHashMap<>();
         collectManualActivations(manualStarts, activatedNeuronIds);
         collectThresholdActivations(inputSums, activatedNeuronIds);
+        structureActivationCoordinator.prepareSharedCenters(activatedNeuronIds);
         scheduleActivationDelay(activatedNeuronIds);
         Set<String> emittingNeuronIds = emitReadySignals(activatedNeuronIds, nextSignals);
         emittingNeuronIdsThisTick.addAll(emittingNeuronIds);
@@ -370,7 +374,7 @@ public final class SimulationSession {
         return false;
     }
 
-    /** Додає сигнали до звичайних цільових нейронів; параметри структурних контейнерів не беруть участі. */
+    /** Додає сигнали до звичайних цільових нейронів; структурні контейнери залишаються поза прямим потоком сигналів. */
     private void collectOutgoingSignals(Neuron neuron, Map<String, Integer> nextSignals) {
         if (!isSignalNeuron(neuron)) {
             return;
