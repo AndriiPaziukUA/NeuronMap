@@ -26,7 +26,8 @@ import java.util.List;
  *
  * <p>Область взаємодії визначається геометрією тіла з округленими кутами та видимими портами;
  * тінь і прямокутні межі контейнера не розширюють її. Для структурного нейрона подання також містить
- * висувну шухлядку з прикріпленими поданнями внутрішніх нейронів.</p>
+ * висувну шухлядку з прикріпленими поданнями внутрішніх нейронів. Назви внутрішніх нейронів приховані;
+ * наведення на них передається структурі, яка володіє шухлядкою.</p>
  */
 public final class NeuronView extends StackPane {
 
@@ -141,16 +142,19 @@ public final class NeuronView extends StackPane {
         addEventHandler(MouseEvent.MOUSE_ENTERED, _ -> {
             pointerHovered = true;
             refreshNameLabel();
+            refreshContainingStructureName(true);
             refreshParameterTooltip();
         });
         addEventHandler(MouseEvent.MOUSE_MOVED, _ -> {
             pointerHovered = true;
             refreshNameLabel();
+            refreshContainingStructureName(true);
             refreshParameterTooltip();
         });
         addEventHandler(MouseEvent.MOUSE_EXITED, _ -> {
             pointerHovered = false;
             refreshNameLabel();
+            refreshContainingStructureName(false);
         });
         refreshInputPortStyleClass();
         refreshOutputPortStyleClass();
@@ -191,7 +195,10 @@ public final class NeuronView extends StackPane {
      */
     public boolean isStructureMember() { return structureMember; }
 
-    /** Позначає подання як внутрішній елемент структури або як звичайний нейрон карти.
+    /**
+     * Позначає подання як внутрішній елемент структури або як звичайний нейрон карти.
+     * Внутрішній нейрон не показує власну назву при наведенні: її відображає структура-власник.
+     *
      * @param structureMember {@code true}, щоб закріпити нейрон усередині структури.
      */
     public void setStructureMember(boolean structureMember) {
@@ -201,6 +208,7 @@ public final class NeuronView extends StackPane {
         if (structureMember) {
             endDrag();
         }
+        refreshNameLabel();
     }
 
     /**
@@ -576,13 +584,32 @@ public final class NeuronView extends StackPane {
         refreshNameLabel();
     }
 
-    /** Узгоджує стан наведення назви з наведенням на ручку обертання. */
+    /**
+     * Узгоджує стан наведення назви з зовнішнім джерелом, зокрема ручкою обертання або внутрішнім нейроном.
+     *
+     * @param active {@code true}, якщо зовнішнє джерело активує назву цього нейрона.
+     */
     public void setNameHoverActive(boolean active) {
         if (!active && nameHiddenWhileRotating) {
             return;
         }
         pointerHovered = active;
         refreshNameLabel();
+    }
+
+    /** Передає стан наведення на внутрішньому нейроні зовнішній структурі, яка має показувати його назву. */
+    private void refreshContainingStructureName(boolean active) {
+        Node ancestor = getParent();
+        while (ancestor != null) {
+            if (ancestor instanceof NeuronStructureDrawerView drawer) {
+                Node owner = drawer.getParent();
+                if (owner instanceof NeuronView structure && !structure.structureMember) {
+                    structure.setNameHoverActive(active);
+                    return;
+                }
+            }
+            ancestor = ancestor.getParent();
+        }
     }
 
     /** Оновлює текст підказки й узгоджує її встановлення з поточним станом вибору нейрона. */
@@ -623,16 +650,16 @@ public final class NeuronView extends StackPane {
     /** Повертає вузли, на яких встановлюється підказка, для регресійної перевірки межі наведення. */
     List<Node> parameterTooltipTargetsForTest() { return parameterTooltipTargets; }
 
-    /** Оновлює окремий підпис назви та розміщує його над тілом нейрона, зберігаючи текст горизонтальним. */
+    /** Оновлює підпис назви над нейроном і приховує власну назву внутрішніх учасників структури. */
     private void refreshNameLabel() {
         Node parent = nameLabel.getParent();
         refreshNameLabel(parent instanceof Pane pane && parent != this ? pane : null);
     }
 
-    /** Перераховує текст і геометрію підпису назви в локальному або окремому екранному шарі. */
+    /** Перераховує текст і геометрію підпису в заданому шарі, не показуючи власні назви учасників структури. */
     private void refreshNameLabel(Pane overlayLayer) {
         String name = model().name();
-        boolean shouldShow = pointerHovered && !nameHiddenWhileRotating
+        boolean shouldShow = !structureMember && pointerHovered && !nameHiddenWhileRotating
                 && !isHiddenInClosedStructureDrawer()
                 && name != null && !name.isEmpty();
         nameLabel.setText(name == null ? "" : name);

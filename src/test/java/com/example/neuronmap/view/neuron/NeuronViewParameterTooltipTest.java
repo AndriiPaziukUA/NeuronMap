@@ -96,12 +96,9 @@ final class NeuronViewParameterTooltipTest {
         });
     }
 
-    /**
-     * Перевіряє, що учасник реагує на наведення, але його події не активують зовнішню структуру.
-     * Це також запобігає повторному запуску підказки параметрів контейнера поверх підказки учасника.
-     */
+    /** Перевіряє, що наведення на учасника показує лише назву структури та не запускає її обробники миші. */
     @Test
-    void drawerMouseEventsDoNotTriggerOuterStructureTooltipOrClickHandlers() throws Exception {
+    void drawerHoverShowsOnlyContainingStructureNameAndStopsOuterEvents() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
             NeuronView structure = createNamedView("tooltip-structure", NeuronType.STRUCTURE, "Структура");
             NeuronView member = createNamedView("tooltip-member", NeuronType.EXCITATORY, "Учасник");
@@ -125,12 +122,23 @@ final class NeuronViewParameterTooltipTest {
             structure.addEventHandler(MouseEvent.MOUSE_CLICKED, _ -> outerMouseClicks.incrementAndGet());
 
             try {
+                assertFalse(drawer.isPickOnBounds(),
+                        "Прямокутні межі контейнера не повинні створювати невидиму область наведення");
+                assertFalse(drawer.contains(0.5, 0.5),
+                        "Прозорий заокруглений кут учасника не повинен активувати назву структури");
+                assertTrue(drawer.contains(NeuronView.WIDTH / 2.0, NeuronView.HEIGHT / 2.0),
+                        "Видиме тіло внутрішнього нейрона має залишатися областю наведення");
+                assertTrue(drawer.contains(-3.0, NeuronView.HEIGHT / 2.0),
+                        "Видима частина вхідного порту повинна залишатися інтерактивною");
+                assertFalse(drawer.contains(-8.0, NeuronView.HEIGHT / 2.0),
+                        "Порожня область за межами вхідного порту не повинна активувати назву структури");
+
                 Event.fireEvent(memberBody, mouseEvent(MouseEvent.MOUSE_MOVED, MouseButton.NONE, 0));
 
-                assertTrue(member.isNameLabelVisibleForTest(),
-                        "Вкладений нейрон має одразу реагувати на наведення миші");
-                assertFalse(structure.isNameLabelVisibleForTest(),
-                        "Наведення на учасника не повинно показувати назву зовнішньої структури");
+                assertFalse(member.isNameLabelVisibleForTest(),
+                        "Внутрішній нейрон не повинен показувати власну назву");
+                assertTrue(structure.isNameLabelVisibleForTest(),
+                        "Наведення на учасника повинно показувати назву структури над нею");
                 assertEquals(0, outerMouseMoves.get(),
                         "Подія переміщення миші з учасника не повинна спливати до структури-контейнера");
 
@@ -138,6 +146,12 @@ final class NeuronViewParameterTooltipTest {
                 Event.fireEvent(memberBody, mouseEvent(MouseEvent.MOUSE_CLICKED, MouseButton.PRIMARY, 1));
                 assertEquals(0, outerMouseClicks.get(),
                         "Клацання по шухлядці або її учаснику не повинно активувати контейнер");
+
+                Event.fireEvent(member, mouseEvent(MouseEvent.MOUSE_EXITED, MouseButton.NONE, 0));
+                assertFalse(member.isNameLabelVisibleForTest(),
+                        "Після виходу курсора внутрішній нейрон залишається без власної назви");
+                assertFalse(structure.isNameLabelVisibleForTest(),
+                        "Назва структури має ховатися після виходу курсора з її учасника");
             } finally {
                 structure.disposeParameterTooltip();
                 member.disposeParameterTooltip();
@@ -145,7 +159,7 @@ final class NeuronViewParameterTooltipTest {
         });
     }
 
-    /** Створює подання з контрольованими параметрами для ізольованої перевірки тексту підказки. */
+    /** Створює подання з контрольованими параметрами для незалежних перевірок тексту підказки. */
     private static NeuronView createView() {
         Neuron neuron = new Neuron(
                 "tooltip-neuron",

@@ -1,6 +1,7 @@
 package com.example.neuronmap.view.neuron;
 
 import javafx.geometry.Point2D;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Background;
@@ -34,13 +35,14 @@ public final class NeuronStructureDrawerView extends Pane {
     /**
      * Створює приховану шухлядку сталої ширини з прозорим тлом власного контейнера.
      * Видиме непрозоре тло й контур відображаються окремо в нижньому шарі полотна, під зв'язками.
+     * Контейнер не використовує власні прямокутні межі для hit-testing: наведення визначають видимі учасники.
      */
     public NeuronStructureDrawerView() {
         getStyleClass().add(STYLE_CLASS);
         setBackground(new Background(new BackgroundFill(Color.TRANSPARENT, null, null)));
         setBorder(Border.EMPTY);
         setManaged(false);
-        setPickOnBounds(true);
+        setPickOnBounds(false);
         setMinWidth(NeuronView.WIDTH);
         setPrefWidth(NeuronView.WIDTH);
         setMaxWidth(NeuronView.WIDTH);
@@ -125,6 +127,40 @@ public final class NeuronStructureDrawerView extends Pane {
      */
     public List<NeuronView> memberViews() {
         return memberViews;
+    }
+
+    /**
+     * Обмежує область наведення видимою геометрією учасників та вкладених відкритих шухлядок.
+     * Прозорі заокруглені кути й порожні бокові ділянки контейнера не стають цілями миші.
+     *
+     * @param localX горизонтальна координата точки в локальній системі шухлядки.
+     * @param localY вертикальна координата точки в локальній системі шухлядки.
+     * @return {@code true}, якщо точка лежить на видимій області учасника чи його відкритого вмісту.
+     */
+    @Override
+    public boolean contains(double localX, double localY) {
+        if (!expanded || !isVisible()) {
+            return false;
+        }
+        Point2D point = new Point2D(localX, localY);
+        return memberViews.stream().anyMatch(member -> containsMemberContent(member, point));
+    }
+
+    /** Перевіряє точку відносно картки учасника та його власної відкритої шухлядки. */
+    private static boolean containsMemberContent(NeuronView member, Point2D pointInParent) {
+        Point2D pointInMember = member.parentToLocal(pointInParent);
+        if (member.contains(pointInMember.getX(), pointInMember.getY())) {
+            return true;
+        }
+        for (Node child : member.getChildren()) {
+            if (child instanceof NeuronStructureDrawerView nestedDrawer && nestedDrawer.isExpanded()) {
+                Point2D pointInDrawer = nestedDrawer.parentToLocal(pointInMember);
+                if (nestedDrawer.contains(pointInDrawer.getX(), pointInDrawer.getY())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
