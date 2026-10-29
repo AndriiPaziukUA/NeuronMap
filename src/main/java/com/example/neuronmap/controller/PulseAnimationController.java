@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/** Керує запуском, призупиненням, відновленням і зупиненням анімацій імпульсів. */
+/** Керує життєвим циклом імпульсів і синхронізує їхню видимість та геометрію зі зв’язками. */
 public final class PulseAnimationController implements PulseAnimator {
 
     private final WorkspaceView workspace;
@@ -44,7 +44,7 @@ public final class PulseAnimationController implements PulseAnimator {
         this.workspace = Objects.requireNonNull(workspace, "workspace");
         this.activityChanged = Objects.requireNonNull(activityChanged, "activityChanged");
         workspace.edgeLayer().getChildren().addListener(
-                (ListChangeListener<Node>) change -> synchronizeConnectionViews());
+                (ListChangeListener<Node>) _ -> synchronizeConnectionViews());
     }
 
     /**
@@ -59,7 +59,7 @@ public final class PulseAnimationController implements PulseAnimator {
 
     /**
      * Створює та запускає анімацію імпульсу з індивідуальною тривалістю, не змінюючи налаштування інших анімацій.
-     * Геометрія активного імпульсу оновлюється через подію зв'язку, а не через окремий цикл кадрів.
+     * Геометрія й видимість активного імпульсу оновлюються за подіями подання зв'язку, без циклу опитування.
      *
      * @param connectionView візуальне подання зв'язку.
      * @param durationMillis тривалість саме цієї анімації в мілісекундах.
@@ -100,11 +100,8 @@ public final class PulseAnimationController implements PulseAnimator {
                 connection.sourceId(),
                 connection.targetId()
         );
-        ChangeListener<Number> geometryListener =
-                (observable, oldValue, newValue) -> animation.refreshGeometry();
-        activeAnimation.setGeometryListener(geometryListener);
-        connectionView.geometryRevisionProperty().addListener(geometryListener);
         activeAnimations.add(activeAnimation);
+        attachListeners(activeAnimation, connectionView);
         animation.play();
         pruneFinished();
         activityChanged.run();
@@ -220,9 +217,31 @@ public final class PulseAnimationController implements PulseAnimator {
     }
 
     /**
+     * Реєструє слухачі геометрії та видимості зв'язку для синхронізації імпульсу без перезапуску Timeline.
+     *
+     * @param activeAnimation запис анімації, який потрібно синхронізувати.
+     * @param connectionView подання зв'язку, за змінами якого слід стежити.
+     */
+    private void attachListeners(ActiveAnimation activeAnimation, ConnectionView connectionView) {
+        ChangeListener<Number> geometryListener =
+                (_, _, _) -> activeAnimation.view().refreshGeometry();
+        ChangeListener<Boolean> visibilityListener = (_, _, visible) -> {
+            activeAnimation.view().setVisible(visible);
+            if (visible) {
+                activeAnimation.view().refreshGeometry();
+            }
+        };
+        activeAnimation.setGeometryListener(geometryListener);
+        activeAnimation.setVisibilityListener(visibilityListener);
+        connectionView.geometryRevisionProperty().addListener(geometryListener);
+        connectionView.visibleProperty().addListener(visibilityListener);
+        activeAnimation.view().setVisible(connectionView.isVisible());
+    }
+
+    /**
      * Узгоджує активні імпульси зі зв'язками, які зараз присутні на полотні.
-     * Якщо зв'язок тимчасово зник, анімація лишається активною, але прихованою; після відновлення
-     * сумісного зв'язку вона підхоплює його геометрію зі збереженим прогресом тієї самої часової шкали.
+     * Якщо зв'язок тимчасово зник або став невидимим, часову шкалу імпульсу збережено, але сам імпульс приховано.
+     * Після повернення видимості геометрія оновлюється з поточним прогресом, а не скидається на початок.
      */
     private void synchronizeConnectionViews() {
         for (ActiveAnimation activeAnimation : List.copyOf(activeAnimations)) {
@@ -234,11 +253,15 @@ public final class PulseAnimationController implements PulseAnimator {
 
             ConnectionView current = activeAnimation.connectionView();
             if (current == replacement) {
-                activeAnimation.view().setVisible(replacement != null);
+                boolean visible = replacement != null && replacement.isVisible();
+                activeAnimation.view().setVisible(visible);
+                if (visible) {
+                    activeAnimation.view().refreshGeometry();
+                }
                 continue;
             }
 
-            detachGeometryListener(activeAnimation);
+            detachListeners(activeAnimation);
             activeAnimation.setConnectionView(replacement);
             if (replacement == null) {
                 activeAnimation.view().setVisible(false);
@@ -247,11 +270,7 @@ public final class PulseAnimationController implements PulseAnimator {
             }
 
             activeAnimation.view().setSnapshotSupplier(replacement::capturePulseSnapshot);
-            activeAnimation.view().setVisible(true);
-            ChangeListener<Number> geometryListener =
-                    (observable, oldValue, newValue) -> activeAnimation.view().refreshGeometry();
-            activeAnimation.setGeometryListener(geometryListener);
-            replacement.geometryRevisionProperty().addListener(geometryListener);
+            attachListeners(activeAnimation, replacement);
             activeAnimation.view().refreshGeometry();
         }
         pruneFinished();
@@ -268,14 +287,21 @@ public final class PulseAnimationController implements PulseAnimator {
         return null;
     }
 
-    /** Від'єднує слухач геометрії від поточного подання, якщо воно існує. */
-    private void detachGeometryListener(ActiveAnimation activeAnimation) {
+    /** Від'єднує слухачі геометрії та видимості від поточного подання зв'язку, якщо воно існує. */
+    private void detachListeners(ActiveAnimation activeAnimation) {
         ConnectionView connectionView = activeAnimation.connectionView();
-        ChangeListener<Number> listener = activeAnimation.geometryListener();
-        if (connectionView != null && listener != null) {
-            connectionView.geometryRevisionProperty().removeListener(listener);
+        ChangeListener<Number> geometryListener = activeAnimation.geometryListener();
+        ChangeListener<Boolean> visibilityListener = activeAnimation.visibilityListener();
+        if (connectionView != null) {
+            if (geometryListener != null) {
+                connectionView.geometryRevisionProperty().removeListener(geometryListener);
+            }
+            if (visibilityListener != null) {
+                connectionView.visibleProperty().removeListener(visibilityListener);
+            }
         }
         activeAnimation.setGeometryListener(null);
+        activeAnimation.setVisibilityListener(null);
     }
 
     /** Обробляє завершення анімації та повідомляє про зміну активності. */
@@ -290,7 +316,7 @@ public final class PulseAnimationController implements PulseAnimator {
             if (!activeAnimation.view().isFinished()) {
                 return false;
             }
-            detachGeometryListener(activeAnimation);
+            detachListeners(activeAnimation);
             return true;
         });
     }
@@ -303,6 +329,7 @@ public final class PulseAnimationController implements PulseAnimator {
         private final String targetNeuronId;
         private ConnectionView connectionView;
         private ChangeListener<Number> geometryListener;
+        private ChangeListener<Boolean> visibilityListener;
 
         /**
          * Створює запис керування імпульсом і запам'ятовує стабільну ідентичність зв'язку.
@@ -311,7 +338,7 @@ public final class PulseAnimationController implements PulseAnimator {
          * @param connectionId незмінний ідентифікатор напрямленого зв'язку.
          * @param connectionView поточне графічне подання зв'язку.
          * @param sourceNeuronId ідентифікатор нейрона-джерела.
-         * @param targetNeuronId ідентифікатор цільового нейрона.
+         * @param targetNeuronId ідентифікатор нейрона-цілі.
          */
         private ActiveAnimation(
                 PulseAnimationView view,
@@ -355,6 +382,16 @@ public final class PulseAnimationController implements PulseAnimator {
         /** Повертає слухач геометрії для від'єднання після завершення анімації. */
         private ChangeListener<Number> geometryListener() {
             return geometryListener;
+        }
+
+        /** Зберігає слухач, що синхронізує видимість імпульсу зі зв'язком. */
+        private void setVisibilityListener(ChangeListener<Boolean> visibilityListener) {
+            this.visibilityListener = visibilityListener;
+        }
+
+        /** Повертає слухач видимості для коректного звільнення прив'язки до JavaFX-властивості. */
+        private ChangeListener<Boolean> visibilityListener() {
+            return visibilityListener;
         }
 
         /** Перевіряє, чи належить анімація вказаному напрямленому зв'язку. */
