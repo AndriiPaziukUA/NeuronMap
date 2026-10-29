@@ -55,7 +55,8 @@ public final class NeuronStructureDrawerView extends Pane {
 
     /**
      * Замінює відображений список учасників, зберігаючи порядок моделі та розміщуючи картки впритул.
-     * Подання від'єднуються від попередніх контейнерів до додавання в цю шухлядку.
+     * За змінення складу подання від'єднуються від попередніх контейнерів перед додаванням у цю шухлядку.
+     * Якщо склад і порядок уже синхронізовані, дерево JavaFX залишається незмінним, щоб не скидати наведення.
      *
      * @param members впорядковані подання нейронів структури.
      * @throws NullPointerException якщо список або один із його елементів не задано.
@@ -64,6 +65,10 @@ public final class NeuronStructureDrawerView extends Pane {
     public void setMembers(List<NeuronView> members) {
         Objects.requireNonNull(members, "members");
         List<NeuronView> updatedMembers = List.copyOf(members);
+        if (hasSameMemberHierarchy(updatedMembers)) {
+            return;
+        }
+
         Set<String> memberIds = new LinkedHashSet<>();
         for (NeuronView member : updatedMembers) {
             if (!memberIds.add(member.model().id())) {
@@ -95,6 +100,22 @@ public final class NeuronStructureDrawerView extends Pane {
         refreshLayout();
         setVisible(expanded);
         refreshAncestorDrawers();
+    }
+
+    /** Перевіряє, чи збігаються список учасників і фактичний порядок дочірніх вузлів JavaFX. */
+    private boolean hasSameMemberHierarchy(List<NeuronView> updatedMembers) {
+        if (!memberViews.equals(updatedMembers)
+                || getChildren().size() != updatedMembers.size() + 1
+                || getChildren().getFirst() != outline) {
+            return false;
+        }
+        for (int index = 0; index < updatedMembers.size(); index++) {
+            NeuronView member = updatedMembers.get(index);
+            if (getChildren().get(index + 1) != member || member.getParent() != this) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Перемикає стан шухлядки.
@@ -188,14 +209,14 @@ public final class NeuronStructureDrawerView extends Pane {
         for (NeuronView member : memberViews) {
             height += member.displayedStructureRowHeight();
         }
-        resizeRelocate(0.0, NeuronView.HEIGHT, NeuronView.WIDTH, height);
+        resizeRelocateIfNeeded(this, NeuronView.HEIGHT, height);
         setMinHeight(height);
         setPrefHeight(height);
         setMaxHeight(height);
 
         double rowY = 0.0;
         for (NeuronView member : memberViews) {
-            member.resizeRelocate(0.0, rowY, NeuronView.WIDTH, NeuronView.HEIGHT);
+            resizeRelocateIfNeeded(member, rowY, NeuronView.HEIGHT);
             rowY += member.displayedStructureRowHeight();
         }
         outline.getElements().setAll(
@@ -203,6 +224,16 @@ public final class NeuronStructureDrawerView extends Pane {
                 new LineTo(0.0, height),
                 new LineTo(NeuronView.WIDTH, height),
                 new LineTo(NeuronView.WIDTH, 0.0));
+    }
+
+    /** Змінює межі вузла лише за фактичної різниці, уникаючи непотрібних перерахунків наведення миші. */
+    private static void resizeRelocateIfNeeded(Pane node, double y, double height) {
+        if (Double.compare(node.getLayoutX(), 0.0) != 0
+                || Double.compare(node.getLayoutY(), y) != 0
+                || Double.compare(node.getWidth(), NeuronView.WIDTH) != 0
+                || Double.compare(node.getHeight(), height) != 0) {
+            node.resizeRelocate(0.0, y, NeuronView.WIDTH, height);
+        }
     }
 
     /** Відокремлює події миші шухлядки від нейрона-контейнера після обробки цільовим вузлом. */

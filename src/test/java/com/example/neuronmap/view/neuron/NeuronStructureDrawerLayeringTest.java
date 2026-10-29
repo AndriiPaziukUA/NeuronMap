@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -87,6 +88,31 @@ final class NeuronStructureDrawerLayeringTest {
                 structure.disposeParameterTooltip();
                 member.disposeParameterTooltip();
                 workspace.dispose();
+            }
+        });
+    }
+
+    /** Повторне передавання незмінного списку не повинно від'єднувати учасника від дерева JavaFX. */
+    @Test
+    void refreshingUnchangedMembersPreservesTheirParentAttachment() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            NeuronView structure = createView("stable-structure", NeuronType.STRUCTURE, 80.0, 60.0);
+            NeuronView member = createView("stable-member", NeuronType.EXCITATORY, 100.0, 100.0);
+            try {
+                structure.setStructureMembers(List.of(member));
+                NeuronStructureDrawerView drawer = findDrawer(structure);
+                AtomicInteger parentChanges = new AtomicInteger();
+                member.parentProperty().addListener((_, _, _) -> parentChanges.incrementAndGet());
+
+                structure.setStructureMembers(List.of(member));
+
+                assertEquals(0, parentChanges.get(),
+                        "Оновлення такту не повинно від'єднувати й повторно додавати той самий нейрон");
+                assertSame(drawer, member.getParent());
+                assertEquals(List.of(member), drawer.memberViews());
+            } finally {
+                structure.disposeParameterTooltip();
+                member.disposeParameterTooltip();
             }
         });
     }
