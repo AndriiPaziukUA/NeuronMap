@@ -1,9 +1,8 @@
 package com.example.neuronmap.model;
 
-
 /**
- * Містить назву та параметри сигналу, які можуть спільно використовувати нейрон і структура.
- * Об'єкт змінюється централізовано, тому всі його користувачі бачать однакові актуальні значення.
+ * Містить назву, параметри сигналу та спільні характеристики дерева нейронів структури.
+ * Об'єкт змінюється централізовано, тому всі нейрони, які посилаються на нього, бачать актуальні значення.
  */
 public final class NeuronSettings {
 
@@ -12,6 +11,10 @@ public final class NeuronSettings {
 
     private String name;
     private NeuronParameters parameters;
+    /** Спільний тип звичайних нейронів дерева; null означає, що тип ще не визначено членством. */
+    private NeuronType memberType;
+    /** Спільний напрямок нейрона, який представляє структуру, та всіх її учасників. */
+    private boolean directionReversed;
 
     /** Створює налаштування з типовими параметрами й без заданої назви. */
     public NeuronSettings() {
@@ -72,8 +75,67 @@ public final class NeuronSettings {
     }
 
     /**
+     * Повертає спільний тип звичайних нейронів дерева структури; за відсутності заданого типу використовує збуджувальний.
+     *
+     * @return тип учасників, який спільно визначає власник налаштувань.
+     */
+    public NeuronType memberType() {
+        return memberType == null ? NeuronType.EXCITATORY : memberType;
+    }
+
+    /**
+     * Повертає явно заданий спільний тип без підстановки типового значення.
+     *
+     * @return заданий тип учасників або {@code null}, якщо членство ще не визначило його.
+     */
+    NeuronType memberTypeOrNull() {
+        return memberType;
+    }
+
+    /**
+     * Ініціалізує спільний тип лише один раз, коли вперше під'єднується наявний учасник.
+     * Це зберігає тип під час відновлення структури зі збереженої карти.
+     *
+     * @param type тип першого звичайного учасника.
+     */
+    void initializeMemberType(NeuronType type) {
+        if (memberType == null && type != null && type != NeuronType.STRUCTURE) {
+            memberType = type;
+        }
+    }
+
+    /**
+     * Змінює єдиний тип усіх звичайних нейронів у спільному дереві структури.
+     *
+     * @param type новий тип учасників; тип контейнера {@link NeuronType#STRUCTURE} не дозволений.
+     * @throws IllegalArgumentException якщо тип не задано або він позначає структуру.
+     */
+    public void setMemberType(NeuronType type) {
+        if (type == null || type == NeuronType.STRUCTURE) {
+            throw new IllegalArgumentException("Structure member type must be excitatory or inhibitory.");
+        }
+        memberType = type;
+    }
+
+    /** Повертає спільний напрямок дерева структурних нейронів.
+     * @return {@code true}, якщо напрямок розвернуто.
+     */
+    public boolean directionReversed() {
+        return directionReversed;
+    }
+
+    /**
+     * Установлює єдиний напрямок структури та її учасників.
+     *
+     * @param directionReversed {@code true}, якщо напрямок потрібно розвернути.
+     */
+    public void setDirectionReversed(boolean directionReversed) {
+        this.directionReversed = directionReversed;
+    }
+
+    /**
      * Створює незалежну копію поточних налаштувань для моменту виходу нейрона зі структури.
-     * Незмінний запис параметрів копіюється, щоб від'єднаний об'єкт мав власний набір значень.
+     * Копіюються також спільний тип учасників і напрямок, щоб від'єднана гілка зберігала свій стан.
      *
      * @return новий об'єкт налаштувань з такими самими поточними значеннями.
      */
@@ -86,6 +148,9 @@ public final class NeuronSettings {
                 current.delayTicks(),
                 current.activationMode()
         );
-        return new NeuronSettings(name, copiedParameters);
+        NeuronSettings copy = new NeuronSettings(name, copiedParameters);
+        copy.memberType = memberType;
+        copy.directionReversed = directionReversed;
+        return copy;
     }
 }

@@ -30,7 +30,7 @@ public final class FieldStateSnapshot {
      * @param presentations знімки візуальних подань нейронів.
      * @param connections знімки зв'язків між нейронами.
      * @param groups знімки груп нейронів.
-     * @param structures знімки структур, їхніх учасників і стану шухлядок.
+     * @param structures знімки структур, учасників, спільної поведінки й стану шухлядок.
      */
     private FieldStateSnapshot(
             List<NeuronState> neurons,
@@ -86,7 +86,8 @@ public final class FieldStateSnapshot {
         List<StructureState> structureStates = new ArrayList<>();
         for (NeuronStructure structure : model.structures()) {
             structureStates.add(new StructureState(
-                    structure.id(), List.copyOf(structure.memberIds()), structure.isExpanded()
+                    structure.id(), List.copyOf(structure.memberIds()), structure.isExpanded(),
+                    structure.settings().memberType(), structure.settings().directionReversed()
             ));
         }
 
@@ -138,7 +139,8 @@ public final class FieldStateSnapshot {
     }
 
     /**
-     * Відновлює контейнери структур, їхній стан відкритості та впорядковане членство.
+     * Відновлює контейнери структур, їхні спільні налаштування, стан відкритості й упорядковане членство.
+     * Власник отримує тип і напрямок до прив'язування учасників, тож порожні структури теж відновлюються точно.
      *
      * @param model модель карти, до якої потрібно повернути структури.
      * @throws IllegalStateException якщо контейнер або його учасника неможливо відновити.
@@ -148,7 +150,12 @@ public final class FieldStateSnapshot {
             if (!model.addStructure(structureState.id())) {
                 throw new IllegalStateException("Missing neuron for structure " + structureState.id());
             }
-            model.structure(structureState.id()).setExpanded(structureState.expanded());
+            NeuronStructure structure = model.structure(structureState.id());
+            structure.setExpanded(structureState.expanded());
+            if (structureState.memberType() != null) {
+                structure.settings().setMemberType(structureState.memberType());
+            }
+            structure.settings().setDirectionReversed(structureState.directionReversed());
         }
 
         for (StructureState structureState : structures) {
@@ -191,7 +198,7 @@ public final class FieldStateSnapshot {
     }
 
     /** Повертає незмінний список станів структур зі знімка.
-     * @return структури з учасниками та станом відкритості.
+     * @return структури з членством, спільними характеристиками та станом шухлядок.
      */
     public List<StructureState> structures() {
         return structures;
@@ -350,7 +357,7 @@ public final class FieldStateSnapshot {
 
     /** Зберігає ідентифікатор групи та перелік її учасників.
      * @param id ідентифікатор групи.
-     * @param memberIds ідентифікатори нейронів у групі.
+     * @param memberIds ідентифікатори нейронів у порядку їх додавання.
      */
     public record GroupState(String id, List<String> memberIds) {
         /** Створює стан групи з незмінним переліком учасників.
@@ -362,18 +369,36 @@ public final class FieldStateSnapshot {
     }
 
     /**
-     * Зберігає ідентифікатор структури, впорядкованих учасників і стан її шухлядки.
+     * Зберігає членство, стан шухлядки, тип учасників і напрямок дерева структури для undo/redo.
      *
      * @param id ідентифікатор нейрона-контейнера.
      * @param memberIds ідентифікатори учасників у порядку їх додавання.
      * @param expanded {@code true}, якщо шухлядка відкрита у збереженому стані.
+     * @param memberType спільний тип звичайних учасників.
+     * @param directionReversed {@code true}, якщо спільний напрямок портів розвернуто.
      */
-    public record StructureState(String id, List<String> memberIds, boolean expanded) {
-        /** Створює незмінний знімок членства й стану шухлядки структури.
+    public record StructureState(
+            String id,
+            List<String> memberIds,
+            boolean expanded,
+            NeuronType memberType,
+            boolean directionReversed
+    ) {
+        /** Створює незмінний знімок членства, спільної поведінки й стану шухлядки структури.
          * @throws NullPointerException якщо список учасників не задано.
          */
         public StructureState {
             memberIds = List.copyOf(memberIds);
+        }
+
+        /** Зберігає сумісність зі старим контрактом, де спільні характеристики не знімалися окремо.
+         * @param id ідентифікатор нейрона-контейнера.
+         * @param memberIds ідентифікатори учасників у порядку їх додавання.
+         * @param expanded {@code true}, якщо шухлядка відкрита.
+         */
+        @SuppressWarnings("unused")
+        public StructureState(String id, List<String> memberIds, boolean expanded) {
+            this(id, memberIds, expanded, null, false);
         }
 
         /** Зберігає сумісність зі старим контрактом: структура зі знімка без цього поля закрита.
@@ -381,7 +406,7 @@ public final class FieldStateSnapshot {
          * @param memberIds ідентифікатори учасників у порядку їх додавання.
          */
         public StructureState(String id, List<String> memberIds) {
-            this(id, memberIds, false);
+            this(id, memberIds, false, null, false);
         }
     }
 }

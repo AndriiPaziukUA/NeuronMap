@@ -76,9 +76,10 @@ public final class SqliteMapWriter {
     /**
      * Записує параметри кожного нейрона, зберігаючи спільні налаштування лише в рядку структури-власника.
      *
-     * <p>Для членів структур у таблиці зберігаються типові значення та порожня назва як технічні
-     * заповнювачі. Після завантаження таблиця членства відновлює спільні посилання, тому ці поля не стають
-     * альтернативним джерелом налаштувань.</p>
+     * <p>Для звичайних учасників структур у таблиці зберігаються технічний тип {@code EXCITATORY},
+     * типові параметри й порожня назва. Ефективний тип має єдине джерело правди в
+     * {@code structures.member_type} та відновлюється під час прив'язування до спільних налаштувань.
+     * Самі структурні контейнери продовжують записуватися з типом {@code STRUCTURE}.</p>
      *
      * @param model модель карти з нейронами та структурним членством.
      * @throws SQLException якщо пакетний запис нейронів не вдався.
@@ -109,7 +110,12 @@ public final class SqliteMapWriter {
                         ? NeuronParameters.DEFAULT
                         : neuron.parameters();
                 statement.setString(1, neuron.id());
-                statement.setString(2, neuron.type().name());
+                String storedType = model.structure(neuron.id()) != null
+                        ? NeuronType.STRUCTURE.name()
+                        : model.structureContaining(neuron.id()) != null
+                                ? NeuronType.EXCITATORY.name()
+                                : neuron.type().name();
+                statement.setString(2, storedType);
                 statement.setInt(3, neuron.activation());
                 statement.setInt(4, parameters.signalStrength());
                 statement.setInt(5, parameters.activationThreshold());
@@ -124,7 +130,8 @@ public final class SqliteMapWriter {
     }
 
     /**
-     * Записує координати, обертання й напрямок візуальних подань нейронів.
+     * Записує координати, обертання й ефективний напрямок візуальних подань нейронів.
+     * Для учасників структури {@code directionReversed()} повертає напрямок спільного власника.
      *
      * @param model модель карти, що містить подання нейронів.
      * @throws SQLException якщо пакетний запис подань не вдався.
@@ -147,7 +154,10 @@ public final class SqliteMapWriter {
                 statement.setDouble(2, presentation.x());
                 statement.setDouble(3, presentation.y());
                 statement.setDouble(4, presentation.rotationDegrees());
-                statement.setInt(5, presentation.directionReversed() ? 1 : 0);
+                boolean hasStructureOwnedDirection = model.structure(presentation.neuron().id()) != null
+                        || model.structureContaining(presentation.neuron().id()) != null;
+                statement.setInt(5, hasStructureOwnedDirection || !presentation.directionReversed()
+                        ? 0 : 1);
                 statement.addBatch();
             }
             statement.executeBatch();
@@ -213,8 +223,8 @@ public final class SqliteMapWriter {
     }
 
     /**
-     * Записує спільні налаштування кореневих структур, ознаку відкритості та впорядковане членство.
-     * Для вкладених структур у поля налаштувань записуються типові заповнювачі, щоб не дублювати налаштування батька.
+     * Записує спільні налаштування кореневих структур, стан шухлядки, тип і напрямок учасників та членство.
+     * Для вкладених структур у поля налаштувань записуються технічні значення й {@code NULL} для спільних полів.
      *
      * @param model модель карти, що містить структури.
      * @throws SQLException якщо запис структур або їхніх учасників не вдався.
@@ -225,8 +235,8 @@ public final class SqliteMapWriter {
         String structureSql = """
                 INSERT INTO structures (
                     id, expanded, name, signal_strength, activation_threshold,
-                    active_ticks, delay_ticks, activation_mode
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    active_ticks, delay_ticks, activation_mode, member_type, direction_reversed
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         String memberSql = """
                 INSERT INTO structure_members (
@@ -241,18 +251,24 @@ public final class SqliteMapWriter {
              PreparedStatement memberStatement = connection.prepareStatement(memberSql)) {
             for (NeuronStructure structure : model.structures()) {
                 boolean sharesParentSettings = model.structureContaining(structure.id()) != null;
-                NeuronSettings settings = structure.settings();
+                NeuronSettings structureSettings = structure.settings();
                 NeuronParameters parameters = sharesParentSettings
                         ? NeuronParameters.DEFAULT
-                        : settings.parameters();
+                        : structureSettings.parameters();
                 structureStatement.setString(1, structure.id());
                 structureStatement.setInt(2, structure.isExpanded() ? 1 : 0);
-                structureStatement.setString(3, sharesParentSettings ? null : settings.name());
+                structureStatement.setString(3, sharesParentSettings ? null : structureSettings.name());
                 structureStatement.setInt(4, parameters.signalStrength());
                 structureStatement.setInt(5, parameters.activationThreshold());
                 structureStatement.setInt(6, parameters.activeTicks());
                 structureStatement.setInt(7, parameters.delayTicks());
                 structureStatement.setString(8, parameters.activationMode().name());
+                structureStatement.setString(9, sharesParentSettings ? null : structureSettings.memberType().name());
+                if (sharesParentSettings) {
+                    structureStatement.setNull(10, java.sql.Types.INTEGER);
+                } else {
+                    structureStatement.setInt(10, structureSettings.directionReversed() ? 1 : 0);
+                }
                 structureStatement.addBatch();
 
                 int position = 0;

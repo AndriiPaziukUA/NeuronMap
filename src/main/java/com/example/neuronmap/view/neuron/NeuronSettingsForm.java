@@ -4,6 +4,7 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronActivationMode;
 import com.example.neuronmap.model.NeuronParameters;
+import com.example.neuronmap.model.NeuronType;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
@@ -38,8 +39,11 @@ final class NeuronSettingsForm {
     private final TextField thresholdField = createNumericField();
     private final TextField activeTicksField = createNumericField();
     private final TextField delayTicksField = createNumericField();
+    private final TextField structureMemberCountField = createNumericField();
     private final ComboBox<NeuronActivationMode> activationModeSelector = new ComboBox<>();
     private boolean updatingSelection;
+    private boolean structureSettings;
+    private int minimumStructureMemberCount;
     private String positiveIntegerPrompt = "";
     private String percentagePrompt = "";
 
@@ -57,18 +61,27 @@ final class NeuronSettingsForm {
         thresholdField.textProperty().addListener((_, _, _) -> validateInput());
         activeTicksField.textProperty().addListener((_, _, _) -> validateInput());
         delayTicksField.textProperty().addListener((_, _, _) -> validateInput());
+        structureMemberCountField.textProperty().addListener((_, _, _) -> validateInput());
         configureActivationModeSelector();
         validateInput();
     }
 
-    /** Завантажує параметри нейрона й обраний режим, не змінюючи саму модель до підтвердження форми. */
-    void load(Neuron neuron) {
+    /**
+     * Завантажує значення форми та задає мінімальну допустиму кількість учасників структури.
+     *
+     * @param neuron нейрон, параметри якого редагують.
+     * @param currentMemberCount поточна кількість безпосередніх учасників; використовується лише для структури.
+     */
+    void load(Neuron neuron, int currentMemberCount) {
         Objects.requireNonNull(neuron, "neuron");
+        structureSettings = neuron.type() == NeuronType.STRUCTURE;
+        minimumStructureMemberCount = structureSettings ? Math.max(0, currentMemberCount) : 0;
         nameField.setText(neuron.name() == null ? "" : neuron.name());
         signalField.setText(Integer.toString(neuron.signalStrength()));
         thresholdField.setText(Integer.toString(neuron.activationThreshold()));
         activeTicksField.setText(Integer.toString(neuron.activeTicks()));
         delayTicksField.setText(Integer.toString(neuron.delayTicks()));
+        structureMemberCountField.setText(Integer.toString(minimumStructureMemberCount));
         updatingSelection = true;
         try {
             activationModeSelector.setValue(neuron.activationMode());
@@ -79,6 +92,8 @@ final class NeuronSettingsForm {
             field.deselect();
             field.positionCaret(field.getLength());
         }
+        structureMemberCountField.deselect();
+        structureMemberCountField.positionCaret(structureMemberCountField.getLength());
         nameField.deselect();
         nameField.positionCaret(nameField.getLength());
         updateThresholdPrompt();
@@ -94,6 +109,7 @@ final class NeuronSettingsForm {
                 field.setPromptText(this.positiveIntegerPrompt);
             }
         }
+        structureMemberCountField.setPromptText(this.positiveIntegerPrompt);
         updateThresholdPrompt();
     }
 
@@ -134,6 +150,9 @@ final class NeuronSettingsForm {
     /** Повертає поле введення затримки перед першим вихідним сигналом. */
     TextField delayTicksField() { return delayTicksField; }
 
+    /** Повертає поле вводу кількості учасників структури. */
+    TextField structureMemberCountField() { return structureMemberCountField; }
+
     /** Повертає список вибору способу активації нейрона. */
     ComboBox<NeuronActivationMode> activationModeSelector() { return activationModeSelector; }
 
@@ -160,6 +179,22 @@ final class NeuronSettingsForm {
                 delayTicks.getAsInt(),
                 activationMode
         ));
+    }
+
+    /**
+     * Повертає цільову кількість учасників, якщо форма структури містить допустиме значення.
+     *
+     * @return цільова кількість, не менша за початкову, або порожній результат для некоректного вводу.
+     */
+    OptionalInt structureMemberCount() {
+        if (!structureSettings) {
+            return OptionalInt.empty();
+        }
+        OptionalInt requestedCount = parseNonNegative(structureMemberCountField.getText());
+        if (requestedCount.isEmpty() || requestedCount.getAsInt() < minimumStructureMemberCount) {
+            return OptionalInt.empty();
+        }
+        return requestedCount;
     }
 
     /** Налаштовує селектор режиму без примусового компонування всієї сцени під час відкриття popup. */
@@ -201,7 +236,7 @@ final class NeuronSettingsForm {
         });
     }
 
-    /** Створює локалізовану комірку та підключає popup-стилі лише до її окремого дерева. 
+    /** Створює локалізовану комірку та підключає popup-стилі лише до її окремого дерева.
      *
      * @param popupOption {@code true}, якщо комірка відображається у випадаючому списку;
      *                    {@code false} для комірки вибраного значення в самому ComboBox.
@@ -238,7 +273,6 @@ final class NeuronSettingsForm {
         }
         return cell;
     }
-
 
     /** Застосовує inline-колір до popup-комірки, щоб стандартний синій selected Modena не перекривав тему. */
     private void refreshActivationPopupCellStyle(ListCell<?> cell) {
@@ -300,7 +334,8 @@ final class NeuronSettingsForm {
                 field == thresholdField
                         ? parseThreshold(field.getText(), mode).isEmpty()
                         : parsePositive(field.getText()).isEmpty());
-        saveButton.setDisable(mode == null || invalidNumericInput);
+        boolean invalidStructureCount = structureSettings && structureMemberCount().isEmpty();
+        saveButton.setDisable(mode == null || invalidNumericInput || invalidStructureCount);
     }
 
     /** Повертає числові поля у стабільному порядку для спільної валідації та налаштування. */
@@ -336,6 +371,19 @@ final class NeuronSettingsForm {
         try {
             int value = Integer.parseInt(text);
             return value > 0 ? OptionalInt.of(value) : OptionalInt.empty();
+        } catch (NumberFormatException exception) {
+            return OptionalInt.empty();
+        }
+    }
+
+    /** Перетворює текст на невід'ємне ціле число в межах {@code int}. */
+    private static OptionalInt parseNonNegative(String text) {
+        if (text == null || text.isBlank()) {
+            return OptionalInt.empty();
+        }
+        try {
+            int value = Integer.parseInt(text);
+            return value >= 0 ? OptionalInt.of(value) : OptionalInt.empty();
         } catch (NumberFormatException exception) {
             return OptionalInt.empty();
         }

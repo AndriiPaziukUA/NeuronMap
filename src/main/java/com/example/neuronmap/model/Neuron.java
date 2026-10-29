@@ -2,7 +2,7 @@ package com.example.neuronmap.model;
 
 /**
  * Зберігає семантичний стан нейрона: тип, назву, поточну активацію та налаштування сигналу.
- * Нейрон, що входить до структури, делегує назву й параметри її контейнеру, не зберігаючи окрему копію налаштувань.
+ * Нейрон у структурі делегує назву й параметри її контейнеру, а тип учасників бере зі спільних налаштувань дерева.
  */
 public final class Neuron {
 
@@ -116,19 +116,24 @@ public final class Neuron {
      * Установлює назву нейрона або структури, яка володіє його налаштуваннями; порожній рядок нормалізується до {@code null}.
      *
      * @param name назва довжиною не більш як 30 символів або {@code null} для очищення.
-     * @throws IllegalArgumentException якщо назва перевищує 30 символів.
+     * @throws IllegalArgumentException якщо назва перевищує допустиму довжину.
      */
     public void setName(String name) {
         settings.setName(name);
     }
 
-    /** Повертає тип нейрона, що визначає знак його вихідного сигналу.
-     * @return тип нейрона.
+    /** Повертає фактичний тип нейрона з урахуванням спільного типу дерева структури.
+     * @return тип контейнера або тип, визначений спільними налаштуваннями учасників.
      */
-    public NeuronType type() { return type; }
+    public NeuronType type() {
+        if (type == NeuronType.STRUCTURE || settings.memberTypeOrNull() == null) {
+            return type;
+        }
+        return settings.memberType();
+    }
 
     /**
-     * Установлює тип нейрона.
+     * Установлює тип нейрона. Для учасника структури змінюється спільний тип усіх звичайних учасників дерева.
      *
      * @param type новий тип, який не може бути {@code null}.
      * @throws IllegalArgumentException якщо тип не задано.
@@ -136,6 +141,11 @@ public final class Neuron {
     public void setType(NeuronType type) {
         if (type == null) {
             throw new IllegalArgumentException("Neuron type must not be null.");
+        }
+        if (type != NeuronType.STRUCTURE && this.type != NeuronType.STRUCTURE
+                && settings.memberTypeOrNull() != null) {
+            settings.setMemberType(type);
+            return;
         }
         this.type = type;
     }
@@ -261,11 +271,12 @@ public final class Neuron {
      * @return додатна вага для активуючих типів або від'ємна для гальмівного типу.
      */
     public int signalWeight() {
-        return type.isActivating() ? signalStrength() : -signalStrength();
+        return type().isActivating() ? signalStrength() : -signalStrength();
     }
 
     /**
      * Прив'язує нейрон до спільного об'єкта налаштувань, не створюючи локальної копії значень.
+     * Якщо тип спільного дерева ще не встановлено, він ініціалізується поточним типом першого учасника.
      *
      * @param sharedSettings об'єкт налаштувань контейнера, на який посилатиметься нейрон.
      * @throws IllegalArgumentException якщо об'єкт налаштувань не задано.
@@ -273,6 +284,9 @@ public final class Neuron {
     void shareSettingsWith(NeuronSettings sharedSettings) {
         if (sharedSettings == null) {
             throw new IllegalArgumentException("Shared settings must not be null.");
+        }
+        if (type != NeuronType.STRUCTURE) {
+            sharedSettings.initializeMemberType(type());
         }
         settings = sharedSettings;
     }
@@ -286,6 +300,10 @@ public final class Neuron {
 
     /** Від'єднує нейрон від спільних налаштувань, зберігаючи їхній поточний стан як власний. */
     void detachSettings() {
+        NeuronType currentType = type();
         settings = settings.copy();
+        if (type != NeuronType.STRUCTURE) {
+            type = currentType;
+        }
     }
 }

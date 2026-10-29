@@ -3,6 +3,7 @@ package com.example.neuronmap.controller;
 import com.example.neuronmap.application.EditorState;
 import com.example.neuronmap.coordinator.NeuronSettingsOverlayCoordinator;
 import com.example.neuronmap.i18n.LocalizationService;
+import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.service.NeuronService;
 import com.example.neuronmap.view.editor.WorkspaceView;
 import com.example.neuronmap.view.neuron.NeuronContextMenuView;
@@ -30,6 +31,8 @@ public final class NeuronMenuController {
     private final Runnable refreshVisuals;
     private final Runnable refreshConnections;
     private final Runnable refreshOverlays;
+    /** Повністю синхронізує подання, включно зі створенням нових нейронних вузлів. */
+    private final Runnable refreshPresentation;
     private final Runnable save;
     private final Consumer<String> status;
     private final LocalizationService localization;
@@ -76,6 +79,49 @@ public final class NeuronMenuController {
             LocalizationService localization,
             NeuronSettingsOverlayCoordinator settingsOverlayCoordinator
     ) {
+        this(neuronService, state, workspace, connections, simulation, deletionController, neuronMenuView,
+                refreshVisuals, refreshConnections, refreshOverlays, save, status, localization,
+                settingsOverlayCoordinator, refreshVisuals);
+    }
+
+    /**
+     * Створює контролер із окремою дією повної синхронізації карти для операцій, що додають нейрони.
+     * Звичайні взаємодії й далі використовують вузькі callback-и оновлення графіки.
+     *
+     * @param neuronService служба операцій над нейронами.
+     * @param state поточний стан редактора.
+     * @param workspace полотно редактора.
+     * @param connections контролер операцій зі зв'язками.
+     * @param simulation контролер симуляції нейронів.
+     * @param deletionController контролер видалення нейронів.
+     * @param neuronMenuView подання оформлення кнопок контекстного меню.
+     * @param refreshVisuals дія оновлення вигляду наявних нейронів.
+     * @param refreshConnections дія оновлення вигляду зв'язків.
+     * @param refreshOverlays дія оновлення положення накладок.
+     * @param save дія збереження поточного стану.
+     * @param status дія показу повідомлення в рядку стану.
+     * @param localization служба локалізації інтерфейсу.
+     * @param settingsOverlayCoordinator координатор життєвого циклу накладки налаштувань.
+     * @param refreshPresentation дія повної синхронізації подань із моделлю карти.
+     * @throws NullPointerException якщо будь-яка обов'язкова залежність відсутня.
+     */
+    public NeuronMenuController(
+            NeuronService neuronService,
+            EditorState state,
+            WorkspaceView workspace,
+            ConnectionController connections,
+            SimulationController simulation,
+            NeuronDeletionController deletionController,
+            NeuronMenuView neuronMenuView,
+            Runnable refreshVisuals,
+            Runnable refreshConnections,
+            Runnable refreshOverlays,
+            Runnable save,
+            Consumer<String> status,
+            LocalizationService localization,
+            NeuronSettingsOverlayCoordinator settingsOverlayCoordinator,
+            Runnable refreshPresentation
+    ) {
         this.neuronService = Objects.requireNonNull(neuronService, "neuronService");
         this.state = Objects.requireNonNull(state, "state");
         this.workspace = Objects.requireNonNull(workspace, "workspace");
@@ -92,6 +138,7 @@ public final class NeuronMenuController {
         this.refreshVisuals = Objects.requireNonNull(refreshVisuals, "refreshVisuals");
         this.refreshConnections = Objects.requireNonNull(refreshConnections, "refreshConnections");
         this.refreshOverlays = Objects.requireNonNull(refreshOverlays, "refreshOverlays");
+        this.refreshPresentation = Objects.requireNonNull(refreshPresentation, "refreshPresentation");
         this.save = Objects.requireNonNull(save, "save");
         this.status = Objects.requireNonNull(status, "status");
         this.localization.addListener(localizationListener);
@@ -176,6 +223,16 @@ public final class NeuronMenuController {
         status.accept(localization.text("status.direction_changed"));
     }
 
+
+    /** Повністю синхронізує нові подання учасників і планує оновлення полотна до збереження карти. */
+    private void refreshPresentationAndSave() {
+        refreshPresentation.run();
+        // Світові шари полотна навмисно не керуються StackPane; явно позначаємо корінь,
+        // щоб додавання дочірніх вузлів у відкриту шухлядку відобразилося в найближчому JavaFX pulse.
+        workspace.node().requestLayout();
+        save.run();
+    }
+
     /** Оновлює нейрони, залежні подання та накладки, після чого зберігає змінену карту. */
     private void refreshViewsAndSave() {
         refreshVisuals.run();
@@ -207,11 +264,7 @@ public final class NeuronMenuController {
         disposed = true;
     }
 
-    /**
-     * Забороняє використання контролера після звільнення його ресурсів.
-     *
-     * @throws IllegalStateException якщо контролер остаточно звільнено.
-     */
+    /** Забороняє використання контролера після звільнення його ресурсів. */
     private void ensureNotDisposed() {
         if (disposed) {
             throw new IllegalStateException("Neuron menu controller is disposed");
@@ -247,8 +300,8 @@ public final class NeuronMenuController {
     }
 
     /**
-     * Відкриває накладку налаштувань і застосовує параметри та назву після підтвердження.
-     * Запам'ятовує подання нейрона, щоб відновити його контекстне меню після звичайного закриття накладки.
+     * Відкриває накладку налаштувань нейрона; для структури додатково передає поточну кількість учасників.
+     * Після збереження оновлює подання, оскільки обрана кількість може додати нові внутрішні нейрони.
      *
      * @param neuronId ідентифікатор нейрона, налаштування якого потрібно змінити.
      */
@@ -257,6 +310,22 @@ public final class NeuronMenuController {
         NeuronView neuronView = activeNeuronView;
         neuronService.find(neuronId).ifPresent(neuron -> {
             hide();
+            Runnable onClose = () -> restoreMenuAfterSettingsClosed(neuronId, neuronView);
+            if (neuron.type() == NeuronType.STRUCTURE) {
+                settingsOverlayCoordinator.showWithStructureCount(
+                        neuron,
+                        neuronService.structureMemberCount(neuronId),
+                        (parameters, name, requestedCount) -> {
+                            if (neuronService.ensureStructureMemberCount(neuronId, requestedCount)
+                                    && neuronService.updateSettings(neuronId, parameters, name)) {
+                                refreshPresentationAndSave();
+                                status.accept(localization.text("neuron.settings.saved"));
+                            }
+                        },
+                        onClose
+                );
+                return;
+            }
             settingsOverlayCoordinator.showWithName(
                     neuron,
                     (parameters, name) -> {
@@ -265,7 +334,7 @@ public final class NeuronMenuController {
                             status.accept(localization.text("neuron.settings.saved"));
                         }
                     },
-                    () -> restoreMenuAfterSettingsClosed(neuronId, neuronView)
+                    onClose
             );
         });
     }

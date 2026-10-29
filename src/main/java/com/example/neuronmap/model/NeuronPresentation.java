@@ -3,15 +3,14 @@ package com.example.neuronmap.model;
 import java.util.Objects;
 
 /**
- * Зберігає візуальне розташування нейрона, кут обертання й напрямок входу та виходу.
- * Координати об'єднано в {@link MapPosition}, щоб позиція була одним значенням стану.
+ * Зберігає візуальне розташування нейрона та кут обертання.
+ * Напрямок портів береться зі спільних налаштувань нейрона, тому учасники структури використовують напрямок власника.
  */
 public final class NeuronPresentation {
 
     private final Neuron neuron;
     private MapPosition position;
     private double rotationDegrees;
-    private boolean directionReversed;
 
     /**
      * Створює подання нейрона з указаними координатами, кутом і звичайним напрямком портів.
@@ -76,7 +75,7 @@ public final class NeuronPresentation {
         this.neuron = neuron;
         this.position = position;
         this.rotationDegrees = rotationDegrees;
-        this.directionReversed = directionReversed;
+        neuron.settings().setDirectionReversed(directionReversed);
     }
 
     /**
@@ -125,12 +124,12 @@ public final class NeuronPresentation {
     }
 
     /**
-     * Повертає ознаку розвернутого напрямку портів нейрона.
+     * Повертає напрямок портів із налаштувань власника дерева структури.
      *
-     * @return {@code true}, якщо напрямок розвернуто; інакше {@code false}.
+     * @return {@code true}, якщо спільний напрямок розвернуто.
      */
     public boolean directionReversed() {
-        return directionReversed;
+        return neuron.settings().directionReversed();
     }
 
     /**
@@ -173,18 +172,16 @@ public final class NeuronPresentation {
     }
 
     /**
-     * Установлює, чи має нейрон розвернутий напрямок сигналу.
+     * Установлює напрямок портів у спільних налаштуваннях нейрона або структури-власника.
      *
      * @param directionReversed {@code true}, щоб розвернути вхідний і вихідний порти; інакше {@code false}.
      */
     public void setDirectionReversed(boolean directionReversed) {
-        this.directionReversed = directionReversed;
+        neuron.settings().setDirectionReversed(directionReversed);
     }
 
-    /**
-     * Міняє місцями звичайний і розвернутий напрямки сигналу.
-     */
+    /** Перемикає напрямок портів у спільних налаштуваннях нейрона або структури-власника. */
     public void toggleDirection() {
-        directionReversed = !directionReversed;
+        setDirectionReversed(!directionReversed());
     }
 }

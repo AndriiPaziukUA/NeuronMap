@@ -7,8 +7,10 @@ import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.model.NeuronStructure;
 import com.example.neuronmap.model.NeuronType;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -64,6 +66,62 @@ public final class NeuronService {
             return Optional.empty();
         }
         return Optional.ofNullable(model.presentation(neuronId));
+    }
+
+    /**
+     * Повертає кількість безпосередніх учасників структури.
+     *
+     * @param structureId ідентифікатор структури.
+     * @return поточна кількість учасників або нуль, якщо структура відсутня.
+     */
+    public int structureMemberCount(String structureId) {
+        return structureService.find(structureId)
+                .map(structure -> structure.memberIds().size())
+                .orElse(0);
+    }
+
+    /**
+     * Додає до структури відсутніх учасників, доки вона не досягне заданої кількості.
+     * Наявні учасники не змінюються, а запит меншої кількості відхиляється без змін.
+     *
+     * @param structureId ідентифікатор структури, яку потрібно доповнити.
+     * @param requestedCount бажана загальна кількість безпосередніх учасників.
+     * @return {@code true}, якщо запит прийнято, зокрема коли кількість уже відповідає цілі;
+     *         {@code false}, якщо структури немає, кількість від'ємна або вона менша за поточну.
+     * @throws IllegalStateException якщо новий нейрон не вдалося додати до структури; створені під час
+     *         цієї операції нейрони в такому разі видаляються, щоб не залишити частковий результат.
+     */
+    public boolean ensureStructureMemberCount(String structureId, int requestedCount) {
+        Optional<NeuronStructure> found = structureService.find(structureId);
+        if (found.isEmpty() || requestedCount < 0) {
+            return false;
+        }
+        NeuronStructure structure = found.orElseThrow();
+        int currentCount = structure.memberIds().size();
+        if (requestedCount < currentCount) {
+            return false;
+        }
+        int missingCount = requestedCount - currentCount;
+        if (missingCount == 0) {
+            return true;
+        }
+
+        List<String> createdNeuronIds = new ArrayList<>();
+        try {
+            for (int index = 0; index < missingCount; index++) {
+                Neuron member = model.createNeuron(NeuronType.EXCITATORY, 0.0, 0.0);
+                createdNeuronIds.add(member.id());
+                if (!structureService.addMember(structureId, member.id())) {
+                    throw new IllegalStateException("Could not add a generated neuron to structure " + structureId);
+                }
+            }
+            return true;
+        } catch (RuntimeException failure) {
+            for (int index = createdNeuronIds.size() - 1; index >= 0; index--) {
+                model.removeNeuron(createdNeuronIds.get(index));
+            }
+            throw failure;
+        }
     }
 
     /**
@@ -138,49 +196,42 @@ public final class NeuronService {
     }
 
     /**
-     * Перемикає тип нейрона або типи звичайних нейронів усередині структури.
-     * Контейнери структур зберігають свій структурний тип; для вкладених структур змінюються їхні учасники.
+     * Перемикає тип нейрона; для структури змінює єдиний спільний тип її звичайних учасників.
+     * Контейнер зберігає тип {@link NeuronType#STRUCTURE}, а всі вузли дерева читають тип із його налаштувань.
      *
      * @param neuronId ідентифікатор нейрона або структури.
-     * @return {@code true}, якщо знайдений нейрон або хоча б один учасник отримав новий тип.
+     * @return {@code true}, якщо нейрон знайдений і тип змінено; інакше {@code false}.
      */
     public boolean toggleType(String neuronId) {
         Optional<Neuron> neuron = find(neuronId);
         if (neuron.isEmpty()) {
             return false;
         }
-        if (structureService.find(neuronId).isPresent()) {
-            return toggleStructureMemberTypesRecursively(neuronId, new LinkedHashSet<>());
+        Optional<NeuronStructure> structure = structureService.find(neuronId);
+        if (structure.isPresent()) {
+            NeuronType currentType = structure.orElseThrow().settings().memberType();
+            return setStructureMemberType(neuronId, currentType.isActivating()
+                    ? NeuronType.INHIBITORY : NeuronType.EXCITATORY);
         }
         return toggleNeuronType(neuron.orElseThrow());
     }
 
     /**
-     * Перемикає типи звичайних нейронів у дереві структури, не змінюючи типи самих контейнерів.
-     * Набір відвіданих ідентифікаторів не допускає повторної обробки за наявності циклічних посилань.
+     * Установлює єдиний тип звичайних учасників структури, не змінюючи тип самого контейнера.
+     * Майбутні учасники також успадковують це значення через спільні налаштування структури.
      *
-     * @param structureId ідентифікатор структури, учасників якої потрібно обробити.
-     * @param visited ідентифікатори контейнерів, уже оброблених під час обходу.
-     * @return {@code true}, якщо тип принаймні одного звичайного нейрона змінено.
+     * @param structureId ідентифікатор структури-власника.
+     * @param memberType бажаний тип усіх звичайних учасників.
+     * @return {@code true}, якщо структуру знайдено й тип застосовано; інакше {@code false}.
+     * @throws IllegalArgumentException якщо тип не задано або він дорівнює {@link NeuronType#STRUCTURE}.
      */
-    private boolean toggleStructureMemberTypesRecursively(String structureId, Set<String> visited) {
-        if (!visited.add(structureId)) {
-            return false;
-        }
+    public boolean setStructureMemberType(String structureId, NeuronType memberType) {
         Optional<NeuronStructure> structure = structureService.find(structureId);
         if (structure.isEmpty()) {
             return false;
         }
-
-        boolean changed = false;
-        for (String memberId : structure.orElseThrow().memberIds()) {
-            if (structureService.find(memberId).isPresent()) {
-                changed |= toggleStructureMemberTypesRecursively(memberId, visited);
-            } else {
-                changed |= find(memberId).map(this::toggleNeuronType).orElse(false);
-            }
-        }
-        return changed;
+        structure.orElseThrow().settings().setMemberType(memberType);
+        return true;
     }
 
     /**
@@ -195,50 +246,20 @@ public final class NeuronService {
     }
 
     /**
-     * Розвертає напрямок нейрона, а для структури — також напрямки всіх нейронів у вкладеному дереві.
+     * Перемикає напрямок портів; для структури оновлює спільне значення, яке використовує все її дерево.
      *
      * @param neuronId ідентифікатор нейрона або структури.
-     * @return {@code true}, якщо подання знайдено й напрямок змінено хоча б для цільового нейрона.
+     * @return {@code true}, якщо подання знайдено й спільний напрямок змінено; інакше {@code false}.
      */
     public boolean toggleDirection(String neuronId) {
         if (presentation(neuronId).isEmpty()) {
             return false;
         }
-        if (structureService.find(neuronId).isPresent()) {
-            return toggleStructureDirectionsRecursively(neuronId, new LinkedHashSet<>());
-        }
         return toggleNeuronDirection(neuronId);
     }
 
     /**
-     * Розвертає напрямок контейнера й усіх його учасників, включно з вкладеними структурами.
-     *
-     * @param structureId ідентифікатор структури, напрямки якої потрібно розвернути.
-     * @param visited ідентифікатори контейнерів, уже оброблених під час обходу.
-     * @return {@code true}, якщо напрямок контейнера змінено.
-     */
-    private boolean toggleStructureDirectionsRecursively(String structureId, Set<String> visited) {
-        if (!visited.add(structureId)) {
-            return false;
-        }
-        Optional<NeuronStructure> structure = structureService.find(structureId);
-        if (structure.isEmpty()) {
-            return false;
-        }
-
-        boolean changed = toggleNeuronDirection(structureId);
-        for (String memberId : structure.orElseThrow().memberIds()) {
-            if (structureService.find(memberId).isPresent()) {
-                changed |= toggleStructureDirectionsRecursively(memberId, visited);
-            } else {
-                changed |= toggleNeuronDirection(memberId);
-            }
-        }
-        return changed;
-    }
-
-    /**
-     * Перемикає напрямок портів одного нейрона без рекурсивної обробки його можливих учасників.
+     * Змінює напрямок у налаштуваннях власника; учасники структури автоматично читають те саме значення.
      *
      * @param neuronId ідентифікатор нейрона.
      * @return {@code true}, якщо подання знайдено й напрямок змінено; інакше {@code false}.

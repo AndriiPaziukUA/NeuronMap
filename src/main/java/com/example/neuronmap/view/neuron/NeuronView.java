@@ -74,6 +74,7 @@ public final class NeuronView extends StackPane {
     private Integer displayedInputSignal;
     private Boolean displayedInputSufficient;
     private int displayedRemainingActiveTicks;
+    private int structureMemberCount;
     private boolean outputSignalActive;
     private boolean dragging;
     private boolean wasDragged;
@@ -224,7 +225,9 @@ public final class NeuronView extends StackPane {
             getChildren().add(structureDrawer);
         }
         structureDrawer.setMembers(members);
+        structureMemberCount = members.size();
         structureDrawer.refreshLayout();
+        refreshParameterTooltipText();
     }
 
     /** Перевіряє, чи має це подання шухлядку сутності структури.
@@ -534,7 +537,7 @@ public final class NeuronView extends StackPane {
         }
     }
 
-    /** Оновлює підказку параметрами з налаштувань нейрона та активної локалі застосунку. */
+    /** Оновлює підказку параметрами нейрона та додає кількість лише для самої структури. */
     private void refreshParameterTooltipText() {
         Neuron neuron = model();
         String signalLabel = tooltipLocalization == null
@@ -553,11 +556,18 @@ public final class NeuronView extends StackPane {
         if (neuron.activationMode() == NeuronActivationMode.SIGNAL_COUNT) {
             thresholdText += "%";
         }
-        parameterTooltip.setText(String.join("\n",
-                parameterLine(signalLabel, neuron.signalStrength()),
-                thresholdText,
-                parameterLine(activeTicksLabel, neuron.activeTicks()),
-                parameterLine(delayLabel, neuron.delayTicks())));
+        List<String> lines = new java.util.ArrayList<>(5);
+        if (neuron.type() == NeuronType.STRUCTURE) {
+            String countLabel = tooltipLocalization == null
+                    ? "Neuron count"
+                    : tooltipLocalization.textFrom("i18n.neuronSettings", "structure_neuron_count");
+            lines.add(parameterLine(countLabel, structureMemberCount));
+        }
+        lines.add(parameterLine(signalLabel, neuron.signalStrength()));
+        lines.add(thresholdText);
+        lines.add(parameterLine(activeTicksLabel, neuron.activeTicks()));
+        lines.add(parameterLine(delayLabel, neuron.delayTicks()));
+        parameterTooltip.setText(String.join("\n", lines));
     }
 
     /** Форматує рядок підказки як «назва параметра: значення», уніфікуючи двокрапки в підписах. */
@@ -597,7 +607,7 @@ public final class NeuronView extends StackPane {
         refreshNameLabel();
     }
 
-    /** Передає стан наведення на внутрішньому нейроні зовнішній структурі, яка має показувати його назву. */
+    /** Передає стан наведення на внутрішньому нейроні зовнішній структурі, яка має показувати її назву. */
     private void refreshContainingStructureName(boolean active) {
         Node ancestor = getParent();
         while (ancestor != null) {

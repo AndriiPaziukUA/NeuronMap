@@ -145,7 +145,7 @@ public final class SqliteMapLoader {
     }
 
     /**
-     * Відновлює спільні налаштування структур, стан відкритості та впорядковане членство учасників.
+     * Відновлює спільні налаштування структур, стан відкритості й тип учасників, після чого відновлює членство.
      * Спочатку завантажуються налаштування всіх контейнерів, після чого членство об'єднує їхні дерева посилань.
      *
      * @param model модель карти, до якої додаються відновлені структури.
@@ -156,7 +156,7 @@ public final class SqliteMapLoader {
         //noinspection SqlResolve
         String structureSql = """
                 SELECT id, expanded, name, signal_strength, activation_threshold,
-                       active_ticks, delay_ticks, activation_mode
+                       active_ticks, delay_ticks, activation_mode, member_type, direction_reversed
                 FROM structures ORDER BY rowid
                 """;
         try (Statement statement = connection.createStatement();
@@ -174,6 +174,14 @@ public final class SqliteMapLoader {
                             resultSet.getInt("delay_ticks"),
                             NeuronActivationMode.valueOf(resultSet.getString("activation_mode"))
                     ));
+                    String memberType = resultSet.getString("member_type");
+                    if (memberType != null) {
+                        structure.settings().setMemberType(NeuronType.valueOf(memberType));
+                    }
+                    int directionReversed = resultSet.getInt("direction_reversed");
+                    if (!resultSet.wasNull()) {
+                        structure.settings().setDirectionReversed(directionReversed != 0);
+                    }
                 } else {
                     throw new SQLException(
                             "Не вдалося відновити структуру з ідентифікатором '" + structureId

@@ -117,7 +117,8 @@ public final class NeuronInteractionControllerFactory {
                 dependencies.save(),
                 dependencies.status(),
                 dependencies.localization(),
-                dependencies.settingsOverlayCoordinator()
+                dependencies.settingsOverlayCoordinator(),
+                dependencies.refreshPresentation()
         );
     }
 

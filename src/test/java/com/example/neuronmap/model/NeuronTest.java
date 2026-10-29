@@ -14,7 +14,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class NeuronTest {
 
     /**
-     * Перевіряє, що нейрон зберігає власні семантичні дані, а назва й параметри містяться у спільному об'єкті налаштувань.
+     * Перевіряє, що нейрон зберігає власні семантичні дані, а назва, параметри сигналу й спільні
+     * характеристики дерева структури містяться в об'єкті налаштувань.
      */
     @Test
     void storesOnlySemanticDataAndGroupsSignalParameters() {
@@ -22,7 +23,7 @@ class NeuronTest {
         Set<String> settingsFields = instanceFieldNames(NeuronSettings.class);
 
         assertEquals(Set.of("id", "type", "activation", "settings"), neuronFields);
-        assertEquals(Set.of("name", "parameters"), settingsFields);
+        assertEquals(Set.of("name", "parameters", "memberType", "directionReversed"), settingsFields);
     }
 
     /**

@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє копіювання й вставлення параметрів, назв, позицій і груп нейронів. */
+/** Перевіряє копіювання й вставлення параметрів, назв, позицій, груп та спільних налаштувань структури. */
 class NeuronClipboardServiceTest {
 
     /** Перевіряє, що вставлення відновлює скопійований стан незалежно від подальших змін оригіналу. */
@@ -51,6 +51,26 @@ class NeuronClipboardServiceTest {
         assertEquals(600.0, neurons.presentation(copy.id()).orElseThrow().y());
         assertEquals(30.0, neurons.presentation(copy.id()).orElseThrow().rotationDegrees());
         assertTrue(neurons.presentation(copy.id()).orElseThrow().directionReversed());
+    }
+
+    /** Перевіряє, що копія структурного елемента зберігає спільний тип майбутніх учасників і їхній напрямок. */
+    @Test
+    void copiesSharedStructureMemberTypeAndDirection() {
+        NeuronMapModel model = new NeuronMapModel();
+        NeuronService neurons = new NeuronService(model);
+        NeuronClipboardService clipboard = new NeuronClipboardService(neurons, new GroupService(model));
+        Neuron sourceStructure = neurons.create(NeuronType.STRUCTURE, 100.0, 200.0);
+
+        assertTrue(neurons.toggleType(sourceStructure.id()));
+        assertTrue(neurons.setDirectionReversed(sourceStructure.id(), true));
+        assertTrue(clipboard.copy(Set.of(sourceStructure.id())));
+        assertEquals(NeuronType.INHIBITORY,
+                clipboard.content().orElseThrow().items().getFirst().structureMemberType());
+
+        Neuron pastedStructure = clipboard.paste(500.0, 600.0).getFirst();
+        String pastedMemberId = model.structure(pastedStructure.id()).memberIds().iterator().next();
+        assertEquals(NeuronType.INHIBITORY, model.neuron(pastedMemberId).type());
+        assertTrue(neurons.presentation(pastedMemberId).orElseThrow().directionReversed());
     }
 
     /** Перевіряє, що null відхиляється, а порожній вибір означає, що копіювати нічого. */
@@ -104,6 +124,7 @@ class NeuronClipboardServiceTest {
         assertEquals(25.0, fromParameters.rotationDegrees());
         assertTrue(fromParameters.directionReversed());
         assertNull(fromParameters.name());
+        assertNull(fromParameters.structureMemberType());
 
         NeuronClipboardService.NeuronData fromSeparateValues = new NeuronClipboardService.NeuronData(
                 NeuronType.INHIBITORY, 7, 5, 3.0, 4.0, -15.0, false);
@@ -114,6 +135,7 @@ class NeuronClipboardServiceTest {
         assertEquals(-15.0, fromSeparateValues.rotationDegrees());
         assertFalse(fromSeparateValues.directionReversed());
         assertNull(fromSeparateValues.name());
+        assertNull(fromSeparateValues.structureMemberType());
     }
 
     /** Перевіряє, що вибір одного учасника групи копіює та вставляє всю групу. */

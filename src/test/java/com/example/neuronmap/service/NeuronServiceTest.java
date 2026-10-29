@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє операції служби нейронів, початкове наповнення структур і зміну типів. */
+/** Перевіряє операції служби нейронів, початкове наповнення структур і спільну поведінку учасників. */
 class NeuronServiceTest {
 
     /** Перевіряє, що старий метод оновлення налаштувань зберігає кількість активних тактів. */
@@ -86,9 +86,9 @@ class NeuronServiceTest {
         assertTrue(model.structures().isEmpty());
     }
 
-    /** Перевіряє зміну типів звичайних нейронів у вкладених структурах без зміни типів контейнерів. */
+    /** Перевіряє, що зміна типу структури змінює спільний тип усіх звичайних учасників її дерева. */
     @Test
-    void togglesTypesOfStructureMembersWithoutChangingStructureTypes() {
+    void togglesSharedMemberTypeWithoutChangingStructureTypes() {
         NeuronMapModel model = new NeuronMapModel();
         NeuronService service = new NeuronService(model);
         Neuron outer = service.create(NeuronType.STRUCTURE, 10.0, 20.0);
@@ -105,26 +105,30 @@ class NeuronServiceTest {
         assertEquals(NeuronType.STRUCTURE, inner.type());
         assertEquals(NeuronType.INHIBITORY, model.neuron(outerMemberId).type());
         assertEquals(NeuronType.INHIBITORY, model.neuron(innerMemberId).type());
-        assertEquals(NeuronType.EXCITATORY, inhibitoryMember.type());
+        assertEquals(NeuronType.INHIBITORY, inhibitoryMember.type());
 
         assertTrue(service.toggleType(outer.id()));
         assertEquals(NeuronType.STRUCTURE, outer.type());
         assertEquals(NeuronType.STRUCTURE, inner.type());
         assertEquals(NeuronType.EXCITATORY, model.neuron(outerMemberId).type());
         assertEquals(NeuronType.EXCITATORY, model.neuron(innerMemberId).type());
-        assertEquals(NeuronType.INHIBITORY, inhibitoryMember.type());
+        assertEquals(NeuronType.EXCITATORY, inhibitoryMember.type());
         assertFalse(service.toggleType("missing-neuron"));
     }
 
-    /** Перевіряє, що зміна типу порожньої структури не змінює сам контейнер і не повідомляє про зміну. */
+    /** Перевіряє, що тип порожньої структури зберігається як спільне налаштування для майбутніх учасників. */
     @Test
-    void emptyStructureDoesNotChangeItsType() {
+    void emptyStructureChangesSharedMemberTypeForFutureMembers() {
         NeuronMapModel model = new NeuronMapModel();
         NeuronService service = new NeuronService(model);
         Neuron emptyStructure = model.createNeuron(NeuronType.STRUCTURE, 10.0, 20.0);
 
-        assertFalse(service.toggleType(emptyStructure.id()));
+        assertTrue(service.toggleType(emptyStructure.id()));
         assertEquals(NeuronType.STRUCTURE, emptyStructure.type());
+        assertEquals(NeuronType.INHIBITORY, model.structure(emptyStructure.id()).settings().memberType());
+        assertTrue(service.ensureStructureMemberCount(emptyStructure.id(), 1));
+        String createdMemberId = model.structure(emptyStructure.id()).memberIds().iterator().next();
+        assertEquals(NeuronType.INHIBITORY, model.neuron(createdMemberId).type());
     }
 
     /** Перевіряє, що зміна типу звичайного нейрона й надалі перемикає його між активуючим і гальмівним. */
@@ -140,7 +144,7 @@ class NeuronServiceTest {
         assertEquals(NeuronType.EXCITATORY, neuron.type());
     }
 
-    /** Перевіряє розворот напрямку структури, усіх її учасників і вкладеної шухлядки без впливу на сторонні нейрони. */
+    /** Перевіряє розворот спільного напрямку структури, всіх її учасників і вкладених шухлядок. */
     @Test
     void togglesDirectionOfStructureAndAllNestedMembers() {
         NeuronMapModel model = new NeuronMapModel();
