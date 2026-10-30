@@ -186,6 +186,16 @@ public final class Neuron {
     public NeuronActivationMode activationMode() { return parameters().activationMode(); }
 
     /**
+     * Повертає ознаку роботи нейрона в режимі конкуренції найсильніших учасників структури.
+     * Значення спільне для всього дерева, оскільки учасники посилаються на налаштування власника.
+     *
+     * @return {@code true}, якщо структура активує лише найсильнішого кандидата; інакше {@code false}.
+     */
+    public boolean strongestNeuronOnly() {
+        return settings.strongestNeuronOnly();
+    }
+
+    /**
      * Змінює спосіб активації, зберігаючи інші параметри й перевіряючи поріг для нового режиму.
      *
      * @param activationMode новий спосіб активації.

@@ -223,12 +223,9 @@ public final class NeuronMenuController {
         status.accept(localization.text("status.direction_changed"));
     }
 
-
     /** Повністю синхронізує нові подання учасників і планує оновлення полотна до збереження карти. */
     private void refreshPresentationAndSave() {
         refreshPresentation.run();
-        // Світові шари полотна навмисно не керуються StackPane; явно позначаємо корінь,
-        // щоб додавання дочірніх вузлів у відкриту шухлядку відобразилося в найближчому JavaFX pulse.
         workspace.node().requestLayout();
         save.run();
     }
@@ -300,8 +297,8 @@ public final class NeuronMenuController {
     }
 
     /**
-     * Відкриває накладку налаштувань нейрона; для структури додатково передає поточну кількість учасників.
-     * Після збереження оновлює подання, оскільки обрана кількість може додати нові внутрішні нейрони.
+     * Відкриває накладку налаштувань нейрона; для структури додатково передає параметри членства й конкуренції.
+     * Після збереження оновлює подання, оскільки нова кількість учасників може змінити шухлядку.
      *
      * @param neuronId ідентифікатор нейрона, налаштування якого потрібно змінити.
      */
@@ -312,12 +309,13 @@ public final class NeuronMenuController {
             hide();
             Runnable onClose = () -> restoreMenuAfterSettingsClosed(neuronId, neuronView);
             if (neuron.type() == NeuronType.STRUCTURE) {
-                settingsOverlayCoordinator.showWithStructureCount(
+                settingsOverlayCoordinator.showWithStructureSettings(
                         neuron,
                         neuronService.structureMemberCount(neuronId),
-                        (parameters, name, requestedCount) -> {
+                        (parameters, name, requestedCount, strongestNeuronOnly) -> {
                             if (neuronService.ensureStructureMemberCount(neuronId, requestedCount)
-                                    && neuronService.updateSettings(neuronId, parameters, name)) {
+                                    && neuronService.updateSettings(neuronId, parameters, name)
+                                    && neuronService.setStructureStrongestNeuronOnly(neuronId, strongestNeuronOnly)) {
                                 refreshPresentationAndSave();
                                 status.accept(localization.text("neuron.settings.saved"));
                             }

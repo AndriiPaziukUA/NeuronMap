@@ -15,6 +15,8 @@ public final class NeuronSettings {
     private NeuronType memberType;
     /** Спільний напрямок нейрона, який представляє структуру, та всіх її учасників. */
     private boolean directionReversed;
+    /** Ознака конкуренції учасників дерева за найбільшим вхідним сигналом. */
+    private boolean strongestNeuronOnly;
 
     /** Створює налаштування з типовими параметрами й без заданої назви. */
     public NeuronSettings() {
@@ -33,7 +35,9 @@ public final class NeuronSettings {
         setParameters(parameters);
     }
 
-    /** Повертає назву, спільну для всіх нейронів, що посилаються на ці налаштування.
+    /**
+     * Повертає назву, спільну для всіх нейронів, що посилаються на ці налаштування.
+     *
      * @return назва або {@code null}, якщо її не задано.
      */
     public String name() {
@@ -54,7 +58,9 @@ public final class NeuronSettings {
         this.name = name == null || name.isEmpty() ? null : name;
     }
 
-    /** Повертає незмінний набір параметрів, спільний для власника й усіх його учасників.
+    /**
+     * Повертає незмінний набір параметрів, спільний для власника й усіх його учасників.
+     *
      * @return поточні параметри сигналу.
      */
     public NeuronParameters parameters() {
@@ -117,7 +123,9 @@ public final class NeuronSettings {
         memberType = type;
     }
 
-    /** Повертає спільний напрямок дерева структурних нейронів.
+    /**
+     * Повертає спільний напрямок дерева структурних нейронів.
+     *
      * @return {@code true}, якщо напрямок розвернуто.
      */
     public boolean directionReversed() {
@@ -134,8 +142,27 @@ public final class NeuronSettings {
     }
 
     /**
+     * Показує, чи мають звичайні нейрони структурного дерева конкурувати за найбільшим вхідним сигналом.
+     *
+     * @return {@code true}, якщо автоматично активується лише найсильніший кандидат у дереві.
+     */
+    public boolean strongestNeuronOnly() {
+        return strongestNeuronOnly;
+    }
+
+    /**
+     * Умикає або вимикає конкуренцію учасників за найбільшим вхідним сигналом.
+     * Значення спільне для кореневої структури та всіх вкладених учасників.
+     *
+     * @param strongestNeuronOnly {@code true}, щоб автоматично активувати лише найсильнішого кандидата.
+     */
+    public void setStrongestNeuronOnly(boolean strongestNeuronOnly) {
+        this.strongestNeuronOnly = strongestNeuronOnly;
+    }
+
+    /**
      * Створює незалежну копію поточних налаштувань для моменту виходу нейрона зі структури.
-     * Копіюються також спільний тип учасників і напрямок, щоб від'єднана гілка зберігала свій стан.
+     * Копіюються також спільний тип учасників, напрямок і режим вибору найсильнішого нейрона.
      *
      * @return новий об'єкт налаштувань з такими самими поточними значеннями.
      */
@@ -151,6 +178,7 @@ public final class NeuronSettings {
         NeuronSettings copy = new NeuronSettings(name, copiedParameters);
         copy.memberType = memberType;
         copy.directionReversed = directionReversed;
+        copy.strongestNeuronOnly = strongestNeuronOnly;
         return copy;
     }
 }

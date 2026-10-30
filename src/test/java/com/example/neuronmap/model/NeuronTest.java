@@ -23,28 +23,15 @@ class NeuronTest {
         Set<String> settingsFields = instanceFieldNames(NeuronSettings.class);
 
         assertEquals(Set.of("id", "type", "activation", "settings"), neuronFields);
-        assertEquals(Set.of("name", "parameters", "memberType", "directionReversed"), settingsFields);
+        assertEquals(Set.of("name", "parameters", "memberType", "directionReversed", "strongestNeuronOnly"),
+                settingsFields);
     }
 
-    /**
-     * Перевіряє розрахунок ваги сигналу з урахуванням типу нейрона та його сили сигналу.
-     */
+    /** Перевіряє розрахунок ваги сигналу з урахуванням типу нейрона та його сили сигналу. */
     @Test
     void signalWeightUsesTypeAndCustomStrength() {
-        Neuron excitatory = new Neuron(
-                "e",
-                NeuronType.EXCITATORY,
-                0,
-                5,
-                3
-        );
-        Neuron inhibitory = new Neuron(
-                "i",
-                NeuronType.INHIBITORY,
-                0,
-                7,
-                4
-        );
+        Neuron excitatory = new Neuron("e", NeuronType.EXCITATORY, 0, 5, 3);
+        Neuron inhibitory = new Neuron("i", NeuronType.INHIBITORY, 0, 7, 4);
 
         assertEquals(5, excitatory.signalWeight());
         assertEquals(-7, inhibitory.signalWeight());
@@ -53,9 +40,7 @@ class NeuronTest {
         assertEquals(new NeuronParameters(5, 3), excitatory.parameters());
     }
 
-    /**
-     * Перевіряє зміну сили сигналу й порога активації без втрати іншого параметра.
-     */
+    /** Перевіряє зміну сили сигналу й порога активації без втрати іншого параметра. */
     @Test
     void allowsUpdatingSignalStrengthAndThreshold() {
         Neuron neuron = new Neuron("n1", NeuronType.EXCITATORY, 0);
@@ -70,21 +55,14 @@ class NeuronTest {
         assertEquals(9, neuron.signalWeight());
     }
 
-    /**
-     * Перевіряє відхилення некоректних параметрів конструктора та сеттерів нейрона.
-     */
+    /** Перевіряє відхилення некоректних параметрів конструктора та сеттерів нейрона. */
     @Test
     void rejectsInvalidConstructionAndParameters() {
-        assertThrows(IllegalArgumentException.class,
-                () -> new Neuron("", NeuronType.EXCITATORY, 0));
-        assertThrows(IllegalArgumentException.class,
-                () -> new Neuron("n1", null, 0));
-        assertThrows(IllegalArgumentException.class,
-                () -> new Neuron("n1", NeuronType.EXCITATORY, 0, 0, 1));
-        assertThrows(IllegalArgumentException.class,
-                () -> new Neuron("n1", NeuronType.EXCITATORY, 0, 1, 0));
-        assertThrows(IllegalArgumentException.class,
-                () -> new Neuron("n1", NeuronType.EXCITATORY, 0, null));
+        assertThrows(IllegalArgumentException.class, () -> new Neuron("", NeuronType.EXCITATORY, 0));
+        assertThrows(IllegalArgumentException.class, () -> new Neuron("n1", null, 0));
+        assertThrows(IllegalArgumentException.class, () -> new Neuron("n1", NeuronType.EXCITATORY, 0, 0, 1));
+        assertThrows(IllegalArgumentException.class, () -> new Neuron("n1", NeuronType.EXCITATORY, 0, 1, 0));
+        assertThrows(IllegalArgumentException.class, () -> new Neuron("n1", NeuronType.EXCITATORY, 0, null));
     }
 
     /** Перевіряє, що за замовчуванням назви немає, а порожній рядок очищує її до null. */

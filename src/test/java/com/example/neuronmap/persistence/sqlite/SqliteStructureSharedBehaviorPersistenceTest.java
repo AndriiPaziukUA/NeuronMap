@@ -78,7 +78,7 @@ final class SqliteStructureSharedBehaviorPersistenceTest {
         }
     }
 
-    /** Перевіряє міграцію з версії 11: тип кореня визначається впорядкованими учасниками його дерева. */
+    /** Перевіряє міграцію зі схеми версії 11 і подальше оновлення до актуальної версії 14. */
     @Test
     void migratesExistingStructureMemberTypeFromPersistedMembers(@TempDir Path tempDir) throws Exception {
         Path database = tempDir.resolve("legacy-structure-member-type.db");
@@ -115,7 +115,7 @@ final class SqliteStructureSharedBehaviorPersistenceTest {
             statement.execute("PRAGMA user_version = 11");
             SqliteSchema.migrate(connection);
 
-            // Стовпець додається SqliteSchema.migrate() під час тестованої міграції з версії 11.
+            // Міграція додає нові поля й оновлює схему аж до поточної версії 14.
             //noinspection SqlResolve
             try (ResultSet resultSet = statement.executeQuery(
                     "SELECT member_type FROM structures WHERE id = 'root'")) {
@@ -124,12 +124,12 @@ final class SqliteStructureSharedBehaviorPersistenceTest {
             }
             try (ResultSet resultSet = statement.executeQuery("PRAGMA user_version")) {
                 assertTrue(resultSet.next());
-                assertEquals(13, resultSet.getInt(1));
+                assertEquals(14, resultSet.getInt(1));
             }
         }
     }
 
-    /** Перевіряє перенесення напрямку в таблицю структури під час оновлення бази версії 12. */
+    /** Перевіряє міграцію напрямку зі схеми версії 12 через версію 13 до актуальної версії 14. */
     @Test
     void migratesSharedDirectionFromStructurePresentation(@TempDir Path tempDir) throws Exception {
         Path database = tempDir.resolve("legacy-structure-direction.db");
@@ -177,7 +177,7 @@ final class SqliteStructureSharedBehaviorPersistenceTest {
 
             SqliteSchema.migrate(connection);
 
-            // direction_reversed додає SqliteSchema.migrate() під час переходу з версії 12 на 13.
+            // Перенесення напрямку виконується під час переходу з версії 12 на 13; версія 14 додає новий прапорець.
             //noinspection SqlResolve
             try (ResultSet resultSet = statement.executeQuery(
                     "SELECT member_type, direction_reversed FROM structures WHERE id = 'root'")) {
@@ -188,9 +188,8 @@ final class SqliteStructureSharedBehaviorPersistenceTest {
             }
             try (ResultSet resultSet = statement.executeQuery("PRAGMA user_version")) {
                 assertTrue(resultSet.next());
-                assertEquals(13, resultSet.getInt(1));
+                assertEquals(14, resultSet.getInt(1));
             }
         }
     }
-
 }

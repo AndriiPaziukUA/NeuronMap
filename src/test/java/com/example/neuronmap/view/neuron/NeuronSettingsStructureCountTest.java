@@ -2,6 +2,7 @@ package com.example.neuronmap.view.neuron;
 
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
+import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.testsupport.JavaFxTestSupport;
@@ -10,16 +11,17 @@ import javafx.scene.layout.StackPane;
 import org.junit.jupiter.api.Test;
 
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє окреме поле кількості структури, його валідацію та відсутність у звичайного нейрона. */
+/** Перевіряє окремі поля структури, їхню валідацію та відсутність у налаштуваннях звичайного нейрона. */
 final class NeuronSettingsStructureCountTest {
 
-    /** Перевіряє завантаження поточної кількості, мінімальне значення та передачу збільшеної цілі. */
+    /** Перевіряє завантаження поточної кількості, мінімум і передавання збільшеної цілі. */
     @Test
     void loadsCurrentCountAndOnlyAcceptsNonDecreasingTarget() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
@@ -57,9 +59,9 @@ final class NeuronSettingsStructureCountTest {
         });
     }
 
-    /** Перевіряє, що форматтер відхиляє нецифрове введення й звичайний нейрон не показує поле структури. */
+    /** Перевіряє, що поле кількості й перемикач відсутні для звичайного нейрона. */
     @Test
-    void restrictsInputToDigitsAndHidesFieldForOrdinaryNeuron() throws Exception {
+    void restrictsInputToDigitsAndHidesStructureFieldsForOrdinaryNeuron() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
             NeuronSettingsView view = new NeuronSettingsView(new LocalizationService(Locale.ENGLISH));
             StackPane root = new StackPane();
@@ -70,6 +72,8 @@ final class NeuronSettingsStructureCountTest {
                     (_, _, count) -> savedCount.set(count));
             assertFalse(view.structureMemberCountRowForTest().isVisible());
             assertFalse(view.structureMemberCountRowForTest().isManaged());
+            assertFalse(view.strongestNeuronOnlyRowForTest().isVisible());
+            assertFalse(view.strongestNeuronOnlyRowForTest().isManaged());
             view.structureMemberCountFieldForTest().setText("12");
             view.structureMemberCountFieldForTest().replaceText(0, 2, "-1");
             assertEquals("12", view.structureMemberCountFieldForTest().getText());
@@ -79,7 +83,7 @@ final class NeuronSettingsStructureCountTest {
         });
     }
 
-    /** Перевіряє, що невід'ємне нульове значення дозволено для порожньої структури. */
+    /** Перевіряє, що нульову кількість дозволено для порожньої структури. */
     @Test
     void acceptsZeroForEmptyStructure() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
@@ -94,6 +98,38 @@ final class NeuronSettingsStructureCountTest {
             assertFalse(view.saveButtonForTest().isDisabled());
             view.saveButtonForTest().fire();
             assertEquals(0, savedCount.get());
+            view.dispose();
+        });
+    }
+
+    /** Перевіряє порядок, початкове значення, локалізований підпис і збереження перемикача структури. */
+    @Test
+    void strongestNeuronControlIsStructureOnlyAndSavesSelectedValue() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            NeuronSettingsView view = new NeuronSettingsView(new LocalizationService(Locale.forLanguageTag("uk")));
+            StackPane root = new StackPane();
+            new Scene(root, 1000.0, 800.0);
+            NeuronMapModel model = new NeuronMapModel();
+            Neuron structure = model.createNeuron(NeuronType.STRUCTURE, 0.0, 0.0);
+            model.structure(structure.id()).settings().setStrongestNeuronOnly(true);
+            AtomicBoolean savedFlag = new AtomicBoolean(false);
+
+            view.showWithStructureSettingsIn(root, structure, 1,
+                    (_, _, _, strongest) -> savedFlag.set(strongest));
+
+            assertTrue(view.strongestNeuronOnlyRowForTest().isVisible());
+            assertTrue(view.strongestNeuronOnlyRowForTest().isManaged());
+            assertTrue(view.strongestNeuronOnlyToggleForTest().isSelected());
+            assertEquals("Найсильніший нейрон:",
+                    view.settingLabelTextForTest("i18n.neuronSettings.strongest_neuron"));
+            var rows = ((javafx.scene.layout.VBox) view.strongestNeuronOnlyRowForTest().getParent()).getChildren();
+            assertEquals(rows.indexOf(view.structureMemberCountRowForTest()) + 1,
+                    rows.indexOf(view.strongestNeuronOnlyRowForTest()));
+
+            view.strongestNeuronOnlyToggleForTest().fire();
+            assertFalse(view.strongestNeuronOnlyToggleForTest().isSelected());
+            view.saveButtonForTest().fire();
+            assertFalse(savedFlag.get());
             view.dispose();
         });
     }

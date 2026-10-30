@@ -39,8 +39,8 @@ import java.util.function.Consumer;
 
 /**
  * Відображає налаштування нейрона як внутрішню модальну накладку головного вікна.
- * Для структурного нейрона подання додає окреме поле кількості безпосередніх учасників;
- * це поле не входить до спільних налаштувань нейронів.
+ * Для структурного нейрона подання додає окремі параметри кількості безпосередніх учасників і режиму
+ * «Найсильніший нейрон»; обидва значення не належать до числових параметрів окремого нейрона.
  */
 public final class NeuronSettingsView extends StackPane implements EditorKeyboardShortcutBoundary {
 
@@ -49,17 +49,27 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     private static final String SETTINGS_BUNDLE_KEY_PREFIX = "i18n.neuronSettings.";
     private static final double INPUT_COLUMN_WIDTH = 160.0;
 
-    /** Збережені значення форми, включно з окремою кількістю безпосередніх учасників структури. */
+    /** Збережені значення форми, включно з кількістю учасників структури. */
     @FunctionalInterface
     public interface SettingsSaveAction {
-        /**
-         * Передає перевірені значення координатору після підтвердження форми.
-         *
+        /** Передає перевірені параметри й кількість учасників координатору після підтвердження форми.
          * @param parameters спільні параметри нейрона.
          * @param name нова назва або {@code null}, якщо поле назви порожнє.
          * @param structureMemberCount бажана кількість учасників або {@code -1} для звичайного нейрона.
          */
         void accept(NeuronParameters parameters, String name, int structureMemberCount);
+    }
+
+    /** Збережені значення форми структури, доповнені прапорцем конкуренції нейронів. */
+    @FunctionalInterface
+    public interface StructureSettingsSaveAction {
+        /** Передає перевірені параметри структури власнику операції збереження.
+         * @param parameters спільні параметри нейронів структури.
+         * @param name нова назва або {@code null}, якщо поле назви порожнє.
+         * @param structureMemberCount бажана кількість безпосередніх учасників.
+         * @param strongestNeuronOnly чи ввімкнено режим найсильнішого учасника.
+         */
+        void accept(NeuronParameters parameters, String name, int structureMemberCount, boolean strongestNeuronOnly);
     }
 
     private final LocalizationService localization;
@@ -86,8 +96,9 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
 
     private StackPane host;
     private Scene keyboardFilterScene;
-    private SettingsSaveAction saveAction;
+    private StructureSettingsSaveAction saveAction;
     private HBox structureMemberCountRow;
+    private HBox strongestNeuronOnlyRow;
     private boolean structureSettingsTitle;
     private boolean localizationListenerRegistered;
     /** Позначає програмне закриття після збереження, щоб його не сприймали як скасування форми. */
@@ -158,7 +169,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     /**
      * Показує накладку й завантажує назву, параметри та режим активації нейрона для редагування.
      * Для структурного нейрона поле кількості показує нуль, якщо викликач не передав поточне значення;
-     * для звичайного нейрона це поле приховане.
+     * для звичайного нейрона додаткові рядки структури приховані.
      *
      * @param applicationRoot кореневий контейнер для внутрішніх накладок.
      * @param neuron нейрон, значення якого редагують.
@@ -171,18 +182,18 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
             BiConsumer<NeuronParameters, String> onSave
     ) {
         Objects.requireNonNull(onSave, "onSave");
-        showWithStructureCountIn(applicationRoot, neuron, 0,
-                (parameters, name, ignoredCount) -> onSave.accept(parameters, name));
+        showWithStructureSettingsIn(applicationRoot, neuron, 0,
+                (parameters, name, ignoredCount, ignoredStrongest) -> onSave.accept(parameters, name));
     }
 
     /**
      * Показує накладку налаштувань, передаючи окрему поточну кількість учасників структури.
-     * Для звичайного нейрона поле кількості залишається прихованим і callback отримує {@code -1}.
+     * Для звичайного нейрона поле кількості й режим конкуренції приховані, а callback отримує {@code -1} і {@code false}.
      *
      * @param applicationRoot кореневий контейнер для внутрішніх накладок.
      * @param neuron нейрон, значення якого редагують.
      * @param currentMemberCount актуальна кількість безпосередніх учасників структури.
-     * @param onSave дія застосування перевірених параметрів, назви й цільової кількості.
+     * @param onSave дія застосування перевірених параметрів, назви та значень структури.
      * @throws NullPointerException якщо будь-який обов'язковий аргумент не задано.
      * @throws IllegalArgumentException якщо кількість учасників від'ємна для структури.
      * @throws IllegalStateException якщо подання звільнено, корінь не належить сцені або накладка вже відкрита.
@@ -192,6 +203,27 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
             Neuron neuron,
             int currentMemberCount,
             SettingsSaveAction onSave
+    ) {
+        Objects.requireNonNull(onSave, "onSave");
+        showWithStructureSettingsIn(applicationRoot, neuron, currentMemberCount,
+                (parameters, name, count, ignoredStrongest) -> onSave.accept(parameters, name, count));
+    }
+
+    /** Показує налаштування структури з додатковим перемикачем вибору найсильнішого нейрона.
+     *
+     * @param applicationRoot кореневий контейнер для внутрішніх накладок.
+     * @param neuron нейрон, значення якого редагують.
+     * @param currentMemberCount актуальна кількість безпосередніх учасників структури.
+     * @param onSave дія застосування перевірених параметрів, кількості та режиму конкуренції.
+     * @throws NullPointerException якщо обов'язковий аргумент не задано.
+     * @throws IllegalArgumentException якщо кількість учасників від'ємна для структури.
+     * @throws IllegalStateException якщо подання звільнено, корінь не належить сцені або накладка вже відкрита.
+     */
+    public void showWithStructureSettingsIn(
+            StackPane applicationRoot,
+            Neuron neuron,
+            int currentMemberCount,
+            StructureSettingsSaveAction onSave
     ) {
         ensureNotDisposed();
         Objects.requireNonNull(applicationRoot, "applicationRoot");
@@ -211,6 +243,8 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         structureSettingsTitle = neuron.type() == NeuronType.STRUCTURE;
         structureMemberCountRow.setManaged(structureSettingsTitle);
         structureMemberCountRow.setVisible(structureSettingsTitle);
+        strongestNeuronOnlyRow.setManaged(structureSettingsTitle);
+        strongestNeuronOnlyRow.setVisible(structureSettingsTitle);
         settingsForm.load(neuron, currentMemberCount);
         saveAction = onSave;
         host = applicationRoot;
@@ -235,6 +269,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
             return;
         }
         close();
+        settingsForm.dispose();
         disposed = true;
     }
 
@@ -297,6 +332,11 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         structureMemberCountRow.setManaged(false);
         structureMemberCountRow.setVisible(false);
         addSetting(structureMemberCountRow);
+        strongestNeuronOnlyRow = createSettingRow(
+                SETTINGS_BUNDLE_KEY_PREFIX + "strongest_neuron", settingsForm.strongestNeuronOnlyToggle());
+        strongestNeuronOnlyRow.setManaged(false);
+        strongestNeuronOnlyRow.setVisible(false);
+        addSetting(strongestNeuronOnlyRow);
         addSetting(createSettingRow("neuron.settings.signal_strength", signalField));
         addSetting(createSettingRow(
                 SETTINGS_BUNDLE_KEY_PREFIX + "activation_by",
@@ -451,7 +491,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         localizationListenerRegistered = false;
     }
 
-    /** Зберігає лише перевірені значення й передає окрему кількість учасників для структури. */
+    /** Зберігає лише перевірені значення й передає окремі параметри структури. */
     private void save() {
         Optional<NeuronParameters> parameters = settingsForm.parameters();
         OptionalInt memberCount = structureSettingsTitle
@@ -459,17 +499,18 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         if (parameters.isEmpty() || memberCount.isEmpty() || saveAction == null) {
             return;
         }
-        SettingsSaveAction action = saveAction;
+        StructureSettingsSaveAction action = saveAction;
         NeuronParameters savedParameters = parameters.orElseThrow();
         String savedName = settingsForm.name();
         int savedMemberCount = memberCount.getAsInt();
+        boolean savedStrongestNeuronOnly = settingsForm.strongestNeuronOnly();
         saving = true;
         try {
             close();
         } finally {
             saving = false;
         }
-        action.accept(savedParameters, savedName, savedMemberCount);
+        action.accept(savedParameters, savedName, savedMemberCount, savedStrongestNeuronOnly);
     }
 
     /** Закриває накладку, очищує callback та звільняє тимчасові ресурси. */
@@ -549,6 +590,14 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
 
     /** Повертає рядок кількості нейронів для перевірки його видимості лише в налаштуваннях структури. */
     HBox structureMemberCountRowForTest() { return structureMemberCountRow; }
+
+    /** Повертає рядок режиму найсильнішого нейрона для регресійних перевірок видимості та порядку. */
+    HBox strongestNeuronOnlyRowForTest() { return strongestNeuronOnlyRow; }
+
+    /** Повертає перемикач режиму найсильнішого нейрона для перевірки збереження вибору. */
+    javafx.scene.control.ToggleButton strongestNeuronOnlyToggleForTest() {
+        return settingsForm.strongestNeuronOnlyToggle();
+    }
 
     /** Повертає кнопку збереження для перевірок введення та геометрії. */
     Button saveButtonForTest() { return saveButton; }

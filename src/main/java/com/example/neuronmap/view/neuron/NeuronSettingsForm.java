@@ -5,6 +5,7 @@ import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronActivationMode;
 import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronType;
+import com.example.neuronmap.view.support.SwitchToggleButton;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
@@ -40,6 +41,8 @@ final class NeuronSettingsForm {
     private final TextField activeTicksField = createNumericField();
     private final TextField delayTicksField = createNumericField();
     private final TextField structureMemberCountField = createNumericField();
+    private final SwitchToggleButton strongestNeuronOnlyToggle = new SwitchToggleButton(
+            "neuron-settings-strongest-graphic", "neuron-settings-strongest-track", "neuron-settings-strongest-thumb");
     private final ComboBox<NeuronActivationMode> activationModeSelector = new ComboBox<>();
     private boolean updatingSelection;
     private boolean structureSettings;
@@ -62,6 +65,7 @@ final class NeuronSettingsForm {
         activeTicksField.textProperty().addListener((_, _, _) -> validateInput());
         delayTicksField.textProperty().addListener((_, _, _) -> validateInput());
         structureMemberCountField.textProperty().addListener((_, _, _) -> validateInput());
+        strongestNeuronOnlyToggle.getStyleClass().add("neuron-settings-strongest-toggle");
         configureActivationModeSelector();
         validateInput();
     }
@@ -85,6 +89,7 @@ final class NeuronSettingsForm {
         updatingSelection = true;
         try {
             activationModeSelector.setValue(neuron.activationMode());
+            strongestNeuronOnlyToggle.setSelected(structureSettings && neuron.strongestNeuronOnly());
         } finally {
             updatingSelection = false;
         }
@@ -115,6 +120,8 @@ final class NeuronSettingsForm {
 
     /** Оновлює назви режимів у кнопці й випадаючому списку після зміни локалі. */
     void refreshTexts() {
+        strongestNeuronOnlyToggle.setAccessibleText(
+                localization.textFrom("i18n.neuronSettings", "strongest_neuron"));
         NeuronActivationMode selectedMode = activationModeSelector.getValue();
         updatingSelection = true;
         try {
@@ -152,6 +159,19 @@ final class NeuronSettingsForm {
 
     /** Повертає поле вводу кількості учасників структури. */
     TextField structureMemberCountField() { return structureMemberCountField; }
+
+    /** Повертає графічний перемикач режиму найсильнішого нейрона. */
+    SwitchToggleButton strongestNeuronOnlyToggle() { return strongestNeuronOnlyToggle; }
+
+    /** Повертає вибране значення режиму конкуренції для структури. */
+    boolean strongestNeuronOnly() {
+        return structureSettings && strongestNeuronOnlyToggle.isSelected();
+    }
+
+    /** Звільняє графічний перемикач, коли накладка налаштувань більше не використовуватиметься. */
+    void dispose() {
+        strongestNeuronOnlyToggle.dispose();
+    }
 
     /** Повертає список вибору способу активації нейрона. */
     ComboBox<NeuronActivationMode> activationModeSelector() { return activationModeSelector; }

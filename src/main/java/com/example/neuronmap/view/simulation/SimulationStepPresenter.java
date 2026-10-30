@@ -41,9 +41,7 @@ public class SimulationStepPresenter {
         this.pulseAnimations = Objects.requireNonNull(pulseAnimations, "pulseAnimations");
     }
 
-    /**
-     * Відображає результати такту й запускає лише підтверджені анімації сигналів.
-     *
+    /** Відображає результати такту й запускає лише підтверджені анімації сигналів.
      * @param step результат одного такту симуляції.
      */
     public void apply(SimulationStep step) {
@@ -52,18 +50,14 @@ public class SimulationStepPresenter {
         startAnimations(step);
     }
 
-    /**
-     * Відображає обчислений такт без запуску його анімацій.
-     *
+    /** Відображає обчислений такт без запуску його анімацій.
      * @param step результат такту, індикатори якого потрібно оновити.
      */
     public void applyWithoutAnimations(SimulationStep step) {
         restoreVisualState(Objects.requireNonNull(step, "step"));
     }
 
-    /**
-     * Запускає анімації звичайних виходів та структурних зв'язків, підтверджених внутрішніми сигналами.
-     *
+    /** Запускає анімації звичайних виходів та структурних зв'язків, підтверджених внутрішніми сигналами.
      * @param step результат такту з набором фактичних випромінювачів і дозволених структурних анімацій.
      */
     public void startAnimations(SimulationStep step) {
@@ -74,20 +68,12 @@ public class SimulationStepPresenter {
         animateStructureConnections(step.structureConnectionIdsToAnimate());
     }
 
-    /**
-     * Негайно оновлює карту після ручної активації та анімує виходи лише тоді, коли нейрон справді випустив сигнал.
-     *
+    /** Негайно оновлює карту після ручної активації та анімує виходи лише тоді, коли нейрон справді випустив сигнал.
      * @param step актуальний знімок моделі після негайної активації.
      * @param sourceNeuronId ідентифікатор нейрона, активованого користувачем.
      * @param remainingMillis час до завершення поточного такту в мілісекундах.
-     * @throws NullPointerException якщо знімок або ідентифікатор нейрона не задано.
-     * @throws IllegalArgumentException якщо залишок часу не є скінченним додатним числом.
      */
-    public void applyImmediateActivation(
-            SimulationStep step,
-            String sourceNeuronId,
-            double remainingMillis
-    ) {
+    public void applyImmediateActivation(SimulationStep step, String sourceNeuronId, double remainingMillis) {
         Objects.requireNonNull(step, "step");
         Objects.requireNonNull(sourceNeuronId, "sourceNeuronId");
         if (!Double.isFinite(remainingMillis) || remainingMillis <= 0.0) {
@@ -100,11 +86,8 @@ public class SimulationStepPresenter {
         animateStructureConnections(step.structureConnectionIdsToAnimate(), remainingMillis);
     }
 
-    /**
-     * Відновлює індикатори поточного такту, залишки активності та лічильники структури без запуску анімацій.
-     *
+    /** Відновлює індикатори поточного такту, залишки активності та лічильники структури без запуску анімацій.
      * @param step останній оброблений такт симуляції.
-     * @throws NullPointerException якщо результат такту не задано.
      */
     public void restoreVisualState(SimulationStep step) {
         Objects.requireNonNull(step, "step");
@@ -138,9 +121,7 @@ public class SimulationStepPresenter {
         refreshNeuronViews.run();
     }
 
-    /**
-     * Оновлює тривалість анімацій відповідно до поточної тривалості такту симуляції.
-     *
+    /** Оновлює тривалість анімацій відповідно до поточної тривалості такту симуляції.
      * @param tickDurationMillis тривалість одного такту в мілісекундах.
      */
     public void setTickDurationMillis(double tickDurationMillis) {
@@ -162,14 +143,17 @@ public class SimulationStepPresenter {
         pulseAnimations.resumeAll();
     }
 
-    /** Показує вхідні суми звичайних нейронів із фактичним результатом перевірки порога. */
+    /** Показує вхідні суми звичайних нейронів із фактичним результатом перевірки порога та конкуренції. */
     private void showIncomingSignals(Map<String, Integer> inputSums, Set<String> nextActivatedNeuronIds) {
         inputSums.forEach((neuronId, sum) -> {
             NeuronView neuronView = neuronViews.get(neuronId);
             if (neuronView != null) {
-                boolean thresholdReached = neuronView.model().activationMode() == NeuronActivationMode.SIGNAL_STRENGTH
-                        ? sum >= neuronView.model().activationThreshold()
-                        : nextActivatedNeuronIds.contains(neuronId);
+                boolean strongestNeuronOnly = neuronView.model().strongestNeuronOnly();
+                boolean thresholdReached = strongestNeuronOnly
+                        ? nextActivatedNeuronIds.contains(neuronId)
+                        : neuronView.model().activationMode() == NeuronActivationMode.SIGNAL_STRENGTH
+                                ? sum >= neuronView.model().activationThreshold()
+                                : nextActivatedNeuronIds.contains(neuronId);
                 neuronView.showInputSignal(sum, thresholdReached);
             }
         });
@@ -191,9 +175,7 @@ public class SimulationStepPresenter {
         }
     }
 
-    /**
-     * Задає числа структур за агрегованим станом внутрішніх нейронів, не використовуючи параметри контейнера.
-     *
+    /** Задає числа структур за агрегованим станом внутрішніх нейронів, не використовуючи параметри контейнера.
      * @param step результат такту з підрахованими активними входами й випромінювачами кожної структури.
      */
     private void showStructureSignalCounts(SimulationStep step) {
@@ -240,18 +222,14 @@ public class SimulationStepPresenter {
         }
     }
 
-    /**
-     * Запускає імпульси лише на вихідних зв'язках указаного звичайного нейрона.
-     *
+    /** Запускає імпульси лише на вихідних зв'язках указаного звичайного нейрона.
      * @param neuronId ID нейрона, чиї вихідні зв'язки потрібно анімувати.
      */
     private void animateOutgoingConnections(String neuronId) {
         animateOutgoingConnections(neuronId, pulseAnimations::play);
     }
 
-    /**
-     * Запускає імпульси звичайних виходів з індивідуальною тривалістю.
-     *
+    /** Запускає імпульси звичайних виходів з індивідуальною тривалістю.
      * @param neuronId ID нейрона, чиї вихідні зв'язки потрібно анімувати.
      * @param durationMillis тривалість анімації в мілісекундах.
      */
@@ -259,9 +237,7 @@ public class SimulationStepPresenter {
         animateOutgoingConnections(neuronId, view -> pulseAnimations.play(view, durationMillis));
     }
 
-    /**
-     * Знаходить зв'язки за ID джерела й передає їх аніматору, не дублюючи обхід полотна.
-     *
+    /** Знаходить зв'язки за ID джерела й передає їх аніматору, не дублюючи обхід полотна.
      * @param neuronId ID джерела вихідного зв'язку.
      * @param animate дія запуску анімації для кожного знайденого зв'язку.
      */
@@ -274,18 +250,14 @@ public class SimulationStepPresenter {
         }
     }
 
-    /**
-     * Анімує лише ті структурні зв'язки, ID яких підтверджені фактичним передаванням внутрішнього сигналу.
-     *
+    /** Анімує лише ті структурні зв'язки, ID яких підтверджені фактичним передаванням внутрішнього сигналу.
      * @param connectionIds ID структурних зв'язків, підтверджених обчисленням симуляції.
      */
     private void animateStructureConnections(Set<String> connectionIds) {
         animateStructureConnections(connectionIds, pulseAnimations::play);
     }
 
-    /**
-     * Запускає підтверджені структурні імпульси на залишок поточного такту.
-     *
+    /** Запускає підтверджені структурні імпульси на залишок поточного такту.
      * @param connectionIds ID структурних зв'язків, підтверджених обчисленням симуляції.
      * @param durationMillis залишок часу поточного такту в мілісекундах.
      */
@@ -293,9 +265,7 @@ public class SimulationStepPresenter {
         animateStructureConnections(connectionIds, view -> pulseAnimations.play(view, durationMillis));
     }
 
-    /**
-     * Знаходить лише структурні зв'язки з переданого списку ID і передає їх аніматору.
-     *
+    /** Знаходить лише структурні зв'язки з переданого списку ID і передає їх аніматору.
      * @param connectionIds ID зв'язків, які підтверджені внутрішньою передачею сигналу.
      * @param animate дія запуску анімації для кожного знайденого зв'язку.
      */
@@ -310,5 +280,4 @@ public class SimulationStepPresenter {
             }
         }
     }
-
 }

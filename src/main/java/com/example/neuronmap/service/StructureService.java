@@ -94,4 +94,20 @@ public final class StructureService {
         structure.orElseThrow().setExpanded(expanded);
         return true;
     }
+
+    /**
+     * Установлює режим конкуренції за найсильнішим вхідним сигналом для дерева структури.
+     *
+     * @param structureId ідентифікатор кореневої або вкладеної структури.
+     * @param enabled {@code true}, щоб дозволити автоматичну активацію лише найсильнішого кандидата.
+     * @return {@code true}, якщо структуру знайдено й значення змінено або підтверджено.
+     */
+    public boolean setStrongestNeuronOnly(String structureId, boolean enabled) {
+        Optional<NeuronStructure> structure = find(structureId);
+        if (structure.isEmpty()) {
+            return false;
+        }
+        structure.orElseThrow().settings().setStrongestNeuronOnly(enabled);
+        return true;
+    }
 }

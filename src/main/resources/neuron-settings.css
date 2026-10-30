@@ -69,7 +69,6 @@
     -fx-background-insets: 0;
     -fx-border-insets: 0;
     -fx-text-fill: #edf0f3;
-    /* Modena changes -fx-color to -fx-pressed-base while ComboBox is showing. */
     -fx-color: #282d35;
     -fx-padding: 5 8 5 8;
     -fx-font-size: 12px;
@@ -101,7 +100,34 @@
     -fx-font-size: 12px;
 }
 
-/* Popup має власне дерево CSS; його фон і комірки визначені в neuron-settings-popup.css. */
+/* Спільний перемикач має окремі від меню класи, щоб теми компонентів не перетиналися. */
+.neuron-settings-overlay .neuron-settings-strongest-toggle {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+    -fx-cursor: hand;
+}
+
+.neuron-settings-overlay .neuron-settings-strongest-track {
+    -fx-fill: #4a5360;
+    -fx-stroke: #687382;
+    -fx-stroke-width: 1;
+}
+
+.neuron-settings-overlay .neuron-settings-strongest-toggle:selected .neuron-settings-strongest-track {
+    -fx-fill: #56b9f5;
+    -fx-stroke: #8bd3ff;
+}
+
+.neuron-settings-overlay .neuron-settings-strongest-thumb {
+    -fx-fill: #f2f7fb;
+    -fx-stroke: #d8e5ef;
+    -fx-stroke-width: 1;
+}
 
 /* Властивості кнопок залишаються незалежними від таблиць стилів меню. */
 .neuron-settings-overlay .neuron-settings-button {

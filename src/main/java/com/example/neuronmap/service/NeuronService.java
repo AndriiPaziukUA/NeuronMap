@@ -235,6 +235,17 @@ public final class NeuronService {
     }
 
     /**
+     * Вмикає або вимикає вибір лише найсильнішого нейрона в дереві структури.
+     *
+     * @param structureId ідентифікатор структури-власника.
+     * @param enabled {@code true}, якщо серед кандидатів має активуватися лише нейрон із найбільшою сумою сигналу.
+     * @return {@code true}, якщо структуру знайдено та значення встановлено; інакше {@code false}.
+     */
+    public boolean setStructureStrongestNeuronOnly(String structureId, boolean enabled) {
+        return structureService.setStrongestNeuronOnly(structureId, enabled);
+    }
+
+    /**
      * Перемикає нейрон між активуючою та гальмівною категоріями.
      *
      * @param neuron нейрон, тип якого потрібно змінити.

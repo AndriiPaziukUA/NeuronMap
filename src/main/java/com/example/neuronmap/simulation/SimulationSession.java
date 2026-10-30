@@ -20,6 +20,7 @@ public final class SimulationSession {
     private final NeuronMapModel model;
     private final StructureSignalIndicatorCalculator structureSignalIndicators;
     private final StructureActivationCoordinator structureActivationCoordinator;
+    private final StrongestNeuronSelector strongestNeuronSelector;
     private final Map<String, Integer> pendingSignals = new LinkedHashMap<>();
     private final Set<String> pendingManualStarts = new LinkedHashSet<>();
     private final Map<String, Integer> remainingActiveTicks = new LinkedHashMap<>();
@@ -39,6 +40,7 @@ public final class SimulationSession {
         this.model = model;
         structureSignalIndicators = new StructureSignalIndicatorCalculator(model);
         structureActivationCoordinator = new StructureActivationCoordinator(model);
+        strongestNeuronSelector = new StrongestNeuronSelector(model);
     }
 
     /**
@@ -281,14 +283,22 @@ public final class SimulationSession {
         }
     }
 
-    /** Додає звичайні нейрони, чий вхідний сигнал досяг порога відповідно до режиму активації. */
+    /**
+     * Відбирає нейрони, що пройшли поріг, і застосовує до них режим найсильнішого нейрона кожної структури.
+     * Явні ручні запуски передаються окремим шляхом і не вилучаються з набору автоматичних кандидатів.
+     *
+     * @param inputSums суми сигналів, доставлені кандидатам у поточному наборі.
+     * @param activatedNeuronIds набір, до якого додаються автоматично активовані нейрони.
+     */
     private void collectThresholdActivations(Map<String, Integer> inputSums, Set<String> activatedNeuronIds) {
+        Set<String> eligibleNeuronIds = new LinkedHashSet<>();
         for (Map.Entry<String, Integer> entry : inputSums.entrySet()) {
             Neuron neuron = model.neuron(entry.getKey());
             if (isSignalNeuron(neuron) && hasReachedActivationThreshold(neuron, entry.getValue())) {
-                activatedNeuronIds.add(neuron.id());
+                eligibleNeuronIds.add(neuron.id());
             }
         }
+        activatedNeuronIds.addAll(strongestNeuronSelector.selectWinners(inputSums, eligibleNeuronIds));
     }
 
     /** Визначає, чи досягнуто порога звичайного нейрона в режимі сили або кількості вхідних сигналів. */

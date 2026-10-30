@@ -75,11 +75,11 @@ public final class NeuronSettingsOverlayCoordinator {
     }
 
     /**
-     * Показує накладку налаштувань із дією після її звичайного закриття користувачем.
+     * Показує накладку налаштувань нейрона з дією після звичайного закриття користувачем.
      *
      * @param neuron нейрон, параметри якого редагують.
      * @param onSave дія застосування підтверджених параметрів.
-     * @param onClose дія, яку виконують після закриття накладки користувачем.
+     * @param onClose дія, яку виконують після звичайного закриття накладки користувачем.
      * @throws NullPointerException якщо обов'язковий аргумент не задано.
      * @throws IllegalStateException якщо координатор уже звільнено.
      */
@@ -91,7 +91,7 @@ public final class NeuronSettingsOverlayCoordinator {
     /**
      * Показує накладку для редагування параметрів нейрона та його назви.
      * Для сумісності кількість структури за замовчуванням не задається; повний поточний лічильник
-     * передає спеціалізований метод {@link #showWithStructureCount(Neuron, int, NeuronSettingsView.SettingsSaveAction, Runnable)}.
+     * передає спеціалізований метод {@link #showWithStructureSettings(Neuron, int, NeuronSettingsView.StructureSettingsSaveAction, Runnable)}.
      *
      * @param neuron нейрон, значення якого редагують.
      * @param onSave дія застосування параметрів і назви.
@@ -108,19 +108,18 @@ public final class NeuronSettingsOverlayCoordinator {
      *
      * @param neuron нейрон, значення якого редагують.
      * @param onSave дія застосування параметрів і назви.
-     * @param onClose дія, яку виконують після закриття накладки користувачем.
+     * @param onClose дія, яку виконують після звичайного закриття накладки користувачем.
      * @throws NullPointerException якщо обов'язковий аргумент не задано.
      * @throws IllegalStateException якщо координатор уже звільнено.
      */
     public void showWithName(Neuron neuron, BiConsumer<NeuronParameters, String> onSave, Runnable onClose) {
         Objects.requireNonNull(onSave, "onSave");
         showInternal(neuron, neuron != null && neuron.type() == NeuronType.STRUCTURE ? 0 : -1,
-                (parameters, name, ignoredCount) -> onSave.accept(parameters, name), onClose);
+                (parameters, name, ignoredCount, ignoredStrongest) -> onSave.accept(parameters, name), onClose);
     }
 
     /**
-     * Показує налаштування структури з реальною кількістю її безпосередніх учасників.
-     * Кількість залишається окремою від спільних параметрів нейронів.
+     * Показує налаштування структури зі збереженням сумісності з callback-ом без прапорця конкуренції.
      *
      * @param neuron нейрон структури, параметри якого редагують.
      * @param currentMemberCount поточна кількість безпосередніх учасників структури.
@@ -130,10 +129,33 @@ public final class NeuronSettingsOverlayCoordinator {
      * @throws IllegalArgumentException якщо нейрон не є структурою або кількість від'ємна.
      * @throws IllegalStateException якщо координатор уже звільнено.
      */
+    @SuppressWarnings("unused") // Публічний адаптер для сумісності зі старим callback без прапорця конкуренції.
     public void showWithStructureCount(
             Neuron neuron,
             int currentMemberCount,
             NeuronSettingsView.SettingsSaveAction onSave,
+            Runnable onClose
+    ) {
+        Objects.requireNonNull(onSave, "onSave");
+        showWithStructureSettings(neuron, currentMemberCount,
+                (parameters, name, count, ignoredStrongest) -> onSave.accept(parameters, name, count), onClose);
+    }
+
+    /**
+     * Показує налаштування структури, включно з режимом вибору найсильнішого нейрона.
+     *
+     * @param neuron нейрон структури, параметри якого редагують.
+     * @param currentMemberCount поточна кількість безпосередніх учасників структури.
+     * @param onSave дія застосування параметрів, назви, кількості та прапорця конкуренції.
+     * @param onClose дія після звичайного закриття форми користувачем.
+     * @throws NullPointerException якщо обов'язковий аргумент не задано.
+     * @throws IllegalArgumentException якщо нейрон не є структурою або кількість від'ємна.
+     * @throws IllegalStateException якщо координатор уже звільнено.
+     */
+    public void showWithStructureSettings(
+            Neuron neuron,
+            int currentMemberCount,
+            NeuronSettingsView.StructureSettingsSaveAction onSave,
             Runnable onClose
     ) {
         ensureNotDisposed();
@@ -150,7 +172,7 @@ public final class NeuronSettingsOverlayCoordinator {
     private void showInternal(
             Neuron neuron,
             int currentMemberCount,
-            NeuronSettingsView.SettingsSaveAction onSave,
+            NeuronSettingsView.StructureSettingsSaveAction onSave,
             Runnable onClose
     ) {
         ensureNotDisposed();
@@ -171,7 +193,7 @@ public final class NeuronSettingsOverlayCoordinator {
         settingsClosedAction = onClose;
         watchMainMenuVisibility();
         try {
-            settingsView.showWithStructureCountIn(overlayHost, neuron, currentMemberCount, onSave);
+            settingsView.showWithStructureSettingsIn(overlayHost, neuron, currentMemberCount, onSave);
         } catch (RuntimeException | Error failure) {
             settingsClosedAction = NO_CLOSE_ACTION;
             try {

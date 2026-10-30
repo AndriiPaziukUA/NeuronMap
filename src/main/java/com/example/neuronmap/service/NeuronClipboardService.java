@@ -16,7 +16,7 @@ import java.util.Set;
 
 /**
  * Створює знімки вибраних нейронів для копіювання та відновлює їх під час вставлення.
- * Для структур зберігає кількість внутрішніх нейронів, щоб відновлювати їх новими екземплярами.
+ * Для структур зберігає кількість учасників, спільний тип і режим найсильнішого нейрона.
  */
 public final class NeuronClipboardService {
 
@@ -61,7 +61,7 @@ public final class NeuronClipboardService {
 
     /**
      * Створює буферний знімок вибраних нейронів; для групового вибору зберігає групу цілком.
-     * Для структур також зберігає кількість безпосередніх учасників і спільний тип майбутніх учасників.
+     * Для структур зберігає кількість безпосередніх учасників, тип майбутніх учасників і режим конкуренції.
      *
      * @param selectedNeuronIds ідентифікатори вибраних нейронів.
      * @return {@code true}, якщо знайдено й скопійовано принаймні один нейрон.
@@ -124,11 +124,12 @@ public final class NeuronClipboardService {
 
     /**
      * Створює копії збережених нейронів і розміщує їх відносно заданої опорної точки.
-     * Для структур відновлює кількість учасників, створюючи нові нейрони замість повторного використання оригіналів.
+     * Для структур відновлює кількість учасників, спільний тип і режим найсильнішого нейрона.
      *
      * @param anchorX горизонтальна координата опорної точки вставлення.
      * @param anchorY вертикальна координата опорної точки вставлення.
      * @return вставлені нейрони в порядку знімка.
+     * @throws IllegalStateException якщо спільні налаштування структури чи кількість учасників не вдалося відновити.
      */
     public List<Neuron> paste(double anchorX, double anchorY) {
         if (!hasContent()) {
@@ -149,6 +150,11 @@ public final class NeuronClipboardService {
                 throw new IllegalStateException(
                         "Could not restore the shared member type for pasted structure " + neuron.id());
             }
+            if (item.type() == NeuronType.STRUCTURE
+                    && !neuronService.setStructureStrongestNeuronOnly(neuron.id(), item.strongestNeuronOnly())) {
+                throw new IllegalStateException(
+                        "Could not restore strongest-neuron settings for pasted structure " + neuron.id());
+            }
             if (item.structureMemberCount() != null) {
                 restoreStructureMemberCount(neuron.id(), item.structureMemberCount());
             }
@@ -166,7 +172,7 @@ public final class NeuronClipboardService {
 
     /**
      * Створює описи нейронів, зберігаючи їх відносне положення відносно опорної точки копіювання.
-     * Для структур фіксує тип учасників і кількість безпосередніх нейронів у шухлядці.
+     * Для структур фіксує тип учасників, кількість безпосередніх нейронів і режим конкуренції.
      *
      * @param sources джерела, що пов'язують нейрони з їхніми поданнями.
      * @param anchorX горизонтальна координата опорної точки.
@@ -188,7 +194,8 @@ public final class NeuronClipboardService {
                     presentation.directionReversed(),
                     neuron.name(),
                     structure == null ? null : structure.settings().memberType(),
-                    structure == null ? null : structure.memberIds().size()
+                    structure == null ? null : structure.memberIds().size(),
+                    structure != null && structure.settings().strongestNeuronOnly()
             ));
         }
         return List.copyOf(items);
@@ -258,17 +265,18 @@ public final class NeuronClipboardService {
     }
 
     /**
-     * Зберігає параметри нейрона, його назву, положення та стан типу структурних учасників.
+     * Зберігає параметри нейрона, положення, спільний тип учасників і режим конкуренції структури.
      *
      * @param type тип нейрона.
-     * @param parameters налаштування сили сигналу, порога активації та активних тактів.
+     * @param parameters параметри сигналу.
      * @param offsetX горизонтальне зміщення від опорної точки.
      * @param offsetY вертикальне зміщення від опорної точки.
      * @param rotationDegrees кут обертання нейрона в градусах.
      * @param directionReversed {@code true}, якщо напрямок портів нейрона розвернуто.
      * @param name назва нейрона або {@code null}.
-     * @param structureMemberType спільний тип учасників скопійованої структури або {@code null} для звичайного нейрона.
-     * @param structureMemberCount кількість безпосередніх учасників структури або {@code null}, якщо значення не задано.
+     * @param structureMemberType спільний тип учасників структури або {@code null} для звичайного нейрона.
+     * @param structureMemberCount кількість безпосередніх учасників або {@code null}, якщо значення не задано.
+     * @param strongestNeuronOnly {@code true}, якщо структура вибирає лише найсильнішого отримувача сигналу.
      */
     public record NeuronData(
             NeuronType type,
@@ -279,14 +287,15 @@ public final class NeuronClipboardService {
             boolean directionReversed,
             String name,
             NeuronType structureMemberType,
-            Integer structureMemberCount
+            Integer structureMemberCount,
+            boolean strongestNeuronOnly
     ) {
         /**
-         * Перевіряє наявність типу й параметрів для коректного опису нейрона в буфері.
+         * Перевіряє наявність типу й параметрів та узгодженість структурних даних у буфері.
          *
          * @throws NullPointerException якщо тип або параметри не задано.
-         * @throws IllegalArgumentException якщо тип учасників задано для звичайного нейрона,
-         *                                  або кількість учасників задано для неструктурного нейрона чи від'ємна.
+         * @throws IllegalArgumentException якщо спільні налаштування чи кількість задані для звичайного нейрона,
+         *                                  або кількість учасників від'ємна.
          */
         public NeuronData {
             Objects.requireNonNull(type, "type");
@@ -305,6 +314,29 @@ public final class NeuronClipboardService {
                     && (type != NeuronType.STRUCTURE || structureMemberCount < 0)) {
                 throw new IllegalArgumentException("Only a structural neuron can carry a non-negative member count.");
             }
+            if (strongestNeuronOnly && type != NeuronType.STRUCTURE) {
+                throw new IllegalArgumentException("Only a structural neuron can carry strongest-neuron settings.");
+            }
+        }
+
+        /** Зберігає сумісність з повним попереднім контрактом, що не містив прапорця конкуренції.
+         * @param type тип нейрона.
+         * @param parameters параметри сигналу.
+         * @param offsetX горизонтальне зміщення від опорної точки.
+         * @param offsetY вертикальне зміщення від опорної точки.
+         * @param rotationDegrees кут обертання.
+         * @param directionReversed напрямок портів.
+         * @param name назва нейрона.
+         * @param structureMemberType спільний тип учасників структури.
+         * @param structureMemberCount кількість учасників структури.
+         */
+        public NeuronData(
+                NeuronType type, NeuronParameters parameters, double offsetX, double offsetY,
+                double rotationDegrees, boolean directionReversed, String name,
+                NeuronType structureMemberType, Integer structureMemberCount
+        ) {
+            this(type, parameters, offsetX, offsetY, rotationDegrees, directionReversed,
+                    name, structureMemberType, structureMemberCount, false);
         }
 
         /**
@@ -330,18 +362,18 @@ public final class NeuronClipboardService {
                 NeuronType structureMemberType
         ) {
             this(type, parameters, offsetX, offsetY, rotationDegrees, directionReversed,
-                    name, structureMemberType, null);
+                    name, structureMemberType, null, false);
         }
 
         /**
          * Створює дані буфера з попереднього контракту без спільного типу учасників структури.
          *
          * @param type тип нейрона.
-         * @param parameters налаштування сигналу.
-         * @param offsetX горизонтальне зміщення від опорної точки.
-         * @param offsetY вертикальне зміщення від опорної точки.
-         * @param rotationDegrees кут обертання нейрона в градусах.
-         * @param directionReversed {@code true}, якщо напрямок портів розвернуто.
+         * @param parameters параметри сигналу.
+         * @param offsetX горизонтальне зміщення.
+         * @param offsetY вертикальне зміщення.
+         * @param rotationDegrees кут обертання.
+         * @param directionReversed напрямок портів.
          * @param name назва нейрона або {@code null}.
          */
         public NeuronData(
@@ -353,7 +385,7 @@ public final class NeuronClipboardService {
                 boolean directionReversed,
                 String name
         ) {
-            this(type, parameters, offsetX, offsetY, rotationDegrees, directionReversed, name, null, null);
+            this(type, parameters, offsetX, offsetY, rotationDegrees, directionReversed, name, null, null, false);
         }
 
         /**
@@ -361,10 +393,10 @@ public final class NeuronClipboardService {
          *
          * @param type тип нейрона.
          * @param parameters параметри сигналу.
-         * @param offsetX горизонтальне зміщення від опорної точки.
-         * @param offsetY вертикальне зміщення від опорної точки.
-         * @param rotationDegrees кут обертання нейрона в градусах.
-         * @param directionReversed {@code true}, якщо напрямок портів розвернуто.
+         * @param offsetX горизонтальне зміщення.
+         * @param offsetY вертикальне зміщення.
+         * @param rotationDegrees кут обертання.
+         * @param directionReversed напрямок портів.
          */
         public NeuronData(
                 NeuronType type,
@@ -374,19 +406,19 @@ public final class NeuronClipboardService {
                 double rotationDegrees,
                 boolean directionReversed
         ) {
-            this(type, parameters, offsetX, offsetY, rotationDegrees, directionReversed, null, null, null);
+            this(type, parameters, offsetX, offsetY, rotationDegrees, directionReversed, null, null, null, false);
         }
 
         /**
-         * Створює дані буфера зі старого контракту з окремими значеннями параметрів.
+         * Створює дані буфера зі старого контракту з окремими числовими параметрами.
          *
          * @param type тип нейрона.
          * @param signalStrength сила сигналу.
          * @param activationThreshold поріг активації.
-         * @param offsetX горизонтальне зміщення від опорної точки.
-         * @param offsetY вертикальне зміщення від опорної точки.
-         * @param rotationDegrees кут обертання в градусах.
-         * @param directionReversed {@code true}, якщо напрямок портів розвернуто.
+         * @param offsetX горизонтальне зміщення.
+         * @param offsetY вертикальне зміщення.
+         * @param rotationDegrees кут обертання.
+         * @param directionReversed напрямок портів.
          */
         public NeuronData(
                 NeuronType type,
@@ -398,21 +430,17 @@ public final class NeuronClipboardService {
                 boolean directionReversed
         ) {
             this(type, new NeuronParameters(signalStrength, activationThreshold),
-                    offsetX, offsetY, rotationDegrees, directionReversed, null, null, null);
+                    offsetX, offsetY, rotationDegrees, directionReversed, null, null, null, false);
         }
 
-        /**
-         * Повертає силу сигналу для сумісності з наявними читачами даних буфера.
-         *
+        /** Повертає силу сигналу для сумісності з наявними читачами даних буфера.
          * @return сила сигналу нейрона.
          */
         public int signalStrength() {
             return parameters.signalStrength();
         }
 
-        /**
-         * Повертає поріг активації для сумісності з наявними читачами даних буфера.
-         *
+        /** Повертає поріг активації для сумісності з наявними читачами даних буфера.
          * @return поріг активації нейрона.
          */
         public int activationThreshold() {
@@ -420,12 +448,14 @@ public final class NeuronClipboardService {
         }
     }
 
-    /**
-     * Пов'язує модель нейрона з його візуальним поданням на час створення копії.
-     *
-     * @param neuron семантичні дані нейрона.
-     * @param presentation координати, поворот і напрямок подання цього нейрона.
-     */
+    /** Містить пару нейрона та його подання, з якої створюється незмінний знімок для буфера. */
     private record NeuronSnapshotSource(Neuron neuron, NeuronPresentation presentation) {
+        /** Перевіряє, що обидва елементи знімка існують.
+         * @throws NullPointerException якщо нейрон або подання не задано.
+         */
+        private NeuronSnapshotSource {
+            Objects.requireNonNull(neuron, "neuron");
+            Objects.requireNonNull(presentation, "presentation");
+        }
     }
 }
