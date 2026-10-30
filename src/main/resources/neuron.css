@@ -167,3 +167,32 @@
     -fx-stroke: #25292f;
     -fx-stroke-width: 2;
 }
+
+/* Оформлення структурованої підказки параметрів нейронів і структур. */
+.parameter-tooltip-content {
+    -fx-spacing: 6px;
+    -fx-alignment: center-left;
+}
+
+.parameter-tooltip-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+    -fx-alignment: center;
+}
+
+.parameter-tooltip-section-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: normal;
+    -fx-text-fill: white;
+    -fx-alignment: center;
+}
+
+.parameter-tooltip-value {
+    -fx-font-size: 14px;
+    -fx-text-fill: white;
+}
+
+.parameter-tooltip-divider {
+    -fx-background-color: white;
+}

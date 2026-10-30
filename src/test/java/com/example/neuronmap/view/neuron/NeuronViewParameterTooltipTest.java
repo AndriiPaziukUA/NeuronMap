@@ -8,9 +8,12 @@ import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.testsupport.JavaFxTestSupport;
 import javafx.event.Event;
 import javafx.event.EventType;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Label;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Rectangle;
 import org.junit.jupiter.api.Test;
@@ -26,17 +29,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Перевіряє вміст, локалізацію та ізоляцію підказок параметрів нейрона. */
 final class NeuronViewParameterTooltipTest {
 
-    /** Перевіряє, що підказка показує всі чотири параметри з локалізованими назвами. */
+    /** Перевіряє заголовок, його вирівнювання та чотири параметри звичайного нейрона. */
     @Test
-    void showsOnlyLocalizedNeuronSettings() throws Exception {
+    void showsHeadingAndLocalizedNeuronSettings() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
             NeuronView view = createView();
             view.configureParameterTooltipLocalization(new LocalizationService(Locale.forLanguageTag("uk")));
 
             assertEquals(
-                    "Сила сигналу: 7\nПоріг активації: 3\nАктивні такти: 5\nЗатримка: 1",
+                    "Параметри\nСила сигналу: 7\nПоріг активації: 3\nАктивні такти: 5\nЗатримка: 1",
                     view.parameterTooltipTextForTest()
             );
+            Label title = (Label) view.parameterTooltipContentForTest().getChildren().getFirst();
+            assertEquals("Параметри", title.getText());
+            assertEquals(Pos.CENTER, title.getAlignment());
+            assertTrue(title.getStyleClass().contains("parameter-tooltip-title"));
+            assertTrue(view.parameterTooltipContentForTest().getChildren().get(1).isVisible(),
+                    "Під головним заголовком має бути тонка роздільна лінія");
+            assertEquals(0.5, ((Region) view.parameterTooltipContentForTest().getChildren().get(1)).getMinHeight());
             assertTrue(view.isParameterTooltipInstalledForTest());
             view.disposeParameterTooltip();
         });
@@ -69,7 +79,7 @@ final class NeuronViewParameterTooltipTest {
             view.refreshVisuals(false);
 
             assertEquals(
-                    "Signal strength: 9\nActivation threshold: 4\nActive ticks: 2\nDelay: 3",
+                    "Parameters\nSignal strength: 9\nActivation threshold: 4\nActive ticks: 2\nDelay: 3",
                     view.parameterTooltipTextForTest()
             );
             view.disposeParameterTooltip();

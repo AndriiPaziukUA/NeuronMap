@@ -2,18 +2,17 @@ package com.example.neuronmap.view.neuron;
 
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
-import com.example.neuronmap.model.NeuronActivationMode;
 import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.model.NeuronType;
-import com.example.neuronmap.view.support.TooltipFactory;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
-import javafx.scene.layout.StackPane;
-import javafx.scene.layout.Pane;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
@@ -65,12 +64,11 @@ public final class NeuronView extends StackPane {
     private final Label inputSignalLabel = new Label();
     private final Label remainingActiveTicksLabel = new Label();
     private final Label nameLabel = new Label();
-    private final Tooltip parameterTooltip = TooltipFactory.create("");
+    private final NeuronParameterTooltip parameterTooltip = new NeuronParameterTooltip();
     /** Видимі інтерактивні вузли, на яких показується підказка, без контейнера вкладеної шухлядки. */
     private final List<Node> parameterTooltipTargets = List.of(body, inputPort, outputPort);
     private NeuronStructureDrawerView structureDrawer;
 
-    private LocalizationService tooltipLocalization;
     private Integer displayedInputSignal;
     private Boolean displayedInputSufficient;
     private int displayedRemainingActiveTicks;
@@ -245,11 +243,16 @@ public final class NeuronView extends StackPane {
                 ? structureDrawer.getHeight() : 0.0);
     }
 
-    /** Відкриває або закриває шухлядку структури.
+    /** Відкриває або закриває шухлядку структури й узгоджує склад підказки з її новим станом.
      * @return {@code true}, якщо шухлядка відкрита після перемикання.
      */
     public boolean toggleStructureDrawer() {
-        return structureDrawer != null && structureDrawer.toggleExpanded();
+        if (structureDrawer == null) {
+            return false;
+        }
+        boolean expanded = structureDrawer.toggleExpanded();
+        refreshParameterTooltipText();
+        return expanded;
     }
 
     /** Повертає поточний стан шухлядки.
@@ -366,7 +369,7 @@ public final class NeuronView extends StackPane {
         if (localization == null) {
             throw new IllegalArgumentException("localization must not be null");
         }
-        tooltipLocalization = localization;
+        parameterTooltip.configureLocalization(localization);
         parameterTooltipDisposed = false;
         refreshParameterTooltip();
     }
@@ -374,9 +377,9 @@ public final class NeuronView extends StackPane {
     /** Приховує та від'єднує підказку перед вилученням нейрона з карти. */
     public void disposeParameterTooltip() {
         parameterTooltipDisposed = true;
-        parameterTooltip.hide();
+        parameterTooltip.tooltip().hide();
         uninstallParameterTooltipTargets();
-        tooltipLocalization = null;
+        parameterTooltip.clearLocalization();
         refreshParameterTooltipText();
     }
 
@@ -537,46 +540,9 @@ public final class NeuronView extends StackPane {
         }
     }
 
-    /** Оновлює підказку параметрами нейрона та додає кількість лише для самої структури. */
+    /** Оновлює графічну підказку відповідно до поточних параметрів нейрона та стану його шухлядки. */
     private void refreshParameterTooltipText() {
-        Neuron neuron = model();
-        String signalLabel = tooltipLocalization == null
-                ? "Signal strength"
-                : tooltipLocalization.text("neuron.settings.signal_strength");
-        String thresholdLabel = tooltipLocalization == null
-                ? "Activation threshold"
-                : tooltipLocalization.text("neuron.settings.activation_threshold");
-        String activeTicksLabel = tooltipLocalization == null
-                ? "Active ticks"
-                : tooltipLocalization.textFrom("i18n.neuronSettings", "active_ticks");
-        String delayLabel = tooltipLocalization == null
-                ? "Delay"
-                : tooltipLocalization.textFrom("i18n.neuronSettings", "delay");
-        String thresholdText = parameterLine(thresholdLabel, neuron.activationThreshold());
-        if (neuron.activationMode() == NeuronActivationMode.SIGNAL_COUNT) {
-            thresholdText += "%";
-        }
-        List<String> lines = new java.util.ArrayList<>(5);
-        if (neuron.type() == NeuronType.STRUCTURE) {
-            String countLabel = tooltipLocalization == null
-                    ? "Neuron count"
-                    : tooltipLocalization.textFrom("i18n.neuronSettings", "structure_neuron_count");
-            lines.add(parameterLine(countLabel, structureMemberCount));
-        }
-        lines.add(parameterLine(signalLabel, neuron.signalStrength()));
-        lines.add(thresholdText);
-        lines.add(parameterLine(activeTicksLabel, neuron.activeTicks()));
-        lines.add(parameterLine(delayLabel, neuron.delayTicks()));
-        parameterTooltip.setText(String.join("\n", lines));
-    }
-
-    /** Форматує рядок підказки як «назва параметра: значення», уніфікуючи двокрапки в підписах. */
-    private static String parameterLine(String label, int value) {
-        String normalizedLabel = label == null ? "" : label.strip();
-        while (normalizedLabel.endsWith(":")) {
-            normalizedLabel = normalizedLabel.substring(0, normalizedLabel.length() - 1).stripTrailing();
-        }
-        return normalizedLabel + ": " + value;
+        parameterTooltip.refresh(model(), structureMemberCount, isStructureDrawerExpanded());
     }
 
     /** Перераховує геометрію назви після зміни перетворень камери. */
@@ -629,7 +595,7 @@ public final class NeuronView extends StackPane {
             return;
         }
         if (selected) {
-            parameterTooltip.hide();
+            parameterTooltip.tooltip().hide();
             uninstallParameterTooltipTargets();
             return;
         }
@@ -641,7 +607,7 @@ public final class NeuronView extends StackPane {
     /** Встановлює спільну підказку лише на видимі інтерактивні вузли нейрона, оминаючи його дочірню шухлядку. */
     private void installParameterTooltipTargets() {
         for (Node target : parameterTooltipTargets) {
-            Tooltip.install(target, parameterTooltip);
+            Tooltip.install(target, parameterTooltip.tooltip());
         }
         parameterTooltipInstalled = true;
     }
@@ -652,13 +618,16 @@ public final class NeuronView extends StackPane {
             return;
         }
         for (Node target : parameterTooltipTargets) {
-            Tooltip.uninstall(target, parameterTooltip);
+            Tooltip.uninstall(target, parameterTooltip.tooltip());
         }
         parameterTooltipInstalled = false;
     }
 
     /** Повертає вузли, на яких встановлюється підказка, для регресійної перевірки межі наведення. */
     List<Node> parameterTooltipTargetsForTest() { return parameterTooltipTargets; }
+
+    /** Повертає графічний контейнер підказки для перевірки ієрархії типографічних елементів. */
+    VBox parameterTooltipContentForTest() { return parameterTooltip.contentForTest(); }
 
     /** Оновлює підпис назви над нейроном і приховує власну назву внутрішніх учасників структури. */
     private void refreshNameLabel() {
@@ -737,7 +706,7 @@ public final class NeuronView extends StackPane {
     }
 
     /** Повертає сформований текст підказки для перевірки формату в автоматизованих тестах. */
-    String parameterTooltipTextForTest() { return parameterTooltip.getText(); }
+    String parameterTooltipTextForTest() { return parameterTooltip.textForTest(); }
 
     /** Повертає факт встановлення підказки для перевірки поведінки вибраного нейрона. */
     boolean isParameterTooltipInstalledForTest() { return parameterTooltipInstalled; }
