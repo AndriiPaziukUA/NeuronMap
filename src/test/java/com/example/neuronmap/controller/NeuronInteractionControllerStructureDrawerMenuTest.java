@@ -22,8 +22,12 @@ import com.example.neuronmap.view.neuron.NeuronView;
 import com.example.neuronmap.view.neuron.RotationHandleView;
 import com.example.neuronmap.view.simulation.SimulationStepPresenter;
 import javafx.event.Event;
+import javafx.event.EventHandler;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
@@ -33,15 +37,15 @@ import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Locale;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє наскрізну дію контекстного меню структури та блокування її ручки обертання. */
+/** Перевіряє керування шухлядкою структури через меню й Enter, а також запуск імпульсу з фокусованого нейрона. */
 final class NeuronInteractionControllerStructureDrawerMenuTest {
 
     /** Перевіряє відкриття й закриття шухлядки через меню з одночасним обмеженням обертання. */
@@ -93,11 +97,46 @@ final class NeuronInteractionControllerStructureDrawerMenuTest {
         });
     }
 
-    /**
-     * Створює мінімальний граф редактора з реальним координатором подань та контролером взаємодії.
-     *
-     * @return залежності, підготовлені для наскрізної перевірки взаємодії зі структурою.
-     */
+    /** Перевіряє запуск імпульсу для нейрона й обидва напрями перемикання шухлядки клавішею Enter. */
+    @Test
+    void enterActivatesFocusedNeuronAndTogglesFocusedStructure() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            Fixture fixture = createFixture();
+            try {
+                var neuron = fixture.neuronService().create(NeuronType.EXCITATORY, 220.0, 180.0);
+                var structure = fixture.neuronService().create(NeuronType.STRUCTURE, 420.0, 180.0);
+                fixture.controller().loadViews();
+                NeuronView neuronView = fixture.neuronViews().get(neuron.id());
+                NeuronView structureView = fixture.neuronViews().get(structure.id());
+                assertNotNull(neuronView);
+                assertNotNull(structureView);
+                assertTrue(neuronView.isFocusTraversable());
+                assertTrue(structureView.isFocusTraversable());
+
+                int initialActivityEvents = fixture.simulationActivityEvents().get();
+                fireClick(neuronView, MouseButton.PRIMARY);
+                assertTrue(fireEnter(neuronView), "Enter має зупинити поширення після обробки нейрона");
+                assertTrue(fixture.simulationActivityEvents().get() > initialActivityEvents,
+                        "Enter на звичайному нейроні має запустити симуляційний імпульс");
+
+                int activityEventsAfterPulse = fixture.simulationActivityEvents().get();
+                fireClick(structureView, MouseButton.PRIMARY);
+                assertTrue(fireEnter(structureView), "Enter має зупинити поширення після перемикання шухлядки");
+                assertTrue(fixture.structureService().find(structure.id()).orElseThrow().isExpanded());
+                assertTrue(structureView.isStructureDrawerExpanded());
+
+                assertTrue(fireEnter(structureView), "Enter має зупинити поширення після перемикання шухлядки");
+                assertFalse(fixture.structureService().find(structure.id()).orElseThrow().isExpanded());
+                assertFalse(structureView.isStructureDrawerExpanded());
+                assertEquals(activityEventsAfterPulse, fixture.simulationActivityEvents().get(),
+                        "Перемикання шухлядки не повинно повторно запускати симуляцію");
+            } finally {
+                dispose(fixture);
+            }
+        });
+    }
+
+    /** Створює мінімальний граф редактора з реальним координатором подань та контролером взаємодії. */
     private static Fixture createFixture() {
         NeuronMapModel model = new NeuronMapModel();
         model.createNeuron(NeuronType.EXCITATORY, 100.0, 80.0);
@@ -168,11 +207,7 @@ final class NeuronInteractionControllerStructureDrawerMenuTest {
                 state, workspace, neuronViews, rotationHandles, simulationActivityEvents);
     }
 
-    /**
-     * Закриває контролери та фонові ресурси тестового редактора.
-     *
-     * @param fixture набір ресурсів тестового редактора.
-     */
+    /** Закриває контролери та фонові ресурси тестового редактора. */
     private static void dispose(Fixture fixture) {
         fixture.controller().dispose();
         fixture.simulation().shutdown();
@@ -180,25 +215,14 @@ final class NeuronInteractionControllerStructureDrawerMenuTest {
         fixture.mainMenu().dispose();
     }
 
-    /**
-     * Надсилає повний цикл подій миші до вказаного нейронного подання.
-     *
-     * @param neuronView подання, на яке спрямовано клацання.
-     * @param button кнопка миші, що виконує клацання.
-     */
+    /** Надсилає повний цикл подій миші до вказаного нейронного подання. */
     private static void fireClick(NeuronView neuronView, MouseButton button) {
         fireMouseEvent(neuronView, MouseEvent.MOUSE_PRESSED, button);
         fireMouseEvent(neuronView, MouseEvent.MOUSE_RELEASED, button);
         fireMouseEvent(neuronView, MouseEvent.MOUSE_CLICKED, button);
     }
 
-    /**
-     * Надсилає одиночну подію миші без залежності від фізичного пристрою введення.
-     *
-     * @param neuronView подання, до якого надсилається подія.
-     * @param type тип події миші.
-     * @param button кнопка миші, зазначена в події.
-     */
+    /** Надсилає одиночну подію миші без залежності від фізичного пристрою введення. */
     private static void fireMouseEvent(NeuronView neuronView, javafx.event.EventType<MouseEvent> type,
                                        MouseButton button) {
         MouseEvent event = new MouseEvent(
@@ -209,12 +233,25 @@ final class NeuronInteractionControllerStructureDrawerMenuTest {
         Event.fireEvent(neuronView, event);
     }
 
-    /**
-     * Знаходить первинну кнопку керування шухлядкою в меню структури.
-     *
-     * @param workspace полотно, у шарі накладок якого розміщено меню.
-     * @return кнопку перемикання шухлядки відкритої структури.
-     */
+    /** Надсилає Enter до нейрона й перевіряє, що спожита подія не доходить до батьківського вузла. */
+    private static boolean fireEnter(NeuronView neuronView) {
+        Parent parent = neuronView.getParent();
+        assertNotNull(parent, "Нейронне подання має бути приєднане до дерева JavaFX");
+        boolean[] reachedParent = {false};
+        EventHandler<KeyEvent> parentObserver = ignored -> reachedParent[0] = true;
+        parent.addEventHandler(KeyEvent.KEY_PRESSED, parentObserver);
+        try {
+            KeyEvent event = new KeyEvent(
+                    neuronView, neuronView, KeyEvent.KEY_PRESSED, "", "", KeyCode.ENTER,
+                    false, false, false, false);
+            Event.fireEvent(neuronView, event);
+            return !reachedParent[0];
+        } finally {
+            parent.removeEventHandler(KeyEvent.KEY_PRESSED, parentObserver);
+        }
+    }
+
+    /** Знаходить первинну кнопку керування шухлядкою в меню структури. */
     private static Button findDrawerButton(WorkspaceView workspace) {
         VBox menu = workspace.overlayLayer().getChildren().stream()
                 .filter(VBox.class::isInstance)
@@ -231,7 +268,8 @@ final class NeuronInteractionControllerStructureDrawerMenuTest {
                 .orElseThrow();
     }
 
-    /** Зберігає залежності й подання, потрібні тестовому сценарію.
+    /**
+     * Зберігає залежності й подання, потрібні тестовим сценаріям.
      *
      * @param controller контролер взаємодії з нейронами.
      * @param simulation контролер симуляції для завершення його життєвого циклу.

@@ -5,9 +5,13 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.service.StructureService;
 import com.example.neuronmap.view.neuron.NeuronView;
 import com.example.neuronmap.view.neuron.RotationHandleView;
+import com.example.neuronmap.view.support.EditorKeyboardShortcutBoundary;
 import com.example.neuronmap.view.support.JavaFxNodeLookup;
+import com.example.neuronmap.view.support.SceneKeyboardModality;
 import javafx.event.EventHandler;
 import javafx.scene.control.Control;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 
@@ -122,8 +126,8 @@ public final class NeuronInteractionController {
     }
 
     /**
-     * Встановлює обробники подій на поданні нейрона й ручці обертання та зберігає їх для від'єднання.
-     * Перетягування перевіряє актуальний стан закріплення, тому внутрішні нейрони залишаються нерухомими.
+     * Встановлює обробники подій на поданні нейрона, ручці обертання та клавіатурному фокусі.
+     * Enter обробляється лише тоді, коли фокус належить самому поданню, а не вкладеному елементу.
      * Повторне встановлення на те саме подання не створює дубльованих обробників.
      *
      * @param neuronView подання нейрона, події якого обробляються.
@@ -140,6 +144,7 @@ public final class NeuronInteractionController {
         }
         rotationController.installHandleHandlers(neuronView, rotationHandle);
         neuronView.configureParameterTooltipLocalization(localization);
+        neuronView.setFocusTraversable(true);
         EventHandler<MouseEvent> pressed = event -> dragController.handlePressed(neuronView, event);
         EventHandler<MouseEvent> dragged = event -> {
             if (neuronView.isStructureMember()) {
@@ -156,15 +161,18 @@ public final class NeuronInteractionController {
             }
         };
         EventHandler<MouseEvent> clicked = event -> handleNeuronClicked(neuronView, event);
+        EventHandler<KeyEvent> keyPressed = event -> handleNeuronKeyPressed(neuronView, event);
         neuronView.addEventHandler(MouseEvent.MOUSE_PRESSED, pressed);
         neuronView.addEventHandler(MouseEvent.MOUSE_DRAGGED, dragged);
         neuronView.addEventHandler(MouseEvent.MOUSE_RELEASED, released);
         neuronView.addEventHandler(MouseEvent.MOUSE_CLICKED, clicked);
-        neuronHandlers.put(neuronView, new NeuronHandlers(rotationHandle, pressed, dragged, released, clicked));
+        neuronView.addEventHandler(KeyEvent.KEY_PRESSED, keyPressed);
+        neuronHandlers.put(neuronView,
+                new NeuronHandlers(rotationHandle, pressed, dragged, released, clicked, keyPressed));
     }
 
     /**
-     * Від'єднує обробники та підказку параметрів перед вилученням подання з карти.
+     * Від'єднує обробники миші й клавіатури та підказку перед вилученням подання з карти.
      *
      * @param neuronView подання нейрона; {@code null} дозволено, якщо потрібно зняти лише ручку.
      * @param rotationHandle пов'язана ручка обертання, якщо її потрібно від'єднати окремо.
@@ -177,6 +185,8 @@ public final class NeuronInteractionController {
             neuronView.removeEventHandler(MouseEvent.MOUSE_DRAGGED, handlers.draggedHandler());
             neuronView.removeEventHandler(MouseEvent.MOUSE_RELEASED, handlers.releasedHandler());
             neuronView.removeEventHandler(MouseEvent.MOUSE_CLICKED, handlers.clickedHandler());
+            neuronView.removeEventHandler(KeyEvent.KEY_PRESSED, handlers.keyPressedHandler());
+            neuronView.setFocusTraversable(false);
             neuronView.disposeParameterTooltip();
             rotationController.uninstallHandleHandlers(handlers.rotationHandle());
         } else if (rotationHandle != null) {
@@ -271,7 +281,7 @@ public final class NeuronInteractionController {
         return deletionController.deleteSelectedNeurons();
     }
 
-    /** Знімає обробники й підказки подань та звільняє меню, обертання, перетягування і буфер обміну. */
+    /** Знімає обробники миші й клавіатури, підказки та звільняє контролери взаємодії. */
     public void dispose() {
         if (disposed) {
             return;
@@ -285,6 +295,8 @@ public final class NeuronInteractionController {
             view.removeEventHandler(MouseEvent.MOUSE_DRAGGED, handlers.draggedHandler());
             view.removeEventHandler(MouseEvent.MOUSE_RELEASED, handlers.releasedHandler());
             view.removeEventHandler(MouseEvent.MOUSE_CLICKED, handlers.clickedHandler());
+            view.removeEventHandler(KeyEvent.KEY_PRESSED, handlers.keyPressedHandler());
+            view.setFocusTraversable(false);
             view.disposeParameterTooltip();
         });
         neuronHandlers.clear();
@@ -292,9 +304,15 @@ public final class NeuronInteractionController {
         state.clearTransientModes();
     }
 
-    /** Обробляє клацання, подвійним кліком відкриваючи шухлядку структури замість активації пульсу. */
+    /**
+     * Обробляє клацання по власному тілу нейрона, подвійним кліком активуючи нейрон або шухлядку.
+     * Одинарний лівий клік передає клавіатурний фокус самому нейрону, а не його контейнеру-предку.
+     *
+     * @param neuronView подання, обробник якого отримав подію.
+     * @param event подія клацання миші.
+     */
     private void handleNeuronClicked(NeuronView neuronView, MouseEvent event) {
-        if (disposed) {
+        if (disposed || JavaFxNodeLookup.findAncestor(event.getTarget(), NeuronView.class) != neuronView) {
             return;
         }
         if (event.getButton() == MouseButton.SECONDARY) {
@@ -309,6 +327,7 @@ public final class NeuronInteractionController {
         if (event.getButton() != MouseButton.PRIMARY) {
             return;
         }
+        neuronView.requestFocus();
         if (event.getClickCount() == 2 && !neuronView.wasDragged() && state.isIdle()) {
             if (neuronView.hasStructureDrawer()) {
                 toggleStructureDrawerAndRefresh(neuronView);
@@ -330,8 +349,34 @@ public final class NeuronInteractionController {
     }
 
     /**
+     * Виконує команду Enter для нейрона, який сам є ціллю клавіатурної події.
+     * Структура перемикає шухлядку тим самим сценарієм, що й контекстне меню; звичайний нейрон
+     * запускає ручний імпульс через контролер симуляції. Текстові та модальні області не перехоплюються.
+     *
+     * @param neuronView подання, яке отримало клавіатурний фокус.
+     * @param event подія натискання клавіші.
+     */
+    private void handleNeuronKeyPressed(NeuronView neuronView, KeyEvent event) {
+        if (disposed || event.isConsumed() || event.getCode() != KeyCode.ENTER
+                || event.isShiftDown() || event.isControlDown() || event.isAltDown() || event.isMetaDown()
+                || event.getTarget() != neuronView
+                || EditorKeyboardShortcutBoundary.blocksShortcutsFor(event.getTarget())
+                || SceneKeyboardModality.hasActiveBoundaryFor(event.getTarget())
+                || !state.isIdle()) {
+            return;
+        }
+        if (neuronView.hasStructureDrawer()) {
+            toggleStructureDrawerAndRefresh(neuronView);
+        } else {
+            rotationController.hideAll();
+            simulation.emitPulse(neuronView.model().id());
+        }
+        event.consume();
+    }
+
+    /**
      * Перемикає шухлядку структури, після чого синхронізує залежні зв'язки та положення накладок.
-     * Цей самий сценарій використовується кнопкою меню й подвійним клацанням по структурі.
+     * Цей самий сценарій використовується кнопкою меню, подвійним клацанням і клавішею Enter.
      *
      * @param neuronView подання структури, шухлядку якої потрібно перемкнути.
      */
@@ -390,12 +435,13 @@ public final class NeuronInteractionController {
         }
     }
 
-    /** Зберігає посилання на подієві підписки конкретного подання, щоб потім зняти саме їх. */
+    /** Зберігає подієві підписки кожного подання, щоб від'єднати їх разом із відповідною ручкою обертання. */
     private record NeuronHandlers(
             RotationHandleView rotationHandle,
             EventHandler<MouseEvent> pressedHandler,
             EventHandler<MouseEvent> draggedHandler,
             EventHandler<MouseEvent> releasedHandler,
-            EventHandler<MouseEvent> clickedHandler
+            EventHandler<MouseEvent> clickedHandler,
+            EventHandler<KeyEvent> keyPressedHandler
     ) { }
 }

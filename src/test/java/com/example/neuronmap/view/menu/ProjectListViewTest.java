@@ -4,6 +4,10 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.project.ProjectDescriptor;
 import javafx.application.Platform;
 import javafx.event.Event;
+import javafx.event.EventHandler;
+import javafx.scene.Parent;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import org.junit.jupiter.api.BeforeAll;
@@ -25,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє вибір збережених проєктів, відкриття подвійним кліком і стилі постійного вибору. */
+/** Перевіряє вибір проєктів мишею та клавіатурою, відкриття й стилі постійного вибору. */
 final class ProjectListViewTest {
 
     /** Запускає JavaFX toolkit перед створенням компонентів списку. */
@@ -52,6 +56,7 @@ final class ProjectListViewTest {
                 assertTrue(rows.get(0).isSelected());
                 assertFalse(rows.get(1).isSelected());
                 assertTrue(rows.get(0).getStyleClass().contains("selected"));
+                assertTrue(rows.get(0).isFocusTraversable());
                 assertNull(openedProject.get());
             } finally {
                 list.dispose();
@@ -92,6 +97,42 @@ final class ProjectListViewTest {
                 assertTrue(rows.get(1).isSelected());
                 assertFalse(rows.get(0).isSelected());
                 assertNotNull(openedProject.get(), "Подвійний клік має викликати відкриття проєкту");
+                assertEquals("project-two", openedProject.get().id());
+            } finally {
+                list.dispose();
+            }
+        });
+    }
+
+    /** Перевіряє роботу W/S, стрілок і Enter без передавання навігаційних клавіш прокручуванню. */
+    @Test
+    void keyboardNavigationMovesSelectionAndEnterOpensFocusedProject() throws Exception {
+        runOnFxThread(() -> {
+            AtomicReference<ProjectDescriptor> openedProject = new AtomicReference<>();
+            ProjectListView list = createList(openedProject);
+            try {
+                List<SavedProjectRowView> rows = list.rowsForTest();
+                fireMouseClick(rows.get(0), 1);
+
+                assertTrue(fireKeyPress(rows.get(0), KeyCode.DOWN), "Стрілка вниз має зупинити подальше поширення");
+                assertTrue(rows.get(1).isSelected());
+                assertFalse(rows.get(0).isSelected());
+                assertNull(openedProject.get());
+
+                assertTrue(fireKeyPress(rows.get(1), KeyCode.W), "W має зупинити подальше поширення");
+                assertTrue(rows.get(0).isSelected());
+                assertTrue(fireKeyPress(rows.get(0), KeyCode.S), "S має зупинити подальше поширення");
+                assertTrue(rows.get(1).isSelected());
+                assertTrue(fireKeyPress(rows.get(1), KeyCode.UP), "Стрілка вгору має зупинити подальше поширення");
+                assertTrue(rows.get(0).isSelected());
+
+                assertTrue(fireKeyPress(rows.get(0), KeyCode.UP), "Стрілка вгору має оброблятися і на верхній межі");
+                assertTrue(rows.get(0).isSelected(), "Вихід за верхню межу не повинен скидати фокус");
+                assertTrue(fireKeyPress(rows.get(1), KeyCode.DOWN), "Стрілка вниз має оброблятися і на нижній межі");
+                assertTrue(rows.get(1).isSelected(), "Вихід за нижню межу не повинен прокручувати список");
+
+                assertTrue(fireKeyPress(rows.get(1), KeyCode.ENTER), "Enter має зупинити подальше поширення після відкриття проєкту");
+                assertNotNull(openedProject.get());
                 assertEquals("project-two", openedProject.get().id());
             } finally {
                 list.dispose();
@@ -141,6 +182,24 @@ final class ProjectListViewTest {
                 false, false, true, null
         );
         Event.fireEvent(row, event);
+    }
+
+    /** Надсилає клавішу рядку й перевіряє, що оброблена подія не доходить до батьківського вузла. */
+    private static boolean fireKeyPress(SavedProjectRowView row, KeyCode code) {
+        Parent parent = row.getParent();
+        assertNotNull(parent, "Рядок проєкту має бути приєднаний до дерева JavaFX");
+        boolean[] reachedParent = {false};
+        EventHandler<KeyEvent> parentObserver = ignored -> reachedParent[0] = true;
+        parent.addEventHandler(KeyEvent.KEY_PRESSED, parentObserver);
+        try {
+            KeyEvent event = new KeyEvent(
+                    row, row, KeyEvent.KEY_PRESSED, "", "", code,
+                    false, false, false, false);
+            Event.fireEvent(row, event);
+            return !reachedParent[0];
+        } finally {
+            parent.removeEventHandler(KeyEvent.KEY_PRESSED, parentObserver);
+        }
     }
 
     /** Виконує дію в JavaFX Application Thread і передає помилку тесту до потоку JUnit. */

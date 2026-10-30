@@ -25,7 +25,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 /**
- * Відображає рядок збереженого проєкту: окремий клік вибирає його, подвійний — відкриває.
+ * Відображає рядок збереженого проєкту: клік вибирає його, а подвійний клік або Enter відкриває.
  * Рядок також керує діями перейменування й видалення через callback-и, не виконуючи операцій сховища.
  */
 public final class SavedProjectRowView extends HBox {
@@ -35,7 +35,6 @@ public final class SavedProjectRowView extends HBox {
 
     private final LocalizationService localization;
     private final Consumer<ProjectDescriptor> openAction;
-    private final Consumer<SavedProjectRowView> selectAction;
     private final BiFunction<ProjectDescriptor, String, ProjectDescriptor> renameAction;
     private final Runnable renameCommitted;
     private final SavedProjectRenameEditor renameEditor = new SavedProjectRenameEditor();
@@ -57,7 +56,7 @@ public final class SavedProjectRowView extends HBox {
      *
      * @param project опис проєкту, який показує цей рядок.
      * @param localization служба локалізації підписів, підказок і дат.
-     * @param openAction дія відкриття проєкту після подвійного кліку.
+     * @param openAction дія відкриття проєкту після подвійного кліку або Enter.
      * @param renameAction дія збереження нової назви з поверненням оновленого опису.
      * @param deleteAction дія видалення проєкту.
      * @param renameCommitted дія, що викликається після підтвердження перейменування.
@@ -78,7 +77,7 @@ public final class SavedProjectRowView extends HBox {
      *
      * @param project опис проєкту, який показує цей рядок.
      * @param localization служба локалізації підписів, підказок і дат.
-     * @param openAction дія відкриття проєкту після подвійного кліку.
+     * @param openAction дія відкриття проєкту після подвійного кліку або Enter.
      * @param renameAction дія збереження нової назви з поверненням оновленого опису.
      * @param deleteAction дія видалення проєкту.
      * @param renameCommitted дія, що викликається після підтвердження перейменування.
@@ -99,13 +98,14 @@ public final class SavedProjectRowView extends HBox {
         this.renameAction = Objects.requireNonNull(renameAction, "renameAction");
         Objects.requireNonNull(deleteAction, "deleteAction");
         this.renameCommitted = Objects.requireNonNull(renameCommitted, "renameCommitted");
-        this.selectAction = Objects.requireNonNull(selectAction, "selectAction");
+        Objects.requireNonNull(selectAction, "selectAction");
 
         getStyleClass().add("saved-project-row");
         setAlignment(Pos.CENTER_LEFT);
         setSpacing(8.0);
         setPadding(new Insets(9.0, 10.0, 9.0, 10.0));
         setMaxWidth(Double.MAX_VALUE);
+        setFocusTraversable(true);
 
         modifiedLabel.getStyleClass().add("saved-project-date");
         modifiedLabel.setMinWidth(MODIFIED_DATE_WIDTH);
@@ -138,8 +138,9 @@ public final class SavedProjectRowView extends HBox {
                 return;
             }
             selectAction.accept(this);
+            requestFocus();
             if (event.getClickCount() == 2) {
-                openAction.accept(this.project);
+                openProject();
             }
         });
 
@@ -290,6 +291,15 @@ public final class SavedProjectRowView extends HBox {
     }
 
     /**
+     * Відкриває проєкт через callback власника рядка, якщо користувач не редагує його назву.
+     */
+    void openProject() {
+        if (!isEditing()) {
+            openAction.accept(project);
+        }
+    }
+
+    /**
      * Обчислює ширину, потрібну для повного розміщення всіх керованих дочірніх елементів рядка.
      *
      * <p>Значення враховує природну ширину текстової мітки або кнопок у поточному режимі, а не лише
@@ -336,7 +346,7 @@ public final class SavedProjectRowView extends HBox {
         return false;
     }
 
-    /** Вмикає режим редагування, доручаючи створення й керування полем спеціалізованому поданню. */
+    /** Вмикає режим перейменування, доручаючи створення й керування полем спеціалізованому поданню. */
     private void beginRename() {
         int nameIndex = getChildren().indexOf(nameLabel);
         TextField editorField = renameEditor.begin(project.name(), this::commitRename);
