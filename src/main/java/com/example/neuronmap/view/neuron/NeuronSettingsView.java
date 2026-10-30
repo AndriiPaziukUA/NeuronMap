@@ -48,6 +48,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     private static final String LOCALIZATION_BUNDLE = "i18n.neuronSettings";
     private static final String SETTINGS_BUNDLE_KEY_PREFIX = "i18n.neuronSettings.";
     private static final double INPUT_COLUMN_WIDTH = 160.0;
+    private static final double NUMERIC_INPUT_COLUMN_WIDTH = INPUT_COLUMN_WIDTH * 2.0 / 3.0;
 
     /** Збережені значення форми, включно з кількістю учасників структури. */
     @FunctionalInterface
@@ -191,7 +192,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
      * Для звичайного нейрона поле кількості й режим конкуренції приховані, а callback отримує {@code -1} і {@code false}.
      *
      * @param applicationRoot кореневий контейнер для внутрішніх накладок.
-     * @param neuron нейрон, значення якого редагують.
+     * @param neuron нейрон, параметри якого редагують.
      * @param currentMemberCount актуальна кількість безпосередніх учасників структури.
      * @param onSave дія застосування перевірених параметрів, назви та значень структури.
      * @throws NullPointerException якщо будь-який обов'язковий аргумент не задано.
@@ -360,7 +361,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         return createSettingRow(labelKey, labelText(labelKey), control);
     }
 
-    /** Створює рядок із уже локалізованим підписом, зберігаючи ключ для подальшої зміни мови. */
+    /** Створює рядок із локалізованим підписом; числові поля компактніші, а перемикач не займає зайву ширину. */
     private HBox createSettingRow(String labelKey, String initialLabelText, Node control) {
         Label label = new Label(initialLabelText);
         settingLabels.put(labelKey, label);
@@ -374,10 +375,14 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
             textField.getStyleClass().add("neuron-settings-field");
             textField.setPrefColumnCount(10);
         }
-        if (control instanceof Region region) {
-            region.setMinWidth(INPUT_COLUMN_WIDTH);
-            region.setPrefWidth(INPUT_COLUMN_WIDTH);
-            region.setMaxWidth(INPUT_COLUMN_WIDTH);
+        if (control instanceof Region region
+                && control != settingsForm.strongestNeuronOnlyToggle()) {
+            double controlWidth = control instanceof TextField textField && textField != nameField
+                    ? NUMERIC_INPUT_COLUMN_WIDTH
+                    : INPUT_COLUMN_WIDTH;
+            region.setMinWidth(controlWidth);
+            region.setPrefWidth(controlWidth);
+            region.setMaxWidth(controlWidth);
         }
         HBox row = new HBox(16.0, label, control);
         row.setAlignment(Pos.CENTER_LEFT);
@@ -422,6 +427,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         applyCss();
         panel.applyCss();
         settingsRows.applyCss();
+        stabilizeActivationSelectorHeight();
         ContentSizedButtonPair.sizeToLargestContent(saveButton, cancelButton);
         settingsLayout.updateViewportHeight();
         requestLayout();
@@ -431,6 +437,21 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         requestLayout();
         applicationRoot.requestLayout();
         applicationRoot.layout();
+    }
+
+    /**
+     * Фіксує висоту селектора за його початковим CSS-розміром, щоб зміна вибраного режиму
+     * або стану фокуса не змінювала висоту рядка параметра.
+     */
+    private void stabilizeActivationSelectorHeight() {
+        activationModeSelector.applyCss();
+        double preferredHeight = activationModeSelector.prefHeight(-1.0);
+        if (!Double.isFinite(preferredHeight) || preferredHeight <= 0.0) {
+            return;
+        }
+        activationModeSelector.setMinHeight(preferredHeight);
+        activationModeSelector.setPrefHeight(preferredHeight);
+        activationModeSelector.setMaxHeight(preferredHeight);
     }
 
     /**

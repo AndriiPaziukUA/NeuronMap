@@ -119,8 +119,8 @@
 }
 
 .neuron-settings-overlay .neuron-settings-strongest-toggle:selected .neuron-settings-strongest-track {
-    -fx-fill: #56b9f5;
-    -fx-stroke: #8bd3ff;
+    -fx-fill: #245bd7;
+    -fx-stroke: #4b83ff;
 }
 
 .neuron-settings-overlay .neuron-settings-strongest-thumb {

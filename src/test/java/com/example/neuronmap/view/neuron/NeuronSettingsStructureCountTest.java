@@ -7,7 +7,11 @@ import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.testsupport.JavaFxTestSupport;
 import javafx.scene.Scene;
+import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
 import org.junit.jupiter.api.Test;
 
 import java.util.Locale;
@@ -18,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє окремі поля структури, їхню валідацію та відсутність у налаштуваннях звичайного нейрона. */
+/** Перевіряє окремі поля структури, їхню валідацію, компонування та відсутність у звичайного нейрона. */
 final class NeuronSettingsStructureCountTest {
 
     /** Перевіряє завантаження поточної кількості, мінімум і передавання збільшеної цілі. */
@@ -130,6 +134,48 @@ final class NeuronSettingsStructureCountTest {
             assertFalse(view.strongestNeuronOnlyToggleForTest().isSelected());
             view.saveButtonForTest().fire();
             assertFalse(savedFlag.get());
+            view.dispose();
+        });
+    }
+
+    /** Перевіряє використання вільної ширини підписом, компактність числових полів і стиль перемикача. */
+    @Test
+    void usesAvailableLabelWidthAndRightAlignsBlueStructureToggle() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            NeuronSettingsView view = new NeuronSettingsView(new LocalizationService(Locale.forLanguageTag("uk")));
+            StackPane root = new StackPane();
+            new Scene(root, 1000.0, 800.0);
+            view.showWithStructureSettingsIn(root, neuron("settings-layout", NeuronType.STRUCTURE), 2,
+                    (_, _, _, _) -> { });
+            view.strongestNeuronOnlyToggleForTest().setSelected(true);
+            root.applyCss();
+            root.layout();
+
+            HBox strongestRow = view.strongestNeuronOnlyRowForTest();
+            Label strongestLabel = (Label) strongestRow.getChildren().getFirst();
+            var toggle = view.strongestNeuronOnlyToggleForTest();
+            assertTrue(strongestLabel.getWidth() >= strongestLabel.prefWidth(-1) - 0.5,
+                    "Підпис має використовувати вільний простір замість непотрібного перенесення тексту");
+            assertEquals(strongestRow.getWidth() - strongestRow.getInsets().getRight(),
+                    toggle.getLayoutX() + toggle.getWidth(), 1.0,
+                    "Перемикач має прилягати до правого краю рядка");
+            assertTrue(toggle.getWidth() < 100.0,
+                    "Перемикач не повинен займати ширину текстового поля");
+
+            double expectedNumericWidth = 160.0 * 2.0 / 3.0;
+            assertEquals(expectedNumericWidth, view.signalFieldForTest().getPrefWidth(), 0.1);
+            assertEquals(expectedNumericWidth, view.thresholdFieldForTest().getPrefWidth(), 0.1);
+            assertEquals(expectedNumericWidth, view.activeTicksFieldForTest().getPrefWidth(), 0.1);
+            assertEquals(expectedNumericWidth, view.delayTicksFieldForTest().getPrefWidth(), 0.1);
+            assertEquals(expectedNumericWidth, view.structureMemberCountFieldForTest().getPrefWidth(), 0.1);
+            assertEquals(160.0, view.nameFieldForTest().getPrefWidth(), 0.1,
+                    "Ширина текстового поля назви не повинна змінюватися");
+            assertEquals(160.0, view.activationModeSelectorForTest().getPrefWidth(), 0.1,
+                    "Ширина списку режимів активації не повинна змінюватися");
+
+            Rectangle track = (Rectangle) toggle.lookup(".neuron-settings-strongest-track");
+            assertEquals(Color.web("#245bd7"), track.getFill());
+            assertEquals(Color.web("#4b83ff"), track.getStroke());
             view.dispose();
         });
     }

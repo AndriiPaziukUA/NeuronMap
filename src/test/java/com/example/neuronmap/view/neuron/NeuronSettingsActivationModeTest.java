@@ -7,11 +7,13 @@ import com.example.neuronmap.model.NeuronActivationMode;
 import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronType;
 import com.example.neuronmap.testsupport.JavaFxTestSupport;
-import org.junit.jupiter.api.Test;
+import javafx.css.PseudoClass;
 import javafx.event.ActionEvent;
 import javafx.scene.Scene;
 import javafx.scene.control.ComboBox;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -73,6 +75,45 @@ final class NeuronSettingsActivationModeTest {
                 "Правило наведення на вибрану комірку має явно перекривати selected-стан");
         assertTrue(stylesheet.contains("-fx-background-color: #343a43;"),
                 "Колір наведення має збігатися з підсвічуванням пунктів у меню мови");
+    }
+
+    /** Перевіряє незмінну висоту рядка під час переходу між режимами після закриття списку. */
+    @Test
+    void keepsActivationRowHeightStableWhenSelectedModeChanges() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            StackPane root = new StackPane();
+            new Scene(root, 900.0, 600.0);
+            NeuronSettingsView view = new NeuronSettingsView(
+                    new LocalizationService(Locale.forLanguageTag("uk")));
+            view.showIn(root, new Neuron("layout", NeuronType.EXCITATORY, 0), ignored -> { });
+            root.applyCss();
+            root.layout();
+
+            ComboBox<NeuronActivationMode> selector = view.activationModeSelectorForTest();
+            HBox activationRow = (HBox) selector.getParent();
+            double initialRowHeight = activationRow.getHeight();
+            double initialSelectorHeight = selector.getHeight();
+            assertTrue(initialRowHeight > 0.0, "Рядок має бути виміряний після початкового layout");
+            assertTrue(initialSelectorHeight > 0.0, "Селектор має бути виміряний після початкового layout");
+
+            selector.pseudoClassStateChanged(PseudoClass.getPseudoClass("showing"), true);
+            root.applyCss();
+            root.layout();
+            for (NeuronActivationMode mode : NeuronActivationMode.values()) {
+                selector.setValue(mode);
+                selector.fireEvent(new ActionEvent());
+                selector.pseudoClassStateChanged(PseudoClass.getPseudoClass("showing"), false);
+                selector.pseudoClassStateChanged(PseudoClass.getPseudoClass("focused"), true);
+                root.applyCss();
+                root.layout();
+
+                assertEquals(initialSelectorHeight, selector.getHeight(), 0.1,
+                        "Висота селектора не повинна залежати від вибраного режиму");
+                assertEquals(initialRowHeight, activationRow.getHeight(), 0.1,
+                        "Рядок параметра не повинен змінювати висоту після вибору режиму");
+            }
+            view.hide();
+        });
     }
 
     /** Перевіряє, що нульовий відсоток можна зберегти лише в режимі кількості сигналів. */
