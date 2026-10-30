@@ -42,6 +42,7 @@ public final class NeuronMenuController {
     private VBox menu;
     private String activeNeuronId;
     private NeuronView activeNeuronView;
+    private Runnable activeStructureDrawerToggleAction;
     private boolean disposed;
 
     /**
@@ -163,15 +164,28 @@ public final class NeuronMenuController {
     }
 
     /**
-     * Розміщує й показує контекстне меню біля вказаного нейрона.
+     * Розміщує й показує контекстне меню біля вказаного нейрона без спеціальної дії структури.
      * Для внутрішніх нейронів структури приховує кнопки зміни напрямку, типу та налаштувань.
      *
      * @param neuronView візуальне подання нейрона, для якого відкривається меню.
      */
     public void show(NeuronView neuronView) {
+        show(neuronView, null);
+    }
+
+    /**
+     * Розміщує контекстне меню та за потреби під'єднує первинну дію перемикання шухлядки структури.
+     * Звичайні нейрони й надалі використовують кнопку активації імпульсу.
+     *
+     * @param neuronView візуальне подання нейрона, для якого відкривається меню.
+     * @param structureDrawerToggleAction дія перемикання шухлядки; {@code null} для звичайного нейрона.
+     * @throws NullPointerException якщо подання нейрона не задано.
+     */
+    public void show(NeuronView neuronView, Runnable structureDrawerToggleAction) {
         ensureNotDisposed();
         Objects.requireNonNull(neuronView, "neuronView");
         hide();
+        activeStructureDrawerToggleAction = structureDrawerToggleAction;
         String neuronId = neuronView.model().id();
         state.setSelectedNeuronForMenu(neuronId);
         activeNeuronId = neuronId;
@@ -180,13 +194,23 @@ public final class NeuronMenuController {
         NeuronContextMenuView menuView = new NeuronContextMenuView(
                 localization,
                 neuronMenuView::customizeMenuButton,
-                neuronMenuView::createDirectionButton
+                () -> neuronMenuView.createDirectionButton(neuronView::isDirectionReversed)
         );
         menu = menuView.createMenu(
                 connections.hasConnections(neuronId),
                 neuronView.isStructureMember(),
+                neuronView.hasStructureDrawer(),
+                neuronView::isStructureDrawerExpanded,
                 new NeuronContextMenuView.Actions(
-                        () -> simulation.emitPulse(neuronId),
+                        () -> {
+                            if (neuronView.hasStructureDrawer()) {
+                                if (structureDrawerToggleAction != null) {
+                                    structureDrawerToggleAction.run();
+                                }
+                            } else {
+                                simulation.emitPulse(neuronId);
+                            }
+                        },
                         () -> {
                             hide();
                             connections.beginCreate(neuronId);
@@ -238,7 +262,7 @@ public final class NeuronMenuController {
         save.run();
     }
 
-    /** Приховує контекстне меню й очищує тимчасовий стан поточного нейрона. */
+    /** Приховує контекстне меню й очищує тимчасовий стан поточного нейрона та його дії структури. */
     public void hide() {
         settingsOverlayCoordinator.hide();
         if (menu != null) {
@@ -247,6 +271,7 @@ public final class NeuronMenuController {
         }
         activeNeuronId = null;
         activeNeuronView = null;
+        activeStructureDrawerToggleAction = null;
         state.setSelectedNeuronForMenu(null);
     }
 
@@ -284,7 +309,7 @@ public final class NeuronMenuController {
     }
 
     /**
-     * Перебудовує відкрите меню після зміни локалі, щоб підказки й доступні назви відповідали новій мові.
+     * Перебудовує відкрите меню після зміни локалі, зберігаючи активну дію шухлядки структури.
      * Приховане меню не чіпає: наступний показ і так створить його з актуальними перекладами.
      *
      * @param ignoredLocale нова локаль, яку застосувала спільна служба локалізації.
@@ -293,7 +318,7 @@ public final class NeuronMenuController {
         if (disposed || !isVisible() || activeNeuronView == null) {
             return;
         }
-        show(activeNeuronView);
+        show(activeNeuronView, activeStructureDrawerToggleAction);
     }
 
     /**
@@ -305,9 +330,11 @@ public final class NeuronMenuController {
     private void showNeuronSettings(String neuronId) {
         ensureNotDisposed();
         NeuronView neuronView = activeNeuronView;
+        Runnable structureDrawerToggleAction = activeStructureDrawerToggleAction;
         neuronService.find(neuronId).ifPresent(neuron -> {
             hide();
-            Runnable onClose = () -> restoreMenuAfterSettingsClosed(neuronId, neuronView);
+            Runnable onClose = () -> restoreMenuAfterSettingsClosed(
+                    neuronId, neuronView, structureDrawerToggleAction);
             if (neuron.type() == NeuronType.STRUCTURE) {
                 settingsOverlayCoordinator.showWithStructureSettings(
                         neuron,
@@ -343,14 +370,19 @@ public final class NeuronMenuController {
      *
      * @param neuronId ідентифікатор нейрона, для якого відкривали налаштування.
      * @param neuronView попереднє графічне подання нейрона.
+     * @param structureDrawerToggleAction дія перемикання шухлядки для відновленого меню.
      */
-    private void restoreMenuAfterSettingsClosed(String neuronId, NeuronView neuronView) {
+    private void restoreMenuAfterSettingsClosed(
+            String neuronId,
+            NeuronView neuronView,
+            Runnable structureDrawerToggleAction
+    ) {
         if (disposed
                 || neuronView == null
                 || !workspace.nodeLayer().getChildren().contains(neuronView)
                 || neuronService.find(neuronId).isEmpty()) {
             return;
         }
-        show(neuronView);
+        show(neuronView, structureDrawerToggleAction);
     }
 }

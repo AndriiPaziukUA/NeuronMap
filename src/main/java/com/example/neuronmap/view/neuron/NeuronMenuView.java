@@ -7,6 +7,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ContentDisplay;
 
 import java.util.Objects;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -23,7 +24,8 @@ public final class NeuronMenuView {
      * Створює подання меню з переданими залежностями та спільною службою локалізації.
      *
      * @param selectedNeuronIdSupplier функція, що повертає ідентифікатор нейрона для контекстного меню.
-     * @param directionAction callback, який передає ідентифікатор нейрона контролеру для зміни напрямку; {@code null} приховує цю дію.
+     * @param directionAction callback, який передає ідентифікатор нейрона контролеру для зміни напрямку;
+     *                        {@code null} приховує цю дію.
      * @param localization обов'язкова спільна служба локалізації інтерфейсу.
      * @throws NullPointerException якщо локалізацію не передано.
      */
@@ -75,19 +77,32 @@ public final class NeuronMenuView {
     }
 
     /**
-     * Створює кнопку перемикання напрямку з векторним значком і передає дію контролеру через callback.
-     * Розмір кнопки й значка визначається їхніми окремими CSS-обмеженнями.
+     * Створює кнопку зміни напрямку для нейрона, орієнтованого праворуч.
      *
      * @return оформлена кнопка або {@code null}, якщо дію напрямку не передано.
      */
     public Button createDirectionButton() {
+        return createDirectionButton(() -> false);
+    }
+
+    /**
+     * Створює кнопку зміни напрямку зі стрілкою, спрямованою проти поточної орієнтації нейрона.
+     * Після виконання callback значок одразу оновлюється за новим напрямком.
+     *
+     * @param directionReversedSupplier постачальник актуальної ознаки розвернутого напрямку нейрона.
+     * @return оформлена кнопка або {@code null}, якщо дію напрямку не передано.
+     * @throws NullPointerException якщо постачальник напрямку не задано.
+     */
+    public Button createDirectionButton(BooleanSupplier directionReversedSupplier) {
+        Objects.requireNonNull(directionReversedSupplier, "directionReversedSupplier");
         if (directionAction == null) {
             return null;
         }
 
         String tooltipText = localization.text("neuron.menu.direction");
         Button directionButton = new Button();
-        directionButton.setGraphic(NeuronMenuIconFactory.createDirectionIcon());
+        directionButton.setGraphic(NeuronMenuIconFactory.createDirectionIcon(
+                directionReversedSupplier.getAsBoolean()));
         directionButton.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
         directionButton.setAccessibleText(tooltipText);
         directionButton.getStyleClass().add("menu-button");
@@ -96,6 +111,8 @@ public final class NeuronMenuView {
             String neuronId = selectedNeuronIdSupplier.get();
             if (neuronId != null) {
                 directionAction.accept(neuronId);
+                directionButton.setGraphic(NeuronMenuIconFactory.createDirectionIcon(
+                        directionReversedSupplier.getAsBoolean()));
             }
             event.consume();
         });

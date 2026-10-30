@@ -188,6 +188,95 @@ final class NeuronMenuControllerDirectionTest {
         });
     }
 
+    /** Перевіряє перемикання шухлядки з контекстного меню та збереження її дії після перемальовування локалі. */
+    @Test
+    void structureMenuButtonTogglesDrawerAndKeepsItsActionAfterLocalizationRefresh() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            Fixture fixture = createFixture();
+            Neuron structure = fixture.neuronService().create(NeuronType.STRUCTURE, 220.0, 160.0);
+            NeuronView structureView = new NeuronView(
+                    fixture.neuronService().presentation(structure.id()).orElseThrow());
+            fixture.workspace().nodeLayer().getChildren().add(structureView);
+            new Scene(fixture.overlayHost(), 900.0, 600.0);
+            AtomicInteger drawerToggles = new AtomicInteger();
+            fixture.controller().show(structureView, () -> {
+                structureView.toggleStructureDrawer();
+                drawerToggles.incrementAndGet();
+            });
+
+            Button drawerButton = structureDrawerButton(fixture.controller().node());
+            assertFalse(structureView.isStructureDrawerExpanded());
+            assertEquals("Відкрити", drawerButton.getTooltip().getText());
+            assertTrue(drawerButton.getGraphic().getStyleClass()
+                    .contains("neuron-menu-icon-structure-drawer-collapsed"));
+
+            drawerButton.fire();
+            assertTrue(structureView.isStructureDrawerExpanded());
+            assertEquals(1, drawerToggles.get());
+            assertEquals("Закрити", drawerButton.getTooltip().getText());
+            assertTrue(drawerButton.getGraphic().getStyleClass()
+                    .contains("neuron-menu-icon-structure-drawer-expanded"));
+
+            fixture.mainMenu().showMenu();
+            fixture.localization().previewLanguage(SupportedLanguage.ENGLISH);
+            Button englishDrawerButton = structureDrawerButton(fixture.controller().node());
+            assertEquals("Close", englishDrawerButton.getTooltip().getText());
+            englishDrawerButton.fire();
+
+            assertFalse(structureView.isStructureDrawerExpanded());
+            assertEquals(2, drawerToggles.get());
+            assertTrue(fixture.state().isIdle(), "Кнопка структури не повинна запускати імпульс симуляції");
+            fixture.localization().discardLanguagePreview();
+            fixture.mainMenu().hide();
+
+            Button settingsButton = ((HBox) fixture.controller().node().getChildren().getFirst())
+                    .getChildren().stream()
+                    .filter(Button.class::isInstance)
+                    .map(Button.class::cast)
+                    .filter(button -> button.getGraphic() != null
+                            && button.getGraphic().getStyleClass().contains("neuron-menu-icon-settings"))
+                    .findFirst()
+                    .orElseThrow();
+            settingsButton.fire();
+            NeuronSettingsView settingsView = fixture.overlayHost().getChildren().stream()
+                    .filter(NeuronSettingsView.class::isInstance)
+                    .map(NeuronSettingsView.class::cast)
+                    .findFirst()
+                    .orElseThrow();
+            Button cancelButton = settingsView.lookupAll(".neuron-settings-button").stream()
+                    .filter(Button.class::isInstance)
+                    .map(Button.class::cast)
+                    .filter(button -> !button.getText().equals(
+                            fixture.localization().text("neuron.settings.save")))
+                    .findFirst()
+                    .orElseThrow();
+            cancelButton.fire();
+
+            Button restoredDrawerButton = structureDrawerButton(fixture.controller().node());
+            restoredDrawerButton.fire();
+            assertTrue(structureView.isStructureDrawerExpanded(),
+                    "Після закриття налаштувань кнопка шухлядки має зберігати свою дію");
+            assertEquals(3, drawerToggles.get());
+            dispose(fixture);
+        });
+    }
+
+    /**
+     * Повертає кнопку перемикання шухлядки в першому ряду контекстного меню структури.
+     *
+     * @param menu контекстне меню структури.
+     * @return кнопка, що змінює стан шухлядки.
+     */
+    private static Button structureDrawerButton(VBox menu) {
+        HBox buttons = (HBox) menu.getChildren().getFirst();
+        return buttons.getChildren().stream()
+                .filter(Button.class::isInstance)
+                .map(Button.class::cast)
+                .filter(button -> button.getStyleClass().contains("neuron-menu-structure-drawer"))
+                .findFirst()
+                .orElseThrow();
+    }
+
     /** Повертає текст підказки кнопки активації, щоб перевірити локалізацію меню. */
     private static String fireButtonTooltip(VBox menu) {
         HBox buttons = (HBox) menu.getChildren().getFirst();

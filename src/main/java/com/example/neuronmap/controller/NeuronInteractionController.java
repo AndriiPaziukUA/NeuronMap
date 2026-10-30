@@ -15,7 +15,7 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Objects;
 
-/** Обробляє взаємодію з нейронами, подвійний клік по структурах та закріплення їхніх внутрішніх елементів. */
+/** Обробляє взаємодію з нейронами, перемикання шухлядок структур та закріплення їхніх внутрішніх елементів. */
 public final class NeuronInteractionController {
 
     private final EditorState state;
@@ -237,11 +237,20 @@ public final class NeuronInteractionController {
         }
     }
 
-    /** Відкриває контекстне меню вказаного нейрона. */
+    /**
+     * Відкриває контекстне меню та передає йому спільну дію перемикання шухлядки, якщо це структура.
+     *
+     * @param neuronView подання нейрона, для якого потрібно відкрити меню.
+     * @throws NullPointerException якщо подання нейрона не задано.
+     */
     public void showMenu(NeuronView neuronView) {
         ensureNotDisposed();
+        Objects.requireNonNull(neuronView, "neuronView");
         rotationController.hideAll();
-        menuController.show(neuronView);
+        Runnable structureDrawerToggleAction = neuronView.hasStructureDrawer()
+                ? () -> toggleStructureDrawerAndRefresh(neuronView)
+                : null;
+        menuController.show(neuronView, structureDrawerToggleAction);
     }
 
     /** Передає запит на зміну напрямку нейрона контролеру контекстного меню. */
@@ -302,11 +311,7 @@ public final class NeuronInteractionController {
         }
         if (event.getClickCount() == 2 && !neuronView.wasDragged() && state.isIdle()) {
             if (neuronView.hasStructureDrawer()) {
-                rotationController.hideAll();
-                if (toggleStructureDrawer(neuronView)) {
-                    refreshRelatedViews();
-                    refreshOverlayPositions();
-                }
+                toggleStructureDrawerAndRefresh(neuronView);
             } else {
                 simulation.emitPulse(neuronView.model().id());
             }
@@ -325,7 +330,21 @@ public final class NeuronInteractionController {
     }
 
     /**
+     * Перемикає шухлядку структури, після чого синхронізує залежні зв'язки та положення накладок.
+     * Цей самий сценарій використовується кнопкою меню й подвійним клацанням по структурі.
+     *
+     * @param neuronView подання структури, шухлядку якої потрібно перемкнути.
+     */
+    private void toggleStructureDrawerAndRefresh(NeuronView neuronView) {
+        if (toggleStructureDrawer(neuronView)) {
+            refreshRelatedViews();
+            refreshOverlayPositions();
+        }
+    }
+
+    /**
      * Перемикає стан шухлядки через службу структури, синхронізує подання та зберігає карту.
+     * Ручка обертання ховається до оновлення подання, щоб не залишатися над відкритою шухлядкою.
      *
      * @param neuronView подання структури, шухлядку якої потрібно перемкнути.
      * @return {@code true}, якщо стан існуючої структури було змінено.
@@ -340,6 +359,7 @@ public final class NeuronInteractionController {
         if (!structureService.setExpanded(structureId, expanded)) {
             return false;
         }
+        rotationController.hideAll();
         if (neuronView.isStructureDrawerExpanded() != expanded) {
             neuronView.toggleStructureDrawer();
         }

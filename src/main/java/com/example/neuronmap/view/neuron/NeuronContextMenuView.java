@@ -10,12 +10,11 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
 import java.util.Objects;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/**
- * Створює структуру та налаштовує елементи контекстного меню нейрона.
- */
+/** Створює структуру контекстного меню нейрона та узгоджує графічні дії з її поточним станом. */
 public final class NeuronContextMenuView {
 
     private final LocalizationService localization;
@@ -50,7 +49,7 @@ public final class NeuronContextMenuView {
      * @return кореневий контейнер контекстного меню.
      */
     public VBox createMenu(boolean hasConnections, Actions actions) {
-        return createMenu(hasConnections, false, actions);
+        return createMenu(hasConnections, false, false, () -> false, actions);
     }
 
     /**
@@ -64,6 +63,30 @@ public final class NeuronContextMenuView {
      * @return кореневий контейнер контекстного меню.
      */
     public VBox createMenu(boolean hasConnections, boolean isStructureMember, Actions actions) {
+        return createMenu(hasConnections, isStructureMember, false, () -> false, actions);
+    }
+
+    /**
+     * Створює меню з дією, що залежить від типу нейрона: імпульс для звичайного нейрона або
+     * перемикання шухлядки структури.
+     * Для структури значок і доступна назва кнопки відображають її поточний стан та оновлюються після дії.
+     *
+     * @param hasConnections ознака наявності зв’язків у нейрона.
+     * @param isStructureMember {@code true}, якщо нейрон є внутрішнім учасником структури.
+     * @param isStructure {@code true}, якщо первинна дія меню керує шухлядкою структури.
+     * @param drawerExpandedSupplier постачальник фактичного стану відкритості шухлядки структури.
+     * @param actions зворотні виклики дій контекстного меню.
+     * @return кореневий контейнер контекстного меню.
+     * @throws NullPointerException якщо постачальник стану або набір дій не задано.
+     */
+    public VBox createMenu(
+            boolean hasConnections,
+            boolean isStructureMember,
+            boolean isStructure,
+            BooleanSupplier drawerExpandedSupplier,
+            Actions actions
+    ) {
+        Objects.requireNonNull(drawerExpandedSupplier, "drawerExpandedSupplier");
         Objects.requireNonNull(actions, "actions");
 
         VBox menu = new VBox(5.0);
@@ -72,10 +95,13 @@ public final class NeuronContextMenuView {
         HBox buttons = new HBox(4.0);
         buttons.setAlignment(Pos.CENTER);
 
-        Button fire = createButton(
-                NeuronMenuIconFactory.createFireIcon(),
-                localization.text("neuron.menu.fire"),
-                "neuron-menu-activate"
+        boolean drawerExpanded = isStructure && drawerExpandedSupplier.getAsBoolean();
+        Button primaryAction = createButton(
+                isStructure
+                        ? NeuronMenuIconFactory.createStructureDrawerToggleIcon(drawerExpanded)
+                        : NeuronMenuIconFactory.createFireIcon(),
+                primaryActionTooltip(isStructure, drawerExpanded),
+                isStructure ? "neuron-menu-structure-drawer" : "neuron-menu-activate"
         );
         Button addConnection = createButton(
                 NeuronMenuIconFactory.createAddConnectionIcon(),
@@ -106,8 +132,11 @@ public final class NeuronContextMenuView {
                 "neuron-menu-delete"
         );
 
-        fire.setOnAction(event -> {
+        primaryAction.setOnAction(event -> {
             actions.fire().run();
+            if (isStructure) {
+                refreshStructureDrawerButton(primaryAction, drawerExpandedSupplier);
+            }
             event.consume();
         });
         addConnection.setOnAction(event -> {
@@ -139,7 +168,7 @@ public final class NeuronContextMenuView {
             hideButton(settings);
         }
 
-        buttons.getChildren().addAll(fire, addConnection);
+        buttons.getChildren().addAll(primaryAction, addConnection);
         if (deleteConnection != null) {
             buttons.getChildren().add(deleteConnection);
         }
@@ -149,6 +178,41 @@ public final class NeuronContextMenuView {
         buttons.getChildren().addAll(toggleType, settings, deleteNeuron);
         menu.getChildren().add(buttons);
         return menu;
+    }
+
+    /**
+     * Визначає локалізовану назву первинної кнопки залежно від типу нейрона та стану шухлядки.
+     *
+     * @param isStructure {@code true}, якщо кнопка керує структурною шухлядкою.
+     * @param drawerExpanded {@code true}, якщо шухлядка наразі відкрита.
+     * @return текст підказки й доступної назви кнопки.
+     */
+    private String primaryActionTooltip(boolean isStructure, boolean drawerExpanded) {
+        if (!isStructure) {
+            return localization.text("neuron.menu.fire");
+        }
+        return localization.text(drawerExpanded
+                ? "neuron.menu.close_structure_drawer"
+                : "neuron.menu.open_structure_drawer");
+    }
+
+    /**
+     * Узгоджує значок і доступну назву кнопки з новим станом шухлядки після перемикання.
+     *
+     * @param button первинна кнопка меню структури.
+     * @param drawerExpandedSupplier постачальник актуального стану відкритості шухлядки.
+     */
+    private void refreshStructureDrawerButton(Button button, BooleanSupplier drawerExpandedSupplier) {
+        boolean expanded = drawerExpandedSupplier.getAsBoolean();
+        String tooltipText = primaryActionTooltip(true, expanded);
+        button.setGraphic(NeuronMenuIconFactory.createStructureDrawerToggleIcon(expanded));
+        button.setAccessibleText(tooltipText);
+        Tooltip tooltip = button.getTooltip();
+        if (tooltip == null) {
+            button.setTooltip(new Tooltip(tooltipText));
+        } else {
+            tooltip.setText(tooltipText);
+        }
     }
 
     /**
@@ -188,8 +252,9 @@ public final class NeuronContextMenuView {
 
     /**
      * Містить дії, які контролер виконує у відповідь на вибір користувача в контекстному меню.
+     * Первинна дія активує звичайний нейрон або перемикає шухлядку, коли меню належить структурі.
      *
-     * @param fire дія активації імпульсу нейрона.
+     * @param fire первинна дія меню: активація нейрона або перемикання шухлядки структури.
      * @param addConnection дія переходу до створення зв’язку.
      * @param settings дія відкриття налаштувань нейрона.
      * @param deleteConnection дія переходу до видалення зв’язку.
@@ -207,7 +272,7 @@ public final class NeuronContextMenuView {
         /**
          * Перевіряє, що для кожної дії меню передано зворотний виклик.
          *
-         * @param fire дія активації імпульсу нейрона.
+         * @param fire первинна дія меню: активація нейрона або перемикання шухлядки структури.
          * @param addConnection дія переходу до створення зв’язку.
          * @param settings дія відкриття налаштувань нейрона.
          * @param deleteConnection дія переходу до видалення зв’язку.

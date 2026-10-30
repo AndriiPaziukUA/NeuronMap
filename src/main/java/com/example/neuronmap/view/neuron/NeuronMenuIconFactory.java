@@ -51,7 +51,7 @@ final class NeuronMenuIconFactory {
      * @return векторний значок додавання зв’язку.
      */
     static Node createAddConnectionIcon() {
-        SVGPath arrow = createPath("M5 15 15 5M8 5h7v7", false);
+        SVGPath arrow = createPath("M5 15 15 5M8 5h7v7");
         return iconCanvas("neuron-menu-icon-add-connection", arrow);
     }
 
@@ -62,28 +62,44 @@ final class NeuronMenuIconFactory {
      */
     static Node createDeleteConnectionIcon() {
         SVGPath firstLink = createPath(
-                "M7.5 12.5 5.9 14.1a3 3 0 0 1-4.2-4.2L4.8 6.8a3 3 0 0 1 4.2 0",
-                false
-        );
+                "M7.5 12.5 5.9 14.1a3 3 0 0 1-4.2-4.2L4.8 6.8a3 3 0 0 1 4.2 0");
         SVGPath secondLink = createPath(
-                "M12.5 7.5l1.6-1.6a3 3 0 0 1 4.2 4.2L15.2 13.2a3 3 0 0 1-4.2 0",
-                false
-        );
-        SVGPath connector = createPath("M7.3 12.7l5.4-5.4", false);
+                "M12.5 7.5l1.6-1.6a3 3 0 0 1 4.2 4.2L15.2 13.2a3 3 0 0 1-4.2 0");
+        SVGPath connector = createPath("M7.3 12.7l5.4-5.4");
         return iconCanvas("neuron-menu-icon-delete-connection", firstLink, secondLink, connector);
     }
 
     /**
-     * Створює двонапрямлену стрілку для зміни напрямку нейрона.
+     * Створює одну стрілку, спрямовану проти поточного напрямку нейрона.
      *
-     * @return векторний значок зміни напрямку.
+     * @param directionReversed {@code true}, якщо вихідний порт нейрона розташований ліворуч.
+     * @return векторний значок протилежного напрямку.
      */
-    static Node createDirectionIcon() {
-        SVGPath arrows = createPath(
-                "M3 10h14M3 10l4-4M3 10l4 4M17 10l-4-4M17 10l-4 4",
-                false
-        );
-        return iconCanvas("neuron-menu-icon-direction", arrows);
+    static Node createDirectionIcon(boolean directionReversed) {
+        String arrowPath = directionReversed
+                ? "M4 10h12M12 6l4 4-4 4"
+                : "M16 10H4M8 6l-4 4 4 4";
+        SVGPath arrow = createPath(arrowPath);
+        return iconCanvas("neuron-menu-icon-direction", arrow);
+    }
+
+    /**
+     * Створює значок шухлядки зі стрілкою, яка відповідає наступній дії над її станом.
+     * Для закритої шухлядки стрілка спрямована всередину, а для відкритої — назовні.
+     *
+     * @param expanded {@code true}, якщо шухлядка зараз відкрита.
+     * @return векторний значок відкриття або закриття шухлядки.
+     */
+    static Node createStructureDrawerToggleIcon(boolean expanded) {
+        SVGPath drawer = createPath("M3 9h14M4 9v7h12V9");
+        String arrowPath = expanded
+                ? "M10 14V11m-2 2 2-2 2 2"
+                : "M10 2v5m-2-2 2 2 2-2";
+        SVGPath arrow = createPath(arrowPath);
+        String stateClass = expanded
+                ? "neuron-menu-icon-structure-drawer-expanded"
+                : "neuron-menu-icon-structure-drawer-collapsed";
+        return iconCanvas(stateClass, drawer, arrow);
     }
 
     /**
@@ -92,7 +108,7 @@ final class NeuronMenuIconFactory {
      * @return векторний значок перемикання типу.
      */
     static Node createToggleTypeIcon() {
-        SVGPath arrows = createPath("M3 6h12M11 2l4 4-4 4M17 14H5M9 10l-4 4 4 4", false);
+        SVGPath arrows = createPath("M3 6h12M11 2l4 4-4 4M17 14H5M9 10l-4 4 4 4");
         return iconCanvas("neuron-menu-icon-toggle-type", arrows);
     }
 
@@ -154,21 +170,20 @@ final class NeuronMenuIconFactory {
      * @return векторний значок видалення нейрона.
      */
     static Node createDeleteIcon() {
-        SVGPath cross = createPath("M5 5l10 10M15 5 5 15", false);
+        SVGPath cross = createPath("M5 5l10 10M15 5 5 15");
         return iconCanvas("neuron-menu-icon-delete", cross);
     }
 
     /**
-     * Створює SVG-значок і призначає CSS-клас, який визначає колір контуру або заливки.
+     * Створює контурний SVG-значок і призначає CSS-клас кольору його лінії.
      *
      * @param content геометрія шляху у форматі SVG path.
-     * @param filled чи потрібно заповнювати фігуру кольором значка.
-     * @return графічний шлях із CSS-класом відповідного типу.
+     * @return графічний шлях із CSS-класом контуру.
      */
-    private static SVGPath createPath(String content, boolean filled) {
+    private static SVGPath createPath(String content) {
         SVGPath path = new SVGPath();
         path.setContent(content);
-        path.getStyleClass().add(filled ? "neuron-menu-icon-fill" : "neuron-menu-icon-stroke");
+        path.getStyleClass().add("neuron-menu-icon-stroke");
         return path;
     }
 

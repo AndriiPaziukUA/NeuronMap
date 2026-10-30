@@ -18,7 +18,7 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Objects;
 
-/** Керує жестами обертання нейронів і звільняє обробники ручок разом із редактором. */
+/** Керує жестами обертання, приховує ручки відкритих структур і звільняє обробники разом із редактором. */
 public final class NeuronRotationController {
 
     private final NeuronService neuronService;
@@ -43,7 +43,8 @@ public final class NeuronRotationController {
     private boolean disposed;
 
     /**
-     * Створює контролер жестів обертання та налаштовує локалізовані підказки ручок під час підключення їхніх обробників.
+     * Створює контролер жестів обертання та налаштовує локалізовані підказки ручок під час підключення
+     * їхніх обробників.
      *
      * @param neuronService служба зміни кута нейрона.
      * @param state спільний стан взаємодії редактора.
@@ -137,11 +138,20 @@ public final class NeuronRotationController {
         }
     }
 
-    /** Показує ручку обертання для нейрона з указаним ідентифікатором. */
+    /**
+     * Показує ручку обертання нейрона, якщо вона не заблокована відкритою шухлядкою структури.
+     * Перед показом приховує меню та всі попередньо активні ручки.
+     *
+     * @param neuronId ідентифікатор нейрона, для якого потрібно показати ручку.
+     */
     public void show(String neuronId) {
         ensureNotDisposed();
         hideMenu.run();
         hideAll();
+        NeuronView view = neuronViews.get(neuronId);
+        if (hasExpandedStructureDrawer(view)) {
+            return;
+        }
         activeNeuronId = neuronId;
         RotationHandleView handle = rotationHandles.get(neuronId);
         if (handle == null) {
@@ -177,26 +187,49 @@ public final class NeuronRotationController {
         disposed = true;
     }
 
-    /** Перераховує положення активної ручки за поточними координатами й кутом нейрона. */
+    /** Перераховує положення активної ручки або приховує її, якщо шухлядку структури відкрито. */
     public void refreshPosition() {
         if (disposed || activeNeuronId == null) {
             return;
         }
-        NeuronView view = neuronViews.get(activeNeuronId);
-        RotationHandleView handle = rotationHandles.get(activeNeuronId);
-        if (view == null || handle == null || !handle.isVisible()) {
+        String neuronId = activeNeuronId;
+        NeuronView view = neuronViews.get(neuronId);
+        RotationHandleView handle = rotationHandles.get(neuronId);
+        if (view == null || handle == null) {
+            return;
+        }
+        if (hasExpandedStructureDrawer(view)) {
+            handle.setVisible(false);
+            if (neuronId.equals(rotatingNeuronId)) {
+                resetRotationGesture();
+                state.clearTransientModes();
+                workspace.node().setCursor(Cursor.DEFAULT);
+            }
+            activeNeuronId = null;
+            return;
+        }
+        if (!handle.isVisible()) {
             return;
         }
         overlayPositioner.position(view, null, handle);
     }
 
-    /** Приховує підказку ручки й запам'ятовує початкові кути перед початком перетягування. */
+    /**
+     * Відхиляє жест для відкритої шухлядки; інакше запам'ятовує початкові кути перед перетягуванням.
+     *
+     * @param neuronId ідентифікатор нейрона, для якого починається обертання.
+     * @param event подія натискання кнопки миші на ручці.
+     */
     private void beginRotation(String neuronId, MouseEvent event) {
         if (disposed || event.getButton() != MouseButton.PRIMARY) {
             return;
         }
         NeuronView view = neuronViews.get(neuronId);
         if (view == null) {
+            return;
+        }
+        if (hasExpandedStructureDrawer(view)) {
+            event.consume();
             return;
         }
         rotationCenter = overlayPositioner.rectangleCenterIn(view, workspace.node());
@@ -244,6 +277,16 @@ public final class NeuronRotationController {
         refreshPosition();
         save.run();
         event.consume();
+    }
+
+    /**
+     * Перевіряє, чи розгорнута шухлядка структури, для якої не можна показувати ручку обертання.
+     *
+     * @param view подання, для якого потрібно перевірити стан шухлядки.
+     * @return {@code true}, якщо подання є структурою з відкритою шухлядкою.
+     */
+    private boolean hasExpandedStructureDrawer(NeuronView view) {
+        return view != null && view.hasStructureDrawer() && view.isStructureDrawerExpanded();
     }
 
     /** Відновлює підказку ручки й скидає дані поточного жесту без запуску збереження. */
