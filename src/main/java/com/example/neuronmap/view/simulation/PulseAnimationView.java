@@ -25,7 +25,6 @@ public final class PulseAnimationView extends Pane {
     public static final double DEFAULT_TICK_DURATION_MILLIS = 380.0;
 
     private static final double MIDPOINT_MILLIS = 180.0;
-    private static final double MAX_PULSE_LENGTH = 32.0;
     private static final double PULSE_LENGTH_RATIO = 0.22;
     private static final double ARROW_SIZE = 11.0;
     private static final double ARROW_HALF_WIDTH = 5.5;
@@ -35,7 +34,7 @@ public final class PulseAnimationView extends Pane {
     private final DoubleProperty progress = new SimpleDoubleProperty(0.0);
     private final Runnable onFinished;
 
-    private Timeline timeline;
+    private final Timeline timeline;
     private ConnectionPulseSnapshot lastSnapshot;
     private double tickDurationMillis;
     private boolean finished;
@@ -96,7 +95,7 @@ public final class PulseAnimationView extends Pane {
         arrow.setFill(lastSnapshot.pulseColor());
         arrow.setMouseTransparent(true);
         getChildren().add(arrow);
-        progress.addListener((observable, oldValue, newValue) -> updatePulsePosition(newValue.doubleValue()));
+        progress.addListener((_, _, newValue) -> updatePulsePosition(newValue.doubleValue()));
         updatePulsePosition(0.0);
         timeline = createTimeline();
         timeline.setRate(animationRate(tickDurationMillis));
@@ -211,7 +210,8 @@ public final class PulseAnimationView extends Pane {
     }
 
     /**
-     * Розташовує лише трикутний наконечник на відповідній частині траєкторії зв'язку.
+     * Розташовує трикутний наконечник уздовж зв'язку: його основа починається в початковій точці,
+     * а вершина доходить до кінцевої точки разом із завершенням анімації.
      *
      * @param value частка пройденого шляху в діапазоні від нуля до одиниці.
      */
@@ -225,12 +225,12 @@ public final class PulseAnimationView extends Pane {
             return;
         }
 
-        double fraction = Double.isFinite(value) ? Math.max(0.0, Math.min(1.0, value)) : 0.0;
+        double fraction = Double.isFinite(value) ? Math.clamp(value, 0.0, 1.0) : 0.0;
         Point2D unitDirection = direction.normalize();
-        double pulseLength = Math.min(MAX_PULSE_LENGTH, length * PULSE_LENGTH_RATIO);
-        double travelDistance = (length - pulseLength) * fraction;
-        Point2D tip = start.add(unitDirection.multiply(travelDistance + pulseLength));
-        applyArrowGeometry(tip, unitDirection, pulseLength);
+        double arrowLength = Math.min(ARROW_SIZE, length * PULSE_LENGTH_RATIO);
+        double travelDistance = (length - arrowLength) * fraction;
+        Point2D tip = start.add(unitDirection.multiply(travelDistance + arrowLength));
+        applyArrowGeometry(tip, unitDirection, arrowLength);
     }
 
     /**
@@ -254,7 +254,7 @@ public final class PulseAnimationView extends Pane {
                         new KeyValue(progress, 1.0)
                 )
         );
-        result.setOnFinished(event -> finish());
+        result.setOnFinished(_ -> finish());
         return result;
     }
 
@@ -291,11 +291,10 @@ public final class PulseAnimationView extends Pane {
      *
      * @param tip вершина наконечника.
      * @param unitDirection нормалізований напрямок руху.
-     * @param pulseLength довжина імпульсу, потрібна для збереження масштабу наконечника.
+     * @param arrowLength довжина трикутного наконечника.
      */
-    private void applyArrowGeometry(Point2D tip, Point2D unitDirection, double pulseLength) {
+    private void applyArrowGeometry(Point2D tip, Point2D unitDirection, double arrowLength) {
         Point2D perpendicular = new Point2D(-unitDirection.getY(), unitDirection.getX());
-        double arrowLength = Math.min(ARROW_SIZE, pulseLength);
         double arrowHalfWidth = Math.min(ARROW_HALF_WIDTH, arrowLength / 2.0);
         Point2D back = tip.subtract(unitDirection.multiply(arrowLength));
         Point2D left = back.add(perpendicular.multiply(arrowHalfWidth));

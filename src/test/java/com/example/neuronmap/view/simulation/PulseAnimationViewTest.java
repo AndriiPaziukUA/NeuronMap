@@ -41,48 +41,55 @@ class PulseAnimationViewTest {
             ConnectionPulseSnapshot initial = snapshot(10, 20, 210, 20);
             AtomicReference<ConnectionPulseSnapshot> current = new AtomicReference<>(initial);
             PulseAnimationView pulse = new PulseAnimationView(initial, current::get);
-            Polygon arrow = (Polygon) pulse.getChildren().get(0);
+            Polygon arrow = (Polygon) pulse.getChildren().getFirst();
 
             assertEquals(1, pulse.getChildren().size());
-            assertEquals(42.0, arrow.getPoints().get(0));
+            assertEquals(21.0, arrow.getPoints().getFirst());
             assertEquals(20.0, arrow.getPoints().get(1));
 
             ConnectionPulseSnapshot moved = snapshot(210, 220, 410, 220);
             current.set(moved);
             pulse.refreshGeometry();
 
-            assertEquals(242.0, arrow.getPoints().get(0));
+            assertEquals(221.0, arrow.getPoints().getFirst());
             assertEquals(220.0, arrow.getPoints().get(1));
             assertEquals(Color.RED, arrow.getFill());
             pulse.stop();
         });
     }
 
-    /** Перевіряє рух наконечника від початку до кінця зв'язку та обмеження прогресу. */
+    /** Перевіряє, що основа трикутника стартує на початку зв'язку, а його вершина доходить до цілі. */
     @Test
-    void arrowMovesAlongConnectionWithoutDrawingATrailingLine() throws Exception {
+    void arrowStartsAtConnectionBeginningAndMovesToItsEnd() throws Exception {
         runOnFxThread(() -> {
             ConnectionPulseSnapshot initial = snapshot(10, 20, 210, 20);
             PulseAnimationView pulse = new PulseAnimationView(initial, () -> initial);
-            Polygon arrow = (Polygon) pulse.getChildren().get(0);
+            Polygon arrow = (Polygon) pulse.getChildren().getFirst();
+
+            assertEquals(21.0, arrow.getPoints().getFirst());
+            assertEquals(20.0, arrow.getPoints().get(1));
+            assertEquals(10.0, arrow.getPoints().get(2));
+            assertEquals(25.5, arrow.getPoints().get(3));
+            assertEquals(10.0, arrow.getPoints().get(4));
+            assertEquals(14.5, arrow.getPoints().get(5));
 
             pulse.updatePulsePosition(0.5);
-            assertEquals(126.0, arrow.getPoints().get(0));
+            assertEquals(115.5, arrow.getPoints().getFirst());
             assertEquals(20.0, arrow.getPoints().get(1));
-            assertEquals(115.0, arrow.getPoints().get(2));
+            assertEquals(104.5, arrow.getPoints().get(2));
             assertEquals(25.5, arrow.getPoints().get(3));
-            assertEquals(115.0, arrow.getPoints().get(4));
+            assertEquals(104.5, arrow.getPoints().get(4));
             assertEquals(14.5, arrow.getPoints().get(5));
             assertEquals(1, pulse.getChildren().size());
 
             pulse.updatePulsePosition(1.0);
-            assertEquals(210.0, arrow.getPoints().get(0));
+            assertEquals(210.0, arrow.getPoints().getFirst());
 
             pulse.updatePulsePosition(-1.0);
-            assertEquals(42.0, arrow.getPoints().get(0));
+            assertEquals(21.0, arrow.getPoints().getFirst());
 
             pulse.updatePulsePosition(2.0);
-            assertEquals(210.0, arrow.getPoints().get(0));
+            assertEquals(210.0, arrow.getPoints().getFirst());
             pulse.stop();
         });
     }
@@ -106,14 +113,14 @@ class PulseAnimationViewTest {
                     350.0,
                     animationFinished::countDown
             );
-            Polygon arrow = (Polygon) pulse.getChildren().get(0);
+            Polygon arrow = (Polygon) pulse.getChildren().getFirst();
             layer.getChildren().add(pulse);
             layerReference.set(layer);
             pulseReference.set(pulse);
             pulse.play();
 
             PauseTransition sample = new PauseTransition(Duration.millis(290.0));
-            sample.setOnFinished(event -> {
+            sample.setOnFinished(_ -> {
                 sampledOpacity.set(arrow.getOpacity());
                 sampledFill.set((Color) arrow.getFill());
                 sampled.countDown();
