@@ -4,6 +4,7 @@ import com.example.neuronmap.model.Connection;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.util.GeometryUtils;
 import com.example.neuronmap.view.neuron.NeuronView;
+import com.example.neuronmap.view.neuron.NeuronVisualGeometry;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
@@ -15,6 +16,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Polygon;
+import javafx.scene.shape.StrokeLineCap;
 import javafx.util.Duration;
 
 import java.util.Objects;
@@ -25,6 +27,8 @@ public final class ConnectionView extends Pane {
 
     private static final Color HIT_TEST_STROKE_COLOR = Color.rgb(255, 255, 255, 0.001);
     private static final double DELETE_BLINK_MILLIS = 500.0;
+    /** Невеликий проміжок між вістрям стрілки та зовнішнім краєм вхідного порта. */
+    private static final double ARROW_PORT_GAP = 0.5;
 
     private Connection model;
     private final Function<String, NeuronView> viewLookup;
@@ -36,6 +40,7 @@ public final class ConnectionView extends Pane {
     private final ReadOnlyLongWrapper geometryRevision = new ReadOnlyLongWrapper(this, "geometryRevision");
 
     private Timeline blinkTimeline;
+    private Point2D arrowTip;
     private boolean deleteHighlighted;
 
     /**
@@ -76,9 +81,11 @@ public final class ConnectionView extends Pane {
 
         line.setStroke(baseColor());
         line.setStrokeWidth(style.strokeWidth());
+        line.setStrokeLineCap(StrokeLineCap.BUTT);
         line.setMouseTransparent(true);
         hitLine.setStroke(HIT_TEST_STROKE_COLOR);
         hitLine.setStrokeWidth(style.hitStrokeWidth());
+        hitLine.setStrokeLineCap(StrokeLineCap.BUTT);
         hitLine.setFill(null);
         hitLine.setMouseTransparent(false);
         arrow.setFill(baseArrowColor());
@@ -124,8 +131,9 @@ public final class ConnectionView extends Pane {
     public boolean isDeleteHighlighted() { return deleteHighlighted; }
 
     /**
-     * Оновлює геометрію за фактичними координатами портів. Зв'язки, що ведуть до прихованих учасників
-     * структури, також приховуються, щоб не залишати видимих ліній до нейронів закритої шухлядки.
+     * Оновлює геометрію за центрами портів і скорочує видимий зв'язок до основи наконечника.
+     * Вістря розташовується перед зовнішнім краєм вхідного порта, а знімок імпульсу використовує ту саму кінцеву точку.
+     * Зв'язки до прихованих учасників структури не відображаються.
      */
     public void updateGeometry() {
         NeuronView source = viewLookup.apply(model.sourceId());
@@ -134,21 +142,35 @@ public final class ConnectionView extends Pane {
             return;
         }
         if (source.isHiddenInClosedStructureDrawer() || target.isHiddenInClosedStructureDrawer()) {
+            arrowTip = null;
             setVisible(false);
             return;
         }
+
         setVisible(true);
         Point2D start = connectionPoint(source, true);
-        Point2D end = connectionPoint(target, false);
-        line.setStartX(start.getX());
-        line.setStartY(start.getY());
-        line.setEndX(end.getX());
-        line.setEndY(end.getY());
-        hitLine.setStartX(start.getX());
-        hitLine.setStartY(start.getY());
-        hitLine.setEndX(end.getX());
-        hitLine.setEndY(end.getY());
-        updateArrow(start, end);
+        Point2D targetCenter = connectionPoint(target, false);
+        Point2D direction = targetCenter.subtract(start);
+        double connectionLength = direction.magnitude();
+        if (connectionLength == 0.0) {
+            clearArrowGeometry(start);
+            geometryRevision.set(geometryRevision.get() + 1L);
+            return;
+        }
+
+        Point2D unitDirection = direction.normalize();
+        double targetClearance = NeuronVisualGeometry.INPUT_PORT_OUTER_RADIUS + ARROW_PORT_GAP;
+        double availableLength = connectionLength - targetClearance;
+        if (availableLength <= 0.0) {
+            clearArrowGeometry(start);
+            geometryRevision.set(geometryRevision.get() + 1L);
+            return;
+        }
+
+        arrowTip = targetCenter.subtract(unitDirection.multiply(targetClearance));
+        double arrowLength = Math.min(style.arrowSize(), availableLength);
+        Point2D arrowBase = updateArrow(arrowTip, unitDirection, arrowLength);
+        updateLineGeometry(start, arrowBase, arrowTip);
         geometryRevision.set(geometryRevision.get() + 1L);
     }
 
@@ -156,7 +178,7 @@ public final class ConnectionView extends Pane {
      * Створює знімок геометрії та палітри зв'язку для анімації імпульсу.
      * Прихований зв'язок не створює імпульсу на застарілих координатах.
      *
-     * @return знімок або {@code null}, якщо зв'язок прихований, джерело відсутнє чи довжина дорівнює нулю.
+     * @return знімок або {@code null}, якщо зв'язок прихований, джерело відсутнє чи між портами не вистачає місця для наконечника.
      */
     public ConnectionPulseSnapshot capturePulseSnapshot() {
         if (!isVisible()) {
@@ -167,12 +189,11 @@ public final class ConnectionView extends Pane {
             return null;
         }
         Point2D start = new Point2D(line.getStartX(), line.getStartY());
-        Point2D end = new Point2D(line.getEndX(), line.getEndY());
-        if (start.distance(end) == 0.0) {
+        if (arrowTip == null || start.distance(arrowTip) == 0.0) {
             return null;
         }
         Color pulseColor = style.pulseColor(source.type());
-        return new ConnectionPulseSnapshot(start, end, pulseColor, style.sourceColor(source.type()));
+        return new ConnectionPulseSnapshot(start, arrowTip, pulseColor, style.sourceColor(source.type()));
     }
 
     /**
@@ -248,23 +269,51 @@ public final class ConnectionView extends Pane {
     }
 
     /**
-     * Розташовує наконечник стрілки відповідно до напрямку лінії зв'язку.
+     * Узгоджує видимий стрижень, зону вибору та кінчик біля вхідного порта.
+     * Стрижень закінчується на основі трикутника, а зона вибору — на його вістрі.
      *
-     * @param start початкова точка.
-     * @param end кінцева точка.
+     * @param start початкова точка зв'язку.
+     * @param arrowBase центр основи наконечника.
+     * @param tip вістря наконечника перед зовнішнім краєм порта.
      */
-    private void updateArrow(Point2D start, Point2D end) {
-        Point2D direction = end.subtract(start);
-        if (direction.magnitude() == 0.0) {
-            arrow.getPoints().clear();
-            return;
-        }
-        Point2D normalized = direction.normalize();
-        Point2D perpendicular = GeometryUtils.perpendicularUnitVector(direction);
-        Point2D back = end.subtract(normalized.multiply(style.arrowSize()));
-        Point2D left = back.add(perpendicular.multiply(style.arrowHalfWidth()));
-        Point2D right = back.subtract(perpendicular.multiply(style.arrowHalfWidth()));
-        arrow.getPoints().setAll(end.getX(), end.getY(), left.getX(), left.getY(), right.getX(), right.getY());
+    private void updateLineGeometry(Point2D start, Point2D arrowBase, Point2D tip) {
+        line.setStartX(start.getX());
+        line.setStartY(start.getY());
+        line.setEndX(arrowBase.getX());
+        line.setEndY(arrowBase.getY());
+        hitLine.setStartX(start.getX());
+        hitLine.setStartY(start.getY());
+        hitLine.setEndX(tip.getX());
+        hitLine.setEndY(tip.getY());
+    }
+
+    /**
+     * Будує трикутник від заданого вістря в напрямку до джерела та повертає центр його основи.
+     *
+     * @param tip вістря наконечника.
+     * @param unitDirection нормалізований напрямок від джерела до цільового порта.
+     * @param arrowLength фактична довжина наконечника з урахуванням коротких зв'язків.
+     * @return центр основи наконечника, у якій має завершуватися видимий стрижень.
+     */
+    private Point2D updateArrow(Point2D tip, Point2D unitDirection, double arrowLength) {
+        Point2D perpendicular = GeometryUtils.perpendicularUnitVector(unitDirection);
+        Point2D back = tip.subtract(unitDirection.multiply(arrowLength));
+        double halfWidth = Math.min(style.arrowHalfWidth(), arrowLength / 2.0);
+        Point2D left = back.add(perpendicular.multiply(halfWidth));
+        Point2D right = back.subtract(perpendicular.multiply(halfWidth));
+        arrow.getPoints().setAll(tip.getX(), tip.getY(), left.getX(), left.getY(), right.getX(), right.getY());
+        return back;
+    }
+
+    /**
+     * Очищає наконечник і згортає стрижень до його початку, якщо між портами не вистачає місця для стрілки.
+     *
+     * @param start початкова точка зв'язку.
+     */
+    private void clearArrowGeometry(Point2D start) {
+        arrowTip = null;
+        arrow.getPoints().clear();
+        updateLineGeometry(start, start, start);
     }
 
     /** Повертає базовий колір лінії зв'язку за типом джерела. */

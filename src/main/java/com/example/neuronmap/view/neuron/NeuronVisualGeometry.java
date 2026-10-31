@@ -7,13 +7,17 @@ import javafx.scene.shape.Polygon;
 import java.util.Objects;
 
 /**
- * Визначає координати видимих вхідного порту та вихідного трикутника нейрона з урахуванням розвороту напрямку.
+ * Визначає координати видимих портів і вихідного трикутника нейрона з урахуванням розвороту напрямку.
  */
 public final class NeuronVisualGeometry {
 
     public static final double WIDTH = 140.0;
     public static final double HEIGHT = 74.0;
     public static final double INPUT_PORT_RADIUS = 7.0;
+    /** Ширина обведення вхідного порта; має відповідати ширині обведення селектора {@code .port} у neuron.css. */
+    public static final double INPUT_PORT_STROKE_WIDTH = 1.5;
+    /** Зовнішній радіус вхідного порта з урахуванням половини ширини його обведення. */
+    public static final double INPUT_PORT_OUTER_RADIUS = INPUT_PORT_RADIUS + INPUT_PORT_STROKE_WIDTH / 2.0;
     public static final double OUTPUT_PORT_SIZE = 14.0;
 
     /**
@@ -101,10 +105,10 @@ public final class NeuronVisualGeometry {
     }
 
     /**
-     * Обчислює горизонтальну координату вістря вихідного трикутника з урахуванням напрямку нейрона.
+     * Обчислює горизонтальну координату вістря вихідного трикутника з урахуванням розвороту.
      *
      * @param directionReversed ознака розвернутого напрямку.
-     * @return горизонтальна координата вістря трикутника.
+     * @return горизонтальна координата вістря вихідного трикутника.
      */
     public static double outputTipX(boolean directionReversed) {
         double half = OUTPUT_PORT_SIZE / 2.0;

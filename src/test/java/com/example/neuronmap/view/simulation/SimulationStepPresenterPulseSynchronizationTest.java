@@ -11,10 +11,11 @@ import com.example.neuronmap.testsupport.JavaFxTestSupport;
 import com.example.neuronmap.view.connection.ConnectionView;
 import com.example.neuronmap.view.editor.WorkspaceView;
 import com.example.neuronmap.view.neuron.NeuronView;
+import com.example.neuronmap.view.neuron.NeuronVisualGeometry;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
-import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Circle;
+import javafx.scene.shape.Polygon;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigInteger;
@@ -31,8 +32,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Перевіряє синхронізацію імпульсів і відображення агрегованих індикаторів структур. */
 final class SimulationStepPresenterPulseSynchronizationTest {
 
+    private static final double EXPECTED_PORT_CLEARANCE = NeuronVisualGeometry.INPUT_PORT_OUTER_RADIUS + 0.5;
+    private static final double GEOMETRY_EPSILON = 0.001;
+
     /**
-     * Перевіряє завершення вхідного імпульсу перед запуском вихідного імпульсу активованого нейрона.
+     * Перевіряє завершення вхідного імпульсу перед запуском наступного та повторне створення вихідного імпульсу.
+     * Завершений імпульс має зупинятися перед зовнішнім краєм вхідного порта, а не в його центрі.
      *
      * @throws Exception якщо виконання дії в JavaFX-потоці завершується помилкою.
      */
@@ -90,11 +95,16 @@ final class SimulationStepPresenterPulseSynchronizationTest {
                     Polygon arrivedArrow = (Polygon) previousPulse.getChildren().getFirst();
                     double tipX = arrivedArrow.getPoints().getFirst();
                     double tipY = arrivedArrow.getPoints().get(1);
-                    boolean reachedSecond = Math.abs(neuronViews.get(second.id()).inputPoint().getX() - tipX) < 0.001
-                            && Math.abs(neuronViews.get(second.id()).inputPoint().getY() - tipY) < 0.001;
-                    boolean reachedThird = Math.abs(neuronViews.get(third.id()).inputPoint().getX() - tipX) < 0.001
-                            && Math.abs(neuronViews.get(third.id()).inputPoint().getY() - tipY) < 0.001;
-                    assertTrue(reachedSecond || reachedThird);
+                    double distanceToSecond = distanceToInputPort(
+                            neuronViews.get(second.id()), tipX, tipY);
+                    double distanceToThird = distanceToInputPort(
+                            neuronViews.get(third.id()), tipX, tipY);
+                    boolean reachedSecondBoundary = Math.abs(distanceToSecond - EXPECTED_PORT_CLEARANCE)
+                            < GEOMETRY_EPSILON;
+                    boolean reachedThirdBoundary = Math.abs(distanceToThird - EXPECTED_PORT_CLEARANCE)
+                            < GEOMETRY_EPSILON;
+                    assertTrue(reachedSecondBoundary || reachedThirdBoundary,
+                            "Завершений імпульс має зупинятися перед краєм одного з цільових портів");
                 }
 
                 presenter.apply(new SimulationStep(
@@ -200,6 +210,11 @@ final class SimulationStepPresenterPulseSynchronizationTest {
                 workspace.dispose();
             }
         });
+    }
+
+    /** Обчислює відстань між наконечником імпульсу та центром вхідного порта нейрона. */
+    private static double distanceToInputPort(NeuronView neuronView, double tipX, double tipY) {
+        return Math.hypot(neuronView.inputPoint().getX() - tipX, neuronView.inputPoint().getY() - tipY);
     }
 
     /** Записує ID зв'язків, анімацію яких запитало подання, щоб перевірити маршрутизацію без часових шкал JavaFX. */
