@@ -3,15 +3,19 @@ package com.example.neuronmap.view.connection;
 import com.example.neuronmap.model.Connection;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.util.GeometryUtils;
+import com.example.neuronmap.view.neuron.NeuronStructureDrawerView;
 import com.example.neuronmap.view.neuron.NeuronView;
 import com.example.neuronmap.view.neuron.NeuronVisualGeometry;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.property.ReadOnlyLongProperty;
 import javafx.beans.property.ReadOnlyLongWrapper;
 import javafx.geometry.Point2D;
+import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
@@ -22,7 +26,7 @@ import javafx.util.Duration;
 import java.util.Objects;
 import java.util.function.Function;
 
-/** Відображає напрямлений зв'язок між двома нейронами та керує геометрією, стрілкою й підсвічуванням для видалення. */
+/** Відображає напрямлений зв'язок між двома нейронами та керує його геометрією, стрілкою й підсвічуванням. */
 public final class ConnectionView extends Pane {
 
     private static final Color HIT_TEST_STROKE_COLOR = Color.rgb(255, 255, 255, 0.001);
@@ -42,6 +46,11 @@ public final class ConnectionView extends Pane {
     private Timeline blinkTimeline;
     private Point2D arrowTip;
     private boolean deleteHighlighted;
+    private boolean deleteHighlightRequested;
+    private ConnectionView visualRepresentative = this;
+    private ChangeListener<Number> representativeGeometryListener;
+    private ChangeListener<Boolean> representativeVisibilityListener;
+    private ChangeListener<Parent> representativeParentListener;
 
     /**
      * Створює зв'язок зі стандартним власним стилем компонента.
@@ -77,6 +86,11 @@ public final class ConnectionView extends Pane {
         this.viewLookup = Objects.requireNonNull(viewLookup, "viewLookup");
         this.neuronLookup = Objects.requireNonNull(neuronLookup, "neuronLookup");
         this.style = Objects.requireNonNull(style, "style");
+        parentProperty().addListener((_, _, parent) -> {
+            if (parent == null && visualRepresentative != this) {
+                setVisualRepresentative(this);
+            }
+        });
         setPickOnBounds(false);
 
         line.setStroke(baseColor());
@@ -128,25 +142,189 @@ public final class ConnectionView extends Pane {
     }
 
     /** Перевіряє стан підсвічування видалення. @return {@code true}, якщо анімація видалення активна. */
-    public boolean isDeleteHighlighted() { return deleteHighlighted; }
+    public boolean isDeleteHighlighted() { return visualRepresentative().deleteHighlighted; }
 
     /**
-     * Оновлює геометрію за центрами портів і скорочує видимий зв'язок до основи наконечника.
-     * Вістря розташовується перед зовнішнім краєм вхідного порта, а знімок імпульсу використовує ту саму кінцеву точку.
-     * Зв'язки до прихованих учасників структури не відображаються.
+     * Оновлює геометрію з урахуванням видимих кінців та об'єднує зв'язки з однаковою видимою парою портів.
+     * Коли кілька прихованих учасників ведуть до того самого видимого нейрона або контейнера, лише одне
+     * подання малює лінію. Решта подань делегують йому геометрію, але зберігають власний ідентифікатор
+     * і джерело сигналу для незалежної анімації кожного реального зв'язку.
      */
     public void updateGeometry() {
+        VisibleEndpoints endpoints = resolveVisibleEndpoints();
+        if (endpoints == null) {
+            becomeStandalone();
+            hideGeometry();
+            return;
+        }
+
+        ConnectionView representative = findVisualRepresentative(endpoints);
+        if (representative != this) {
+            setVisualRepresentative(representative);
+            return;
+        }
+
+        setVisualRepresentative(this);
+        updateOwnGeometry(endpoints.source(), endpoints.target());
+    }
+
+    /**
+     * Визначає пару видимих кінців після перенесення прихованих учасників на найвищі видимі контейнери.
+     * Зв'язок між двома прихованими кінцями не має видимої проєкції.
+     *
+     * @return пара видимих подань або {@code null}, якщо будь-який кінець відсутній чи обидва приховані.
+     */
+    private VisibleEndpoints resolveVisibleEndpoints() {
         NeuronView source = viewLookup.apply(model.sourceId());
         NeuronView target = viewLookup.apply(model.targetId());
         if (source == null || target == null) {
+            return null;
+        }
+
+        boolean sourceHidden = source.isHiddenInClosedStructureDrawer();
+        boolean targetHidden = target.isHiddenInClosedStructureDrawer();
+        if ((sourceHidden || targetHidden)
+                && (!source.isStructureMember() || !target.isStructureMember())) {
+            return null;
+        }
+        if (sourceHidden && targetHidden) {
+            return null;
+        }
+
+        NeuronView visibleSource = sourceHidden ? resolveVisibleEndpoint(source) : source;
+        NeuronView visibleTarget = targetHidden ? resolveVisibleEndpoint(target) : target;
+        if (visibleSource.isHiddenInClosedStructureDrawer()
+                || visibleTarget.isHiddenInClosedStructureDrawer()) {
+            return null;
+        }
+        return new VisibleEndpoints(visibleSource, visibleTarget, sourceHidden || targetHidden);
+    }
+
+    /**
+     * Знаходить єдине подання, яке має малювати зв'язки з такою самою парою видимих кінців.
+     * Найменший ідентифікатор забезпечує стабільний вибір представника незалежно від порядку оновлення.
+     *
+     * @param endpoints видима пара портів цього зв'язку.
+     * @return канонічне графічне подання групи.
+     */
+    private ConnectionView findVisualRepresentative(VisibleEndpoints endpoints) {
+        if (getParent() == null || !endpoints.containsHiddenEndpoint()) {
+            return this;
+        }
+        ConnectionView representative = this;
+        if (!(getParent() instanceof Pane parent)) {
+            return this;
+        }
+        for (Node node : parent.getChildrenUnmodifiable()) {
+            if (!(node instanceof ConnectionView candidate) || candidate == this) {
+                continue;
+            }
+            VisibleEndpoints candidateEndpoints = candidate.resolveVisibleEndpoints();
+            if (candidateEndpoints != null && candidateEndpoints.containsHiddenEndpoint()
+                    && endpoints.samePorts(candidateEndpoints)
+                    && candidate.model.id().compareTo(representative.model.id()) < 0) {
+                representative = candidate;
+            }
+        }
+        if (representative != this && !representative.isVisualRepresentative()) {
+            representative.updateGeometry();
+            representative = representative.visualRepresentative();
+        }
+        return representative;
+    }
+
+    /** Перемикає це подання на власну геометрію після того, як попередній представник зник. */
+    private void becomeStandalone() {
+        if (visualRepresentative != this) {
+            setVisualRepresentative(this);
+        }
+    }
+
+    /**
+     * Установлює власне або делеговане графічне подання та синхронізує властивості, потрібні імпульсам.
+     * Делегат не малює власних фігур, однак його видимість і версія геометрії повторюють представника.
+     *
+     * @param representative канонічне подання; {@code this} означає власну геометрію.
+     */
+    private void setVisualRepresentative(ConnectionView representative) {
+        if (visualRepresentative == representative) {
             return;
         }
-        if (source.isHiddenInClosedStructureDrawer() || target.isHiddenInClosedStructureDrawer()) {
-            arrowTip = null;
-            setVisible(false);
+        ConnectionView previousRepresentative = visualRepresentative;
+        detachRepresentativeListeners();
+        if (previousRepresentative == this && blinkTimeline != null) {
+            blinkTimeline.stop();
+            blinkTimeline = null;
+            deleteHighlighted = false;
+            line.setStroke(baseColor());
+            arrow.setFill(baseArrowColor());
+        }
+        visualRepresentative = representative;
+        if (representative == this) {
+            line.setVisible(true);
+            hitLine.setVisible(true);
+            arrow.setVisible(true);
+            setMouseTransparent(false);
+            setVisible(true);
+            previousRepresentative.visualRepresentative().refreshAggregateDeleteHighlight();
+            refreshAggregateDeleteHighlight();
             return;
         }
 
+        arrowTip = null;
+        line.setVisible(false);
+        hitLine.setVisible(false);
+        arrow.setVisible(false);
+        setMouseTransparent(true);
+        representativeGeometryListener = (_, _, value) -> geometryRevision.set(value.longValue());
+        representativeVisibilityListener = (_, _, visible) -> setVisible(visible);
+        representativeParentListener = (_, _, parent) -> {
+            if (parent == null && visualRepresentative != this) {
+                updateGeometry();
+            }
+        };
+        representative.geometryRevisionProperty().addListener(representativeGeometryListener);
+        representative.visibleProperty().addListener(representativeVisibilityListener);
+        representative.parentProperty().addListener(representativeParentListener);
+        geometryRevision.set(representative.geometryRevisionProperty().get());
+        setVisible(representative.isVisible());
+        if (previousRepresentative != this) {
+            previousRepresentative.visualRepresentative().refreshAggregateDeleteHighlight();
+        }
+        representative.refreshAggregateDeleteHighlight();
+    }
+
+    /** Від'єднує слухачі делегата перед зміною представника або звільненням власного подання. */
+    private void detachRepresentativeListeners() {
+        if (visualRepresentative == this) {
+            return;
+        }
+        if (representativeGeometryListener != null) {
+            visualRepresentative.geometryRevisionProperty().removeListener(representativeGeometryListener);
+            representativeGeometryListener = null;
+        }
+        if (representativeVisibilityListener != null) {
+            visualRepresentative.visibleProperty().removeListener(representativeVisibilityListener);
+            representativeVisibilityListener = null;
+        }
+        if (representativeParentListener != null) {
+            visualRepresentative.parentProperty().removeListener(representativeParentListener);
+            representativeParentListener = null;
+        }
+    }
+
+    /** Повертає видиме графічне подання, яким користуються всі учасники агрегованого зв'язку. */
+    public ConnectionView visualRepresentative() {
+        return visualRepresentative == this ? this : visualRepresentative.visualRepresentative();
+    }
+
+    /** Перевіряє, чи малює це подання власну лінію, а не делегує її іншому зв'язку. */
+    public boolean isVisualRepresentative() {
+        return visualRepresentative == this;
+    }
+
+    /** Перераховує власну геометрію за вже визначеними видимими поданнями початку та кінця. */
+    private void updateOwnGeometry(NeuronView source, NeuronView target) {
         setVisible(true);
         Point2D start = connectionPoint(source, true);
         Point2D targetCenter = connectionPoint(target, false);
@@ -175,16 +353,58 @@ public final class ConnectionView extends Pane {
     }
 
     /**
-     * Створює знімок геометрії та палітри зв'язку для анімації імпульсу.
-     * Прихований зв'язок не створює імпульсу на застарілих координатах.
+     * Повертає найвищий видимий контейнер, який закриває подання внутрішнього нейрона, або сам нейрон.
+     * Під час обходу всіх предків пізніший закритий контейнер замінює попередній: це враховує вкладені
+     * структури, у яких внутрішня шухлядка може бути відкрита, але зовнішня — закрита.
      *
-     * @return знімок або {@code null}, якщо зв'язок прихований, джерело відсутнє чи між портами не вистачає місця для наконечника.
+     * @param endpoint вихідне подання нейрона, яке може бути приховане шухлядкою.
+     * @return саме подання нейрона, якщо воно видиме, або подання найближчої видимої структури-контейнера.
+     */
+    private static NeuronView resolveVisibleEndpoint(NeuronView endpoint) {
+        NeuronView visibleContainer = endpoint;
+        Node ancestor = endpoint.getParent();
+        while (ancestor != null) {
+            if (ancestor instanceof NeuronStructureDrawerView drawer
+                    && !drawer.isExpanded()
+                    && drawer.getParent() instanceof NeuronView structureView) {
+                visibleContainer = structureView;
+            }
+            ancestor = ancestor.getParent();
+        }
+        return visibleContainer;
+    }
+
+    /** Приховує лінію та очищує її кінцеву точку, щоб імпульс не використовував застарілу геометрію. */
+    private void hideGeometry() {
+        arrowTip = null;
+        setVisible(false);
+    }
+
+    /**
+     * Створює знімок спільної видимої геометрії та палітри саме того джерела, яке передало сигнал.
+     * Делеговані подання повертають координати представника, але зберігають колір свого реального джерела.
+     *
+     * @return знімок або {@code null}, якщо спільний зв'язок прихований чи геометрія недоступна.
      */
     public ConnectionPulseSnapshot capturePulseSnapshot() {
+        return capturePulseSnapshotForSource(model.sourceId());
+    }
+
+    /**
+     * Формує імпульс на спільній геометрії від заданого реального джерела сигналу.
+     *
+     * @param sourceNeuronId ідентифікатор нейрона, який фактично випустив сигнал.
+     * @return знімок для цього джерела або {@code null}, якщо геометрія чи джерело недоступні.
+     */
+    private ConnectionPulseSnapshot capturePulseSnapshotForSource(String sourceNeuronId) {
+        ConnectionView representative = visualRepresentative();
+        if (representative != this) {
+            return representative.capturePulseSnapshotForSource(sourceNeuronId);
+        }
         if (!isVisible()) {
             return null;
         }
-        Neuron source = neuronLookup.apply(model.sourceId());
+        Neuron source = neuronLookup.apply(sourceNeuronId);
         if (source == null) {
             return null;
         }
@@ -197,21 +417,49 @@ public final class ConnectionView extends Pane {
     }
 
     /**
-     * Установлює або скасовує анімоване підсвічування зв'язку для режиму видалення.
-     * Повторне встановлення активного підсвічування не перезапускає його часову шкалу.
+     * Установлює або скасовує запит підсвічування для цього реального зв'язку.
+     * Для агрегованої лінії представник підсвічується, якщо цього потребує хоча б один її учасник.
      *
-     * @param highlighted {@code true}, щоб запустити підсвічування; {@code false}, щоб прибрати його.
+     * @param highlighted {@code true}, щоб позначити зв'язок доступним для видалення.
      */
     public void setDeleteHighlight(boolean highlighted) {
+        deleteHighlightRequested = highlighted;
+        visualRepresentative().refreshAggregateDeleteHighlight();
+    }
+
+    /** Обчислює спільний стан підсвічування всіх логічних зв'язків, що використовують цю лінію. */
+    private void refreshAggregateDeleteHighlight() {
+        boolean highlighted = deleteHighlightRequested;
+        if (getParent() instanceof Pane parent) {
+            for (Node node : parent.getChildrenUnmodifiable()) {
+                if (node instanceof ConnectionView candidate
+                        && candidate != this
+                        && candidate.deleteHighlightRequested
+                        && candidate.visualRepresentative() == this) {
+                    highlighted = true;
+                    break;
+                }
+            }
+        }
+        applyDeleteHighlight(highlighted);
+    }
+
+    /** Застосовує вже агрегований стан підсвічування до графічних фігур представника. */
+    private void applyDeleteHighlight(boolean highlighted) {
         if (highlighted && deleteHighlighted && blinkTimeline != null) {
             return;
         }
+        if (blinkTimeline != null) {
+            blinkTimeline.stop();
+            blinkTimeline = null;
+        }
         deleteHighlighted = highlighted;
-        stopDeleteHighlight();
         if (!highlighted) {
+            line.setStroke(baseColor());
+            arrow.setFill(baseArrowColor());
             return;
         }
-        deleteHighlighted = true;
+
         Color normal = baseColor();
         Color normalArrow = baseArrowColor();
         Color highlight = style.deleteHighlightColor();
@@ -228,29 +476,33 @@ public final class ConnectionView extends Pane {
         blinkTimeline.play();
     }
 
-    /** Призупиняє підсвічування видалення, зберігаючи можливість відновлення. */
+    /** Призупиняє спільне підсвічування представника, зберігаючи можливість відновлення. */
     public void pauseDeleteHighlight() {
+        ConnectionView representative = visualRepresentative();
+        if (representative != this) {
+            representative.pauseDeleteHighlight();
+            return;
+        }
         if (blinkTimeline != null && blinkTimeline.getStatus() == Animation.Status.RUNNING) {
             blinkTimeline.pause();
         }
     }
 
-    /** Відновлює анімацію підсвічування видалення після паузи. */
+    /** Відновлює спільну анімацію підсвічування представника після паузи. */
     public void resumeDeleteHighlight() {
+        ConnectionView representative = visualRepresentative();
+        if (representative != this) {
+            representative.resumeDeleteHighlight();
+            return;
+        }
         if (blinkTimeline != null && blinkTimeline.getStatus() == Animation.Status.PAUSED) {
             blinkTimeline.play();
         }
     }
 
-    /** Зупиняє анімацію підсвічування та повертає зв'язок до базових кольорів лінії й наконечника. */
+    /** Знімає запит цього зв'язку на підсвічування й оновлює стан спільної лінії. */
     public void stopDeleteHighlight() {
-        if (blinkTimeline != null) {
-            blinkTimeline.stop();
-            blinkTimeline = null;
-        }
-        deleteHighlighted = false;
-        line.setStroke(baseColor());
-        arrow.setFill(baseArrowColor());
+        setDeleteHighlight(false);
     }
 
     /**
@@ -316,15 +568,30 @@ public final class ConnectionView extends Pane {
         updateLineGeometry(start, start, start);
     }
 
-    /** Повертає базовий колір лінії зв'язку за типом джерела. */
+    /** Повертає базовий колір лінії зв'язку за типом початкового нейрона, а не його графічного контейнера. */
     private Color baseColor() {
         Neuron source = neuronLookup.apply(model.sourceId());
         return style.sourceColor(source == null ? null : source.type());
     }
 
-    /** Повертає базовий колір наконечника стрілки за типом джерела. */
+    /** Повертає колір наконечника за типом справжнього початкового нейрона. */
     private Color baseArrowColor() {
         Neuron source = neuronLookup.apply(model.sourceId());
         return style.arrowColor(source == null ? null : source.type());
     }
+
+    /** Пара графічних кінців після згортання прихованих учасників на видимі структури-контейнери. */
+    private record VisibleEndpoints(NeuronView source, NeuronView target, boolean hasProxyEndpoint) {
+        /** Перевіряє, чи збігаються ідентифікатори видимих портів двох напрямлених зв'язків. */
+        private boolean samePorts(VisibleEndpoints other) {
+            return source.model().id().equals(other.source.model().id())
+                    && target.model().id().equals(other.target.model().id());
+        }
+
+        /** Визначає, чи принаймні один кінець було перенесено з прихованого учасника на контейнер. */
+        private boolean containsHiddenEndpoint() {
+            return hasProxyEndpoint;
+        }
+    }
+
 }
