@@ -5,6 +5,7 @@ import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronStructure;
 import com.example.neuronmap.model.NeuronType;
+import com.example.neuronmap.model.StructureNeuronCreationMode;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -53,6 +54,7 @@ final class StructureActivationCoordinator {
             String targetStructureId = entry.getKey();
             Set<String> sourceIds = entry.getValue();
             if (sourceIds.isEmpty()
+                    || !allConnectedSourceStructuresAreActive(targetStructureId, activatedSourcesByStructure)
                     || findSharedCenter(targetStructureId, sourceIds, incomingSourcesByTarget) != null) {
                 continue;
             }
@@ -80,6 +82,38 @@ final class StructureActivationCoordinator {
             }
         }
         return result;
+    }
+
+    /**
+     * Перевіряє нову умову режиму «За кількістю структур» для кожного прямого структурного входу приймача.
+     * У режимі за кількістю нейронів зберігається попередня поведінка: достатньо будь-якої непорожньої групи.
+     *
+     * @param targetStructureId ідентифікатор структури, яка може створити спільний центр.
+     * @param activatedSourcesByStructure активовані звичайні нейрони, згруповані за всіма структурами-предками.
+     * @return {@code true}, якщо вибраний режим дозволяє створення центру в цьому такті.
+     */
+    private boolean allConnectedSourceStructuresAreActive(
+            String targetStructureId,
+            Map<String, Set<String>> activatedSourcesByStructure
+    ) {
+        NeuronStructure target = model.structure(targetStructureId);
+        if (target == null
+                || target.settings().neuronCreationMode() == StructureNeuronCreationMode.NEURON_COUNT) {
+            return target != null;
+        }
+
+        boolean hasConnectedSource = false;
+        for (Connection connection : model.connections()) {
+            if (!targetStructureId.equals(connection.targetId())
+                    || model.structure(connection.sourceId()) == null) {
+                continue;
+            }
+            hasConnectedSource = true;
+            if (activatedSourcesByStructure.getOrDefault(connection.sourceId(), Set.of()).isEmpty()) {
+                return false;
+            }
+        }
+        return hasConnectedSource;
     }
 
     /**

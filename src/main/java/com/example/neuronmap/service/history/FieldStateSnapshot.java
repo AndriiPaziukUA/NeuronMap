@@ -9,6 +9,7 @@ import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.model.NeuronStructure;
 import com.example.neuronmap.model.NeuronType;
+import com.example.neuronmap.model.StructureNeuronCreationMode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -71,7 +72,7 @@ public final class FieldStateSnapshot {
             structureStates.add(new StructureState(
                     structure.id(), List.copyOf(structure.memberIds()), structure.isExpanded(),
                     structure.settings().memberType(), structure.settings().directionReversed(),
-                    structure.settings().strongestNeuronOnly()));
+                    structure.settings().strongestNeuronOnly(), structure.settings().neuronCreationMode()));
         }
         return new FieldStateSnapshot(neuronStates, presentationStates, connectionStates, groupStates, structureStates);
     }
@@ -123,6 +124,7 @@ public final class FieldStateSnapshot {
             }
             structure.settings().setDirectionReversed(structureState.directionReversed());
             structure.settings().setStrongestNeuronOnly(structureState.strongestNeuronOnly());
+            structure.settings().setNeuronCreationMode(structureState.neuronCreationMode());
         }
         for (StructureState structureState : structures) {
             for (String memberId : structureState.memberIds()) {
@@ -227,7 +229,7 @@ public final class FieldStateSnapshot {
     }
 
     /**
-     * Зберігає членство, стан шухлядки, тип, напрямок і режим найсильнішого нейрона для undo/redo.
+     * Зберігає членство, стан шухлядки, тип, напрямок і режими поведінки структури для undo/redo.
      *
      * @param id ідентифікатор нейрона-контейнера.
      * @param memberIds ідентифікатори учасників у порядку їх додавання.
@@ -235,24 +237,37 @@ public final class FieldStateSnapshot {
      * @param memberType спільний тип звичайних учасників.
      * @param directionReversed {@code true}, якщо спільний напрямок портів розвернуто.
      * @param strongestNeuronOnly {@code true}, якщо режим конкуренції ввімкнено.
+     * @param neuronCreationMode умова створення нового спільного нейрона.
      */
     public record StructureState(String id, List<String> memberIds, boolean expanded,
-                                 NeuronType memberType, boolean directionReversed, boolean strongestNeuronOnly) {
-        /** Створює незмінний знімок структури. @throws NullPointerException якщо список учасників не задано. */
-        public StructureState { memberIds = List.copyOf(memberIds); }
+                                 NeuronType memberType, boolean directionReversed, boolean strongestNeuronOnly,
+                                 StructureNeuronCreationMode neuronCreationMode) {
+        /** Створює незмінний знімок структури. @throws NullPointerException якщо список учасників або режим не задано. */
+        public StructureState {
+            memberIds = List.copyOf(memberIds);
+            Objects.requireNonNull(neuronCreationMode, "neuronCreationMode");
+        }
         /** Зберігає сумісність зі знімками, у яких не фіксувався режим найсильнішого нейрона. */
         public StructureState(String id, List<String> memberIds, boolean expanded,
                               NeuronType memberType, boolean directionReversed) {
-            this(id, memberIds, expanded, memberType, directionReversed, false);
+            this(id, memberIds, expanded, memberType, directionReversed, false,
+                    StructureNeuronCreationMode.NEURON_COUNT);
+        }
+        /** Зберігає сумісність зі знімками до додавання режиму створення спільних нейронів. */
+        @SuppressWarnings("unused")
+        public StructureState(String id, List<String> memberIds, boolean expanded,
+                              NeuronType memberType, boolean directionReversed, boolean strongestNeuronOnly) {
+            this(id, memberIds, expanded, memberType, directionReversed, strongestNeuronOnly,
+                    StructureNeuronCreationMode.NEURON_COUNT);
         }
         /** Зберігає сумісність зі старим контрактом без спільних характеристик структури. */
         @SuppressWarnings("unused")
         public StructureState(String id, List<String> memberIds, boolean expanded) {
-            this(id, memberIds, expanded, null, false, false);
+            this(id, memberIds, expanded, null, false, false, StructureNeuronCreationMode.NEURON_COUNT);
         }
         /** Зберігає сумісність зі старим контрактом, де структура за замовчуванням закрита. */
         public StructureState(String id, List<String> memberIds) {
-            this(id, memberIds, false, null, false, false);
+            this(id, memberIds, false, null, false, false, StructureNeuronCreationMode.NEURON_COUNT);
         }
     }
 }

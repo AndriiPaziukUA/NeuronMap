@@ -322,7 +322,7 @@ public final class NeuronMenuController {
     }
 
     /**
-     * Відкриває накладку налаштувань нейрона; для структури додатково передає параметри членства й конкуренції.
+     * Відкриває накладку налаштувань нейрона; для структури додатково передає параметри членства й режим створення.
      * Після збереження оновлює подання, оскільки нова кількість учасників може змінити шухлядку.
      *
      * @param neuronId ідентифікатор нейрона, налаштування якого потрібно змінити.
@@ -336,13 +336,14 @@ public final class NeuronMenuController {
             Runnable onClose = () -> restoreMenuAfterSettingsClosed(
                     neuronId, neuronView, structureDrawerToggleAction);
             if (neuron.type() == NeuronType.STRUCTURE) {
-                settingsOverlayCoordinator.showWithStructureSettings(
+                settingsOverlayCoordinator.showWithStructureCreationSettings(
                         neuron,
                         neuronService.structureMemberCount(neuronId),
-                        (parameters, name, requestedCount, strongestNeuronOnly) -> {
+                        (parameters, name, requestedCount, strongestNeuronOnly, creationMode) -> {
                             if (neuronService.ensureStructureMemberCount(neuronId, requestedCount)
                                     && neuronService.updateSettings(neuronId, parameters, name)
-                                    && neuronService.setStructureStrongestNeuronOnly(neuronId, strongestNeuronOnly)) {
+                                    && neuronService.setStructureStrongestNeuronOnly(neuronId, strongestNeuronOnly)
+                                    && neuronService.setStructureNeuronCreationMode(neuronId, creationMode)) {
                                 refreshPresentationAndSave();
                                 status.accept(localization.text("neuron.settings.saved"));
                             }

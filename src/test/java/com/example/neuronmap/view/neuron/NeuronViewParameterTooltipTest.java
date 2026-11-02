@@ -2,9 +2,11 @@ package com.example.neuronmap.view.neuron;
 
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
+import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.model.NeuronType;
+import com.example.neuronmap.model.StructureNeuronCreationMode;
 import com.example.neuronmap.testsupport.JavaFxTestSupport;
 import javafx.event.Event;
 import javafx.event.EventType;
@@ -15,6 +17,8 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Text;
 import javafx.scene.shape.Rectangle;
 import org.junit.jupiter.api.Test;
 
@@ -166,6 +170,41 @@ final class NeuronViewParameterTooltipTest {
                 structure.disposeParameterTooltip();
                 member.disposeParameterTooltip();
             }
+        });
+    }
+
+    /** Перевіряє відображення режиму в обох станах шухлядки та окреме забарвлення значення прапорця. */
+    @Test
+    void showsStructureCreationModeForBothDrawerStatesAndColorsStrongestNeuronValue() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            NeuronMapModel model = new NeuronMapModel();
+            Neuron structure = model.createNeuron(NeuronType.STRUCTURE, 10.0, 10.0);
+            Neuron member = model.createNeuron(NeuronType.EXCITATORY, 20.0, 20.0);
+            assertTrue(model.addStructureMember(structure.id(), member.id()));
+            model.structure(structure.id()).settings().setStrongestNeuronOnly(true);
+            model.structure(structure.id()).settings()
+                    .setNeuronCreationMode(StructureNeuronCreationMode.STRUCTURE_COUNT);
+
+            NeuronView view = new NeuronView(model.presentation(structure.id()));
+            NeuronView memberView = new NeuronView(model.presentation(member.id()));
+            view.setStructureMembers(List.of(memberView));
+            view.configureParameterTooltipLocalization(new LocalizationService(Locale.ENGLISH));
+
+            assertTrue(view.parameterTooltipTextForTest().contains("Neuron creation: By structure count"));
+            assertTrue(view.parameterTooltipTextForTest().contains("Strongest neuron: On"));
+            Label strongestNeuronLabel = (Label) view.parameterTooltipContentForTest().getChildren().get(5);
+            Text state = (Text) strongestNeuronLabel.getGraphic();
+            assertEquals(Color.web("#58d68d"), state.getFill());
+
+            model.structure(structure.id()).settings().setStrongestNeuronOnly(false);
+            view.refreshVisuals(false);
+            assertEquals(Color.web("#ff6b6b"), state.getFill());
+            assertTrue(view.parameterTooltipTextForTest().contains("Strongest neuron: Off"));
+
+            view.toggleStructureDrawer();
+            assertTrue(view.parameterTooltipTextForTest().contains("Neuron creation: By structure count"));
+            view.disposeParameterTooltip();
+            memberView.disposeParameterTooltip();
         });
     }
 

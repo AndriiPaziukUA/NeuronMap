@@ -12,7 +12,7 @@ public final class SqliteSchema {
 
     private static final int STRUCTURE_SETTINGS_VERSION = 11;
     private static final int STRUCTURE_MEMBER_TYPE_VERSION = 12;
-    private static final int CURRENT_VERSION = 14;
+    private static final int CURRENT_VERSION = 15;
 
     /** Не дозволяє створювати екземпляри утиліти керування схемою. */
     private SqliteSchema() { }
@@ -42,6 +42,7 @@ public final class SqliteSchema {
             ensureStructureMemberTypeColumn(connection);
             ensureStructureDirectionColumn(connection);
             ensureStructureStrongestNeuronOnlyColumn(connection);
+            ensureStructureNeuronCreationModeColumn(connection);
             if (versionAtStart < STRUCTURE_SETTINGS_VERSION) {
                 migrateStructureSettingsFromNeuronRows(connection);
             }
@@ -114,6 +115,8 @@ public final class SqliteSchema {
                         direction_reversed INTEGER CHECK (direction_reversed IS NULL OR direction_reversed IN (0, 1)),
                         strongest_neuron_only INTEGER CHECK (
                             strongest_neuron_only IS NULL OR strongest_neuron_only IN (0, 1)),
+                        neuron_creation_mode TEXT CHECK (
+                            neuron_creation_mode IS NULL OR neuron_creation_mode IN ('NEURON_COUNT', 'STRUCTURE_COUNT')),
                         FOREIGN KEY (id) REFERENCES neurons(id) ON DELETE CASCADE
                     )
                     """);
@@ -216,6 +219,17 @@ public final class SqliteSchema {
             statement.executeUpdate("""
                     ALTER TABLE structures ADD COLUMN strongest_neuron_only INTEGER
                     CHECK (strongest_neuron_only IS NULL OR strongest_neuron_only IN (0, 1))
+                    """);
+        }
+    }
+
+    /** Додає nullable-режим створення центру; NULL зберігається для вкладених структур зі спільними налаштуваннями. */
+    private static void ensureStructureNeuronCreationModeColumn(Connection connection) throws SQLException {
+        if (columnExists(connection, "structures", "neuron_creation_mode")) return;
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    ALTER TABLE structures ADD COLUMN neuron_creation_mode TEXT
+                    CHECK (neuron_creation_mode IS NULL OR neuron_creation_mode IN ('NEURON_COUNT', 'STRUCTURE_COUNT'))
                     """);
         }
     }

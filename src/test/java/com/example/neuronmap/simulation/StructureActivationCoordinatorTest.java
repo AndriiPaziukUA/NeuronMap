@@ -3,6 +3,7 @@ package com.example.neuronmap.simulation;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronType;
+import com.example.neuronmap.model.StructureNeuronCreationMode;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashSet;
@@ -245,7 +246,84 @@ class StructureActivationCoordinatorTest {
         assertEquals(1, step.nextInputSums().get(centers.iterator().next()));
     }
 
+    /** Перевіряє, що режим за кількістю структур блокує центр, коли будь-яка під'єднана структура мовчить. */
+    @Test
+    void structureCountModeRequiresAnActiveMemberInEveryConnectedSourceStructure() {
+        assertNoCenterWhenOneSourceStructureIsSilent(true);
+        assertNoCenterWhenOneSourceStructureIsSilent(false);
+    }
 
+    /** Перевіряє створення спільного центру в новому режимі, коли активні учасники є в усіх джерелах. */
+    @Test
+    void structureCountModeCreatesCenterWhenEveryConnectedSourceStructureIsActive() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron sourceStructureA = createStructure(model);
+        Neuron sourceStructureB = createStructure(model);
+        Neuron targetStructure = createStructure(model);
+        Neuron sourceA = addMember(model, sourceStructureA);
+        Neuron sourceB = addMember(model, sourceStructureB);
+        addMember(model, targetStructure);
+        connectStructures(model, sourceStructureA, targetStructure);
+        connectStructures(model, sourceStructureB, targetStructure);
+        model.structure(targetStructure.id()).settings()
+                .setNeuronCreationMode(StructureNeuronCreationMode.STRUCTURE_COUNT);
+
+        SimulationSession session = SimulationSession.manual(model, sourceA.id());
+        assertTrue(session.queueManualStart(sourceB.id()));
+        SimulationStep step = Objects.requireNonNull(session.nextStep(), "simulation step");
+
+        Set<String> centers = findSharedCenters(model, targetStructure.id(), sourceA.id(), sourceB.id());
+        assertEquals(1, centers.size());
+        assertEquals(2, step.nextInputSums().get(centers.iterator().next()));
+    }
+
+    /** Перевіряє, що типовий режим не блокує центр через неактивну іншу під'єднану структуру. */
+    @Test
+    void neuronCountModeKeepsPreviousBehaviorWhenOneConnectedSourceIsSilent() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron sourceStructureA = createStructure(model);
+        Neuron sourceStructureB = createStructure(model);
+        Neuron targetStructure = createStructure(model);
+        Neuron sourceA = addMember(model, sourceStructureA);
+        addMember(model, sourceStructureB);
+        addMember(model, targetStructure);
+        connectStructures(model, sourceStructureA, targetStructure);
+        connectStructures(model, sourceStructureB, targetStructure);
+        int originalMemberCount = model.structure(targetStructure.id()).memberIds().size();
+
+        SimulationStep step = Objects.requireNonNull(
+                SimulationSession.manual(model, sourceA.id()).nextStep(), "simulation step");
+
+        assertEquals(StructureNeuronCreationMode.NEURON_COUNT,
+                model.structure(targetStructure.id()).settings().neuronCreationMode());
+        assertEquals(originalMemberCount + 1, model.structure(targetStructure.id()).memberIds().size());
+        assertEquals(1, findSharedCenters(model, targetStructure.id(), sourceA.id()).size());
+        assertEquals(1, step.nextInputSums().values().stream().mapToInt(Integer::intValue).sum());
+    }
+
+    /** Створює пару джерел і підтверджує, що єдина активна структура не проходить нову умову приймача. */
+    private void assertNoCenterWhenOneSourceStructureIsSilent(boolean activateA) {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron sourceStructureA = createStructure(model);
+        Neuron sourceStructureB = createStructure(model);
+        Neuron targetStructure = createStructure(model);
+        Neuron sourceA = addMember(model, sourceStructureA);
+        Neuron sourceB = addMember(model, sourceStructureB);
+        addMember(model, targetStructure);
+        connectStructures(model, sourceStructureA, targetStructure);
+        connectStructures(model, sourceStructureB, targetStructure);
+        model.structure(targetStructure.id()).settings()
+                .setNeuronCreationMode(StructureNeuronCreationMode.STRUCTURE_COUNT);
+        int originalMemberCount = model.structure(targetStructure.id()).memberIds().size();
+        String activeSourceId = activateA ? sourceA.id() : sourceB.id();
+
+        SimulationStep step = Objects.requireNonNull(
+                SimulationSession.manual(model, activeSourceId).nextStep(), "simulation step");
+
+        assertEquals(originalMemberCount, model.structure(targetStructure.id()).memberIds().size());
+        assertTrue(findSharedCenters(model, targetStructure.id(), activeSourceId).isEmpty());
+        assertTrue(step.nextInputSums().isEmpty());
+    }
 
     /** Перевіряє, що активація лише зовнішнього нейрона не створює центр через наявний структурний зв'язок. */
     @Test

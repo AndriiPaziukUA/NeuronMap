@@ -2,13 +2,14 @@ package com.example.neuronmap.service;
 
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronStructure;
+import com.example.neuronmap.model.StructureNeuronCreationMode;
 
 import java.util.Collection;
 import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Надає операції читання та зміни членства й стану шухлядок структур, делегуючи цілісність моделі.
+ * Надає операції читання та зміни членства, стану шухлядок і спільних режимів структур, делегуючи цілісність моделі.
  * Внутрішні нейрони не мають самостійного розміщення на дошці: розміщенням керує шухлядка.
  */
 public final class StructureService {
@@ -108,6 +109,24 @@ public final class StructureService {
             return false;
         }
         structure.orElseThrow().settings().setStrongestNeuronOnly(enabled);
+        return true;
+    }
+
+    /**
+     * Установлює умову створення спільного нейрона для всього дерева структури.
+     *
+     * @param structureId ідентифікатор кореневої або вкладеної структури.
+     * @param mode режим перевірки активованих структурних джерел.
+     * @return {@code true}, якщо структуру знайдено й режим застосовано; інакше {@code false}.
+     * @throws NullPointerException якщо режим не задано.
+     */
+    public boolean setNeuronCreationMode(String structureId, StructureNeuronCreationMode mode) {
+        Objects.requireNonNull(mode, "mode");
+        Optional<NeuronStructure> structure = find(structureId);
+        if (structure.isEmpty()) {
+            return false;
+        }
+        structure.orElseThrow().settings().setNeuronCreationMode(mode);
         return true;
     }
 }

@@ -7,6 +7,7 @@ import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.model.NeuronStructure;
 import com.example.neuronmap.model.NeuronType;
+import com.example.neuronmap.model.StructureNeuronCreationMode;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -108,7 +109,7 @@ public final class SqliteMapLoader {
         //noinspection SqlResolve
         String structureSql = """
                 SELECT id, expanded, name, signal_strength, activation_threshold, active_ticks, delay_ticks,
-                       activation_mode, member_type, direction_reversed, strongest_neuron_only
+                       activation_mode, member_type, direction_reversed, strongest_neuron_only, neuron_creation_mode
                 FROM structures ORDER BY rowid
                 """;
         try (Statement statement = connection.createStatement(); ResultSet resultSet = statement.executeQuery(structureSql)) {
@@ -131,6 +132,10 @@ public final class SqliteMapLoader {
                 if (!resultSet.wasNull()) structure.settings().setDirectionReversed(directionReversed != 0);
                 int strongestNeuronOnly = resultSet.getInt("strongest_neuron_only");
                 if (!resultSet.wasNull()) structure.settings().setStrongestNeuronOnly(strongestNeuronOnly != 0);
+                String neuronCreationMode = resultSet.getString("neuron_creation_mode");
+                if (neuronCreationMode != null) {
+                    structure.settings().setNeuronCreationMode(StructureNeuronCreationMode.valueOf(neuronCreationMode));
+                }
             }
         }
 

@@ -4,6 +4,7 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronActivationMode;
 import com.example.neuronmap.model.NeuronType;
+import com.example.neuronmap.model.StructureNeuronCreationMode;
 import com.example.neuronmap.view.support.TooltipFactory;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -12,6 +13,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
 
 import java.util.Objects;
 
@@ -27,6 +29,8 @@ final class NeuronParameterTooltip {
     private static final String VALUE_STYLE_CLASS = "parameter-tooltip-value";
     private static final String DIVIDER_STYLE_CLASS = "parameter-tooltip-divider";
     private static final double DIVIDER_HEIGHT = 0.5;
+    private static final String ENABLED_VALUE_COLOR = "#58d68d";
+    private static final String DISABLED_VALUE_COLOR = "#ff6b6b";
 
     private final Tooltip tooltip = TooltipFactory.create("");
     private final VBox content = new VBox();
@@ -36,6 +40,8 @@ final class NeuronParameterTooltip {
     private final Region structureDivider = createDivider();
     private final Label memberCountLabel = createLabel(VALUE_STYLE_CLASS);
     private final Label strongestNeuronLabel = createLabel(VALUE_STYLE_CLASS);
+    private final Text strongestNeuronValue = new Text();
+    private final Label neuronCreationModeLabel = createLabel(VALUE_STYLE_CLASS);
     private final Region neuronsTopDivider = createDivider();
     private final Label neuronsSectionLabel = createLabel(SECTION_STYLE_CLASS);
     private final Region neuronsDivider = createDivider();
@@ -53,6 +59,9 @@ final class NeuronParameterTooltip {
         titleLabel.setAlignment(Pos.CENTER);
         structureSectionLabel.setAlignment(Pos.CENTER);
         neuronsSectionLabel.setAlignment(Pos.CENTER);
+        strongestNeuronLabel.setGraphic(strongestNeuronValue);
+        strongestNeuronLabel.setContentDisplay(ContentDisplay.RIGHT);
+        strongestNeuronLabel.setGraphicTextGap(4.0);
         content.getChildren().setAll(
                 titleLabel,
                 titleDivider,
@@ -60,6 +69,7 @@ final class NeuronParameterTooltip {
                 structureDivider,
                 memberCountLabel,
                 strongestNeuronLabel,
+                neuronCreationModeLabel,
                 neuronsTopDivider,
                 neuronsSectionLabel,
                 neuronsDivider,
@@ -107,10 +117,15 @@ final class NeuronParameterTooltip {
         neuronsSectionLabel.setText(text("neurons_section", "Neurons"));
         memberCountLabel.setText(parameterLine(
                 text("structure_neuron_count", "Neuron count"), Integer.toString(memberCount)));
-        strongestNeuronLabel.setText(parameterLine(
-                text("strongest_neuron", "Strongest neuron"),
-                text(neuron.strongestNeuronOnly() ? "enabled" : "disabled",
-                        neuron.strongestNeuronOnly() ? "On" : "Off")));
+        String strongestNeuronState = text(neuron.strongestNeuronOnly() ? "enabled" : "disabled",
+                neuron.strongestNeuronOnly() ? "On" : "Off");
+        strongestNeuronLabel.setText(parameterLabel(text("strongest_neuron", "Strongest neuron")));
+        strongestNeuronValue.setText(strongestNeuronState);
+        strongestNeuronValue.setFill(javafx.scene.paint.Color.web(
+                neuron.strongestNeuronOnly() ? ENABLED_VALUE_COLOR : DISABLED_VALUE_COLOR));
+        String creationModeLabel = text("neuron_creation_mode", "Neuron creation");
+        String creationModeValue = neuronCreationModeText(neuron.neuronCreationMode());
+        neuronCreationModeLabel.setText(parameterLine(creationModeLabel, creationModeValue));
         refreshNeuronParameters(neuron);
 
         setNodeVisible(titleDivider, true);
@@ -118,6 +133,7 @@ final class NeuronParameterTooltip {
         setNodeVisible(structureDivider, showStructureSection);
         setNodeVisible(memberCountLabel, structure);
         setNodeVisible(strongestNeuronLabel, structure);
+        setNodeVisible(neuronCreationModeLabel, structure);
         setNodeVisible(neuronsTopDivider, showStructureSection);
         setNodeVisible(neuronsSectionLabel, showStructureSection);
         setNodeVisible(neuronsDivider, showStructureSection);
@@ -132,7 +148,9 @@ final class NeuronParameterTooltip {
                 appendLine(renderedText, structureSectionLabel.getText());
             }
             appendLine(renderedText, memberCountLabel.getText());
-            appendLine(renderedText, strongestNeuronLabel.getText());
+            appendLine(renderedText, parameterLine(
+                    text("strongest_neuron", "Strongest neuron"), strongestNeuronState));
+            appendLine(renderedText, neuronCreationModeLabel.getText());
         }
         if (showNeuronParameters) {
             if (structure) {
@@ -181,6 +199,23 @@ final class NeuronParameterTooltip {
                 text("delay", "Delay"), Integer.toString(neuron.delayTicks())));
     }
 
+    /** Повертає локалізований текст вибраного способу створення спільного нейрона. */
+    private String neuronCreationModeText(StructureNeuronCreationMode mode) {
+        return text(mode == StructureNeuronCreationMode.NEURON_COUNT
+                ? "neuron_creation_mode_neurons"
+                : "neuron_creation_mode_structures",
+                mode == StructureNeuronCreationMode.NEURON_COUNT ? "By neuron count" : "By structure count");
+    }
+
+    /** Створює підпис параметра із завершальною двокрапкою для окремого графічного значення. */
+    private static String parameterLabel(String label) {
+        String normalizedLabel = label == null ? "" : label.strip();
+        while (normalizedLabel.endsWith(":")) {
+            normalizedLabel = normalizedLabel.substring(0, normalizedLabel.length() - 1).stripTrailing();
+        }
+        return normalizedLabel + ":";
+    }
+
     /** Створює текстовий вузол підказки з класом стилю та розтягуванням на ширину контейнера. */
     private static Label createLabel(String styleClass) {
         Label label = new Label();
@@ -218,10 +253,6 @@ final class NeuronParameterTooltip {
 
     /** Форматує рядок параметра та видаляє зайву кінцеву двокрапку з локалізованої назви. */
     private static String parameterLine(String label, String value) {
-        String normalizedLabel = label == null ? "" : label.strip();
-        while (normalizedLabel.endsWith(":")) {
-            normalizedLabel = normalizedLabel.substring(0, normalizedLabel.length() - 1).stripTrailing();
-        }
-        return normalizedLabel + ": " + value;
+        return parameterLabel(label) + " " + value;
     }
 }

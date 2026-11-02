@@ -167,8 +167,8 @@ public final class SqliteMapWriter {
         String structureSql = """
                 INSERT INTO structures (
                     id, expanded, name, signal_strength, activation_threshold, active_ticks, delay_ticks,
-                    activation_mode, member_type, direction_reversed, strongest_neuron_only
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    activation_mode, member_type, direction_reversed, strongest_neuron_only, neuron_creation_mode
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         String memberSql = "INSERT INTO structure_members (structure_id, neuron_id, position_index) VALUES (?, ?, ?)";
         try (PreparedStatement structureStatement = connection.prepareStatement(structureSql);
@@ -189,9 +189,11 @@ public final class SqliteMapWriter {
                 if (sharesParentSettings) {
                     structureStatement.setNull(10, java.sql.Types.INTEGER);
                     structureStatement.setNull(11, java.sql.Types.INTEGER);
+                    structureStatement.setNull(12, java.sql.Types.VARCHAR);
                 } else {
                     structureStatement.setInt(10, structureSettings.directionReversed() ? 1 : 0);
                     structureStatement.setInt(11, structureSettings.strongestNeuronOnly() ? 1 : 0);
+                    structureStatement.setString(12, structureSettings.neuronCreationMode().name());
                 }
                 structureStatement.addBatch();
                 int position = 0;

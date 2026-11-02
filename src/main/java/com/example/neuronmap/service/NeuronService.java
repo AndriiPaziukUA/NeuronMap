@@ -6,6 +6,7 @@ import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.model.NeuronStructure;
 import com.example.neuronmap.model.NeuronType;
+import com.example.neuronmap.model.StructureNeuronCreationMode;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -17,7 +18,7 @@ import java.util.Set;
 
 /**
  * Надає операції над нейронами: створення, пошук, видалення, переміщення, обертання,
- * зміну типу, напрямку, назви та параметрів сигналу. Під час створення структури додає її початкового учасника.
+ * зміну типу, напрямку, назви, параметрів сигналу та спільних режимів структури. Під час створення структури додає її початкового учасника.
  */
 public final class NeuronService {
 
@@ -243,6 +244,18 @@ public final class NeuronService {
      */
     public boolean setStructureStrongestNeuronOnly(String structureId, boolean enabled) {
         return structureService.setStrongestNeuronOnly(structureId, enabled);
+    }
+
+    /**
+     * Установлює режим створення спільних нейронів через єдину службу операцій над структурами.
+     *
+     * @param structureId ідентифікатор структури-власника.
+     * @param mode бажана умова створення спільного нейрона.
+     * @return {@code true}, якщо структуру знайдено й режим застосовано; інакше {@code false}.
+     * @throws NullPointerException якщо режим не задано.
+     */
+    public boolean setStructureNeuronCreationMode(String structureId, StructureNeuronCreationMode mode) {
+        return structureService.setNeuronCreationMode(structureId, mode);
     }
 
     /**

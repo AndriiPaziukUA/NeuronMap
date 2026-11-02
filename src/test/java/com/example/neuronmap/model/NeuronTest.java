@@ -23,8 +23,8 @@ class NeuronTest {
         Set<String> settingsFields = instanceFieldNames(NeuronSettings.class);
 
         assertEquals(Set.of("id", "type", "activation", "settings"), neuronFields);
-        assertEquals(Set.of("name", "parameters", "memberType", "directionReversed", "strongestNeuronOnly"),
-                settingsFields);
+        assertEquals(Set.of("name", "parameters", "memberType", "directionReversed", "strongestNeuronOnly",
+                        "neuronCreationMode"), settingsFields);
     }
 
     /** Перевіряє розрахунок ваги сигналу з урахуванням типу нейрона та його сили сигналу. */

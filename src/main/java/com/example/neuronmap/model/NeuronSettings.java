@@ -1,7 +1,7 @@
 package com.example.neuronmap.model;
 
 /**
- * Містить назву, параметри сигналу та спільні характеристики дерева нейронів структури.
+ * Містить назву, параметри сигналу та спільні режими поведінки дерева нейронів структури.
  * Об'єкт змінюється централізовано, тому всі нейрони, які посилаються на нього, бачать актуальні значення.
  */
 public final class NeuronSettings {
@@ -17,6 +17,8 @@ public final class NeuronSettings {
     private boolean directionReversed;
     /** Ознака конкуренції учасників дерева за найбільшим вхідним сигналом. */
     private boolean strongestNeuronOnly;
+    /** Спосіб створення спільного нейрона для групи активованих структурних джерел. */
+    private StructureNeuronCreationMode neuronCreationMode = StructureNeuronCreationMode.NEURON_COUNT;
 
     /** Створює налаштування з типовими параметрами й без заданої назви. */
     public NeuronSettings() {
@@ -161,8 +163,30 @@ public final class NeuronSettings {
     }
 
     /**
+     * Повертає умову, за якою структура створює новий спільний нейрон для активованої групи.
+     *
+     * @return режим за кількістю активованих нейронів або за активністю кожної під'єднаної структури.
+     */
+    public StructureNeuronCreationMode neuronCreationMode() {
+        return neuronCreationMode;
+    }
+
+    /**
+     * Змінює умову створення спільного нейрона для всього дерева структури.
+     *
+     * @param neuronCreationMode режим перевірки активованих структурних джерел.
+     * @throws IllegalArgumentException якщо режим не задано.
+     */
+    public void setNeuronCreationMode(StructureNeuronCreationMode neuronCreationMode) {
+        if (neuronCreationMode == null) {
+            throw new IllegalArgumentException("Neuron creation mode must not be null.");
+        }
+        this.neuronCreationMode = neuronCreationMode;
+    }
+
+    /**
      * Створює незалежну копію поточних налаштувань для моменту виходу нейрона зі структури.
-     * Копіюються також спільний тип учасників, напрямок і режим вибору найсильнішого нейрона.
+     * Копіюються спільний тип учасників, напрямок, режими відбору та створення спільних нейронів.
      *
      * @return новий об'єкт налаштувань з такими самими поточними значеннями.
      */
@@ -179,6 +203,7 @@ public final class NeuronSettings {
         copy.memberType = memberType;
         copy.directionReversed = directionReversed;
         copy.strongestNeuronOnly = strongestNeuronOnly;
+        copy.neuronCreationMode = neuronCreationMode;
         return copy;
     }
 }

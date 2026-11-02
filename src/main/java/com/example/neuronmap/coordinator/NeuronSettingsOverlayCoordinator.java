@@ -115,7 +115,8 @@ public final class NeuronSettingsOverlayCoordinator {
     public void showWithName(Neuron neuron, BiConsumer<NeuronParameters, String> onSave, Runnable onClose) {
         Objects.requireNonNull(onSave, "onSave");
         showInternal(neuron, neuron != null && neuron.type() == NeuronType.STRUCTURE ? 0 : -1,
-                (parameters, name, ignoredCount, ignoredStrongest) -> onSave.accept(parameters, name), onClose);
+                (parameters, name, ignoredCount, ignoredStrongest, ignoredCreationMode) ->
+                        onSave.accept(parameters, name), onClose, false);
     }
 
     /**
@@ -138,7 +139,8 @@ public final class NeuronSettingsOverlayCoordinator {
     ) {
         Objects.requireNonNull(onSave, "onSave");
         showWithStructureSettings(neuron, currentMemberCount,
-                (parameters, name, count, ignoredStrongest) -> onSave.accept(parameters, name, count), onClose);
+                (parameters, name, count, ignoredStrongest) ->
+                        onSave.accept(parameters, name, count), onClose);
     }
 
     /**
@@ -146,7 +148,7 @@ public final class NeuronSettingsOverlayCoordinator {
      *
      * @param neuron нейрон структури, параметри якого редагують.
      * @param currentMemberCount поточна кількість безпосередніх учасників структури.
-     * @param onSave дія застосування параметрів, назви, кількості та прапорця конкуренції.
+     * @param onSave дія застосування параметрів, назви, кількості та режиму нейрона.
      * @param onClose дія після звичайного закриття форми користувачем.
      * @throws NullPointerException якщо обов'язковий аргумент не задано.
      * @throws IllegalArgumentException якщо нейрон не є структурою або кількість від'ємна.
@@ -165,15 +167,45 @@ public final class NeuronSettingsOverlayCoordinator {
         if (neuron.type() != NeuronType.STRUCTURE || currentMemberCount < 0) {
             throw new IllegalArgumentException("A structure and its non-negative member count are required");
         }
-        showInternal(neuron, currentMemberCount, onSave, onClose);
+        showInternal(neuron, currentMemberCount,
+                (parameters, name, count, strongest, ignoredMode) ->
+                        onSave.accept(parameters, name, count, strongest), onClose, false);
+    }
+
+    /**
+     * Показує налаштування структури з вибором режиму створення нового спільного нейрона.
+     *
+     * @param neuron нейрон структури, параметри якого редагують.
+     * @param currentMemberCount поточна кількість безпосередніх учасників структури.
+     * @param onSave дія застосування всіх параметрів структури.
+     * @param onClose дія після звичайного закриття форми користувачем.
+     * @throws NullPointerException якщо обов'язковий аргумент не задано.
+     * @throws IllegalArgumentException якщо нейрон не є структурою або кількість від'ємна.
+     * @throws IllegalStateException якщо координатор уже звільнено.
+     */
+    public void showWithStructureCreationSettings(
+            Neuron neuron,
+            int currentMemberCount,
+            NeuronSettingsView.StructureNeuronCreationSettingsSaveAction onSave,
+            Runnable onClose
+    ) {
+        ensureNotDisposed();
+        Objects.requireNonNull(neuron, "neuron");
+        Objects.requireNonNull(onSave, "onSave");
+        Objects.requireNonNull(onClose, "onClose");
+        if (neuron.type() != NeuronType.STRUCTURE || currentMemberCount < 0) {
+            throw new IllegalArgumentException("A structure and its non-negative member count are required");
+        }
+        showInternal(neuron, currentMemberCount, onSave, onClose, true);
     }
 
     /** Відкриває накладку після перевірки сцени та забезпечує єдиний життєвий цикл слухачів. */
     private void showInternal(
             Neuron neuron,
             int currentMemberCount,
-            NeuronSettingsView.StructureSettingsSaveAction onSave,
-            Runnable onClose
+            NeuronSettingsView.StructureNeuronCreationSettingsSaveAction onSave,
+            Runnable onClose,
+            boolean creationModeEditable
     ) {
         ensureNotDisposed();
         Objects.requireNonNull(neuron, "neuron");
@@ -193,7 +225,14 @@ public final class NeuronSettingsOverlayCoordinator {
         settingsClosedAction = onClose;
         watchMainMenuVisibility();
         try {
-            settingsView.showWithStructureSettingsIn(overlayHost, neuron, currentMemberCount, onSave);
+            if (creationModeEditable) {
+                settingsView.showWithStructureSettingsIn(overlayHost, neuron, currentMemberCount, onSave);
+            } else {
+                settingsView.showWithStructureSettingsIn(overlayHost, neuron, currentMemberCount,
+                        (parameters, name, count, strongestNeuronOnly) ->
+                                onSave.accept(parameters, name, count, strongestNeuronOnly,
+                                        com.example.neuronmap.model.StructureNeuronCreationMode.NEURON_COUNT));
+            }
         } catch (RuntimeException | Error failure) {
             settingsClosedAction = NO_CLOSE_ACTION;
             try {

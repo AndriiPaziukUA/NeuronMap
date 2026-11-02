@@ -44,6 +44,7 @@ final class NeuronStructureCountTooltipTest {
                     Структура
                     Кількість нейронів: 2
                     Найсильніший нейрон: Вкл
+                    Створення нейрону: За кількістю нейронів
                     Нейрони
                     Сила сигналу: 7
                     Поріг активації: 3
@@ -60,12 +61,12 @@ final class NeuronStructureCountTooltipTest {
                     "Підзаголовок структури має бути відцентрований");
             assertTrue(tooltipNodes.get(3).isVisible(), "Під заголовком структури має бути тонкий роздільник");
             assertEquals(0.5, ((Region) tooltipNodes.get(3)).getMinHeight());
-            assertTrue(tooltipNodes.get(6).isVisible(), "Над заголовком нейронів має бути тонкий роздільник");
-            assertEquals("Нейрони", ((Label) tooltipNodes.get(7)).getText());
-            assertEquals(Pos.CENTER, ((Label) tooltipNodes.get(7)).getAlignment(),
+            assertTrue(tooltipNodes.get(7).isVisible(), "Над заголовком нейронів має бути тонкий роздільник");
+            assertEquals("Нейрони", ((Label) tooltipNodes.get(8)).getText());
+            assertEquals(Pos.CENTER, ((Label) tooltipNodes.get(8)).getAlignment(),
                     "Підзаголовок нейронів має бути відцентрований");
-            assertTrue(tooltipNodes.get(8).isVisible(), "Під заголовком нейронів має бути тонкий роздільник");
-            assertEquals(0.5, ((Region) tooltipNodes.get(8)).getMinHeight());
+            assertTrue(tooltipNodes.get(9).isVisible(), "Під заголовком нейронів має бути тонкий роздільник");
+            assertEquals(0.5, ((Region) tooltipNodes.get(9)).getMinHeight());
 
             structureView.setStructureMembers(List.of(firstMember));
             assertTrue(structureView.parameterTooltipTextForTest().contains("Кількість нейронів: 1"));
@@ -93,7 +94,11 @@ final class NeuronStructureCountTooltipTest {
             member.configureParameterTooltipLocalization(localization);
 
             assertTrue(structureView.toggleStructureDrawer());
-            assertEquals("Параметри\nКількість нейронів: 1\nНайсильніший нейрон: Вкл",
+            assertEquals("""
+                    Параметри
+                    Кількість нейронів: 1
+                    Найсильніший нейрон: Вкл
+                    Створення нейрону: За кількістю нейронів""".stripTrailing(),
                     structureView.parameterTooltipTextForTest());
             List<Node> tooltipNodes = structureView.parameterTooltipContentForTest().getChildren();
             assertTrue(tooltipNodes.get(1).isVisible(),
@@ -102,15 +107,20 @@ final class NeuronStructureCountTooltipTest {
             assertFalse(tooltipNodes.get(3).isVisible());
             assertTrue(tooltipNodes.get(4).isVisible());
             assertTrue(tooltipNodes.get(5).isVisible());
-            assertFalse(tooltipNodes.get(6).isVisible());
+            assertTrue(tooltipNodes.get(6).isVisible());
             assertFalse(tooltipNodes.get(7).isVisible());
             assertFalse(tooltipNodes.get(8).isVisible());
+            assertFalse(tooltipNodes.get(9).isVisible());
             assertEquals("Параметри\nСила сигналу: 7\nПоріг активації: 3\nАктивні такти: 5\nЗатримка: 1",
                     member.parameterTooltipTextForTest());
 
             model.structure(structure.id()).settings().setStrongestNeuronOnly(false);
             structureView.refreshVisuals(false);
-            assertEquals("Параметри\nКількість нейронів: 1\nНайсильніший нейрон: Викл",
+            assertEquals("""
+                    Параметри
+                    Кількість нейронів: 1
+                    Найсильніший нейрон: Викл
+                    Створення нейрону: За кількістю нейронів""".stripTrailing(),
                     structureView.parameterTooltipTextForTest());
 
             assertFalse(structureView.toggleStructureDrawer());
@@ -132,6 +142,7 @@ final class NeuronStructureCountTooltipTest {
 
             assertFalse(ordinaryView.parameterTooltipTextForTest().contains("Кількість нейронів"));
             assertFalse(ordinaryView.parameterTooltipTextForTest().contains("Найсильніший нейрон"));
+            assertFalse(ordinaryView.parameterTooltipTextForTest().contains("Створення нейрону"));
             assertEquals("Параметри\nСила сигналу: 7\nПоріг активації: 3\nАктивні такти: 5\nЗатримка: 1",
                     ordinaryView.parameterTooltipTextForTest());
             ordinaryView.disposeParameterTooltip();

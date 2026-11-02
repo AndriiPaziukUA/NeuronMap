@@ -5,6 +5,7 @@ import com.example.neuronmap.i18n.SupportedLanguage;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronType;
+import com.example.neuronmap.model.StructureNeuronCreationMode;
 import com.example.neuronmap.testsupport.JavaFxTestSupport;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -270,6 +271,37 @@ final class NeuronSettingsViewTest {
                     "Підпис має займати більше рядків після звуження контейнера");
             assertTrue(view.settingsScrollForTest().getPrefViewportHeight() >= wideViewportHeight,
                     "Висота viewport має враховувати додаткові рядки перенесеного тексту");
+            view.hide();
+        });
+    }
+
+    /** Перевіряє типовий режим, збереження вибору та відсутність параметра у звичайного нейрона. */
+    @Test
+    void showsAndSavesStructureNeuronCreationModeOnlyForStructures() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            StackPane root = new StackPane();
+            new Scene(root, 900.0, 600.0);
+            LocalizationService localization = new LocalizationService(Locale.ENGLISH);
+            NeuronSettingsView view = new NeuronSettingsView(localization);
+            AtomicReference<StructureNeuronCreationMode> savedMode = new AtomicReference<>();
+
+            view.showWithStructureSettingsIn(root, neuron("creation-mode", NeuronType.STRUCTURE, 2, 2), 0,
+                    (_, _, _, _, mode) -> savedMode.set(mode));
+
+            assertTrue(view.neuronCreationModeRowForTest().isManaged());
+            assertTrue(view.neuronCreationModeRowForTest().isVisible());
+            assertEquals(localization.textFrom("i18n.neuronSettings", "neuron_creation_mode"),
+                    view.settingLabelTextForTest("i18n.neuronSettings.neuron_creation_mode"));
+            assertEquals(StructureNeuronCreationMode.NEURON_COUNT,
+                    view.neuronCreationModeSelectorForTest().getValue());
+            assertEquals(2, view.neuronCreationModeSelectorForTest().getItems().size());
+            view.neuronCreationModeSelectorForTest().setValue(StructureNeuronCreationMode.STRUCTURE_COUNT);
+            view.saveButtonForTest().fire();
+            assertEquals(StructureNeuronCreationMode.STRUCTURE_COUNT, savedMode.get());
+
+            view.showIn(root, neuron("ordinary-neuron", NeuronType.EXCITATORY, 2, 2), ignored -> { });
+            assertFalse(view.neuronCreationModeRowForTest().isManaged());
+            assertFalse(view.neuronCreationModeRowForTest().isVisible());
             view.hide();
         });
     }
