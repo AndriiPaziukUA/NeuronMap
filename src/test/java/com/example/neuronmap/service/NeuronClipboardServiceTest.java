@@ -4,6 +4,7 @@ import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronType;
+import com.example.neuronmap.model.StructureNeuronCreationMode;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -117,6 +118,33 @@ class NeuronClipboardServiceTest {
         assertTrue(neurons.presentation(pastedMemberId).orElseThrow().directionReversed());
     }
 
+    /** Перевіряє збереження обох режимів створення нейронів у знімку та їх відновлення після вставлення. */
+    @Test
+    void copiesStructureNeuronCreationMode() {
+        NeuronMapModel model = new NeuronMapModel();
+        NeuronService neurons = new NeuronService(model);
+        NeuronClipboardService clipboard = new NeuronClipboardService(neurons, new GroupService(model));
+
+        for (StructureNeuronCreationMode mode : StructureNeuronCreationMode.values()) {
+            Neuron source = neurons.create(NeuronType.STRUCTURE, 100.0, 200.0);
+            assertEquals(StructureNeuronCreationMode.NEURON_COUNT, source.neuronCreationMode());
+            assertTrue(neurons.setStructureNeuronCreationMode(source.id(), mode));
+
+            assertTrue(clipboard.copy(Set.of(source.id())));
+            assertEquals(mode, clipboard.content().orElseThrow().items().getFirst().structureNeuronCreationMode());
+
+            StructureNeuronCreationMode changedMode = mode == StructureNeuronCreationMode.NEURON_COUNT
+                    ? StructureNeuronCreationMode.STRUCTURE_COUNT
+                    : StructureNeuronCreationMode.NEURON_COUNT;
+            assertTrue(neurons.setStructureNeuronCreationMode(source.id(), changedMode));
+
+            Neuron pastedStructure = clipboard.paste(500.0, 600.0).getFirst();
+            assertEquals(mode, pastedStructure.neuronCreationMode());
+            String pastedMemberId = model.structure(pastedStructure.id()).memberIds().iterator().next();
+            assertEquals(mode, model.neuron(pastedMemberId).neuronCreationMode());
+        }
+    }
+
     /** Перевіряє, що null відхиляється, а порожній вибір означає, що копіювати нічого. */
     @Test
     void rejectsNullSelectionAndReturnsFalseForEmptySelection() {
@@ -130,15 +158,18 @@ class NeuronClipboardServiceTest {
         assertTrue(clipboard.content().isEmpty());
     }
 
-    /** Перевіряє, що кількість учасників у даних буфера дозволена лише для структури й не може бути від'ємною. */
+    /** Перевіряє, що структурні поля даних буфера не можна призначити звичайному нейрону. */
     @Test
-    void rejectsInvalidStructureMemberCounts() {
+    void rejectsInvalidStructureMemberCountsAndCreationModes() {
         NeuronParameters parameters = new NeuronParameters(1, 1, 1);
 
         assertThrows(IllegalArgumentException.class, () -> new NeuronClipboardService.NeuronData(
                 NeuronType.STRUCTURE, parameters, 0.0, 0.0, 0.0, false, null, null, -1));
         assertThrows(IllegalArgumentException.class, () -> new NeuronClipboardService.NeuronData(
                 NeuronType.EXCITATORY, parameters, 0.0, 0.0, 0.0, false, null, null, 1));
+        assertThrows(IllegalArgumentException.class, () -> new NeuronClipboardService.NeuronData(
+                NeuronType.EXCITATORY, parameters, 0.0, 0.0, 0.0, false,
+                null, null, null, false, StructureNeuronCreationMode.STRUCTURE_COUNT));
     }
 
     /** Перевіряє нормалізацію порожньої назви та граничну довжину даних буфера копіювання. */
@@ -181,11 +212,19 @@ class NeuronClipboardServiceTest {
         assertNull(fromParameters.name());
         assertNull(fromParameters.structureMemberType());
         assertNull(fromParameters.structureMemberCount());
+        assertNull(fromParameters.structureNeuronCreationMode());
 
         NeuronClipboardService.NeuronData fromSharedMemberType = new NeuronClipboardService.NeuronData(
                 NeuronType.STRUCTURE, parameters, 11.0, -8.0, 25.0, true, "Structure", NeuronType.INHIBITORY);
         assertEquals(NeuronType.INHIBITORY, fromSharedMemberType.structureMemberType());
         assertNull(fromSharedMemberType.structureMemberCount());
+        assertNull(fromSharedMemberType.structureNeuronCreationMode());
+
+        NeuronClipboardService.NeuronData fromPreviousCanonicalContract = new NeuronClipboardService.NeuronData(
+                NeuronType.STRUCTURE, parameters, 11.0, -8.0, 25.0, true,
+                "Structure", NeuronType.INHIBITORY, 2, true);
+        assertTrue(fromPreviousCanonicalContract.strongestNeuronOnly());
+        assertNull(fromPreviousCanonicalContract.structureNeuronCreationMode());
 
         NeuronClipboardService.NeuronData fromSeparateValues = new NeuronClipboardService.NeuronData(
                 NeuronType.INHIBITORY, 7, 5, 3.0, 4.0, -15.0, false);
@@ -198,6 +237,7 @@ class NeuronClipboardServiceTest {
         assertNull(fromSeparateValues.name());
         assertNull(fromSeparateValues.structureMemberType());
         assertNull(fromSeparateValues.structureMemberCount());
+        assertNull(fromSeparateValues.structureNeuronCreationMode());
     }
 
     /** Перевіряє, що вибір одного учасника групи копіює та вставляє всю групу. */
