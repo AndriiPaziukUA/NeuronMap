@@ -14,8 +14,8 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Готує спільні центри приймальних структур для звичайних нейронів, що активувалися одночасно.
- * Центр належить лише поточній множині активованих джерел: додаткові вхідні зв'язки від інших нейронів
+ * Готує спільні центри приймальних структур для звичайних нейронів, які фактично випускають сигнали одночасно.
+ * Центр належить лише поточній множині випромінювачів: додаткові вхідні зв'язки від інших нейронів
  * роблять наявного кандидата непридатним для повторного використання. Сама структура лишається контейнером.
  */
 final class StructureActivationCoordinator {
@@ -33,28 +33,28 @@ final class StructureActivationCoordinator {
     }
 
     /**
-     * Забезпечує кожній цільовій структурі спільний внутрішній нейрон для всіх активованих джерел,
-     * що надходять до неї через структурні зв'язки. Усі центри готуються до випуску вихідних сигналів.
+     * Забезпечує кожній цільовій структурі спільний внутрішній нейрон для всіх випромінювачів,
+     * що надходять до неї через структурні зв'язки. Центри готуються до передавання сигналів цього такту.
      *
-     * @param activatedNeuronIds унікальні звичайні нейрони, активовані в поточному такті.
-     * @throws NullPointerException якщо множину активацій не задано.
+     * @param emittingNeuronIds унікальні звичайні нейрони, які фактично випускають сигнал у поточному такті.
+     * @throws NullPointerException якщо множину випромінювачів не задано.
      */
-    void prepareSharedCenters(Set<String> activatedNeuronIds) {
-        Objects.requireNonNull(activatedNeuronIds, "activatedNeuronIds");
-        if (activatedNeuronIds.isEmpty()) {
+    void prepareSharedCenters(Set<String> emittingNeuronIds) {
+        Objects.requireNonNull(emittingNeuronIds, "emittingNeuronIds");
+        if (emittingNeuronIds.isEmpty()) {
             return;
         }
 
-        Map<String, Set<String>> activatedSourcesByStructure = collectActivatedSourcesByStructure(
-                activatedNeuronIds);
-        Map<String, Set<String>> activatedSourcesByTarget = collectActivatedSourcesByTarget(
-                activatedSourcesByStructure);
+        Map<String, Set<String>> emittingSourcesByStructure = collectEmittingSourcesByStructure(
+                emittingNeuronIds);
+        Map<String, Set<String>> emittingSourcesByTarget = collectEmittingSourcesByTarget(
+                emittingSourcesByStructure);
         Map<String, Set<String>> incomingSourcesByTarget = collectIncomingSourcesByTarget();
-        for (Map.Entry<String, Set<String>> entry : activatedSourcesByTarget.entrySet()) {
+        for (Map.Entry<String, Set<String>> entry : emittingSourcesByTarget.entrySet()) {
             String targetStructureId = entry.getKey();
             Set<String> sourceIds = entry.getValue();
             if (sourceIds.isEmpty()
-                    || !allConnectedSourceStructuresAreActive(targetStructureId, activatedSourcesByStructure)
+                    || !allConnectedSourceStructuresAreEmitting(targetStructureId, emittingSourcesByStructure)
                     || findSharedCenter(targetStructureId, sourceIds, incomingSourcesByTarget) != null) {
                 continue;
             }
@@ -63,14 +63,14 @@ final class StructureActivationCoordinator {
     }
 
     /**
-     * Визначає всі структури-предки, яким належать активовані звичайні нейрони.
+     * Визначає всі структури-предки, яким належать нейрони, що випускають сигнал у поточному такті.
      *
-     * @param activatedNeuronIds активовані нейрони поточного такту.
-     * @return мапа від ID структури до множини її активованих внутрішніх нейронів.
+     * @param emittingNeuronIds нейрони-випромінювачі поточного такту.
+     * @return мапа від ID структури до множини її випромінювачів.
      */
-    private Map<String, Set<String>> collectActivatedSourcesByStructure(Set<String> activatedNeuronIds) {
+    private Map<String, Set<String>> collectEmittingSourcesByStructure(Set<String> emittingNeuronIds) {
         Map<String, Set<String>> result = new LinkedHashMap<>();
-        for (String neuronId : activatedNeuronIds) {
+        for (String neuronId : emittingNeuronIds) {
             Neuron neuron = model.neuron(neuronId);
             if (isNonSignalNeuron(neuron)) {
                 continue;
@@ -85,16 +85,16 @@ final class StructureActivationCoordinator {
     }
 
     /**
-     * Перевіряє нову умову режиму «За кількістю структур» для кожного прямого структурного входу приймача.
-     * У режимі за кількістю нейронів зберігається попередня поведінка: достатньо будь-якої непорожньої групи.
+     * Перевіряє умову режиму «За кількістю структур» для кожного прямого структурного входу приймача.
+     * У режимі за кількістю нейронів достатньо будь-якої непорожньої групи випромінювачів.
      *
      * @param targetStructureId ідентифікатор структури, яка може створити спільний центр.
-     * @param activatedSourcesByStructure активовані звичайні нейрони, згруповані за всіма структурами-предками.
+     * @param emittingSourcesByStructure нейрони-випромінювачі, згруповані за всіма структурами-предками.
      * @return {@code true}, якщо вибраний режим дозволяє створення центру в цьому такті.
      */
-    private boolean allConnectedSourceStructuresAreActive(
+    private boolean allConnectedSourceStructuresAreEmitting(
             String targetStructureId,
-            Map<String, Set<String>> activatedSourcesByStructure
+            Map<String, Set<String>> emittingSourcesByStructure
     ) {
         NeuronStructure target = model.structure(targetStructureId);
         if (target == null
@@ -109,7 +109,7 @@ final class StructureActivationCoordinator {
                 continue;
             }
             hasConnectedSource = true;
-            if (activatedSourcesByStructure.getOrDefault(connection.sourceId(), Set.of()).isEmpty()) {
+            if (emittingSourcesByStructure.getOrDefault(connection.sourceId(), Set.of()).isEmpty()) {
                 return false;
             }
         }
@@ -117,13 +117,13 @@ final class StructureActivationCoordinator {
     }
 
     /**
-     * Об'єднує активовані джерела всіх структур, що мають вихідний структурний зв'язок до спільного приймача.
+     * Об'єднує випромінювачів усіх структур, що мають вихідний структурний зв'язок до спільного приймача.
      *
-     * @param activatedSourcesByStructure активовані нейрони за структурами-джерелами.
-     * @return унікальні активовані джерела для кожної цільової структури.
+     * @param emittingSourcesByStructure випромінювачі за структурами-джерелами.
+     * @return унікальні нейрони-випромінювачі для кожної цільової структури.
      */
-    private Map<String, Set<String>> collectActivatedSourcesByTarget(
-            Map<String, Set<String>> activatedSourcesByStructure
+    private Map<String, Set<String>> collectEmittingSourcesByTarget(
+            Map<String, Set<String>> emittingSourcesByStructure
     ) {
         Map<String, Set<String>> result = new LinkedHashMap<>();
         for (Connection connection : model.connections()) {
@@ -131,7 +131,7 @@ final class StructureActivationCoordinator {
                     || model.structure(connection.targetId()) == null) {
                 continue;
             }
-            Set<String> sourceIds = activatedSourcesByStructure.get(connection.sourceId());
+            Set<String> sourceIds = emittingSourcesByStructure.get(connection.sourceId());
             if (sourceIds == null || sourceIds.isEmpty()) {
                 continue;
             }
@@ -141,10 +141,10 @@ final class StructureActivationCoordinator {
     }
 
     /**
-     * Шукає звичайного учасника цільової структури, до якого вже ведуть зв'язки від усіх активованих джерел.
+     * Шукає звичайного учасника цільової структури, до якого вже ведуть зв'язки від усіх поточних випромінювачів.
      *
      * @param targetStructureId ідентифікатор структури-приймача.
-     * @param sourceIds унікальні активовані джерела, які мають спільно використовувати центр.
+     * @param sourceIds унікальні нейрони-випромінювачі, які мають спільно використовувати центр.
      * @param incomingSourcesByTarget усі джерела кожного нейрона-приймача, побудовані один раз за такт.
      * @return наявний спільний центр або {@code null}, якщо його немає.
      */
@@ -173,8 +173,9 @@ final class StructureActivationCoordinator {
     }
 
     /**
-     * Індексує всі вхідні зв'язки, щоб перевірити належність кожного кандидата конкретній групі активації.
-     * Враховуються й неактивні джерела: їх наявність забороняє повторно використовувати спільний центр.
+     * Індексує всі вхідні зв'язки, щоб перевірити належність кожного кандидата конкретній групі випромінювачів.
+     * Враховуються й нейрони, які не випускають сигналу в поточному такті:
+     * їхні зв'язки виключають повторне використання.
      *
      * @return мапа від ID нейрона-приймача до множини всіх джерел його вхідних зв'язків.
      */
@@ -188,10 +189,10 @@ final class StructureActivationCoordinator {
     }
 
     /**
-     * Додає до приймальної структури новий звичайний нейрон і під'єднує до нього всі активовані джерела.
+     * Додає до приймальної структури новий звичайний нейрон і під'єднує до нього всіх поточних випромінювачів.
      *
      * @param targetStructureId ідентифікатор структури-приймача.
-     * @param sourceIds унікальні активовані внутрішні нейрони, що мають надіслати сигнал центру.
+     * @param sourceIds унікальні внутрішні нейрони, що фактично надсилають сигнал у цьому такті.
      * @throws IllegalStateException якщо модель не змогла додати учасника або створити один із зв'язків.
      */
     private void createSharedCenter(String targetStructureId, Set<String> sourceIds) {
@@ -204,7 +205,7 @@ final class StructureActivationCoordinator {
             for (String sourceId : sourceIds) {
                 if (!model.createConnection(sourceId, center.id())) {
                     throw new IllegalStateException(
-                            "Could not connect an activated source to shared center " + center.id());
+                            "Could not connect an emitting source to shared center " + center.id());
                 }
             }
         } catch (RuntimeException | Error failure) {

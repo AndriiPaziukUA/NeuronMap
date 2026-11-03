@@ -13,7 +13,8 @@ import java.util.Set;
 
 /**
  * Обробляє глобальні такти симуляції, накопичує вхідні сигнали та керує затримкою і тривалістю їх передавання.
- * Для активованих внутрішніх нейронів готує спільні центри цільових структур до випуску вихідних сигналів.
+ * Спільні центри цільових структур готує лише для внутрішніх нейронів,
+ * які фактично випускають сигнал у поточному такті.
  */
 public final class SimulationSession {
 
@@ -82,7 +83,7 @@ public final class SimulationSession {
 
     /**
      * Активує звичайний нейрон у поточному такті без просування глобального лічильника.
-     * Перед першим вихідним сигналом готує спільні центри структур, до яких ведуть структурні зв'язки.
+     * Спільний центр структури готується лише тоді, коли затримка вже завершилася й нейрон випускає сигнал.
      *
      * @param sourceNeuronId ідентифікатор нейрона для негайної активації.
      * @return знімок поточного стану або {@code null}, якщо нейрон відсутній, є структурою
@@ -101,7 +102,6 @@ public final class SimulationSession {
         if (emittingNeuronIdsThisTick.contains(sourceNeuronId)) {
             return null;
         }
-        structureActivationCoordinator.prepareSharedCenters(Set.of(sourceNeuronId));
         scheduleActivationDelay(Set.of(sourceNeuronId));
         if (remainingEmissionDelayTicks.get(sourceNeuronId) == 0) {
             emitFirstSignalImmediately(sourceNeuron);
@@ -123,12 +123,11 @@ public final class SimulationSession {
         }
     }
 
-    /** Передає перший сигнал після затримки та запускає лічильник активних тактів звичайного нейрона. */
+    /** Передає перший сигнал і готує спільні центри лише після фактичного завершення затримки. */
     private void emitFirstSignalImmediately(Neuron neuron) {
         remainingEmissionDelayTicks.remove(neuron.id());
         remainingActiveTicks.put(neuron.id(), neuron.activeTicks());
-        collectOutgoingSignals(neuron, pendingSignals);
-        consumeActivationTick(neuron.id());
+        emitSignalsForReadyNeurons(Set.of(neuron.id()), pendingSignals);
         emittingNeuronIdsThisTick.add(neuron.id());
     }
 
@@ -228,7 +227,7 @@ public final class SimulationSession {
 
     /**
      * Обробляє один такт, доставляє сигнали й обчислює індикатори для зовнішніх структурних зв'язків.
-     * Спільні центри цільових структур створюються до передавання сигналів активованих нейронів.
+     * Спільні центри готуються лише для нейронів, які фактично випускають сигнал після врахування затримки.
      *
      * @return незмінний результат такту або {@code null}, якщо роботи немає.
      */
@@ -251,7 +250,6 @@ public final class SimulationSession {
         Map<String, Integer> nextSignals = new LinkedHashMap<>();
         collectManualActivations(manualStarts, activatedNeuronIds);
         collectThresholdActivations(inputSums, activatedNeuronIds);
-        structureActivationCoordinator.prepareSharedCenters(activatedNeuronIds);
         scheduleActivationDelay(activatedNeuronIds);
         Set<String> emittingNeuronIds = emitReadySignals(activatedNeuronIds, nextSignals);
         emittingNeuronIdsThisTick.addAll(emittingNeuronIds);
@@ -343,7 +341,7 @@ public final class SimulationSession {
         }
     }
 
-    /** Передає сигнали звичайних нейронів, у яких завершилася затримка або триває період активності. */
+    /** Визначає готових випромінювачів, готує для них спільні центри й лише тоді передає їхні сигнали. */
     private Set<String> emitReadySignals(Set<String> activatedNeuronIds, Map<String, Integer> nextSignals) {
         Set<String> candidates = new LinkedHashSet<>(activatedNeuronIds);
         candidates.addAll(remainingActiveTicks.keySet());
@@ -363,11 +361,29 @@ public final class SimulationSession {
             if (!remainingActiveTicks.containsKey(neuronId)) {
                 remainingActiveTicks.put(neuronId, neuron.activeTicks());
             }
-            collectOutgoingSignals(neuron, nextSignals);
             emittingNeuronIds.add(neuronId);
+        }
+
+        emitSignalsForReadyNeurons(emittingNeuronIds, nextSignals);
+        return emittingNeuronIds;
+    }
+
+    /**
+     * Спершу готує спільні центри для повної групи готових випромінювачів, а потім передає їхні сигнали.
+     * Такий порядок дозволяє створеному центру отримати сигнал у тому самому такті.
+     *
+     * @param emittingNeuronIds нейрони, які завершили затримку й випускають сигнал у поточному такті.
+     * @param nextSignals мапа накопичення сигналів, призначених для наступного такту.
+     */
+    private void emitSignalsForReadyNeurons(Set<String> emittingNeuronIds, Map<String, Integer> nextSignals) {
+        if (emittingNeuronIds.isEmpty()) {
+            return;
+        }
+        structureActivationCoordinator.prepareSharedCenters(emittingNeuronIds);
+        for (String neuronId : emittingNeuronIds) {
+            collectOutgoingSignals(model.neuron(neuronId), nextSignals);
             consumeActivationTick(neuronId);
         }
-        return emittingNeuronIds;
     }
 
     /** Зменшує очікування на один такт і повертає {@code true}, якщо сигнал ще не можна передавати. */
