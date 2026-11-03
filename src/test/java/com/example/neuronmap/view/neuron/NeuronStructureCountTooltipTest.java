@@ -44,7 +44,7 @@ final class NeuronStructureCountTooltipTest {
                     Структура
                     Кількість нейронів: 2
                     Найсильніший нейрон: Вкл
-                    Створення нейрону: За кількістю нейронів
+                    Створення нейрону за: Кількістю нейронів
                     Нейрони
                     Сила сигналу: 7
                     Поріг активації: 3
@@ -98,7 +98,7 @@ final class NeuronStructureCountTooltipTest {
                     Параметри
                     Кількість нейронів: 1
                     Найсильніший нейрон: Вкл
-                    Створення нейрону: За кількістю нейронів""".stripTrailing(),
+                    Створення нейрону за: Кількістю нейронів""".stripTrailing(),
                     structureView.parameterTooltipTextForTest());
             List<Node> tooltipNodes = structureView.parameterTooltipContentForTest().getChildren();
             assertTrue(tooltipNodes.get(1).isVisible(),
@@ -120,7 +120,7 @@ final class NeuronStructureCountTooltipTest {
                     Параметри
                     Кількість нейронів: 1
                     Найсильніший нейрон: Викл
-                    Створення нейрону: За кількістю нейронів""".stripTrailing(),
+                    Створення нейрону за: Кількістю нейронів""".stripTrailing(),
                     structureView.parameterTooltipTextForTest());
 
             assertFalse(structureView.toggleStructureDrawer());
@@ -142,7 +142,7 @@ final class NeuronStructureCountTooltipTest {
 
             assertFalse(ordinaryView.parameterTooltipTextForTest().contains("Кількість нейронів"));
             assertFalse(ordinaryView.parameterTooltipTextForTest().contains("Найсильніший нейрон"));
-            assertFalse(ordinaryView.parameterTooltipTextForTest().contains("Створення нейрону"));
+            assertFalse(ordinaryView.parameterTooltipTextForTest().contains("Створення нейрону за"));
             assertEquals("Параметри\nСила сигналу: 7\nПоріг активації: 3\nАктивні такти: 5\nЗатримка: 1",
                     ordinaryView.parameterTooltipTextForTest());
             ordinaryView.disposeParameterTooltip();

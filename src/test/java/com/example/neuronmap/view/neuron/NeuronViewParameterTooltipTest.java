@@ -190,7 +190,7 @@ final class NeuronViewParameterTooltipTest {
             view.setStructureMembers(List.of(memberView));
             view.configureParameterTooltipLocalization(new LocalizationService(Locale.ENGLISH));
 
-            assertTrue(view.parameterTooltipTextForTest().contains("Neuron creation: By structure count"));
+            assertTrue(view.parameterTooltipTextForTest().contains("Neuron creation by: Structure count"));
             assertTrue(view.parameterTooltipTextForTest().contains("Strongest neuron: On"));
             Label strongestNeuronLabel = (Label) view.parameterTooltipContentForTest().getChildren().get(5);
             Text state = (Text) strongestNeuronLabel.getGraphic();
@@ -202,7 +202,7 @@ final class NeuronViewParameterTooltipTest {
             assertTrue(view.parameterTooltipTextForTest().contains("Strongest neuron: Off"));
 
             view.toggleStructureDrawer();
-            assertTrue(view.parameterTooltipTextForTest().contains("Neuron creation: By structure count"));
+            assertTrue(view.parameterTooltipTextForTest().contains("Neuron creation by: Structure count"));
             view.disposeParameterTooltip();
             memberView.disposeParameterTooltip();
         });
