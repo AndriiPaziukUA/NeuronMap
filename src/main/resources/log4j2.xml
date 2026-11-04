@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Properties>
+        <Property name="logFile">${sys:neuronmap.log.file:-logs/neuronmap.log}</Property>
+    </Properties>
+
+    <Appenders>
+        <RollingFile name="File"
+                     fileName="${logFile}"
+                     filePattern="logs/archive/neuronmap-%d{yyyy-MM-dd}-%i.log.gz"
+                     append="true"
+                     immediateFlush="true">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%t] %c{1.} - %msg%n%throwable"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="64 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy fileIndex="nomax"/>
+        </RollingFile>
+        <Async name="Async" bufferSize="8192" blocking="true">
+            <AppenderRef ref="File"/>
+        </Async>
+    </Appenders>
+
+    <Loggers>
+        <Logger name="com.example.neuronmap" level="info" additivity="false">
+            <AppenderRef ref="Async"/>
+        </Logger>
+        <Root level="warn">
+            <AppenderRef ref="Async"/>
+        </Root>
+    </Loggers>
+</Configuration>

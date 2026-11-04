@@ -16,6 +16,9 @@
         <sqlite.version>3.53.4.0</sqlite.version>
         <junit.version>5.14.3</junit.version>
         <ph-css.version>8.2.3</ph-css.version>
+        <aspectj.version>1.9.26</aspectj.version>
+        <aspectj.maven.plugin.version>1.14.1</aspectj.maven.plugin.version>
+        <log4j.version>2.26.1</log4j.version>
     </properties>
 
     <dependencies>
@@ -29,6 +32,30 @@
             <groupId>org.xerial</groupId>
             <artifactId>sqlite-jdbc</artifactId>
             <version>${sqlite.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjrt</artifactId>
+            <version>${aspectj.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-jul</artifactId>
+            <version>${log4j.version}</version>
         </dependency>
 
         <dependency>
@@ -46,6 +73,20 @@
         </dependency>
     </dependencies>
 
+    <pluginRepositories>
+        <pluginRepository>
+            <id>central</id>
+            <name>Maven Central Repository</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </pluginRepository>
+    </pluginRepositories>
+
     <build>
         <plugins>
             <plugin>
@@ -57,6 +98,12 @@
                 </configuration>
                 <executions>
                     <execution>
+                        <id>default-compile</id>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/unwoven-classes</outputDirectory>
+                        </configuration>
+                    </execution>
+                    <execution>
                         <id>default-testCompile</id>
                         <phase>test-compile</phase>
                         <goals>
@@ -65,6 +112,49 @@
                         <configuration>
                             <useModulePath>false</useModulePath>
                         </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>dev.aspectj</groupId>
+                <artifactId>aspectj-maven-plugin</artifactId>
+                <version>${aspectj.maven.plugin.version}</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.aspectj</groupId>
+                        <artifactId>aspectjtools</artifactId>
+                        <version>${aspectj.version}</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <release>${maven.compiler.release}</release>
+                    <encoding>${project.build.sourceEncoding}</encoding>
+                    <!-- Примусово запускає AJC для binary weaving, навіть коли Java source roots порожні. -->
+                    <forceAjcCompile>true</forceAjcCompile>
+                    <sources>
+                        <source>
+                            <basedir>${project.basedir}/src/main/aspect</basedir>
+                            <includes>
+                                <include>**/*.aj</include>
+                            </includes>
+                        </source>
+                    </sources>
+                    <aspectDirectory>${project.basedir}/src/main/aspect</aspectDirectory>
+                    <weaveDirectories>
+                        <weaveDirectory>${project.build.directory}/unwoven-classes</weaveDirectory>
+                    </weaveDirectories>
+                    <argumentFileDirectory>${project.build.directory}/aspectj-build</argumentFileDirectory>
+                    <argumentFileName>main-builddef.lst</argumentFileName>
+                    <showWeaveInfo>true</showWeaveInfo>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>weave-main-classes</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>

@@ -6,6 +6,8 @@ import com.example.neuronmap.config.AppConfigLoader;
 import com.example.neuronmap.i18n.LanguagePreferenceStore;
 import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.NeuronMapModel;
+import com.example.neuronmap.observability.ActionTraceEventDispatcher;
+import com.example.neuronmap.observability.TraceAction;
 import com.example.neuronmap.persistence.ApplicationStorageLayout;
 import com.example.neuronmap.persistence.MapRepository;
 import com.example.neuronmap.persistence.MapRepositoryFactory;
@@ -24,12 +26,18 @@ import javafx.stage.Stage;
 import java.nio.file.Path;
 import java.util.Objects;
 
-/** Є точкою входу JavaFX-застосунку та збирає залежності головного вікна й редактора. */
+/** Є точкою входу JavaFX-застосунку та збирає залежності головного вікна, редактора й трасування дій. */
 public final class NeuronMapApp extends Application {
 
-    private MainWindowController mainWindowController;
+    static {
+        configureJulBridge();
+    }
 
-    /** Завантажує конфігурацію й сховища, створює редактор та показує головне вікно. */
+    private MainWindowController mainWindowController;
+    private ActionTraceEventDispatcher actionTraceEventDispatcher;
+
+    /** Завантажує конфігурацію й сховища, створює редактор, реєструє трасування UI-подій і показує вікно. */
+    @TraceAction("Запуск застосунку")
     @Override
     public void start(Stage stage) {
         ApplicationStorageLayout storageLayout = ApplicationStorageLayout.resolve();
@@ -73,16 +81,32 @@ public final class NeuronMapApp extends Application {
         );
 
         Scene scene = editor.createScene(config.window().defaultWidth(), config.window().defaultHeight());
+        actionTraceEventDispatcher = ActionTraceEventDispatcher.install(scene);
         mainWindowController.configure(config.window(), scene, editor::shutdown);
         mainWindowController.show();
         editor.centerInitialView();
     }
 
-    /** Виконує резервне завершення життєвого циклу вікна під час зупинки JavaFX. */
+    /** Закриває трасування UI-подій та виконує резервне завершення життєвого циклу вікна. */
+    @TraceAction("Завершення застосунку")
     @Override
     public void stop() {
+        if (actionTraceEventDispatcher != null) {
+            actionTraceEventDispatcher.close();
+            actionTraceEventDispatcher = null;
+        }
         if (mainWindowController != null) {
             mainWindowController.shutdown();
+        }
+    }
+
+    /**
+     * Спрямовує наявні JUL-діагностики сховищ і конфігурації до спільного Log4j2 backend.
+     * Налаштування задається до завантаження компонентів, що створюють JUL-логери.
+     */
+    private static void configureJulBridge() {
+        if (System.getProperty("java.util.logging.manager") == null) {
+            System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
         }
     }
 
