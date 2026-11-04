@@ -19,48 +19,48 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Перевіряє контракт фасаду редактора та межу між життєвим циклом і внутрішнім складанням компонентів.
- */
+/** Перевіряє внутрішній контракт фасаду редактора та межі модульної інкапсуляції. */
 final class NeuronMapEditorTest {
 
-    /**
-     * Перевіряє, що фасад отримує необхідні служби й фабрику репозиторіїв через єдиний публічний конструктор.
-     */
+    /** Перевіряє ін'єкцію служб без експонування внутрішніх типів через API експортованого пакета. */
     @Test
     void requiresInjectedLocalizationCatalogAndRepositoryFactory() {
-        List<Class<?>[]> signatures = Arrays.stream(NeuronMapEditor.class.getConstructors())
-                .map(Constructor::getParameterTypes)
-                .toList();
-
-        assertTrue(signatures.stream().anyMatch(signature -> Arrays.equals(signature, new Class<?>[]{
+        List<Constructor<?>> constructors = Arrays.stream(NeuronMapEditor.class.getDeclaredConstructors()).toList();
+        Class<?>[] expectedSignature = {
                 NeuronMapApplicationService.class,
                 AppConfig.class,
                 LocalizationService.class,
                 ProjectCatalogService.class,
                 MapRepositoryFactory.class,
                 Runnable.class
-        })));
-        assertFalse(signatures.stream().anyMatch(signature -> Arrays.equals(signature, new Class<?>[]{
-                NeuronMapApplicationService.class,
-                AppConfig.class,
-                LocalizationService.class,
-                ProjectCatalogService.class
-        })));
-        assertFalse(signatures.stream().anyMatch(signature -> Arrays.equals(signature, new Class<?>[]{
-                NeuronMapApplicationService.class,
-                AppConfig.class,
-                LocalizationService.class,
-                ProjectCatalogService.class,
-                Runnable.class
-        })));
+        };
+
+        Constructor<?> injectedConstructor = constructors.stream()
+                .filter(constructor -> Arrays.equals(constructor.getParameterTypes(), expectedSignature))
+                .findFirst()
+                .orElseThrow();
+
+        assertFalse(Modifier.isPublic(NeuronMapEditor.class.getModifiers()));
+        assertFalse(Modifier.isPublic(injectedConstructor.getModifiers()));
+        assertFalse(constructors.stream().anyMatch(constructor -> Arrays.equals(
+                constructor.getParameterTypes(), new Class<?>[]{
+                        NeuronMapApplicationService.class,
+                        AppConfig.class,
+                        LocalizationService.class,
+                        ProjectCatalogService.class
+                })));
+        assertFalse(constructors.stream().anyMatch(constructor -> Arrays.equals(
+                constructor.getParameterTypes(), new Class<?>[]{
+                        NeuronMapApplicationService.class,
+                        AppConfig.class,
+                        LocalizationService.class,
+                        ProjectCatalogService.class,
+                        Runnable.class
+                })));
     }
 
-    /**
-     * Перевіряє, що фасад не утримує залежностей від сховища глобальних налаштувань або визначника каталогів.
-     */
+    /** Переконується, що фасад не утримує залежностей від файлового сховища глобальних налаштувань. */
     @Test
     void doesNotHoldPersistenceInfrastructure() {
         assertFalse(Arrays.stream(NeuronMapEditor.class.getDeclaredFields())
@@ -69,19 +69,13 @@ final class NeuronMapEditorTest {
                         || type == ProjectStorageDirectoryResolver.class));
     }
 
-    /**
-     * Перевіряє, що клас розташований у прикладному шарі, а не серед контролерів UI-подій.
-     */
+    /** Перевіряє, що фасад залишається внутрішньою частиною прикладного пакета. */
     @Test
     void belongsToApplicationPackage() {
         assertEquals("com.example.neuronmap.app", NeuronMapEditor.class.getPackageName());
     }
 
-    /**
-     * Перевіряє, що складання графа редактора залишається внутрішнім механізмом пакета координаторів.
-     *
-     * @throws ClassNotFoundException якщо внутрішню фабрику вилучено або перейменовано без актуалізації контракту.
-     */
+    /** Перевіряє, що складання графа редактора залишається внутрішнім механізмом координаторів. */
     @Test
     void keepsComponentFactoryInternalAndLifecycleApiStable() throws ClassNotFoundException {
         Class<?> factory = Class.forName("com.example.neuronmap.coordinator.MapEditorComponentFactory");

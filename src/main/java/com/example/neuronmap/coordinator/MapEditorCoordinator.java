@@ -39,24 +39,16 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/** Узгоджує сценарії редактора, що охоплюють кілька підсистем, і керує життєвим циклом сцени. */
+/** Узгоджує сценарії редактора, керує життєвим циклом сцени та повідомляє про зміни активного проєкту. */
 public final class MapEditorCoordinator {
 
     private final MapService mapService;
-    private final NeuronService neuronService;
-    private final HistoryService historyService;
     private final EditorSaveCoordinator editorSaveCoordinator;
     private final ProjectCatalogService projectCatalog;
-    private final ProjectWorkflowCoordinator projectWorkflowCoordinator;
     private final EditorProjectSessionCoordinator editorProjectSessionCoordinator;
+    private final Consumer<ProjectDescriptor> currentProjectConsumer;
     private final EditorState state;
     private final MainView view;
-    private final double minSimulationTickMillis;
-    private final double maxSimulationTickMillis;
-    private final double defaultSimulationTickMillis;
-    private final Map<String, NeuronView> neuronViews = new HashMap<>();
-    private final Map<String, ConnectionView> connectionViews = new HashMap<>();
-    private final Map<String, RotationHandleView> rotationHandles = new HashMap<>();
     private final SimulationController simulationController;
     private final SimulationSpeedCoordinator simulationSpeedCoordinator;
     private final ConnectionController connectionController;
@@ -66,12 +58,15 @@ public final class MapEditorCoordinator {
     private final MapInteractionCoordinator interaction;
     private final EditorKeyboardController keyboardController;
     private final MainMenuController mainMenuController;
+    /** Реєстрація життєвого циклу повідомлень рядка стану. */
+    private final UiProcessCoordinator.Registration statusMessageRegistration;
+    /** Реєстрація відкладеного збереження камери в спільному координаторі UI-процесів. */
+    private final UiProcessCoordinator.Registration cameraSaveDebounceRegistration;
     private final ProjectDirectoryWatcher projectDirectoryWatcher;
     private final EventHandler<MouseEvent> bringClickedNeuronToFrontHandler = this::handleSceneMousePressed;
     private ImmediateTooltipManager tooltipManager;
     private UiProcessCoordinator.Registration tooltipRegistration;
     private ProjectDescriptor currentProject;
-    private boolean historyInitialized;
     private boolean shutdown;
     private Scene scene;
 
@@ -85,22 +80,22 @@ public final class MapEditorCoordinator {
             Runnable exitApplication
     ) {
         this(application, config, localization, projectCatalog, mapRepositoryFactory,
-                exitApplication, null, null, null);
+                exitApplication, null, null, null, ignored -> { });
     }
 
     /**
      * Складає граф редактора та, якщо передано всі callback-и, реєструє повноекранний режим у спільній сесії меню.
+     * Цей конструктор зберігає сумісність із викликачами, яким не потрібно отримувати зміни активного проєкту.
      *
      * @param application прикладні служби карти й збереження.
      * @param config перевірена конфігурація застосунку.
      * @param localization спільна служба локалізації.
      * @param projectCatalog служба каталогу проєктів.
-     * @param mapRepositoryFactory фабрика сховищ проєктів.
+     * @param mapRepositoryFactory фабрика репозиторіїв проєктів.
      * @param exitApplication дія завершення застосунку.
      * @param currentFullScreen постачальник поточного стану повноекранного режиму або {@code null} разом з іншими callback-ами.
      * @param previewFullScreen дія тимчасового застосування повноекранного режиму.
      * @param persistFullScreen дія постійного збереження повноекранного режиму.
-     * @throws IllegalArgumentException якщо передано лише частину callback-ів налаштування.
      */
     public MapEditorCoordinator(
             NeuronMapApplicationService application,
@@ -113,21 +108,57 @@ public final class MapEditorCoordinator {
             Consumer<Boolean> previewFullScreen,
             Consumer<Boolean> persistFullScreen
     ) {
+        this(application, config, localization, projectCatalog, mapRepositoryFactory, exitApplication,
+                currentFullScreen, previewFullScreen, persistFullScreen, ignored -> { });
+    }
+
+    /**
+     * Складає граф редактора та передає зовнішньому власнику вікна кожну зміну опису активного проєкту.
+     *
+     * @param application прикладні служби карти й збереження.
+     * @param config перевірена конфігурація застосунку.
+     * @param localization спільна служба локалізації.
+     * @param projectCatalog служба каталогу проєктів.
+     * @param mapRepositoryFactory фабрика репозиторіїв проєктів.
+     * @param exitApplication дія завершення застосунку.
+     * @param currentFullScreen постачальник поточного стану повноекранного режиму або {@code null} разом з іншими callback-ами.
+     * @param previewFullScreen дія тимчасового застосування повноекранного режиму.
+     * @param persistFullScreen дія постійного збереження повноекранного режиму.
+     * @param currentProjectConsumer отримувач початкового й подальших описів активного проєкту.
+     * @throws IllegalArgumentException якщо передано лише частину callback-ів налаштування повноекранного режиму.
+     * @throws NullPointerException якщо обов'язкову залежність не задано.
+     */
+    public MapEditorCoordinator(
+            NeuronMapApplicationService application,
+            AppConfig config,
+            LocalizationService localization,
+            ProjectCatalogService projectCatalog,
+            MapRepositoryFactory mapRepositoryFactory,
+            Runnable exitApplication,
+            Supplier<Boolean> currentFullScreen,
+            Consumer<Boolean> previewFullScreen,
+            Consumer<Boolean> persistFullScreen,
+            Consumer<ProjectDescriptor> currentProjectConsumer
+    ) {
         validateFullScreenCallbacks(currentFullScreen, previewFullScreen, persistFullScreen);
         Objects.requireNonNull(application, "application");
         Objects.requireNonNull(config, "config");
         this.projectCatalog = Objects.requireNonNull(projectCatalog, "projectCatalog");
         Objects.requireNonNull(mapRepositoryFactory, "mapRepositoryFactory");
+        this.currentProjectConsumer = Objects.requireNonNull(currentProjectConsumer, "currentProjectConsumer");
         mapService = application.map();
-        neuronService = application.neurons();
+        NeuronService neuronService = application.neurons();
         ConnectionService connectionService = application.connections();
         GroupService groupService = application.groups();
-        currentProject = this.projectCatalog.descriptorForDatabasePath(mapService.databasePath());
-        historyService = new HistoryService(neuronService.model());
+        updateCurrentProject(this.projectCatalog.descriptorForDatabasePath(mapService.databasePath()));
+        HistoryService historyService = new HistoryService(neuronService.model());
         editorSaveCoordinator = new EditorSaveCoordinator(mapService, projectCatalog, historyService);
-        minSimulationTickMillis = config.simulation().minTickMillis();
-        maxSimulationTickMillis = config.simulation().maxTickMillis();
-        defaultSimulationTickMillis = config.simulation().defaultTickMillis();
+        double minSimulationTickMillis = config.simulation().minTickMillis();
+        double maxSimulationTickMillis = config.simulation().maxTickMillis();
+        double defaultSimulationTickMillis = config.simulation().defaultTickMillis();
+        Map<String, NeuronView> neuronViews = new HashMap<>();
+        Map<String, ConnectionView> connectionViews = new HashMap<>();
+        Map<String, RotationHandleView> rotationHandles = new HashMap<>();
         double initialSimulationTickMillis = EditorProjectSessionCoordinator.resolveInitialSimulationTickMillis(
                 mapService.loadSimulationTickMillis(config.simulation().defaultTickMillis()),
                 config.simulation().defaultTickMillis(), minSimulationTickMillis, maxSimulationTickMillis);
@@ -147,10 +178,9 @@ public final class MapEditorCoordinator {
         InitialProjectInitializer initialProjectInitializer = new InitialProjectInitializer(application);
         if (initialProjectInitializer.initializeIfRequired(currentProject)) {
             updateStatus(localization.text("status.demo_created"));
-            saveNow();
+            updateCurrentProject(editorSaveCoordinator.save(state, currentProject, false));
         }
         historyService.initialize();
-        historyInitialized = true;
 
         MapEditorComponentFactory.Components components = MapEditorComponentFactory.create(
                 new MapEditorComponentFactory.Inputs(
@@ -171,17 +201,17 @@ public final class MapEditorCoordinator {
         keyboardController = components.keyboardController();
 
         editorProjectSessionCoordinator = new EditorProjectSessionCoordinator(
-                mapService, historyService, state, project -> currentProject = project,
+                mapService, historyService, state, this::updateCurrentProject,
                 simulationController::setTickDurationMillis, projectCatalog::markLastOpened,
                 minSimulationTickMillis, maxSimulationTickMillis, defaultSimulationTickMillis,
                 createEditorProjectSessionActions());
-        editorProjectSessionCoordinator.registerUiProcess(
+        statusMessageRegistration = editorProjectSessionCoordinator.registerUiProcess(
                 "status-message", view::pauseStatusMessageLifecycle, view::resumeStatusMessageLifecycle);
-        editorProjectSessionCoordinator.registerUiProcess(
+        cameraSaveDebounceRegistration = editorProjectSessionCoordinator.registerUiProcess(
                 "camera-save-debounce", cameraController::pausePendingSave, cameraController::resumePendingSave);
-        projectWorkflowCoordinator = new ProjectWorkflowCoordinator(
+        ProjectWorkflowCoordinator projectWorkflowCoordinator = new ProjectWorkflowCoordinator(
                 projectCatalog, localization, mapService, mapRepositoryFactory, () -> currentProject,
-                project -> currentProject = project, editorProjectSessionCoordinator::prepareForProjectSwitch,
+                this::updateCurrentProject, editorProjectSessionCoordinator::prepareForProjectSwitch,
                 this::saveNow, editorProjectSessionCoordinator::activateProject);
         mainMenuController = new MainMenuController(
                 view.mainMenu(), localization, projectCatalog::listProjects,
@@ -305,6 +335,8 @@ public final class MapEditorCoordinator {
         }
         shutdown = true;
         editorProjectSessionCoordinator.disposeUiProcesses();
+        statusMessageRegistration.close();
+        cameraSaveDebounceRegistration.close();
         if (tooltipRegistration != null) {
             tooltipRegistration.close();
             tooltipRegistration = null;
@@ -355,10 +387,21 @@ public final class MapEditorCoordinator {
         view.toolbar().setSimulationSpeedMillis(millis);
     }
 
-    /** Оновлює опис активного проєкту після збереження його параметрів швидкості. */
+    /** Оновлює опис активного проєкту після збереження швидкості та повідомляє власника заголовка вікна. */
     private void refreshCurrentProjectAfterSpeedChange() {
-        currentProject = projectCatalog.descriptorForDatabasePath(mapService.databasePath());
+        updateCurrentProject(projectCatalog.descriptorForDatabasePath(mapService.databasePath()));
         projectCatalog.markLastOpened(Optional.ofNullable(currentProject));
+    }
+
+    /**
+     * Зберігає новий опис активного проєкту й передає його зовнішньому власнику заголовка вікна.
+     * Єдиний метод оновлення не дозволяє розійтися стану координатора та відображуваній назві.
+     *
+     * @param project актуальний опис активного проєкту.
+     */
+    private void updateCurrentProject(ProjectDescriptor project) {
+        currentProject = Objects.requireNonNull(project, "project");
+        currentProjectConsumer.accept(currentProject);
     }
 
     /** Починає режим додавання нейрона та готує стан взаємодії. */
@@ -373,9 +416,9 @@ public final class MapEditorCoordinator {
     private void refreshMapPresentation() { presentation.refreshAll(); }
     /** Оновлює зовнішній вигляд нейронів за їхнім поточним типом і станом. */
     private void refreshNeuronVisuals() { presentation.refreshNeurons(); }
-    /** Зберігає карту, камеру, метадані активного проєкту та історію змін. */
+    /** Зберігає карту, камеру й історію та передає зовнішньому власнику актуальний опис активного проєкту. */
     private void saveNow() {
-        currentProject = editorSaveCoordinator.save(state, currentProject, historyInitialized);
+        updateCurrentProject(editorSaveCoordinator.save(state, currentProject, true));
     }
     /** Передає текст повідомлення до рядка стану інтерфейсу. */
     private void updateStatus(String text) { view.setStatus(text); }

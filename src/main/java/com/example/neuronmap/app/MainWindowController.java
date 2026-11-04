@@ -6,6 +6,7 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.persistence.settings.GlobalSettingsFullScreenPreferenceStore;
 import com.example.neuronmap.persistence.window.WindowState;
 import com.example.neuronmap.persistence.window.WindowStateStore;
+import com.example.neuronmap.project.ProjectDescriptor;
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
 import javafx.event.Event;
@@ -18,32 +19,38 @@ import javafx.scene.input.KeyEvent;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 
+import java.util.Locale;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 /**
- * Керує головним JavaFX-вікном, його геометрією, повноекранним режимом і життєвим циклом редактора.
+ * Керує головним JavaFX-вікном, його заголовком, геометрією, повноекранним режимом і життєвим циклом редактора.
  * Віконне оформлення делегується єдиному механізму {@link WindowChromeLifecycle} на базі JavaFX.
  */
-public final class MainWindowController {
+final class MainWindowController {
 
     private final Stage stage;
     private final WindowStateStore windowStateStore;
     private final Runnable showWindowAction;
     private final WindowChromeLifecycle windowChromeLifecycle;
+    private final LocalizationService localization;
     private final GlobalSettingsFullScreenPreferenceStore fullScreenPreferenceStore;
     private final EventHandler<KeyEvent> fullScreenShortcutHandler = this::handleFullScreenShortcut;
+    private final Consumer<Locale> localeChangeListener = ignored -> refreshWindowTitle();
     private WindowLifecycleCoordinator lifecycleCoordinator;
     private WindowState lastWindowedState;
+    private ProjectDescriptor currentProject;
     private Scene fullScreenShortcutScene;
     private boolean fullScreenEnabled;
     private boolean restoringWindowedGeometry;
     private boolean configured;
     private boolean savedStateRestored;
     private boolean showAttempted;
+    private boolean localizationListenerRegistered;
 
     /** Створює контролер вікна без окремого сховища повноекранного налаштування, як у тестових сценаріях. */
-    public MainWindowController(Stage stage, WindowStateStore windowStateStore, LocalizationService localization) {
+    MainWindowController(Stage stage, WindowStateStore windowStateStore, LocalizationService localization) {
         this(stage, windowStateStore, localization,
                 Objects.requireNonNull(stage, "stage")::show,
                 () -> Platform.isSupported(ConditionalFeature.EXTENDED_WINDOW), null);
@@ -57,8 +64,8 @@ public final class MainWindowController {
      * @param localization спільна служба локалізації.
      * @param fullScreenPreferenceStore сховище стану повноекранного режиму.
      */
-    public MainWindowController(Stage stage, WindowStateStore windowStateStore, LocalizationService localization,
-                                GlobalSettingsFullScreenPreferenceStore fullScreenPreferenceStore) {
+    MainWindowController(Stage stage, WindowStateStore windowStateStore, LocalizationService localization,
+                         GlobalSettingsFullScreenPreferenceStore fullScreenPreferenceStore) {
         this(stage, windowStateStore, localization,
                 Objects.requireNonNull(stage, "stage")::show,
                 () -> Platform.isSupported(ConditionalFeature.EXTENDED_WINDOW),
@@ -87,15 +94,30 @@ public final class MainWindowController {
         this.stage = Objects.requireNonNull(stage, "stage");
         this.windowStateStore = Objects.requireNonNull(windowStateStore, "windowStateStore");
         this.showWindowAction = Objects.requireNonNull(showWindowAction, "showWindowAction");
+        this.localization = Objects.requireNonNull(localization, "localization");
         this.fullScreenPreferenceStore = fullScreenPreferenceStore;
         fullScreenEnabled = fullScreenPreferenceStore != null && fullScreenPreferenceStore.loadFullScreenEnabled();
-        windowChromeLifecycle = new WindowChromeLifecycle(stage,
-                Objects.requireNonNull(localization, "localization"),
+        windowChromeLifecycle = new WindowChromeLifecycle(stage, localization,
                 Objects.requireNonNull(extendedWindowSupport, "extendedWindowSupport"));
     }
 
     /**
+     * Приймає актуальний опис активного проєкту та негайно оновлює заголовок уже налаштованого вікна.
+     * Для тимчасового проєкту використовується локалізована назва «Новий проєкт».
+     *
+     * @param project опис активного проєкту.
+     * @throws NullPointerException якщо опис проєкту не задано.
+     */
+    void setCurrentProject(ProjectDescriptor project) {
+        currentProject = Objects.requireNonNull(project, "project");
+        if (configured) {
+            refreshWindowTitle();
+        }
+    }
+
+    /**
      * Налаштовує Stage, відновлює геометрію, застосовує режим відображення та під'єднує клавіатурні команди.
+     * Заголовок встановлюється за активним проєктом і повторно локалізується під час зміни мови.
      *
      * @param windowConfig перевірені налаштування головного вікна.
      * @param scene сцена редактора.
@@ -104,7 +126,7 @@ public final class MainWindowController {
      * @throws IllegalStateException якщо контролер уже налаштовано.
      * @throws UnsupportedOperationException якщо JavaFX toolkit не підтримує розширене оформлення вікна.
      */
-    public void configure(AppConfig.Window windowConfig, Scene scene, Runnable shutdownEditor) {
+    void configure(AppConfig.Window windowConfig, Scene scene, Runnable shutdownEditor) {
         if (configured) {
             throw new IllegalStateException("main window is already configured");
         }
@@ -113,7 +135,9 @@ public final class MainWindowController {
         Objects.requireNonNull(shutdownEditor, "shutdownEditor");
         try {
             windowChromeLifecycle.configure(scene);
-            stage.setTitle(windowConfig.title());
+            localization.addListener(localeChangeListener);
+            localizationListenerRegistered = true;
+            refreshWindowTitle();
             stage.setScene(scene);
             stage.setWidth(windowConfig.defaultWidth());
             stage.setHeight(windowConfig.defaultHeight());
@@ -134,19 +158,20 @@ public final class MainWindowController {
             stage.setFullScreen(fullScreenEnabled);
             lifecycleCoordinator = new WindowLifecycleCoordinator(
                     () -> windowStateStore.save(currentWindowState()), shutdownEditor);
-            stage.setOnCloseRequest(event -> shutdown());
+            stage.setOnCloseRequest(_ -> shutdown());
             fullScreenShortcutScene = scene;
             scene.addEventFilter(KeyEvent.KEY_PRESSED, fullScreenShortcutHandler);
             configured = true;
         } catch (RuntimeException | Error configurationFailure) {
             detachFullScreenShortcut();
+            detachLocalizationListener();
             windowChromeLifecycle.dispose();
             throw configurationFailure;
         }
     }
 
     /** Показує вікно лише один раз і центрує його, якщо раніше не було збережено геометрію. */
-    public void show() {
+    void show() {
         requireConfigured();
         if (showAttempted) {
             throw new IllegalStateException("main window can only be shown once");
@@ -160,6 +185,7 @@ public final class MainWindowController {
             }
         } catch (RuntimeException | Error exception) {
             detachFullScreenShortcut();
+            detachLocalizationListener();
             windowChromeLifecycle.dispose();
             if (stage.isShowing()) {
                 stage.hide();
@@ -169,7 +195,7 @@ public final class MainWindowController {
     }
 
     /** Закриває вікно після спільного сценарію збереження геометрії та завершення редактора. */
-    public void close() {
+    void close() {
         requireConfigured();
         try {
             shutdown();
@@ -178,26 +204,8 @@ public final class MainWindowController {
         }
     }
 
-    /** Згортає головне вікно через API Stage. */
-    public void minimize() {
-        requireConfigured();
-        stage.setIconified(true);
-    }
-
-    /** Перемикає головне вікно між звичайним і максимізованим станами через API Stage. */
-    public void toggleMaximized() {
-        requireConfigured();
-        stage.setMaximized(!stage.isMaximized());
-    }
-
-    /** Повертає ознаку максимізованого стану вікна. */
-    public boolean isMaximized() {
-        requireConfigured();
-        return stage.isMaximized();
-    }
-
     /** Повертає поточне або заплановане під час запуску значення повноекранного режиму. */
-    public boolean isFullScreen() {
+    boolean isFullScreen() {
         return fullScreenEnabled;
     }
 
@@ -208,7 +216,7 @@ public final class MainWindowController {
      * @param enabled бажаний стан повноекранного режиму.
      * @throws IllegalStateException якщо головне вікно ще не налаштовано.
      */
-    public void previewFullScreen(boolean enabled) {
+    void previewFullScreen(boolean enabled) {
         requireConfigured();
         if (fullScreenEnabled == enabled) {
             return;
@@ -231,22 +239,26 @@ public final class MainWindowController {
      * @param enabled підтверджений стан повноекранного режиму.
      * @throws IllegalStateException якщо контролер створено без сховища налаштувань.
      */
-    public void persistFullScreen(boolean enabled) {
+    void persistFullScreen(boolean enabled) {
         if (fullScreenPreferenceStore == null) {
             throw new IllegalStateException("Full-screen preference storage is not configured");
         }
         fullScreenPreferenceStore.saveFullScreenEnabled(enabled);
     }
 
-    /** Завершує редактор один раз і звільняє ресурси оформлення вікна та клавіатурних обробників. */
-    public void shutdown() {
+    /** Завершує редактор один раз і звільняє ресурси оформлення, локалізації та клавіатурних обробників. */
+    void shutdown() {
         try {
             if (lifecycleCoordinator != null) {
                 lifecycleCoordinator.shutdown();
             }
         } finally {
             detachFullScreenShortcut();
-            windowChromeLifecycle.dispose();
+            try {
+                windowChromeLifecycle.dispose();
+            } finally {
+                detachLocalizationListener();
+            }
         }
     }
 
@@ -275,6 +287,23 @@ public final class MainWindowController {
         }
         fullScreenShortcutScene.removeEventFilter(KeyEvent.KEY_PRESSED, fullScreenShortcutHandler);
         fullScreenShortcutScene = null;
+    }
+
+    /** Відписує контролер від локалізації після завершення або невдалого налаштування вікна. */
+    private void detachLocalizationListener() {
+        if (!localizationListenerRegistered) {
+            return;
+        }
+        localization.removeListener(localeChangeListener);
+        localizationListenerRegistered = false;
+    }
+
+    /** Встановлює назву активного збереженого проєкту або локалізований підпис для тимчасового проєкту. */
+    private void refreshWindowTitle() {
+        String title = currentProject != null && currentProject.isPersisted()
+                ? currentProject.name()
+                : localization.text("menu.new_project");
+        stage.setTitle(title);
     }
 
     /** Повертає геометрію для збереження, не записуючи поточний розмір екрана як розмір вікна. */

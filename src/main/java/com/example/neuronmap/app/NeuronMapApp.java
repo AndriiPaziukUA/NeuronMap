@@ -68,7 +68,8 @@ public final class NeuronMapApp extends Application {
                 mainWindowController::close,
                 mainWindowController::isFullScreen,
                 mainWindowController::previewFullScreen,
-                mainWindowController::persistFullScreen
+                mainWindowController::persistFullScreen,
+                mainWindowController::setCurrentProject
         );
 
         Scene scene = editor.createScene(config.window().defaultWidth(), config.window().defaultHeight());
@@ -104,8 +105,9 @@ public final class NeuronMapApp extends Application {
                 .orElseGet(() -> projectCatalog.createTransientProject(defaultProjectName));
     }
 
-    /** Запускає JavaFX-застосунок із переданими аргументами командного рядка. */
-    public static void main(String[] args) {
+    /** Запускає JavaFX-застосунок; метод викликається Java launcher, а не кодом застосунку. */
+    @SuppressWarnings("unused")
+    static void main(String[] args) {
         launch(args);
     }
 }

@@ -2,7 +2,9 @@ package com.example.neuronmap.app;
 
 import com.example.neuronmap.config.AppConfig;
 import com.example.neuronmap.i18n.LocalizationService;
+import com.example.neuronmap.i18n.SupportedLanguage;
 import com.example.neuronmap.persistence.window.WindowStateStore;
+import com.example.neuronmap.project.ProjectDescriptor;
 import com.example.neuronmap.view.window.WindowChromeView;
 import javafx.application.Platform;
 import javafx.event.Event;
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.lang.reflect.Field;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
@@ -29,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє контракт контролера головного вікна без залежностей від платформних адаптерів. */
+/** Перевіряє контракт контролера головного вікна, заголовок проєкту та звільнення його ресурсів. */
 final class MainWindowControllerTest {
 
     @TempDir
@@ -78,6 +81,47 @@ final class MainWindowControllerTest {
                 .anyMatch(field -> field.getType() == WindowChromeLifecycle.class));
     }
 
+    /** Перевіряє локалізовану назву тимчасового проєкту та синхронне оновлення після збереження й перейменування. */
+    @Test
+    void displaysLocalizedNewProjectTitleUntilProjectIsPersistedAndRefreshesRenamedTitle() throws Exception {
+        runOnFxThread(() -> {
+            Stage stage = new Stage();
+            LocalizationService localization = new LocalizationService(Locale.ENGLISH);
+            MainWindowController controller = createController(stage, localization);
+            ProjectDescriptor transientProject = new ProjectDescriptor(
+                    "transient", "Project", temporaryDirectory.resolve("transient/project.db"), null);
+            controller.setCurrentProject(transientProject);
+            controller.configure(windowConfig(), new Scene(new StackPane(), 640.0, 480.0), () -> { });
+
+            assertEquals("New Project", stage.getTitle());
+            localization.previewLanguage(SupportedLanguage.UKRAINIAN);
+            assertEquals("Новий проєкт", stage.getTitle());
+            localization.previewLanguage(SupportedLanguage.RUSSIAN);
+            assertEquals("Новый проект", stage.getTitle());
+
+            ProjectDescriptor savedProject = new ProjectDescriptor(
+                    "saved", "Network", temporaryDirectory.resolve("Network/project.db"), Instant.EPOCH);
+            controller.setCurrentProject(savedProject);
+            assertEquals("Network", stage.getTitle());
+
+            ProjectDescriptor renamedProject = new ProjectDescriptor(
+                    "saved", "Renamed network", temporaryDirectory.resolve("Renamed network/project.db"),
+                    Instant.EPOCH);
+            controller.setCurrentProject(renamedProject);
+            assertEquals("Renamed network", stage.getTitle());
+
+            localization.previewLanguage(SupportedLanguage.ENGLISH);
+            assertEquals("Renamed network", stage.getTitle());
+            controller.setCurrentProject(transientProject);
+            assertEquals("New Project", stage.getTitle());
+
+            controller.shutdown();
+            localization.previewLanguage(SupportedLanguage.UKRAINIAN);
+            assertEquals("New Project", stage.getTitle());
+            stage.close();
+        });
+    }
+
     /** Перевіряє очищення оформлення навіть у разі помилки під час завершення редактора. */
     @Test
     void disposesWindowChromeWhenEditorShutdownFails() throws Exception {
@@ -89,7 +133,7 @@ final class MainWindowControllerTest {
             });
 
             assertThrows(IllegalStateException.class, controller::close);
-            assertNull(lifecycleFieldValue(controller, "windowChromeView"));
+            assertNull(lifecycleFieldValue(controller));
         });
     }
 
@@ -107,16 +151,21 @@ final class MainWindowControllerTest {
             controller.shutdown();
 
             assertEquals(1, shutdownCalls.get());
-            assertNull(lifecycleFieldValue(controller, "windowChromeView"));
+            assertNull(lifecycleFieldValue(controller));
         });
     }
 
     /** Створює тестовий контролер без показу реального вікна. */
     private MainWindowController createController(Stage stage) {
+        return createController(stage, new LocalizationService(Locale.forLanguageTag("uk")));
+    }
+
+    /** Створює тестовий контролер із заданою локалізацією та керованою перевіркою підтримки заголовка. */
+    private MainWindowController createController(Stage stage, LocalizationService localization) {
         return new MainWindowController(
                 stage,
                 new WindowStateStore(temporaryDirectory.resolve("window-state.properties")),
-                new LocalizationService(Locale.forLanguageTag("uk")),
+                localization,
                 () -> { },
                 () -> true
         );
@@ -128,16 +177,16 @@ final class MainWindowControllerTest {
     }
 
     /** Зчитує внутрішній ресурс життєвого циклу для перевірки очищення. */
-    private static Object lifecycleFieldValue(MainWindowController controller, String fieldName) {
+    private static Object lifecycleFieldValue(MainWindowController controller) {
         try {
             Field lifecycleField = MainWindowController.class.getDeclaredField("windowChromeLifecycle");
             lifecycleField.setAccessible(true);
             Object lifecycle = lifecycleField.get(controller);
-            Field resourceField = WindowChromeLifecycle.class.getDeclaredField(fieldName);
+            Field resourceField = WindowChromeLifecycle.class.getDeclaredField("windowChromeView");
             resourceField.setAccessible(true);
             return resourceField.get(lifecycle);
         } catch (ReflectiveOperationException exception) {
-            throw new AssertionError("Не вдалося прочитати ресурс оформлення вікна " + fieldName, exception);
+            throw new AssertionError("Не вдалося прочитати ресурс оформлення вікна windowChromeView", exception);
         }
     }
 
