@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Перевіряє склад підказки структури залежно від відкритості шухлядки та параметри її учасників. */
 final class NeuronStructureCountTooltipTest {
 
-    /** Перевіряє секції закритої структури, стан найсильнішого нейрона й актуальність лічильника. */
+    /** Перевіряє секції закритої структури, тип сигналу, стан конкуренції та актуальність лічильника. */
     @Test
     void showsStructureAndNeuronSectionsWhenDrawerIsClosed() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
@@ -46,6 +46,7 @@ final class NeuronStructureCountTooltipTest {
                     Найсильніший нейрон: Вкл
                     Створення нейрону за: Кількістю нейронів
                     Нейрони
+                    Тип сигналу: Статичний
                     Сила сигналу: 7
                     Поріг активації: 3
                     Активні такти: 5
@@ -67,6 +68,7 @@ final class NeuronStructureCountTooltipTest {
                     "Підзаголовок нейронів має бути відцентрований");
             assertTrue(tooltipNodes.get(9).isVisible(), "Під заголовком нейронів має бути тонкий роздільник");
             assertEquals(0.5, ((Region) tooltipNodes.get(9)).getMinHeight());
+            assertTrue(tooltipNodes.get(10).isVisible(), "Закрита структура має показувати власний тип сигналу");
 
             structureView.setStructureMembers(List.of(firstMember));
             assertTrue(structureView.parameterTooltipTextForTest().contains("Кількість нейронів: 1"));
@@ -77,7 +79,7 @@ final class NeuronStructureCountTooltipTest {
         });
     }
 
-    /** Перевіряє, що відкрита структура показує лише власні параметри, а учасник — параметри нейрона. */
+    /** Перевіряє, що відкрита структура не дублює тип сигналу, а внутрішній нейрон показує його у власній підказці. */
     @Test
     void showsOnlyStructureParametersWhenDrawerIsOpenAndKeepsMemberTooltip() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
@@ -111,7 +113,8 @@ final class NeuronStructureCountTooltipTest {
             assertFalse(tooltipNodes.get(7).isVisible());
             assertFalse(tooltipNodes.get(8).isVisible());
             assertFalse(tooltipNodes.get(9).isVisible());
-            assertEquals("Параметри\nСила сигналу: 7\nПоріг активації: 3\nАктивні такти: 5\nЗатримка: 1",
+            assertFalse(tooltipNodes.get(10).isVisible(), "Відкрита структура не має дублювати тип сигналу учасників");
+            assertEquals("Параметри\nТип сигналу: Статичний\nСила сигналу: 7\nПоріг активації: 3\nАктивні такти: 5\nЗатримка: 1",
                     member.parameterTooltipTextForTest());
 
             model.structure(structure.id()).settings().setStrongestNeuronOnly(false);
@@ -125,14 +128,15 @@ final class NeuronStructureCountTooltipTest {
 
             assertFalse(structureView.toggleStructureDrawer());
             assertTrue(structureView.parameterTooltipTextForTest().contains("Найсильніший нейрон: Викл"));
-            assertTrue(structureView.parameterTooltipTextForTest().contains("Нейрони\nСила сигналу: 7"));
+            assertTrue(structureView.parameterTooltipTextForTest()
+                    .contains("Нейрони\nТип сигналу: Статичний\nСила сигналу: 7"));
 
             structureView.disposeParameterTooltip();
             member.disposeParameterTooltip();
         });
     }
 
-    /** Перевіряє заголовок і відсутність параметрів структури у звичайного нейрона. */
+    /** Перевіряє заголовок, тип сигналу та відсутність параметрів структури у звичайного нейрона. */
     @Test
     void showsNeuronParametersWithoutStructureFieldsForOrdinaryNeuron() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
@@ -143,7 +147,7 @@ final class NeuronStructureCountTooltipTest {
             assertFalse(ordinaryView.parameterTooltipTextForTest().contains("Кількість нейронів"));
             assertFalse(ordinaryView.parameterTooltipTextForTest().contains("Найсильніший нейрон"));
             assertFalse(ordinaryView.parameterTooltipTextForTest().contains("Створення нейрону за"));
-            assertEquals("Параметри\nСила сигналу: 7\nПоріг активації: 3\nАктивні такти: 5\nЗатримка: 1",
+            assertEquals("Параметри\nТип сигналу: Статичний\nСила сигналу: 7\nПоріг активації: 3\nАктивні такти: 5\nЗатримка: 1",
                     ordinaryView.parameterTooltipTextForTest());
             ordinaryView.disposeParameterTooltip();
         });

@@ -80,7 +80,6 @@ class SqliteStructureSharedSettingsPersistenceTest {
         assertEquals(8, restoredStructure.signalStrength());
     }
 
-
     /** Перевіряє перенесення раніше збережених налаштувань зі структурного нейрона до таблиці structures. */
     @Test
     void migratesLegacyStructureSettingsIntoStructureTable(@TempDir Path tempDir) throws Exception {
@@ -125,13 +124,14 @@ class SqliteStructureSharedSettingsPersistenceTest {
         }
     }
 
-    /** Перевіряє, що фізичний рядок нейрона містить лише технічні значення за замовчуванням. */
+    /** Перевіряє, що рядок нейрона містить лише технічні типові значення, а режим структури не дублюється. */
     private static void assertNeuronRowHasDefaultSettings(Connection connection, String neuronId)
             throws SQLException {
         // Стовпці забезпечуються SqliteSchema.migrate(), а їхні значення тут навмисно типові.
         //noinspection SqlResolve
         String sql = """
-                SELECT signal_strength, activation_threshold, active_ticks, delay_ticks, activation_mode, name
+                SELECT signal_strength, activation_threshold, active_ticks, delay_ticks,
+                       activation_mode, signal_type, name
                 FROM neurons WHERE id = ?
                 """;
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -144,6 +144,7 @@ class SqliteStructureSharedSettingsPersistenceTest {
                 assertEquals(defaults.activeTicks(), resultSet.getInt("active_ticks"));
                 assertEquals(defaults.delayTicks(), resultSet.getInt("delay_ticks"));
                 assertEquals(defaults.activationMode().name(), resultSet.getString("activation_mode"));
+                assertEquals("STATIC", resultSet.getString("signal_type"));
                 assertNull(resultSet.getString("name"));
                 assertFalse(resultSet.next());
             }
@@ -157,10 +158,10 @@ class SqliteStructureSharedSettingsPersistenceTest {
             NeuronParameters expectedParameters,
             String expectedName
     ) throws SQLException {
-        // Стовпці додаються міграцією; серед них можуть бути відсутні у старій БД.
         //noinspection SqlResolve
         String sql = """
-                SELECT signal_strength, activation_threshold, active_ticks, delay_ticks, activation_mode, name
+                SELECT signal_strength, activation_threshold, active_ticks, delay_ticks,
+                       activation_mode, signal_type, name
                 FROM structures WHERE id = ?
                 """;
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -172,10 +173,10 @@ class SqliteStructureSharedSettingsPersistenceTest {
                 assertEquals(expectedParameters.activeTicks(), resultSet.getInt("active_ticks"));
                 assertEquals(expectedParameters.delayTicks(), resultSet.getInt("delay_ticks"));
                 assertEquals(expectedParameters.activationMode().name(), resultSet.getString("activation_mode"));
+                assertEquals("STATIC", resultSet.getString("signal_type"));
                 assertEquals(expectedName, resultSet.getString("name"));
                 assertFalse(resultSet.next());
             }
         }
     }
-
 }

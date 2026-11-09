@@ -1,10 +1,6 @@
 package com.example.neuronmap.simulation;
 
-import com.example.neuronmap.model.Neuron;
-import com.example.neuronmap.model.NeuronActivationMode;
-import com.example.neuronmap.model.NeuronMapModel;
-import com.example.neuronmap.model.NeuronParameters;
-import com.example.neuronmap.model.NeuronType;
+import com.example.neuronmap.model.*;
 import org.junit.jupiter.api.Test;
 
 import java.util.Objects;
@@ -12,9 +8,10 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє інтеграцію конкуренції найсильнішого нейрона з реальним поширенням сигналів у сеансі симуляції. */
+/** Перевіряє конкуренцію найсильніших учасників і адаптивні типи сигналу під час реального поширення. */
 final class SimulationSessionStrongestNeuronTest {
 
     /** Перевіряє, що із двох одночасно активованих членів структури наступний такт отримує лише сильніший. */
@@ -45,10 +42,8 @@ final class SimulationSessionStrongestNeuronTest {
         assertEquals(Set.of(strongerMember.id()), activation.activatedNeuronIds());
     }
 
-
     /**
-     * Перевіряє 100-відсотковий поріг за кількістю входів: один сигнал не активує учасника з трьома входами,
-     * але активує учасника з одним входом, і саме він перемагає в конкуренції.
+     * Перевіряє 100-відсотковий поріг за кількістю входів і вибір кандидата, який фактично пройшов поріг.
      */
     @Test
     void activatesEligibleOneInputMemberWhenThreeInputMemberReceivesOnlyOneSignal() {
@@ -79,7 +74,7 @@ final class SimulationSessionStrongestNeuronTest {
         assertEquals(Set.of(memberB.id()), activation.activatedNeuronIds());
     }
 
-    /** Перевіряє, що коли обидва учасники пройшли поріг 100%, перемагає той, хто отримав три сигнали замість одного. */
+    /** Перевіряє, що серед учасників із пройденим 100-відсотковим порогом перемагає сильніший сигнал. */
     @Test
     void selectsStrongestAmongMembersThatBothReachedHundredPercentCountThreshold() {
         NeuronMapModel model = new NeuronMapModel();
@@ -111,7 +106,7 @@ final class SimulationSessionStrongestNeuronTest {
         assertEquals(Set.of(memberA.id()), activation.activatedNeuronIds());
     }
 
-    /** Перевіряє, що в режимі сили сигналу перемагає найсильніший саме серед учасників, які пройшли поріг. */
+    /** Перевіряє конкуренцію лише між учасниками, які пройшли поріг сили сигналу. */
     @Test
     void selectsStrongestEligibleMemberInSignalStrengthMode() {
         NeuronMapModel model = new NeuronMapModel();
@@ -144,7 +139,7 @@ final class SimulationSessionStrongestNeuronTest {
         assertEquals(Set.of(memberA.id()), activation.activatedNeuronIds());
     }
 
-    /** Перевіряє, що конкуренція не обходить спільний поріг активації, коли всі сигнали недостатні. */
+    /** Перевіряє, що конкуренція не примушує до активації кандидатів, які не пройшли власний поріг. */
     @Test
     void doesNotForceActivationWhenAllCandidatesAreBelowThreshold() {
         NeuronMapModel model = new NeuronMapModel();
@@ -160,11 +155,135 @@ final class SimulationSessionStrongestNeuronTest {
         model.createConnection(source.id(), second.id());
 
         SimulationStep emission = nextStepOrFail(SimulationSession.manual(model, source.id()));
-
         assertTrue(emission.nextActivatedNeuronIds().isEmpty());
     }
 
-    /** Повертає наступний такт або завершує тест із поясненням, якщо симуляція вже не має роботи. */
+    /**
+     * Перевіряє персональне навчання кожного учасника структури та використання нового значення в його наступному сигналі.
+     */
+    @Test
+    void strongestModeLearnsEachStructureMemberBeforeItsNextEmission() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron structure = model.createNeuron(NeuronType.STRUCTURE, 0, 0);
+        Neuron firstMember = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        Neuron secondMember = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        Neuron firstSource = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        Neuron secondSource = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        Neuron firstSink = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        Neuron secondSink = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        assertTrue(model.addStructureMember(structure.id(), firstMember.id()));
+        assertTrue(model.addStructureMember(structure.id(), secondMember.id()));
+        structure.setParameters(new NeuronParameters(
+                1, 2, 1, 1, NeuronActivationMode.SIGNAL_STRENGTH, SignalType.STRONGEST));
+        firstSource.setSignalStrength(5);
+        secondSource.setSignalStrength(7);
+        assertTrue(model.createConnection(firstSource.id(), firstMember.id()));
+        assertTrue(model.createConnection(secondSource.id(), secondMember.id()));
+        assertTrue(model.createConnection(firstMember.id(), firstSink.id()));
+        assertTrue(model.createConnection(secondMember.id(), secondSink.id()));
+
+        SimulationSession session = SimulationSession.manual(model, firstSource.id());
+        assertTrue(session.queueManualStart(secondSource.id()));
+        SimulationStep sourceEmission = nextStepOrFail(session);
+
+        assertEquals(Set.of(firstMember.id(), secondMember.id()), sourceEmission.nextActivatedNeuronIds());
+        assertEquals(1, firstMember.signalStrength(), "Передбачення наступного такту не повинно змінювати модель");
+        assertEquals(1, secondMember.signalStrength(), "Передбачення наступного такту не повинно змінювати модель");
+
+        SimulationStep memberEmission = nextStepOrFail(session);
+
+        assertEquals(5, firstMember.signalStrength());
+        assertEquals(7, secondMember.signalStrength());
+        assertEquals(5, memberEmission.nextInputSums().get(firstSink.id()));
+        assertEquals(7, memberEmission.nextInputSums().get(secondSink.id()));
+    }
+
+    /** Перевіряє, що режим «Найсильніший» не зменшує силу після слабшого сигналу, який пройшов поріг. */
+    @Test
+    void strongestModeDoesNotReplaceStrengthWithSmallerThresholdPassingSignal() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron target = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        Neuron source = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        Neuron sink = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        target.setParameters(new NeuronParameters(
+                8, 2, 1, 1, NeuronActivationMode.SIGNAL_STRENGTH, SignalType.STRONGEST));
+        source.setSignalStrength(4);
+        assertTrue(model.createConnection(source.id(), target.id()));
+        assertTrue(model.createConnection(target.id(), sink.id()));
+
+        SimulationSession session = SimulationSession.manual(model, source.id());
+        nextStepOrFail(session);
+        SimulationStep activation = nextStepOrFail(session);
+
+        assertEquals(8, target.signalStrength());
+        assertEquals(8, activation.nextInputSums().get(sink.id()));
+    }
+
+    /** Перевіряє, що «Отриманий» замінює силу навіть меншим сигналом, який пройшов поріг. */
+    @Test
+    void receivedModeReplacesStrengthWithSmallerThresholdPassingSignal() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron target = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        Neuron source = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        Neuron sink = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        target.setParameters(new NeuronParameters(
+                8, 2, 1, 1, NeuronActivationMode.SIGNAL_STRENGTH, SignalType.RECEIVED));
+        source.setSignalStrength(2);
+        assertTrue(model.createConnection(source.id(), target.id()));
+        assertTrue(model.createConnection(target.id(), sink.id()));
+
+        SimulationSession session = SimulationSession.manual(model, source.id());
+        nextStepOrFail(session);
+        SimulationStep activation = nextStepOrFail(session);
+
+        assertEquals(2, target.signalStrength());
+        assertEquals(2, activation.nextInputSums().get(sink.id()));
+    }
+
+    /** Перевіряє, що сигнал нижче порога не змінює персональну силу в режимі «Отриманий». */
+    @Test
+    void receivedModeDoesNotAdaptWhenInputDoesNotReachActivationThreshold() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron target = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        Neuron source = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        target.setParameters(new NeuronParameters(
+                8, 3, 1, 1, NeuronActivationMode.SIGNAL_STRENGTH, SignalType.RECEIVED));
+        source.setSignalStrength(2);
+        assertTrue(model.createConnection(source.id(), target.id()));
+
+        SimulationSession session = SimulationSession.manual(model, source.id());
+        SimulationStep emission = nextStepOrFail(session);
+
+        assertTrue(emission.nextActivatedNeuronIds().isEmpty());
+        assertEquals(8, target.signalStrength());
+        assertTrue(session.isFinished());
+        assertNull(session.nextStep());
+        assertEquals(8, target.signalStrength());
+    }
+
+    /** Перевіряє, що адаптивний гальмівний нейрон зберігає від'ємну вагу вихідного сигналу. */
+    @Test
+    void receivedModeKeepsInhibitoryOutputNegative() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron target = model.createNeuron(NeuronType.INHIBITORY, 0, 0);
+        Neuron source = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        Neuron sink = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        target.setParameters(new NeuronParameters(
+                9, 4, 1, 1, NeuronActivationMode.SIGNAL_STRENGTH, SignalType.RECEIVED));
+        source.setSignalStrength(4);
+        assertTrue(model.createConnection(source.id(), target.id()));
+        assertTrue(model.createConnection(target.id(), sink.id()));
+
+        SimulationSession session = SimulationSession.manual(model, source.id());
+        nextStepOrFail(session);
+        SimulationStep activation = nextStepOrFail(session);
+
+        assertEquals(4, target.signalStrength());
+        assertEquals(-4, target.signalWeight());
+        assertEquals(-4, activation.nextInputSums().get(sink.id()));
+    }
+
+    /** Повертає наступний такт або завершує тест, якщо симуляція вже не має роботи. */
     private static SimulationStep nextStepOrFail(SimulationSession session) {
         return Objects.requireNonNull(session.nextStep(), "Expected the simulation to produce another step");
     }

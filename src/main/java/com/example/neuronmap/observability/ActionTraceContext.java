@@ -26,12 +26,14 @@ public final class ActionTraceContext {
     private static final Logger LOGGER = LogManager.getLogger(ActionTraceContext.class);
     private static final AtomicLong IDENTIFIER_SEQUENCE = new AtomicLong();
     private static final ThreadLocal<ActionSession> CURRENT_SESSION = new ThreadLocal<>();
+    /** Трасування вимкнене за замовчуванням і вмикається лише для цільової діагностики. */
+    private static final boolean ENABLED = Boolean.parseBoolean(
+            System.getProperty("neuronmap.trace.enabled", "false"));
     private static final java.lang.management.ThreadMXBean THREAD_METRICS =
             ManagementFactory.getThreadMXBean();
-    private static final ThreadMXBean EXTENDED_THREAD_METRICS = resolveExtendedThreadMetrics();
+    /** Важкі лічильники JVM активуються лише тоді, коли користувач явно увімкнув трасування. */
+    private static final ThreadMXBean EXTENDED_THREAD_METRICS = ENABLED ? resolveExtendedThreadMetrics() : null;
     private static final MemoryMXBean MEMORY_METRICS = ManagementFactory.getMemoryMXBean();
-    private static final boolean ENABLED = Boolean.parseBoolean(
-            System.getProperty("neuronmap.trace.enabled", "true"));
     private static final double MINIMUM_AUTOMATIC_DURATION_MILLIS = readPositiveDouble();
     private static final int MAXIMUM_STRING_LENGTH = readPositiveInteger();
 

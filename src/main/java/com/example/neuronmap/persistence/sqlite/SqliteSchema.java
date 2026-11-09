@@ -12,7 +12,7 @@ public final class SqliteSchema {
 
     private static final int STRUCTURE_SETTINGS_VERSION = 11;
     private static final int STRUCTURE_MEMBER_TYPE_VERSION = 12;
-    private static final int CURRENT_VERSION = 15;
+    private static final int CURRENT_VERSION = 16;
 
     /** Не дозволяє створювати екземпляри утиліти керування схемою. */
     private SqliteSchema() { }
@@ -34,11 +34,13 @@ public final class SqliteSchema {
             createBaseSchema(connection);
             migrateLegacyNeuronLayout(connection);
             ensureNeuronSettingsColumns(connection);
+            ensureNeuronSignalTypeColumn(connection);
             ensureNameColumn(connection, "neurons");
             ensureActivationModeColumn(connection, "neurons");
             ensureDirectionColumn(connection);
             ensureStructureExpandedColumn(connection);
             ensureStructureSettingsColumns(connection);
+            ensureStructureSignalTypeColumn(connection);
             ensureStructureMemberTypeColumn(connection);
             ensureStructureDirectionColumn(connection);
             ensureStructureStrongestNeuronOnlyColumn(connection);
@@ -67,7 +69,9 @@ public final class SqliteSchema {
                         type TEXT NOT NULL,
                         activation INTEGER NOT NULL DEFAULT 0,
                         signal_strength INTEGER NOT NULL DEFAULT 1,
-                        activation_threshold INTEGER NOT NULL DEFAULT 1
+                        activation_threshold INTEGER NOT NULL DEFAULT 1,
+                        signal_type TEXT NOT NULL DEFAULT 'STATIC'
+                            CHECK (signal_type IN ('STATIC', 'STRONGEST', 'RECEIVED'))
                     )
                     """);
             statement.executeUpdate("""
@@ -111,6 +115,8 @@ public final class SqliteSchema {
                         active_ticks INTEGER NOT NULL DEFAULT 1,
                         delay_ticks INTEGER NOT NULL DEFAULT 1,
                         activation_mode TEXT NOT NULL DEFAULT 'SIGNAL_STRENGTH',
+                        signal_type TEXT
+                            CHECK (signal_type IS NULL OR signal_type IN ('STATIC', 'STRONGEST', 'RECEIVED')),
                         member_type TEXT CHECK (member_type IS NULL OR member_type IN ('EXCITATORY', 'INHIBITORY')),
                         direction_reversed INTEGER CHECK (direction_reversed IS NULL OR direction_reversed IN (0, 1)),
                         strongest_neuron_only INTEGER CHECK (
@@ -178,6 +184,28 @@ public final class SqliteSchema {
         ensureIntegerColumn(connection, "neurons", "activation_threshold");
         ensureIntegerColumn(connection, "neurons", "active_ticks");
         ensureIntegerColumn(connection, "neurons", "delay_ticks");
+    }
+
+    /** Додає тип сигналу нейрона; усі наявні записи переходять до статичного режиму. */
+    private static void ensureNeuronSignalTypeColumn(Connection connection) throws SQLException {
+        if (columnExists(connection, "neurons", "signal_type")) return;
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    ALTER TABLE neurons ADD COLUMN signal_type TEXT NOT NULL DEFAULT 'STATIC'
+                    CHECK (signal_type IN ('STATIC', 'STRONGEST', 'RECEIVED'))
+                    """);
+        }
+    }
+
+    /** Додає тип сигналу структури; NULL означає успадкування налаштувань від батьківської структури. */
+    private static void ensureStructureSignalTypeColumn(Connection connection) throws SQLException {
+        if (columnExists(connection, "structures", "signal_type")) return;
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    ALTER TABLE structures ADD COLUMN signal_type TEXT
+                    CHECK (signal_type IS NULL OR signal_type IN ('STATIC', 'STRONGEST', 'RECEIVED'))
+                    """);
+        }
     }
 
     /** Додає параметри спільних налаштувань структури до старої таблиці structures. */
@@ -285,7 +313,7 @@ public final class SqliteSchema {
     private static void migrateStructureSettingsFromNeuronRows(Connection connection) throws SQLException {
         try (Statement statement = connection.createStatement()) {
             statement.executeUpdate("INSERT OR IGNORE INTO structures (id) SELECT id FROM neurons WHERE type = 'STRUCTURE'");
-            // Поля structures додаються вище міграційними ensure-методами.
+            // Усі стовпці structures додаються вище міграційними ensure-методами.
             //noinspection SqlResolve
             statement.executeUpdate("""
                     UPDATE structures
@@ -294,7 +322,8 @@ public final class SqliteSchema {
                         activation_threshold = (SELECT activation_threshold FROM neurons WHERE neurons.id = structures.id),
                         active_ticks = (SELECT active_ticks FROM neurons WHERE neurons.id = structures.id),
                         delay_ticks = (SELECT delay_ticks FROM neurons WHERE neurons.id = structures.id),
-                        activation_mode = (SELECT activation_mode FROM neurons WHERE neurons.id = structures.id)
+                        activation_mode = (SELECT activation_mode FROM neurons WHERE neurons.id = structures.id),
+                        signal_type = (SELECT signal_type FROM neurons WHERE neurons.id = structures.id)
                     WHERE EXISTS (SELECT 1 FROM neurons WHERE neurons.id = structures.id)
                     """);
         }
@@ -302,7 +331,6 @@ public final class SqliteSchema {
 
     /**
      * Відновлює спільний тип наявних структур за першим звичайним учасником у їхньому дереві.
-     * Порожні структури залишають тип невизначеним і використовують типовий збуджувальний тип до першого учасника.
      *
      * @param connection відкрите з'єднання з базою SQLite.
      * @throws SQLException якщо міграція типів учасників не вдалася.

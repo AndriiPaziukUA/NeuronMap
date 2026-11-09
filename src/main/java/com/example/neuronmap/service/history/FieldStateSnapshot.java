@@ -9,13 +9,17 @@ import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.model.NeuronStructure;
 import com.example.neuronmap.model.NeuronType;
+import com.example.neuronmap.model.SignalType;
 import com.example.neuronmap.model.StructureNeuronCreationMode;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/** Зберігає незмінний знімок даних карти, потрібних для скасування й повторення змін. */
+/**
+ * Зберігає незмінний знімок усіх даних карти, необхідних для скасування та повторення змін.
+ * Персональна сила кожного нейрона фіксується через його ефективні {@link NeuronParameters}.
+ */
 public final class FieldStateSnapshot {
 
     private final List<NeuronState> neurons;
@@ -27,11 +31,11 @@ public final class FieldStateSnapshot {
     /**
      * Створює знімок із незмінних списків станів елементів карти.
      *
-     * @param neurons знімки станів нейронів.
-     * @param presentations знімки візуальних подань нейронів.
-     * @param connections знімки зв'язків між нейронами.
-     * @param groups знімки груп нейронів.
-     * @param structures знімки структур, учасників і спільних налаштувань.
+     * @param neurons стани нейронів, включно з їхніми персональними адаптивними силами.
+     * @param presentations стани візуальних подань нейронів.
+     * @param connections стани зв'язків між нейронами.
+     * @param groups стани груп нейронів.
+     * @param structures стани структур, їхніх учасників і спільних режимів.
      */
     private FieldStateSnapshot(List<NeuronState> neurons, List<PresentationState> presentations,
                                List<ConnectionState> connections, List<GroupState> groups,
@@ -43,7 +47,9 @@ public final class FieldStateSnapshot {
         this.structures = List.copyOf(structures);
     }
 
-    /** Створює знімок усіх збережених даних моделі карти.
+    /**
+     * Створює знімок усіх збережених даних моделі карти.
+     *
      * @param model модель карти, яку потрібно зафіксувати.
      * @return незмінний знімок стану карти.
      * @throws IllegalArgumentException якщо модель не задано.
@@ -77,7 +83,11 @@ public final class FieldStateSnapshot {
         return new FieldStateSnapshot(neuronStates, presentationStates, connectionStates, groupStates, structureStates);
     }
 
-    /** Відновлює знімок у переданій моделі карти.
+    /**
+     * Відновлює знімок у переданій моделі карти, зберігаючи індивідуальні сили адаптивних учасників.
+     * Числові параметри спочатку завантажуються незалежно, потім відновлюється членство структур,
+     * а наприкінці повторно встановлюються персональні сили вже під'єднаних нейронів.
+     *
      * @param model модель, стан якої потрібно відновити.
      * @throws IllegalArgumentException якщо модель не задано.
      * @throws IllegalStateException якщо знімок містить відсутнє подання або неможливе членство структури.
@@ -91,6 +101,7 @@ public final class FieldStateSnapshot {
             neuron.setName(neuronState.name());
         }
         restoreStructures(model);
+        restoreAdaptiveSignalStrengths(model);
         for (PresentationState presentationState : presentations) {
             NeuronPresentation presentation = model.presentation(presentationState.neuronId());
             if (presentation == null) {
@@ -108,7 +119,28 @@ public final class FieldStateSnapshot {
         }
     }
 
-    /** Відновлює контейнери структур, їхні спільні налаштування, стан шухлядок і впорядковане членство.
+    /**
+     * Відновлює персональну силу кожного звичайного нейрона після встановлення спільних налаштувань структур.
+     * Значення структури-контейнера не копіюється до учасників: у статичному режимі вони й надалі читають
+     * спільне значення, а в адаптивному отримують силу зі свого власного запису знімка.
+     *
+     * @param model модель із уже відновленими деревами структур.
+     */
+    private void restoreAdaptiveSignalStrengths(NeuronMapModel model) {
+        for (NeuronState state : neurons) {
+            if (state.type() == NeuronType.STRUCTURE || state.parameters().signalType() == SignalType.STATIC) {
+                continue;
+            }
+            Neuron neuron = model.neuron(state.id());
+            if (neuron != null) {
+                neuron.setSignalStrength(state.parameters().signalStrength());
+            }
+        }
+    }
+
+    /**
+     * Відновлює контейнери структур, їхні спільні налаштування, стан шухлядок і впорядковане членство.
+     *
      * @param model модель карти, до якої потрібно повернути структури.
      * @throws IllegalStateException якщо контейнер або його учасника неможливо відновити.
      */
@@ -136,18 +168,24 @@ public final class FieldStateSnapshot {
         }
     }
 
-    /** Повертає незмінний список станів нейронів зі знімка. @return список станів нейронів. */
+    /** Повертає незмінні стани нейронів, що були захоплені у знімок. @return список станів нейронів. */
     public List<NeuronState> neurons() { return neurons; }
-    /** Повертає незмінний список станів подань нейронів зі знімка. @return список станів подань нейронів. */
+
+    /** Повертає незмінні стани візуальних подань. @return список станів подань. */
     public List<PresentationState> presentations() { return presentations; }
-    /** Повертає незмінний список станів зв'язків зі знімка. @return список станів зв'язків. */
+
+    /** Повертає незмінні стани напрямлених зв'язків. @return список станів зв'язків. */
     public List<ConnectionState> connections() { return connections; }
-    /** Повертає незмінний список станів груп зі знімка. @return список станів груп. */
+
+    /** Повертає незмінні стани груп і їхніх учасників. @return список станів груп. */
     public List<GroupState> groups() { return groups; }
-    /** Повертає незмінний список станів структур зі знімка. @return структури зі спільними налаштуваннями. */
+
+    /** Повертає незмінні стани структур та їхніх спільних режимів. @return список станів структур. */
     public List<StructureState> structures() { return structures; }
 
-    /** Порівнює знімки за всіма даними карти, які зберігаються в історії.
+    /**
+     * Порівнює знімки за всіма даними карти, які зберігаються в історії.
+     *
      * @param other об'єкт для порівняння з поточним знімком.
      * @return {@code true}, якщо знімки містять однакові дані; інакше {@code false}.
      */
@@ -163,7 +201,9 @@ public final class FieldStateSnapshot {
     @Override
     public int hashCode() { return Objects.hash(neurons, presentations, connections, groups, structures); }
 
-    /** Перевіряє, що модель карти задано.
+    /**
+     * Перевіряє наявність моделі перед виконанням операції над знімком.
+     *
      * @param model модель карти для перевірки.
      * @throws IllegalArgumentException якщо модель не задано.
      */
@@ -171,65 +211,80 @@ public final class FieldStateSnapshot {
         if (model == null) throw new IllegalArgumentException("Model must not be null.");
     }
 
-    /** Зберігає параметри й назву нейрона, потрібні для відновлення збереженого стану.
+    /**
+     * Зберігає параметри й назву нейрона, необхідні для відновлення його збереженого стану.
+     *
      * @param id ідентифікатор нейрона.
      * @param type тип нейрона.
-     * @param parameters параметри сигналу.
+     * @param parameters параметри сигналу, включно з персональною силою, якщо режим адаптивний.
      * @param name назва нейрона або {@code null}.
      */
     public record NeuronState(String id, NeuronType type, NeuronParameters parameters, String name) {
-        /** Перевіряє, що знімок містить параметри нейрона.
-         * @throws NullPointerException якщо тип або параметри не задано.
-         */
-        public NeuronState { Objects.requireNonNull(type, "type"); Objects.requireNonNull(parameters, "parameters"); }
-        /** Створює знімок зі старого контракту без заданої назви.
-         * @param id ідентифікатор нейрона. @param type тип нейрона. @param parameters параметри сигналу.
-         */
+        /** Перевіряє, що знімок містить тип і параметри нейрона. */
+        public NeuronState {
+            Objects.requireNonNull(type, "type");
+            Objects.requireNonNull(parameters, "parameters");
+        }
+
+        /** Створює знімок зі старого контракту без заданої назви. */
         public NeuronState(String id, NeuronType type, NeuronParameters parameters) {
             this(id, type, parameters, null);
         }
-        /** Створює знімок із попереднього контракту з окремими значеннями налаштувань.
-         * @param id ідентифікатор нейрона. @param type тип нейрона. @param signalStrength сила сигналу.
-         * @param activationThreshold поріг активації.
-         */
+
+        /** Створює знімок із попереднього контракту з окремими числовими параметрами. */
         public NeuronState(String id, NeuronType type, int signalStrength, int activationThreshold) {
             this(id, type, new NeuronParameters(signalStrength, activationThreshold), null);
         }
-        /** Повертає силу сигналу нейрона. @return сила сигналу. */
+
+        /** Повертає базову або персональну силу сигналу знімка. @return сила сигналу. */
         public int signalStrength() { return parameters.signalStrength(); }
-        /** Повертає поріг активації нейрона. @return поріг активації. */
+
+        /** Повертає поріг активації знімка. @return поріг активації. */
         public int activationThreshold() { return parameters.activationThreshold(); }
     }
 
-    /** Зберігає стан візуального подання нейрона разом із позицією як єдиним значенням.
-     * @param neuronId ідентифікатор нейрона. @param position позиція нейрона на карті.
-     * @param rotationDegrees кут обертання у градусах. @param directionReversed ознака зворотного напрямку.
+    /**
+     * Зберігає геометрію та напрямок візуального подання нейрона.
+     *
+     * @param neuronId ідентифікатор нейрона.
+     * @param position позиція нейрона на карті.
+     * @param rotationDegrees кут обертання у градусах.
+     * @param directionReversed ознака зворотного напрямку портів.
      */
     public record PresentationState(String neuronId, MapPosition position, double rotationDegrees,
                                     boolean directionReversed) {
-        /** Перевіряє, що знімок містить позицію нейрона. @throws NullPointerException якщо позицію не задано. */
+        /** Перевіряє, що знімок містить позицію нейрона. */
         public PresentationState { Objects.requireNonNull(position, "position"); }
+
         /** Створює знімок зі старого контракту, у якому координати передавалися окремо. */
-        public PresentationState(String neuronId, double x, double y, double rotationDegrees, boolean directionReversed) {
+        public PresentationState(String neuronId, double x, double y, double rotationDegrees,
+                                 boolean directionReversed) {
             this(neuronId, new MapPosition(x, y), rotationDegrees, directionReversed);
         }
+
         /** Повертає горизонтальну координату. @return координата X. */
         public double x() { return position.x(); }
+
         /** Повертає вертикальну координату. @return координата Y. */
         public double y() { return position.y(); }
     }
 
-    /** Зберігає ідентифікатори зв'язку та його початкового й кінцевого нейронів. */
+    /** Зберігає ідентифікатор зв'язку та його початковий і кінцевий нейрони. */
     public record ConnectionState(String id, String sourceId, String targetId) { }
 
-    /** Зберігає ідентифікатор групи та перелік її учасників. */
+    /**
+     * Зберігає ідентифікатор групи та незмінний перелік її учасників.
+     *
+     * @param id ідентифікатор групи.
+     * @param memberIds ідентифікатори нейронів у групі.
+     */
     public record GroupState(String id, List<String> memberIds) {
-        /** Створює стан групи з незмінним переліком учасників. @throws NullPointerException якщо список не задано. */
+        /** Створює стан групи з незмінним переліком учасників. */
         public GroupState { memberIds = List.copyOf(memberIds); }
     }
 
     /**
-     * Зберігає членство, стан шухлядки, тип, напрямок і режими поведінки структури для undo/redo.
+     * Зберігає членство, стан шухлядки, тип, напрямок та режими поведінки структури для undo/redo.
      *
      * @param id ідентифікатор нейрона-контейнера.
      * @param memberIds ідентифікатори учасників у порядку їх додавання.
@@ -242,29 +297,33 @@ public final class FieldStateSnapshot {
     public record StructureState(String id, List<String> memberIds, boolean expanded,
                                  NeuronType memberType, boolean directionReversed, boolean strongestNeuronOnly,
                                  StructureNeuronCreationMode neuronCreationMode) {
-        /** Створює незмінний знімок структури. @throws NullPointerException якщо список учасників або режим не задано. */
+        /** Перевіряє перелік членів та режим створення нейрона. */
         public StructureState {
             memberIds = List.copyOf(memberIds);
             Objects.requireNonNull(neuronCreationMode, "neuronCreationMode");
         }
+
         /** Зберігає сумісність зі знімками, у яких не фіксувався режим найсильнішого нейрона. */
         public StructureState(String id, List<String> memberIds, boolean expanded,
                               NeuronType memberType, boolean directionReversed) {
             this(id, memberIds, expanded, memberType, directionReversed, false,
                     StructureNeuronCreationMode.NEURON_COUNT);
         }
-        /** Зберігає сумісність зі знімками до додавання режиму створення спільних нейронів. */
+
+        /** Зберігає сумісність зі знімками, у яких не фіксувався режим створення нейрона. */
         @SuppressWarnings("unused")
         public StructureState(String id, List<String> memberIds, boolean expanded,
                               NeuronType memberType, boolean directionReversed, boolean strongestNeuronOnly) {
             this(id, memberIds, expanded, memberType, directionReversed, strongestNeuronOnly,
                     StructureNeuronCreationMode.NEURON_COUNT);
         }
+
         /** Зберігає сумісність зі старим контрактом без спільних характеристик структури. */
         @SuppressWarnings("unused")
         public StructureState(String id, List<String> memberIds, boolean expanded) {
             this(id, memberIds, expanded, null, false, false, StructureNeuronCreationMode.NEURON_COUNT);
         }
+
         /** Зберігає сумісність зі старим контрактом, де структура за замовчуванням закрита. */
         public StructureState(String id, List<String> memberIds) {
             this(id, memberIds, false, null, false, false, StructureNeuronCreationMode.NEURON_COUNT);

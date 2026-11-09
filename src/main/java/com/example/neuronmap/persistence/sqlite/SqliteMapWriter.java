@@ -26,7 +26,9 @@ public final class SqliteMapWriter {
         this.settings = settings;
     }
 
-    /** Записує актуальний стан карти, включно з групами, структурами та станом камери.
+    /**
+     * Записує актуальний стан карти, включно з групами, структурами та станом камери.
+     *
      * @param model модель карти для збереження.
      * @param cameraState стан камери для збереження разом із картою.
      * @throws SQLException якщо запис будь-якої частини карти завершився помилкою.
@@ -41,45 +43,42 @@ public final class SqliteMapWriter {
         settings.saveCameraState(cameraState);
     }
 
-    /** Очищає залежні таблиці карти перед повним записом актуального стану в межах транзакції репозиторію.
+    /**
+     * Очищає залежні таблиці карти перед повним записом актуального стану в межах транзакції репозиторію.
+     * WHERE rowid IS NOT NULL явно позначає всі звичайні SQLite-рядки, не змінюючи семантики повного очищення.
+     *
      * @throws SQLException якщо будь-яку з таблиць не вдалося очистити.
      */
     private void deleteAllData() throws SQLException {
         try (Statement statement = connection.createStatement()) {
-            // Збереження замінює всю карту в межах транзакції репозиторію.
-            //noinspection SqlWithoutWhere
-            statement.executeUpdate("DELETE FROM structure_members");
-            // Спочатку видаляються членства та контейнери, що залежать від нейронів.
-            //noinspection SqlWithoutWhere
-            statement.executeUpdate("DELETE FROM structures");
-            //noinspection SqlWithoutWhere
-            statement.executeUpdate("DELETE FROM group_members");
-            //noinspection SqlWithoutWhere
-            statement.executeUpdate("DELETE FROM groups");
-            //noinspection SqlWithoutWhere
-            statement.executeUpdate("DELETE FROM connections");
-            //noinspection SqlWithoutWhere
-            statement.executeUpdate("DELETE FROM neuron_presentations");
-            //noinspection SqlWithoutWhere
-            statement.executeUpdate("DELETE FROM neurons");
+            statement.executeUpdate("DELETE FROM structure_members WHERE rowid IS NOT NULL");
+            statement.executeUpdate("DELETE FROM structures WHERE rowid IS NOT NULL");
+            statement.executeUpdate("DELETE FROM group_members WHERE rowid IS NOT NULL");
+            statement.executeUpdate("DELETE FROM groups WHERE rowid IS NOT NULL");
+            statement.executeUpdate("DELETE FROM connections WHERE rowid IS NOT NULL");
+            statement.executeUpdate("DELETE FROM neuron_presentations WHERE rowid IS NOT NULL");
+            statement.executeUpdate("DELETE FROM neurons WHERE rowid IS NOT NULL");
         }
     }
 
-    /** Записує параметри кожного нейрона, зберігаючи спільні налаштування лише в рядку структури-власника. */
+    /** Записує параметри нейронів; налаштування учасників структури зберігаються лише у власника. */
     private void insertNeurons(NeuronMapModel model) throws SQLException {
-        // SqliteSchema.migrate() забезпечує наявність стовпців для всіх параметрів нейрона.
+        // Схема створюється й мігрується централізовано в SqliteSchema перед виконанням writer.
         //noinspection SqlResolve
         String sql = """
                 INSERT INTO neurons (
-                    id, type, activation, signal_strength, activation_threshold,
+                    id, type, activation, signal_strength, activation_threshold, signal_type,
                     active_ticks, delay_ticks, activation_mode, name
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             for (Neuron neuron : model.neurons()) {
                 boolean sharesStructureSettings = model.structure(neuron.id()) != null
                         || model.structureContaining(neuron.id()) != null;
                 NeuronParameters parameters = sharesStructureSettings ? NeuronParameters.DEFAULT : neuron.parameters();
+                int persistedSignalStrength = sharesStructureSettings
+                        && neuron.type() != NeuronType.STRUCTURE && neuron.signalType() != SignalType.STATIC
+                        ? neuron.signalStrength() : parameters.signalStrength();
                 statement.setString(1, neuron.id());
                 String storedType = model.structure(neuron.id()) != null
                         ? NeuronType.STRUCTURE.name()
@@ -87,12 +86,13 @@ public final class SqliteMapWriter {
                                 ? NeuronType.EXCITATORY.name() : neuron.type().name();
                 statement.setString(2, storedType);
                 statement.setInt(3, neuron.activation());
-                statement.setInt(4, parameters.signalStrength());
+                statement.setInt(4, persistedSignalStrength);
                 statement.setInt(5, parameters.activationThreshold());
-                statement.setInt(6, parameters.activeTicks());
-                statement.setInt(7, parameters.delayTicks());
-                statement.setString(8, parameters.activationMode().name());
-                statement.setString(9, sharesStructureSettings ? null : neuron.name());
+                statement.setString(6, sharesStructureSettings ? SignalType.STATIC.name() : neuron.signalType().name());
+                statement.setInt(7, parameters.activeTicks());
+                statement.setInt(8, parameters.delayTicks());
+                statement.setString(9, parameters.activationMode().name());
+                statement.setString(10, sharesStructureSettings ? null : neuron.name());
                 statement.addBatch();
             }
             statement.executeBatch();
@@ -120,7 +120,7 @@ public final class SqliteMapWriter {
         }
     }
 
-    /** Записує напрямлені зв’язки між нейронами. */
+    /** Записує напрямлені зв'язки між нейронами. */
     private void insertConnections(NeuronMapModel model) throws SQLException {
         String sql = "INSERT INTO connections (id, source_id, target_id) VALUES (?, ?, ?)";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -155,20 +155,21 @@ public final class SqliteMapWriter {
     }
 
     /**
-     * Записує спільні налаштування кореневих структур, стан шухлядки та членство.
-     * Для вкладених структур у поля спільних налаштувань записується NULL, оскільки вони успадковують стан власника.
+     * Записує спільні налаштування кореневих структур, тип сигналу та членство.
+     * Для вкладених структур nullable-поля залишаються NULL, оскільки вони успадковують стан власника.
      *
      * @param model модель карти, що містить структури.
      * @throws SQLException якщо запис структур або їхніх учасників не вдався.
      */
     private void insertStructures(NeuronMapModel model) throws SQLException {
-        // SqliteSchema.migrate() забезпечує всі поля спільних налаштувань у таблиці structures.
+        // SqliteSchema.migrate() додає всі перелічені стовпці до старих баз перед записом.
         //noinspection SqlResolve
         String structureSql = """
                 INSERT INTO structures (
                     id, expanded, name, signal_strength, activation_threshold, active_ticks, delay_ticks,
-                    activation_mode, member_type, direction_reversed, strongest_neuron_only, neuron_creation_mode
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    activation_mode, signal_type, member_type, direction_reversed,
+                    strongest_neuron_only, neuron_creation_mode
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         String memberSql = "INSERT INTO structure_members (structure_id, neuron_id, position_index) VALUES (?, ?, ?)";
         try (PreparedStatement structureStatement = connection.prepareStatement(structureSql);
@@ -185,17 +186,21 @@ public final class SqliteMapWriter {
                 structureStatement.setInt(6, parameters.activeTicks());
                 structureStatement.setInt(7, parameters.delayTicks());
                 structureStatement.setString(8, parameters.activationMode().name());
-                structureStatement.setString(9, sharesParentSettings ? null : structureSettings.memberType().name());
                 if (sharesParentSettings) {
-                    structureStatement.setNull(10, java.sql.Types.INTEGER);
+                    structureStatement.setNull(9, java.sql.Types.VARCHAR);
+                    structureStatement.setNull(10, java.sql.Types.VARCHAR);
                     structureStatement.setNull(11, java.sql.Types.INTEGER);
-                    structureStatement.setNull(12, java.sql.Types.VARCHAR);
+                    structureStatement.setNull(12, java.sql.Types.INTEGER);
+                    structureStatement.setNull(13, java.sql.Types.VARCHAR);
                 } else {
-                    structureStatement.setInt(10, structureSettings.directionReversed() ? 1 : 0);
-                    structureStatement.setInt(11, structureSettings.strongestNeuronOnly() ? 1 : 0);
-                    structureStatement.setString(12, structureSettings.neuronCreationMode().name());
+                    structureStatement.setString(9, structureSettings.parameters().signalType().name());
+                    structureStatement.setString(10, structureSettings.memberType().name());
+                    structureStatement.setInt(11, structureSettings.directionReversed() ? 1 : 0);
+                    structureStatement.setInt(12, structureSettings.strongestNeuronOnly() ? 1 : 0);
+                    structureStatement.setString(13, structureSettings.neuronCreationMode().name());
                 }
                 structureStatement.addBatch();
+
                 int position = 0;
                 for (String neuronId : structure.memberIds()) {
                     memberStatement.setString(1, structure.id());

@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Перевіряє міграцію, збереження режимів структури та їх успадкування вкладеними учасниками. */
 final class SqliteStructureStrongestNeuronPersistenceTest {
 
-    /** Перевіряє міграцію схеми версії 13 до поточної версії без втрати наявних полів. */
+    /** Перевіряє міграцію схеми версії 13 до актуальної версії без втрати наявних полів. */
     @Test
     void migratesVersionThirteenSchemaToCurrentStructureSettings(@TempDir Path tempDir) throws SQLException {
         Path database = tempDir.resolve("version-thirteen.db");
@@ -66,7 +66,7 @@ final class SqliteStructureStrongestNeuronPersistenceTest {
             assertTrue(foundCreationModeColumn, "Міграція має додати умову створення спільного нейрона");
             try (ResultSet version = statement.executeQuery("PRAGMA user_version")) {
                 assertTrue(version.next());
-                assertEquals(15, version.getInt(1));
+                assertEquals(16, version.getInt(1));
             }
         }
     }
@@ -99,7 +99,7 @@ final class SqliteStructureStrongestNeuronPersistenceTest {
 
             try (ResultSet version = statement.executeQuery("PRAGMA user_version")) {
                 assertTrue(version.next());
-                assertEquals(15, version.getInt(1));
+                assertEquals(16, version.getInt(1));
             }
             boolean foundCreationMode = false;
             try (ResultSet columns = statement.executeQuery("PRAGMA table_info(structures)")) {
@@ -130,7 +130,7 @@ final class SqliteStructureStrongestNeuronPersistenceTest {
 
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + database.toAbsolutePath());
              Statement statement = connection.createStatement();
-             // Читаємо рядок цілком: колонку додає міграція до версії 15.
+             // Читаємо рядок цілком: поле режиму створення є частиною поточної схеми 16.
              ResultSet rows = statement.executeQuery("SELECT * FROM structures")) {
             boolean sawRoot = false;
             boolean sawNested = false;

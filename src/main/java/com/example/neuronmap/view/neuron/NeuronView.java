@@ -274,6 +274,7 @@ public final class NeuronView extends StackPane {
         lastSceneX = sceneX;
         lastSceneY = sceneY;
         dragGroup = !altPressed && belongsToGroup;
+        refreshParameterTooltip();
     }
 
     /** Обчислює горизонтальне зміщення від попередньої точки жесту. */
@@ -297,8 +298,14 @@ public final class NeuronView extends StackPane {
         }
     }
 
-    /** Завершує перетягування та очищає відповідний стан. */
-    public void endDrag() { dragging = false; }
+    /** Завершує перетягування та відновлює звичайний життєвий цикл підказки. */
+    public void endDrag() {
+        if (!dragging) {
+            return;
+        }
+        dragging = false;
+        refreshParameterTooltip();
+    }
 
     /** Показує величину вхідного сигналу й забарвлює порт за чинним числовим порогом нейрона. */
     public void showInputSignal(int signal) {
@@ -588,10 +595,12 @@ public final class NeuronView extends StackPane {
         }
     }
 
-    /** Оновлює текст підказки й узгоджує її встановлення з поточним станом вибору нейрона. */
+    /** Оновлює текст підказки та приховує її під час вибору або активного перетягування. */
     private void refreshParameterTooltip() {
         refreshParameterTooltipText();
-        if (parameterTooltipDisposed) {
+        if (parameterTooltipDisposed || dragging) {
+            parameterTooltip.tooltip().hide();
+            uninstallParameterTooltipTargets();
             return;
         }
         if (selected) {
@@ -612,7 +621,7 @@ public final class NeuronView extends StackPane {
         parameterTooltipInstalled = true;
     }
 
-    /** Від'єднує підказку від усіх видимих вузлів нейрона під час вибору або звільнення подання. */
+    /** Від'єднує підказку від видимих вузлів нейрона під час вибору, перетягування або звільнення подання. */
     private void uninstallParameterTooltipTargets() {
         if (!parameterTooltipInstalled) {
             return;

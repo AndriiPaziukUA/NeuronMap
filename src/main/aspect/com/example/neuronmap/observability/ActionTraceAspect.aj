@@ -68,19 +68,26 @@ public aspect ActionTraceAspect {
         stack.push(new TraceFrame(invocation, automaticBinding));
     }
 
-    /** Завершує метод, який повернувся нормально. */
+    /** Завершує метод, який повернувся нормально, лише коли діагностичне трасування активне. */
     after() returning: applicationMethodExecution() {
+        if (!ActionTraceContext.isEnabled()) {
+            return;
+        }
         completeInvocation(null);
     }
 
     /**
-     * Завершує метод, який викинув помилку, фіксуючи її в дереві.
+     * Завершує метод, який викинув помилку, фіксуючи її в дереві лише під час активного трасування.
      * Advice не перехоплює і не змінює початковий виняток.
      */
     after() throwing(Throwable failure): applicationMethodExecution() {
+        if (!ActionTraceContext.isEnabled()) {
+            return;
+        }
         completeInvocation(failure);
     }
 
+    /** Закриває маркер виконання методу та відновлює попередній контекст дії. */
     private static void completeInvocation(Throwable failure) {
         Deque<TraceFrame> stack = INVOCATIONS.get();
         if (stack == null || stack.isEmpty()) {
@@ -115,6 +122,7 @@ public aspect ActionTraceAspect {
         private final ActionTraceContext.MethodInvocation invocation;
         private final ActionTraceContext.SessionBinding automaticBinding;
 
+        /** Зберігає маркери методу та автоматично створеної дії для парного advice. */
         private TraceFrame(
                 ActionTraceContext.MethodInvocation invocation,
                 ActionTraceContext.SessionBinding automaticBinding) {

@@ -10,21 +10,19 @@ import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Перевіряє контракт зберігання даних нейрона, параметри сигналу, назву та валідацію значень. */
+/** Перевіряє семантичний стан нейрона, персональну адаптацію сигналу, назву та валідацію значень. */
 class NeuronTest {
 
-    /**
-     * Перевіряє, що нейрон зберігає власні семантичні дані, а назва, параметри сигналу й спільні
-     * характеристики дерева структури містяться в об'єкті налаштувань.
-     */
+    /** Перевіряє, що спільні параметри належать налаштуванням, а адаптивна сила — окремому нейрону. */
     @Test
     void storesOnlySemanticDataAndGroupsSignalParameters() {
         Set<String> neuronFields = instanceFieldNames(Neuron.class);
         Set<String> settingsFields = instanceFieldNames(NeuronSettings.class);
 
-        assertEquals(Set.of("id", "type", "activation", "settings"), neuronFields);
+        assertEquals(Set.of("id", "type", "activation", "settings",
+                "adaptiveSignalStrength", "adaptiveSignalRevision"), neuronFields);
         assertEquals(Set.of("name", "parameters", "memberType", "directionReversed", "strongestNeuronOnly",
-                        "neuronCreationMode"), settingsFields);
+                "neuronCreationMode", "adaptiveSignalRevision"), settingsFields);
     }
 
     /** Перевіряє розрахунок ваги сигналу з урахуванням типу нейрона та його сили сигналу. */

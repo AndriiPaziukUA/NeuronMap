@@ -29,7 +29,7 @@ final class SqliteNeuronSchemaContractTest {
                 columns.add(resultSet.getString("name"));
             }
             assertEquals(List.of(
-                    "id", "type", "activation", "signal_strength", "activation_threshold",
+                    "id", "type", "activation", "signal_strength", "activation_threshold", "signal_type",
                     "active_ticks", "delay_ticks", "name", "activation_mode"
             ), columns);
         }

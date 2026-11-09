@@ -6,6 +6,7 @@ import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.model.NeuronType;
+import com.example.neuronmap.model.SignalType;
 import com.example.neuronmap.model.StructureNeuronCreationMode;
 import com.example.neuronmap.testsupport.JavaFxTestSupport;
 import javafx.event.Event;
@@ -19,6 +20,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
+import javafx.util.Duration;
 import javafx.scene.shape.Rectangle;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Перевіряє вміст, локалізацію та ізоляцію підказок параметрів нейрона. */
 final class NeuronViewParameterTooltipTest {
 
-    /** Перевіряє заголовок, його вирівнювання та чотири параметри звичайного нейрона. */
+    /** Перевіряє заголовок, його вирівнювання та параметри звичайного нейрона. */
     @Test
     void showsHeadingAndLocalizedNeuronSettings() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
@@ -41,7 +43,7 @@ final class NeuronViewParameterTooltipTest {
             view.configureParameterTooltipLocalization(new LocalizationService(Locale.forLanguageTag("uk")));
 
             assertEquals(
-                    "Параметри\nСила сигналу: 7\nПоріг активації: 3\nАктивні такти: 5\nЗатримка: 1",
+                    "Параметри\nТип сигналу: Статичний\nСила сигналу: 7\nПоріг активації: 3\nАктивні такти: 5\nЗатримка: 1",
                     view.parameterTooltipTextForTest()
             );
             Label title = (Label) view.parameterTooltipContentForTest().getChildren().getFirst();
@@ -51,6 +53,40 @@ final class NeuronViewParameterTooltipTest {
             assertTrue(view.parameterTooltipContentForTest().getChildren().get(1).isVisible(),
                     "Під головним заголовком має бути тонка роздільна лінія");
             assertEquals(0.5, ((Region) view.parameterTooltipContentForTest().getChildren().get(1)).getMinHeight());
+            assertTrue(view.isParameterTooltipInstalledForTest());
+            view.disposeParameterTooltip();
+        });
+    }
+
+    /** Перевіряє миттєву появу підказки та відсутність таймера її автоматичного приховування. */
+    @Test
+    void showsTooltipImmediatelyAndKeepsItVisibleWhileHovered() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            NeuronParameterTooltip tooltip = new NeuronParameterTooltip();
+
+            assertEquals(Duration.ZERO, tooltip.tooltip().getShowDelay());
+            assertEquals(Duration.INDEFINITE, tooltip.tooltip().getShowDuration());
+        });
+    }
+
+    /** Перевіряє, що миттєва підказка тимчасово від'єднується під час перетягування й повертається після нього. */
+    @Test
+    void suspendsParameterTooltipOnlyWhileDragging() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            NeuronView view = createView();
+            view.configureParameterTooltipLocalization(new LocalizationService(Locale.ENGLISH));
+            assertTrue(view.isParameterTooltipInstalledForTest());
+
+            view.beginDrag(10.0, 20.0, false, false);
+            assertTrue(view.isDragging());
+            assertFalse(view.isParameterTooltipInstalledForTest());
+
+            // Оновлення подання під час руху не повинно встановлювати підказку назад.
+            view.refreshVisuals(false);
+            assertFalse(view.isParameterTooltipInstalledForTest());
+
+            view.endDrag();
+            assertFalse(view.isDragging());
             assertTrue(view.isParameterTooltipInstalledForTest());
             view.disposeParameterTooltip();
         });
@@ -73,17 +109,18 @@ final class NeuronViewParameterTooltipTest {
         });
     }
 
-    /** Перевіряє актуальність усіх параметрів у підказці після їх зміни в моделі нейрона. */
+    /** Перевіряє актуальність сили та типу сигналу в підказці після зміни параметрів моделі. */
     @Test
     void refreshesTooltipWhenNeuronParametersChange() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
             NeuronView view = createView();
             view.configureParameterTooltipLocalization(new LocalizationService(Locale.ENGLISH));
-            view.model().setParameters(new NeuronParameters(9, 4, 2, 3));
+            view.model().setParameters(new NeuronParameters(9, 4, 2, 3,
+                    com.example.neuronmap.model.NeuronActivationMode.SIGNAL_STRENGTH, SignalType.RECEIVED));
             view.refreshVisuals(false);
 
             assertEquals(
-                    "Parameters\nSignal strength: 9\nActivation threshold: 4\nActive ticks: 2\nDelay: 3",
+                    "Parameters\nSignal type: Received\nSignal strength: 9\nActivation threshold: 4\nActive ticks: 2\nDelay: 3",
                     view.parameterTooltipTextForTest()
             );
             view.disposeParameterTooltip();
@@ -173,7 +210,7 @@ final class NeuronViewParameterTooltipTest {
         });
     }
 
-    /** Перевіряє відображення режиму в обох станах шухлядки та окреме забарвлення значення прапорця. */
+    /** Перевіряє відображення режиму створення та конкуренції структури в обох станах шухлядки. */
     @Test
     void showsStructureCreationModeForBothDrawerStatesAndColorsStrongestNeuronValue() throws Exception {
         JavaFxTestSupport.runAndWait(() -> {
@@ -192,6 +229,14 @@ final class NeuronViewParameterTooltipTest {
 
             assertTrue(view.parameterTooltipTextForTest().contains("Neuron creation by: Structure count"));
             assertTrue(view.parameterTooltipTextForTest().contains("Strongest neuron: On"));
+            assertTrue(view.parameterTooltipTextForTest().contains("Signal type: Static"),
+                    "Закрита структура має показувати спільний тип сигналу");
+            Label titleLabel = (Label) view.parameterTooltipContentForTest().getChildren().getFirst();
+            Label structureSectionLabel = (Label) view.parameterTooltipContentForTest().getChildren().get(2);
+            assertTrue(titleLabel.getStyleClass().contains("parameter-tooltip-title"),
+                    "Головний заголовок має зберігати штатний CSS-клас і його розмір");
+            assertTrue(structureSectionLabel.getStyleClass().contains("parameter-tooltip-section-title"),
+                    "Заголовки секцій мають зберігати штатний CSS-клас і його розмір");
             Label strongestNeuronLabel = (Label) view.parameterTooltipContentForTest().getChildren().get(5);
             Text state = (Text) strongestNeuronLabel.getGraphic();
             assertEquals(Color.web("#58d68d"), state.getFill());
@@ -203,6 +248,10 @@ final class NeuronViewParameterTooltipTest {
 
             view.toggleStructureDrawer();
             assertTrue(view.parameterTooltipTextForTest().contains("Neuron creation by: Structure count"));
+            assertFalse(view.parameterTooltipTextForTest().contains("Signal type:"),
+                    "Підказка відкритої структури не повинна дублювати тип сигналу її внутрішніх нейронів");
+            assertFalse(view.parameterTooltipContentForTest().getChildren().get(10).isVisible(),
+                    "Рядок типу сигналу має бути прихований у графічній підказці відкритої структури");
             view.disposeParameterTooltip();
             memberView.disposeParameterTooltip();
         });

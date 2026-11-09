@@ -4,7 +4,7 @@ import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronActivationMode;
 import com.example.neuronmap.model.NeuronType;
-import com.example.neuronmap.model.StructureNeuronCreationMode;
+import com.example.neuronmap.model.SignalType;
 import com.example.neuronmap.view.support.TooltipFactory;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -14,6 +14,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
+import javafx.util.Duration;
 
 import java.util.Objects;
 
@@ -45,6 +46,7 @@ final class NeuronParameterTooltip {
     private final Region neuronsTopDivider = createDivider();
     private final Label neuronsSectionLabel = createLabel(SECTION_STYLE_CLASS);
     private final Region neuronsDivider = createDivider();
+    private final Label signalTypeLabel = createLabel(VALUE_STYLE_CLASS);
     private final Label signalStrengthLabel = createLabel(VALUE_STYLE_CLASS);
     private final Label activationThresholdLabel = createLabel(VALUE_STYLE_CLASS);
     private final Label activeTicksLabel = createLabel(VALUE_STYLE_CLASS);
@@ -73,11 +75,13 @@ final class NeuronParameterTooltip {
                 neuronsTopDivider,
                 neuronsSectionLabel,
                 neuronsDivider,
+                signalTypeLabel,
                 signalStrengthLabel,
                 activationThresholdLabel,
                 activeTicksLabel,
                 delayLabel
         );
+        tooltip.setShowDelay(Duration.ZERO);
         tooltip.setText("");
         tooltip.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
         tooltip.setGraphic(content);
@@ -137,6 +141,7 @@ final class NeuronParameterTooltip {
         setNodeVisible(neuronsTopDivider, showStructureSection);
         setNodeVisible(neuronsSectionLabel, showStructureSection);
         setNodeVisible(neuronsDivider, showStructureSection);
+        setNodeVisible(signalTypeLabel, showNeuronParameters);
         setNodeVisible(signalStrengthLabel, showNeuronParameters);
         setNodeVisible(activationThresholdLabel, showNeuronParameters);
         setNodeVisible(activeTicksLabel, showNeuronParameters);
@@ -156,6 +161,7 @@ final class NeuronParameterTooltip {
             if (structure) {
                 appendLine(renderedText, neuronsSectionLabel.getText());
             }
+            appendLine(renderedText, signalTypeLabel.getText());
             appendLine(renderedText, signalStrengthLabel.getText());
             appendLine(renderedText, activationThresholdLabel.getText());
             appendLine(renderedText, activeTicksLabel.getText());
@@ -179,8 +185,15 @@ final class NeuronParameterTooltip {
         return content;
     }
 
-    /** Оновлює чотири спільні параметри нейрона, враховуючи відсотковий режим порога активації. */
+    /** Оновлює тип і числові параметри сигналу з урахуванням відсоткового режиму порога активації. */
     private void refreshNeuronParameters(Neuron neuron) {
+        SignalType signalType = neuron.signalType();
+        String signalTypeText = switch (signalType) {
+            case STATIC -> text("signal_type_static", "Static");
+            case STRONGEST -> text("signal_type_strongest", "Strongest");
+            case RECEIVED -> text("signal_type_received", "Received");
+        };
+        signalTypeLabel.setText(parameterLine(text("signal_type", "Signal type"), signalTypeText));
         String signalLabel = localization == null
                 ? "Signal strength"
                 : localization.text("neuron.settings.signal_strength");
@@ -200,11 +213,13 @@ final class NeuronParameterTooltip {
     }
 
     /** Повертає локалізований текст вибраного способу створення спільного нейрона. */
-    private String neuronCreationModeText(StructureNeuronCreationMode mode) {
-        return text(mode == StructureNeuronCreationMode.NEURON_COUNT
+    private String neuronCreationModeText(
+            com.example.neuronmap.model.StructureNeuronCreationMode mode) {
+        return text(mode == com.example.neuronmap.model.StructureNeuronCreationMode.NEURON_COUNT
                 ? "neuron_creation_mode_neurons"
                 : "neuron_creation_mode_structures",
-                mode == StructureNeuronCreationMode.NEURON_COUNT ? "By neuron count" : "By structure count");
+                mode == com.example.neuronmap.model.StructureNeuronCreationMode.NEURON_COUNT
+                        ? "By neuron count" : "By structure count");
     }
 
     /** Створює підпис параметра із завершальною двокрапкою для окремого графічного значення. */

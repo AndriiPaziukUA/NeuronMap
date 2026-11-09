@@ -13,8 +13,7 @@ import java.util.Set;
 
 /**
  * Обробляє глобальні такти симуляції, накопичує вхідні сигнали та керує затримкою і тривалістю їх передавання.
- * Спільні центри цільових структур готує лише для внутрішніх нейронів,
- * які фактично випускають сигнал у поточному такті.
+ * Адаптивна сила змінюється лише під час доставки сигналу й лише після проходження порога активації.
  */
 public final class SimulationSession {
 
@@ -32,11 +31,7 @@ public final class SimulationSession {
     private SimulationStep lastStep;
     private boolean finished;
 
-    /**
-     * Створює сеанс симуляції для моделі.
-     *
-     * @param model модель, поширення сигналів у якій обчислюватиме сеанс.
-     */
+    /** Створює сеанс симуляції для моделі. */
     private SimulationSession(NeuronMapModel model) {
         this.model = model;
         structureSignalIndicators = new StructureSignalIndicatorCalculator(model);
@@ -44,14 +39,7 @@ public final class SimulationSession {
         strongestNeuronSelector = new StrongestNeuronSelector(model);
     }
 
-    /**
-     * Створює сеанс симуляції та ставить звичайний нейрон у чергу ручного запуску.
-     *
-     * @param model модель карти нейронів.
-     * @param sourceNeuronId ідентифікатор початкового нейрона.
-     * @return новий сеанс симуляції.
-     * @throws IllegalArgumentException якщо модель не задано.
-     */
+    /** Створює сеанс симуляції та ставить звичайний нейрон у чергу ручного запуску. */
     public static SimulationSession manual(NeuronMapModel model, String sourceNeuronId) {
         if (model == null) {
             throw new IllegalArgumentException("model must not be null");
@@ -61,13 +49,7 @@ public final class SimulationSession {
         return session;
     }
 
-    /**
-     * Додає звичайний нейрон до черги запуску на наступному такті; повторне додавання не створює дубліката.
-     * Контейнери структур не можуть бути джерелами сигналу. Якщо сеанс уже завершено, старі сигнали відкидаються.
-     *
-     * @param sourceNeuronId ідентифікатор початкового нейрона.
-     * @return {@code true}, якщо нейрон прийнято до черги; інакше {@code false}.
-     */
+    /** Додає звичайний нейрон до черги запуску на наступному такті. */
     public boolean queueManualStart(String sourceNeuronId) {
         if (sourceNeuronId == null || sourceNeuronId.isBlank()
                 || !isSignalNeuron(model.neuron(sourceNeuronId))) {
@@ -81,14 +63,7 @@ public final class SimulationSession {
         return true;
     }
 
-    /**
-     * Активує звичайний нейрон у поточному такті без просування глобального лічильника.
-     * Спільний центр структури готується лише тоді, коли затримка вже завершилася й нейрон випускає сигнал.
-     *
-     * @param sourceNeuronId ідентифікатор нейрона для негайної активації.
-     * @return знімок поточного стану або {@code null}, якщо нейрон відсутній, є структурою
-     *         чи вже передавав сигнал цього такту.
-     */
+    /** Активує звичайний нейрон у поточному такті без просування глобального лічильника. */
     public SimulationStep activateManualStartNow(String sourceNeuronId) {
         if (sourceNeuronId == null || sourceNeuronId.isBlank()) {
             return null;
@@ -97,7 +72,6 @@ public final class SimulationSession {
         if (!isSignalNeuron(sourceNeuron)) {
             return null;
         }
-
         pendingManualStarts.remove(sourceNeuronId);
         if (emittingNeuronIdsThisTick.contains(sourceNeuronId)) {
             return null;
@@ -111,7 +85,7 @@ public final class SimulationSession {
         return lastStep;
     }
 
-    /** Планує затримку для щойно активованих звичайних нейронів, не витрачаючи їхніх активних тактів. */
+    /** Планує затримку для щойно активованих нейронів. */
     private void scheduleActivationDelay(Set<String> activatedNeuronIds) {
         for (String neuronId : activatedNeuronIds) {
             Neuron neuron = model.neuron(neuronId);
@@ -123,7 +97,7 @@ public final class SimulationSession {
         }
     }
 
-    /** Передає перший сигнал і готує спільні центри лише після фактичного завершення затримки. */
+    /** Передає перший сигнал після фактичного завершення затримки. */
     private void emitFirstSignalImmediately(Neuron neuron) {
         remainingEmissionDelayTicks.remove(neuron.id());
         remainingActiveTicks.put(neuron.id(), neuron.activeTicks());
@@ -131,7 +105,7 @@ public final class SimulationSession {
         emittingNeuronIdsThisTick.add(neuron.id());
     }
 
-    /** Оновлює завершення негайного ручного запуску з урахуванням сигналів і незавершених затримок. */
+    /** Оновлює ознаку завершення негайного ручного запуску. */
     private void updateFinishedStateAfterImmediateActivation() {
         finished = !hasPendingWork();
         if (finished) {
@@ -140,14 +114,13 @@ public final class SimulationSession {
         }
     }
 
-    /** Формує знімок ручної активації, зберігаючи актуальні індикатори та розрахунки структур. */
+    /** Формує знімок ручної активації без навчання за ще не доставленими сигналами. */
     private SimulationStep createImmediateActivationStep(String sourceNeuronId) {
         Set<String> currentActivations = new LinkedHashSet<>();
         Set<String> currentEmitters = new LinkedHashSet<>();
         Map<String, Integer> currentInputs = Map.of();
         BigInteger currentTick = tick.value().signum() > 0
-                ? tick.value().subtract(BigInteger.ONE)
-                : BigInteger.ZERO;
+                ? tick.value().subtract(BigInteger.ONE) : BigInteger.ZERO;
         if (lastStep != null) {
             currentInputs = lastStep.inputSums();
             currentTick = lastStep.tick();
@@ -156,50 +129,32 @@ public final class SimulationSession {
         }
         currentActivations.add(sourceNeuronId);
         currentEmitters.addAll(emittingNeuronIdsThisTick);
-
         Set<String> nextActivatedNeuronIds = new LinkedHashSet<>();
-        collectThresholdActivations(pendingSignals, nextActivatedNeuronIds);
-        return createStep(
-                currentTick,
-                currentInputs,
-                currentActivations,
-                currentEmitters,
-                pendingSignals,
-                remainingActiveTicks,
-                nextActivatedNeuronIds
-        );
+        collectThresholdActivations(pendingSignals, nextActivatedNeuronIds, false);
+        return createStep(currentTick, currentInputs, currentActivations, currentEmitters,
+                pendingSignals, remainingActiveTicks, nextActivatedNeuronIds);
     }
 
     /** Перевіряє, чи завершено сеанс. */
-    public boolean isFinished() {
-        return finished;
-    }
+    public boolean isFinished() { return finished; }
 
     /** Повертає номер наступного глобального такту симуляції. */
-    public BigInteger tick() {
-        return tick.value();
-    }
+    public BigInteger tick() { return tick.value(); }
 
-    /**
-     * Перевіряє, чи є робота для наступного такту, включно з пороговими активаціями та затримками.
-     *
-     * @return {@code true}, якщо є очікувана робота; інакше {@code false}.
-     */
+    /** Перевіряє, чи є робота для наступного такту. */
     public boolean hasPendingWork() {
-        return hasPendingThresholdActivation()
-                || !pendingManualStarts.isEmpty()
-                || !remainingEmissionDelayTicks.isEmpty()
-                || hasRemainingEmissionWork();
+        return hasPendingThresholdActivation() || !pendingManualStarts.isEmpty()
+                || !remainingEmissionDelayTicks.isEmpty() || hasRemainingEmissionWork();
     }
 
-    /** Перевіряє наявність сигналу, який активує щонайменше один звичайний нейрон. */
+    /** Перевіряє наявність доставленого сигналу, який активує звичайний нейрон. */
     private boolean hasPendingThresholdActivation() {
         Set<String> activatedNeuronIds = new LinkedHashSet<>();
-        collectThresholdActivations(pendingSignals, activatedNeuronIds);
+        collectThresholdActivations(pendingSignals, activatedNeuronIds, false);
         return !activatedNeuronIds.isEmpty();
     }
 
-    /** Перевіряє, чи має хоча б один звичайний нейрон із залишком активних тактів чинний вихідний зв'язок. */
+    /** Перевіряє наявність чинного вихідного зв'язку в нейрона із залишком активних тактів. */
     private boolean hasRemainingEmissionWork() {
         for (String neuronId : remainingActiveTicks.keySet()) {
             for (Connection connection : model.connections()) {
@@ -211,26 +166,14 @@ public final class SimulationSession {
         return false;
     }
 
-    /**
-     * Перевіряє, чи веде зв'язок від звичайного нейрона до наявного звичайного нейрона призначення.
-     * Структурні зв'язки не є каналами прямого передавання сигналів.
-     *
-     * @param connection зв'язок для перевірки.
-     * @param sourceNeuronId ідентифікатор нейрона-випромінювача.
-     * @return {@code true}, якщо зв'язок є чинним нейронним виходом; інакше {@code false}.
-     */
+    /** Перевіряє, що зв'язок веде від звичайного нейрона до наявного звичайного нейрона. */
     private boolean isOutgoingConnectionToExistingNeuron(Connection connection, String sourceNeuronId) {
         return connection.sourceId().equals(sourceNeuronId)
                 && isSignalNeuron(model.neuron(connection.sourceId()))
                 && isSignalNeuron(model.neuron(connection.targetId()));
     }
 
-    /**
-     * Обробляє один такт, доставляє сигнали й обчислює індикатори для зовнішніх структурних зв'язків.
-     * Спільні центри готуються лише для нейронів, які фактично випускають сигнал після врахування затримки.
-     *
-     * @return незмінний результат такту або {@code null}, якщо роботи немає.
-     */
+    /** Обробляє один такт, доставляє сигнали й обчислює індикатори структур. */
     public SimulationStep nextStep() {
         if (finished || !hasPendingWork()) {
             finished = true;
@@ -238,40 +181,37 @@ public final class SimulationSession {
             remainingEmissionDelayTicks.clear();
             return null;
         }
-
         emittingNeuronIdsThisTick.clear();
         Map<String, Integer> inputSums = new LinkedHashMap<>(pendingSignals);
         inputSums.keySet().removeIf(neuronId -> !isSignalNeuron(model.neuron(neuronId)));
         pendingSignals.clear();
         Set<String> manualStarts = new LinkedHashSet<>(pendingManualStarts);
         pendingManualStarts.clear();
-
         Set<String> activatedNeuronIds = new LinkedHashSet<>();
         Map<String, Integer> nextSignals = new LinkedHashMap<>();
         collectManualActivations(manualStarts, activatedNeuronIds);
-        collectThresholdActivations(inputSums, activatedNeuronIds);
+        // Лише цей виклик обробляє вже доставлені сигнали й може змінити персональну силу нейрона.
+        collectThresholdActivations(inputSums, activatedNeuronIds, true);
         scheduleActivationDelay(activatedNeuronIds);
         Set<String> emittingNeuronIds = emitReadySignals(activatedNeuronIds, nextSignals);
         emittingNeuronIdsThisTick.addAll(emittingNeuronIds);
         Set<String> nextActivatedNeuronIds = new LinkedHashSet<>();
-        collectThresholdActivations(nextSignals, nextActivatedNeuronIds);
-
+        // Прогноз наступного такту не повинен передчасно змінювати стан моделі.
+        collectThresholdActivations(nextSignals, nextActivatedNeuronIds, false);
         pendingSignals.putAll(nextSignals);
         finished = !hasPendingWork();
         if (finished) {
             remainingActiveTicks.clear();
             remainingEmissionDelayTicks.clear();
         }
-
-        SimulationStep step = createStep(
-                tick.value(), inputSums, activatedNeuronIds, emittingNeuronIds,
+        SimulationStep step = createStep(tick.value(), inputSums, activatedNeuronIds, emittingNeuronIds,
                 nextSignals, remainingActiveTicks, nextActivatedNeuronIds);
         lastStep = step;
         tick = tick.next();
         return step;
     }
 
-    /** Додає до набору активацій лише наявні звичайні нейрони з ручної черги. */
+    /** Додає до набору активацій звичайні нейрони з ручної черги. */
     private void collectManualActivations(Set<String> manualStarts, Set<String> activatedNeuronIds) {
         for (String neuronId : manualStarts) {
             Neuron neuron = model.neuron(neuronId);
@@ -282,24 +222,31 @@ public final class SimulationSession {
     }
 
     /**
-     * Відбирає нейрони, що пройшли поріг, і застосовує до них режим найсильнішого нейрона кожної структури.
-     * Явні ручні запуски передаються окремим шляхом і не вилучаються з набору автоматичних кандидатів.
+     * Відбирає нейрони, що пройшли поріг, і за потреби навчає їх за фактично доставленою сумою сигналу.
+     * Навчання виконується до відбору переможців структури, адже сам факт проходження порога є достатньою умовою.
      *
-     * @param inputSums суми сигналів, доставлені кандидатам у поточному наборі.
-     * @param activatedNeuronIds набір, до якого додаються автоматично активовані нейрони.
+     * @param inputSums суми сигналів, доставлені кандидатам.
+     * @param activatedNeuronIds набір автоматично активованих нейронів.
+     * @param updateAdaptiveStrength чи дозволено змінювати персональну силу сигналу.
      */
-    private void collectThresholdActivations(Map<String, Integer> inputSums, Set<String> activatedNeuronIds) {
+    private void collectThresholdActivations(Map<String, Integer> inputSums, Set<String> activatedNeuronIds,
+                                             boolean updateAdaptiveStrength) {
         Set<String> eligibleNeuronIds = new LinkedHashSet<>();
         for (Map.Entry<String, Integer> entry : inputSums.entrySet()) {
             Neuron neuron = model.neuron(entry.getKey());
-            if (isSignalNeuron(neuron) && hasReachedActivationThreshold(neuron, entry.getValue())) {
-                eligibleNeuronIds.add(neuron.id());
+            int inputValue = entry.getValue();
+            if (!isSignalNeuron(neuron) || !hasReachedActivationThreshold(neuron, inputValue)) {
+                continue;
             }
+            if (updateAdaptiveStrength) {
+                neuron.learnSignalStrength(inputValue);
+            }
+            eligibleNeuronIds.add(neuron.id());
         }
         activatedNeuronIds.addAll(strongestNeuronSelector.selectWinners(inputSums, eligibleNeuronIds));
     }
 
-    /** Визначає, чи досягнуто порога звичайного нейрона в режимі сили або кількості вхідних сигналів. */
+    /** Визначає, чи досягнуто порога нейрона в режимі сили або кількості вхідних сигналів. */
     private boolean hasReachedActivationThreshold(Neuron neuron, int inputValue) {
         if (neuron.activationMode() == NeuronActivationMode.SIGNAL_STRENGTH) {
             return inputValue >= neuron.activationThreshold();
@@ -307,13 +254,7 @@ public final class SimulationSession {
         return inputValue >= requiredActivatingSignalCount(neuron);
     }
 
-    /**
-     * Обчислює мінімальну кількість активних входів за відсотковим порогом.
-     * До знаменника входять лише звичайні збуджувальні нейрони; структурні контейнери не є джерелами сигналу.
-     *
-     * @param neuron нейрон, чий поріг потрібно оцінити.
-     * @return мінімальна кількість активуючих сигналів, округлена вгору, але не менша за одиницю.
-     */
+    /** Обчислює мінімальну кількість активних входів за відсотковим порогом. */
     private int requiredActivatingSignalCount(Neuron neuron) {
         int activatingInputCount = 0;
         for (Connection connection : model.connections()) {
@@ -325,13 +266,12 @@ public final class SimulationSession {
                 activatingInputCount++;
             }
         }
-
         long percentageProduct = (long) activatingInputCount * neuron.activationThreshold();
         long roundedUpCount = (percentageProduct + 99L) / 100L;
         return (int) Math.max(1L, roundedUpCount);
     }
 
-    /** Витрачає один активний такт лише після фактичного випуску звичайним нейроном вихідного сигналу. */
+    /** Витрачає один активний такт після фактичного випуску сигналу. */
     private void consumeActivationTick(String neuronId) {
         int remaining = remainingActiveTicks.getOrDefault(neuronId, 0) - 1;
         if (remaining <= 0) {
@@ -341,13 +281,12 @@ public final class SimulationSession {
         }
     }
 
-    /** Визначає готових випромінювачів, готує для них спільні центри й лише тоді передає їхні сигнали. */
+    /** Визначає готових випромінювачів і передає їхні сигнали після завершення затримки. */
     private Set<String> emitReadySignals(Set<String> activatedNeuronIds, Map<String, Integer> nextSignals) {
         Set<String> candidates = new LinkedHashSet<>(activatedNeuronIds);
         candidates.addAll(remainingActiveTicks.keySet());
         candidates.addAll(remainingEmissionDelayTicks.keySet());
         Set<String> emittingNeuronIds = new LinkedHashSet<>();
-
         for (String neuronId : candidates) {
             Neuron neuron = model.neuron(neuronId);
             if (!isSignalNeuron(neuron)) {
@@ -363,18 +302,11 @@ public final class SimulationSession {
             }
             emittingNeuronIds.add(neuronId);
         }
-
         emitSignalsForReadyNeurons(emittingNeuronIds, nextSignals);
         return emittingNeuronIds;
     }
 
-    /**
-     * Спершу готує спільні центри для повної групи готових випромінювачів, а потім передає їхні сигнали.
-     * Такий порядок дозволяє створеному центру отримати сигнал у тому самому такті.
-     *
-     * @param emittingNeuronIds нейрони, які завершили затримку й випускають сигнал у поточному такті.
-     * @param nextSignals мапа накопичення сигналів, призначених для наступного такту.
-     */
+    /** Готує спільні центри для готових випромінювачів і лише після цього передає їхні сигнали. */
     private void emitSignalsForReadyNeurons(Set<String> emittingNeuronIds, Map<String, Integer> nextSignals) {
         if (emittingNeuronIds.isEmpty()) {
             return;
@@ -386,7 +318,7 @@ public final class SimulationSession {
         }
     }
 
-    /** Зменшує очікування на один такт і повертає {@code true}, якщо сигнал ще не можна передавати. */
+    /** Зменшує затримку на один такт і повертає ознаку очікування. */
     private boolean shouldWaitForEmissionDelay(String neuronId) {
         Integer remainingDelay = remainingEmissionDelayTicks.get(neuronId);
         if (remainingDelay == null) {
@@ -400,7 +332,7 @@ public final class SimulationSession {
         return false;
     }
 
-    /** Додає сигнали до звичайних цільових нейронів; структурні контейнери залишаються поза прямим потоком сигналів. */
+    /** Додає вихідні сигнали до звичайних цільових нейронів, зберігаючи знак гальмівного сигналу. */
     private void collectOutgoingSignals(Neuron neuron, Map<String, Integer> nextSignals) {
         if (!isSignalNeuron(neuron)) {
             return;
@@ -411,48 +343,25 @@ public final class SimulationSession {
             }
             Neuron target = model.neuron(connection.targetId());
             int signalValue = target.activationMode() == NeuronActivationMode.SIGNAL_COUNT
-                    ? Integer.signum(neuron.signalWeight())
-                    : neuron.signalWeight();
+                    ? Integer.signum(neuron.signalWeight()) : neuron.signalWeight();
             nextSignals.merge(target.id(), signalValue, Integer::sum);
         }
     }
 
-    /**
-     * Створює результат такту разом із похідними індикаторами всіх структур.
-     *
-     * @param stepTick номер такту, який описує результат.
-     * @param inputSums суми сигналів, доставлених у цьому такті.
-     * @param activatedNeuronIds нейрони, які активувалися в цьому такті.
-     * @param emittingNeuronIds нейрони, які фактично випустили сигнал.
-     * @param nextInputSums суми сигналів, запланованих на наступний такт.
-     * @param activeTicks залишки активних тактів нейронів.
-     * @param nextActivatedNeuronIds нейрони, чий вхідний індикатор засвітиться в наступному стані.
-     * @return незмінний знімок такту з агрегованими індикаторами структур.
-     */
-    private SimulationStep createStep(
-            BigInteger stepTick,
-            Map<String, Integer> inputSums,
-            Set<String> activatedNeuronIds,
-            Set<String> emittingNeuronIds,
-            Map<String, Integer> nextInputSums,
-            Map<String, Integer> activeTicks,
-            Set<String> nextActivatedNeuronIds
-    ) {
+    /** Створює незмінний знімок такту з агрегованими індикаторами структур. */
+    private SimulationStep createStep(BigInteger stepTick, Map<String, Integer> inputSums,
+                                      Set<String> activatedNeuronIds, Set<String> emittingNeuronIds,
+                                      Map<String, Integer> nextInputSums, Map<String, Integer> activeTicks,
+                                      Set<String> nextActivatedNeuronIds) {
         StructureSignalIndicatorCalculator.Summary summary =
                 structureSignalIndicators.calculate(nextActivatedNeuronIds, emittingNeuronIds);
         return new SimulationStep(stepTick, inputSums, activatedNeuronIds, emittingNeuronIds,
                 nextInputSums, activeTicks, nextActivatedNeuronIds,
-                summary.structureInputActivationCounts(),
-                summary.structureEmittingNeuronCounts(),
+                summary.structureInputActivationCounts(), summary.structureEmittingNeuronCounts(),
                 summary.structureConnectionIdsToAnimate());
     }
 
-    /**
-     * Перевіряє, що нейрон є звичайним учасником, а не індикаторним контейнером структури.
-     *
-     * @param neuron нейрон для перевірки або {@code null}, якщо він відсутній.
-     * @return {@code true}, якщо нейрон може приймати та випускати сигнали.
-     */
+    /** Перевіряє, що нейрон є звичайним учасником, а не індикаторним контейнером структури. */
     private boolean isSignalNeuron(Neuron neuron) {
         return neuron != null && neuron.type().participatesInSignalPropagation();
     }

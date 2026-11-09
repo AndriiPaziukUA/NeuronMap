@@ -19,6 +19,8 @@
         <aspectj.version>1.9.26</aspectj.version>
         <aspectj.maven.plugin.version>1.14.1</aspectj.maven.plugin.version>
         <log4j.version>2.26.1</log4j.version>
+        <!-- У звичайній збірці Java-класи компілюються безпосередньо до стандартного каталогу. -->
+        <neuronmap.classes.outputDirectory>${project.build.outputDirectory}</neuronmap.classes.outputDirectory>
     </properties>
 
     <dependencies>
@@ -34,6 +36,7 @@
             <version>${sqlite.version}</version>
         </dependency>
 
+        <!-- Runtime залишається звичайною залежністю: module-info.java вимагає org.aspectj.runtime. -->
         <dependency>
             <groupId>org.aspectj</groupId>
             <artifactId>aspectjrt</artifactId>
@@ -100,7 +103,7 @@
                     <execution>
                         <id>default-compile</id>
                         <configuration>
-                            <outputDirectory>${project.build.directory}/unwoven-classes</outputDirectory>
+                            <outputDirectory>${neuronmap.classes.outputDirectory}</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
@@ -112,49 +115,6 @@
                         <configuration>
                             <useModulePath>false</useModulePath>
                         </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <plugin>
-                <groupId>dev.aspectj</groupId>
-                <artifactId>aspectj-maven-plugin</artifactId>
-                <version>${aspectj.maven.plugin.version}</version>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.aspectj</groupId>
-                        <artifactId>aspectjtools</artifactId>
-                        <version>${aspectj.version}</version>
-                    </dependency>
-                </dependencies>
-                <configuration>
-                    <release>${maven.compiler.release}</release>
-                    <encoding>${project.build.sourceEncoding}</encoding>
-                    <!-- Примусово запускає AJC для binary weaving, навіть коли Java source roots порожні. -->
-                    <forceAjcCompile>true</forceAjcCompile>
-                    <sources>
-                        <source>
-                            <basedir>${project.basedir}/src/main/aspect</basedir>
-                            <includes>
-                                <include>**/*.aj</include>
-                            </includes>
-                        </source>
-                    </sources>
-                    <aspectDirectory>${project.basedir}/src/main/aspect</aspectDirectory>
-                    <weaveDirectories>
-                        <weaveDirectory>${project.build.directory}/unwoven-classes</weaveDirectory>
-                    </weaveDirectories>
-                    <argumentFileDirectory>${project.build.directory}/aspectj-build</argumentFileDirectory>
-                    <argumentFileName>main-builddef.lst</argumentFileName>
-                    <showWeaveInfo>true</showWeaveInfo>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>weave-main-classes</id>
-                        <phase>process-classes</phase>
-                        <goals>
-                            <goal>compile</goal>
-                        </goals>
                     </execution>
                 </executions>
             </plugin>
@@ -174,6 +134,10 @@
                 <version>3.5.6</version>
                 <configuration>
                     <useModulePath>false</useModulePath>
+                    <systemPropertyVariables>
+                        <!-- Тести діагностичного контексту перевіряють активний режим; production JVM його не успадковує. -->
+                        <neuronmap.trace.enabled>true</neuronmap.trace.enabled>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
 
@@ -253,4 +217,59 @@
             </plugin>
         </plugins>
     </build>
+
+    <!-- AspectJ-код та runtime збережені. Переплетення застосунку вмикається лише окремим профілем. -->
+    <profiles>
+        <profile>
+            <id>action-tracing</id>
+            <properties>
+                <neuronmap.classes.outputDirectory>${project.build.directory}/unwoven-classes</neuronmap.classes.outputDirectory>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>dev.aspectj</groupId>
+                        <artifactId>aspectj-maven-plugin</artifactId>
+                        <version>${aspectj.maven.plugin.version}</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.aspectj</groupId>
+                                <artifactId>aspectjtools</artifactId>
+                                <version>${aspectj.version}</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <release>${maven.compiler.release}</release>
+                            <encoding>${project.build.sourceEncoding}</encoding>
+                            <forceAjcCompile>true</forceAjcCompile>
+                            <sources>
+                                <source>
+                                    <basedir>${project.basedir}/src/main/aspect</basedir>
+                                    <includes>
+                                        <include>**/*.aj</include>
+                                    </includes>
+                                </source>
+                            </sources>
+                            <aspectDirectory>${project.basedir}/src/main/aspect</aspectDirectory>
+                            <weaveDirectories>
+                                <weaveDirectory>${project.build.directory}/unwoven-classes</weaveDirectory>
+                            </weaveDirectories>
+                            <argumentFileDirectory>${project.build.directory}/aspectj-build</argumentFileDirectory>
+                            <argumentFileName>main-builddef.lst</argumentFileName>
+                            <showWeaveInfo>true</showWeaveInfo>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>weave-main-classes</id>
+                                <phase>process-classes</phase>
+                                <goals>
+                                    <goal>compile</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

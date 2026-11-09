@@ -7,6 +7,7 @@ import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronPresentation;
 import com.example.neuronmap.model.NeuronStructure;
 import com.example.neuronmap.model.NeuronType;
+import com.example.neuronmap.model.SignalType;
 import com.example.neuronmap.model.StructureNeuronCreationMode;
 
 import java.sql.ResultSet;
@@ -33,7 +34,9 @@ public final class SqliteMapLoader {
         this.connection = connection;
     }
 
-    /** Відновлює модель карти в порядку, потрібному для перевірки зв’язків.
+    /**
+     * Відновлює модель карти в порядку, потрібному для перевірки зв’язків.
+     *
      * @param model модель карти, яку потрібно заповнити.
      * @throws SQLException якщо не вдалося прочитати будь-яку таблицю карти.
      */
@@ -46,13 +49,13 @@ public final class SqliteMapLoader {
         loadConnections(model);
     }
 
-    /** Завантажує всі семантичні параметри нейрона, включно з режимом активації та його назвою. */
+    /** Завантажує параметри нейронів, включно з типом сигналу, режимом активації та назвою. */
     private void loadNeurons(NeuronMapModel model) throws SQLException {
-        // SqliteSchema.migrate() забезпечує наявність усіх стовпців параметрів нейрона.
+        // Поля signal_type та решта параметрів додаються централізованими міграціями SqliteSchema.
         //noinspection SqlResolve
         String sql = """
-                SELECT id, type, activation, signal_strength, activation_threshold, active_ticks,
-                       delay_ticks, activation_mode, name
+                SELECT id, type, activation, signal_strength, activation_threshold, signal_type,
+                       active_ticks, delay_ticks, activation_mode, name
                 FROM neurons ORDER BY rowid
                 """;
         try (Statement statement = connection.createStatement(); ResultSet resultSet = statement.executeQuery(sql)) {
@@ -64,7 +67,8 @@ public final class SqliteMapLoader {
                 neuron.setParameters(new NeuronParameters(
                         resultSet.getInt("signal_strength"), resultSet.getInt("activation_threshold"),
                         resultSet.getInt("active_ticks"), resultSet.getInt("delay_ticks"),
-                        NeuronActivationMode.valueOf(resultSet.getString("activation_mode"))));
+                        NeuronActivationMode.valueOf(resultSet.getString("activation_mode")),
+                        SignalType.valueOf(resultSet.getString("signal_type"))));
                 neuron.setName(resultSet.getString("name"));
             }
         }
@@ -98,18 +102,19 @@ public final class SqliteMapLoader {
     }
 
     /**
-     * Відновлює спільні налаштування структур, стан відкритості й тип учасників, після чого відновлює членство.
-     * Спочатку завантажуються налаштування всіх контейнерів, після чого членство об'єднує їхні дерева посилань.
+     * Відновлює спільні налаштування структур, стан відкритості й тип сигналу, після чого відновлює членство.
+     * Спочатку завантажуються налаштування всіх контейнерів, потім об'єднуються дерева спільних посилань.
      *
      * @param model модель карти, до якої додаються відновлені структури.
      * @throws SQLException якщо читання таблиць не вдалося або структура посилається на відсутній нейрон.
      */
     private void loadStructures(NeuronMapModel model) throws SQLException {
-        // SqliteSchema.migrate() додає всі поля спільних налаштувань до старих і нових таблиць structures.
+        // Усі перелічені колонки додаються SqliteSchema.migrate(); вкладені структури мають nullable-значення.
         //noinspection SqlResolve
         String structureSql = """
                 SELECT id, expanded, name, signal_strength, activation_threshold, active_ticks, delay_ticks,
-                       activation_mode, member_type, direction_reversed, strongest_neuron_only, neuron_creation_mode
+                       activation_mode, signal_type, member_type, direction_reversed,
+                       strongest_neuron_only, neuron_creation_mode
                 FROM structures ORDER BY rowid
                 """;
         try (Statement statement = connection.createStatement(); ResultSet resultSet = statement.executeQuery(structureSql)) {
@@ -122,10 +127,12 @@ public final class SqliteMapLoader {
                 NeuronStructure structure = model.structure(structureId);
                 structure.setExpanded(resultSet.getInt("expanded") != 0);
                 structure.settings().setName(resultSet.getString("name"));
+                String signalType = resultSet.getString("signal_type");
+                SignalType restoredSignalType = signalType == null ? SignalType.STATIC : SignalType.valueOf(signalType);
                 structure.settings().setParameters(new NeuronParameters(
                         resultSet.getInt("signal_strength"), resultSet.getInt("activation_threshold"),
                         resultSet.getInt("active_ticks"), resultSet.getInt("delay_ticks"),
-                        NeuronActivationMode.valueOf(resultSet.getString("activation_mode"))));
+                        NeuronActivationMode.valueOf(resultSet.getString("activation_mode")), restoredSignalType));
                 String memberType = resultSet.getString("member_type");
                 if (memberType != null) structure.settings().setMemberType(NeuronType.valueOf(memberType));
                 int directionReversed = resultSet.getInt("direction_reversed");
@@ -143,6 +150,32 @@ public final class SqliteMapLoader {
         try (Statement statement = connection.createStatement(); ResultSet resultSet = statement.executeQuery(membersSql)) {
             while (resultSet.next()) {
                 model.addStructureMember(resultSet.getString("structure_id"), resultSet.getString("neuron_id"));
+            }
+        }
+        restoreAdaptiveMemberSignalStrengths(model);
+    }
+
+    /**
+     * Повертає кожному адаптивному учаснику його персональну силу після відновлення спільних посилань структури.
+     *
+     * @param model модель із відновленим членством структур.
+     * @throws SQLException якщо персональні значення не вдалося прочитати з бази.
+     */
+    private void restoreAdaptiveMemberSignalStrengths(NeuronMapModel model) throws SQLException {
+        // Персональна сила зберігається в neurons, а спільний режим сигналу — лише в кореневій structures.
+        //noinspection SqlResolve
+        String sql = """
+                SELECT neurons.id, neurons.signal_strength
+                FROM neurons
+                INNER JOIN structure_members ON structure_members.neuron_id = neurons.id
+                """;
+        try (Statement statement = connection.createStatement(); ResultSet resultSet = statement.executeQuery(sql)) {
+            while (resultSet.next()) {
+                Neuron member = model.neuron(resultSet.getString("id"));
+                if (member != null && member.type() != NeuronType.STRUCTURE
+                        && member.signalType() != SignalType.STATIC) {
+                    member.setSignalStrength(resultSet.getInt("signal_strength"));
+                }
             }
         }
     }

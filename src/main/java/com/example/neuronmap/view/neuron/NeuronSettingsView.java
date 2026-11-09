@@ -5,6 +5,7 @@ import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronActivationMode;
 import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronType;
+import com.example.neuronmap.model.SignalType;
 import com.example.neuronmap.model.StructureNeuronCreationMode;
 import com.example.neuronmap.view.support.ContentSizedButtonPair;
 import com.example.neuronmap.view.support.EditorKeyboardShortcutBoundary;
@@ -40,50 +41,34 @@ import java.util.function.Consumer;
 
 /**
  * Відображає налаштування нейрона як внутрішню модальну накладку головного вікна.
- * Для структури подання додає кількість учасників, режим конкуренції та умову створення спільного нейрона;
- * ці налаштування діють на все дерево структури та не належать до числових параметрів окремого нейрона.
+ * Тип сигналу спільний для внутрішніх нейронів структури, тоді як персональні сили адаптивних учасників
+ * залишаються в моделі кожного нейрона.
  */
 public final class NeuronSettingsView extends StackPane implements EditorKeyboardShortcutBoundary {
-
     private static final String STYLESHEET_RESOURCE = "/neuron-settings.css";
     private static final String LOCALIZATION_BUNDLE = "i18n.neuronSettings";
     private static final String SETTINGS_BUNDLE_KEY_PREFIX = "i18n.neuronSettings.";
     private static final double INPUT_COLUMN_WIDTH = 160.0;
     private static final double NUMERIC_INPUT_COLUMN_WIDTH = INPUT_COLUMN_WIDTH * 2.0 / 3.0;
 
-    /** Збережені значення форми, включно з кількістю учасників структури. */
+    /** Callback зі збереженням параметрів для звичайного нейрона або кількості для структури. */
     @FunctionalInterface
     public interface SettingsSaveAction {
-        /** Передає перевірені параметри й кількість учасників координатору після підтвердження форми.
-         * @param parameters спільні параметри нейрона.
-         * @param name нова назва або {@code null}, якщо поле назви порожнє.
-         * @param structureMemberCount бажана кількість учасників або {@code -1} для звичайного нейрона.
-         */
+        /** Передає перевірені значення власнику операції редагування. */
         void accept(NeuronParameters parameters, String name, int structureMemberCount);
     }
 
-    /** Збережені значення форми структури, доповнені прапорцем конкуренції нейронів. */
+    /** Callback з параметрами структури й перемикачем найсильнішого учасника. */
     @FunctionalInterface
     public interface StructureSettingsSaveAction {
-        /** Передає перевірені параметри структури власнику операції збереження.
-         * @param parameters спільні параметри нейронів структури.
-         * @param name нова назва або {@code null}, якщо поле назви порожнє.
-         * @param structureMemberCount бажана кількість безпосередніх учасників.
-         * @param strongestNeuronOnly чи ввімкнено режим найсильнішого учасника.
-         */
+        /** Передає спільні параметри структури після перевірки форми. */
         void accept(NeuronParameters parameters, String name, int structureMemberCount, boolean strongestNeuronOnly);
     }
 
-    /** Розширений контракт збереження налаштувань структури з вибраним способом створення спільного нейрона. */
+    /** Callback з усіма параметрами структури, включно з умовою створення спільних нейронів. */
     @FunctionalInterface
     public interface StructureNeuronCreationSettingsSaveAction {
-        /** Передає параметри структури, кількість учасників та обидва спеціалізовані режими.
-         * @param parameters спільні параметри нейронів структури.
-         * @param name нова назва або {@code null}, якщо поле назви порожнє.
-         * @param structureMemberCount бажана кількість безпосередніх учасників.
-         * @param strongestNeuronOnly чи ввімкнено режим найсильнішого учасника.
-         * @param neuronCreationMode умова створення нового спільного нейрона.
-         */
+        /** Передає перевірені параметри структури після підтвердження форми. */
         void accept(NeuronParameters parameters, String name, int structureMemberCount,
                     boolean strongestNeuronOnly, StructureNeuronCreationMode neuronCreationMode);
     }
@@ -106,6 +91,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     private final TextField delayTicksField;
     private final TextField structureMemberCountField;
     private final ComboBox<NeuronActivationMode> activationModeSelector;
+    private final ComboBox<SignalType> signalTypeSelector;
     private final ComboBox<StructureNeuronCreationMode> neuronCreationModeSelector;
     private final NeuronSettingsForm settingsForm;
     private final EventHandler<KeyEvent> sceneKeyboardFilter = this::filterOutsideModalKeyboardEvents;
@@ -117,18 +103,16 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
     private HBox structureMemberCountRow;
     private HBox strongestNeuronOnlyRow;
     private HBox neuronCreationModeRow;
+    private HBox signalTypeRow;
     private boolean structureSettingsTitle;
     private boolean localizationListenerRegistered;
-    /** Позначає програмне закриття після збереження, щоб його не сприймали як скасування форми. */
     private boolean saving;
     private boolean disposed;
 
     /**
-     * Створює внутрішню накладку налаштувань з незалежною таблицею стилів і локалізованими елементами керування.
+     * Створює внутрішню накладку налаштувань з власною таблицею стилів.
      *
-     * @param localization спільна служба локалізації застосунку.
-     * @throws NullPointerException якщо службу локалізації не задано.
-     * @throws IllegalStateException якщо таблиця стилів відсутня в classpath.
+     * @param localization спільна служба локалізації.
      */
     public NeuronSettingsView(LocalizationService localization) {
         this.localization = Objects.requireNonNull(localization, "localization");
@@ -137,7 +121,6 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
             throw new IllegalStateException(STYLESHEET_RESOURCE + " is missing");
         }
         getStylesheets().add(stylesheet.toExternalForm());
-
         setManaged(false);
         setVisible(false);
         setPickOnBounds(true);
@@ -157,6 +140,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         delayTicksField = settingsForm.delayTicksField();
         structureMemberCountField = settingsForm.structureMemberCountField();
         activationModeSelector = settingsForm.activationModeSelector();
+        signalTypeSelector = settingsForm.signalTypeSelector();
         neuronCreationModeSelector = settingsForm.neuronCreationModeSelector();
         configureSettingsRows();
         configureFooter();
@@ -164,127 +148,54 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         refreshTexts();
     }
 
-    /** Додає рядок до прокручуваного списку та оновлює його природну висоту. */
+    /** Додає рядок до прокручуваного списку та оновлює його виміряну висоту. */
     void addSetting(Node settingRow) {
         settingsRows.getChildren().add(Objects.requireNonNull(settingRow, "settingRow"));
         settingsLayout.updateViewportHeight();
         requestLayout();
     }
 
-    /**
-     * Показує накладку та передає підтверджені параметри нейрона разом зі способом активації.
-     * Заголовок вибирається з типу нейрона й не змінює заголовки інших вікон.
-     *
-     * @param applicationRoot кореневий контейнер для внутрішніх накладок.
-     * @param neuron нейрон, параметри якого редагують.
-     * @param onSave дія застосування підтверджених числових параметрів.
-     * @throws NullPointerException якщо нейрон або callback не задано.
-     */
+    /** Показує налаштування нейрона без редагування його назви. */
     public void showIn(StackPane applicationRoot, Neuron neuron, Consumer<NeuronParameters> onSave) {
         Objects.requireNonNull(onSave, "onSave");
         showWithNameIn(applicationRoot, neuron, (parameters, ignoredName) -> onSave.accept(parameters));
     }
 
-    /**
-     * Показує накладку й завантажує назву, параметри та режим активації нейрона для редагування.
-     * Для структурного нейрона поле кількості показує нуль, якщо викликач не передав поточне значення;
-     * для звичайного нейрона додаткові рядки структури приховані.
-     *
-     * @param applicationRoot кореневий контейнер для внутрішніх накладок.
-     * @param neuron нейрон, значення якого редагують.
-     * @param onSave дія застосування підтверджених параметрів і назви.
-     * @throws NullPointerException якщо будь-який обов'язковий аргумент не задано.
-     */
-    public void showWithNameIn(
-            StackPane applicationRoot,
-            Neuron neuron,
-            BiConsumer<NeuronParameters, String> onSave
-    ) {
+    /** Показує налаштування нейрона та його назви. */
+    public void showWithNameIn(StackPane applicationRoot, Neuron neuron,
+                               BiConsumer<NeuronParameters, String> onSave) {
         Objects.requireNonNull(onSave, "onSave");
         showWithStructureSettingsIn(applicationRoot, neuron, 0,
                 (parameters, name, ignoredCount, ignoredStrongest) -> onSave.accept(parameters, name));
     }
 
-    /**
-     * Показує накладку налаштувань, передаючи окрему поточну кількість учасників структури.
-     * Для звичайного нейрона поле кількості й режим конкуренції приховані, а callback отримує {@code -1} і {@code false}.
-     *
-     * @param applicationRoot кореневий контейнер для внутрішніх накладок.
-     * @param neuron нейрон, параметри якого редагують.
-     * @param currentMemberCount актуальна кількість безпосередніх учасників структури.
-     * @param onSave дія застосування перевірених параметрів, назви та значень структури.
-     * @throws NullPointerException якщо будь-який обов'язковий аргумент не задано.
-     * @throws IllegalArgumentException якщо кількість учасників від'ємна для структури.
-     * @throws IllegalStateException якщо подання звільнено, корінь не належить сцені або накладка вже відкрита.
-     */
-    public void showWithStructureCountIn(
-            StackPane applicationRoot,
-            Neuron neuron,
-            int currentMemberCount,
-            SettingsSaveAction onSave
-    ) {
+    /** Показує налаштування й передає поточну кількість учасників структури. */
+    public void showWithStructureCountIn(StackPane applicationRoot, Neuron neuron, int currentMemberCount,
+                                         SettingsSaveAction onSave) {
         Objects.requireNonNull(onSave, "onSave");
         showWithStructureSettingsIn(applicationRoot, neuron, currentMemberCount,
                 (parameters, name, count, ignoredStrongest) -> onSave.accept(parameters, name, count));
     }
 
-    /** Показує налаштування структури з додатковим перемикачем вибору найсильнішого нейрона.
-     *
-     * @param applicationRoot кореневий контейнер для внутрішніх накладок.
-     * @param neuron нейрон, значення якого редагують.
-     * @param currentMemberCount актуальна кількість безпосередніх учасників структури.
-     * @param onSave дія застосування перевірених параметрів, кількості та режиму конкуренції.
-     * @throws NullPointerException якщо обов'язковий аргумент не задано.
-     * @throws IllegalArgumentException якщо кількість учасників від'ємна для структури.
-     * @throws IllegalStateException якщо подання звільнено, корінь не належить сцені або накладка вже відкрита.
-     */
-    public void showWithStructureSettingsIn(
-            StackPane applicationRoot,
-            Neuron neuron,
-            int currentMemberCount,
-            StructureSettingsSaveAction onSave
-    ) {
+    /** Показує налаштування структури зі збереженням сумісності callback-а без режиму створення нейронів. */
+    public void showWithStructureSettingsIn(StackPane applicationRoot, Neuron neuron, int currentMemberCount,
+                                            StructureSettingsSaveAction onSave) {
         Objects.requireNonNull(onSave, "onSave");
         showWithStructureSettingsIn(applicationRoot, neuron, currentMemberCount,
                 (parameters, name, count, strongest, ignoredMode) ->
                         onSave.accept(parameters, name, count, strongest), false);
     }
 
-    /** Показує структуру з доступним вибором способу створення спільного нейрона.
-     *
-     * @param applicationRoot кореневий контейнер для внутрішніх накладок.
-     * @param neuron нейрон, значення якого редагують.
-     * @param currentMemberCount актуальна кількість безпосередніх учасників структури.
-     * @param onSave дія застосування всіх перевірених значень структури.
-     * @throws NullPointerException якщо обов'язковий аргумент не задано.
-     * @throws IllegalArgumentException якщо кількість учасників від'ємна для структури.
-     * @throws IllegalStateException якщо подання звільнено, корінь не належить сцені або накладка вже відкрита.
-     */
-    public void showWithStructureSettingsIn(
-            StackPane applicationRoot,
-            Neuron neuron,
-            int currentMemberCount,
-            StructureNeuronCreationSettingsSaveAction onSave
-    ) {
+    /** Показує налаштування структури з підтримкою вибору режиму створення нейронів. */
+    public void showWithStructureSettingsIn(StackPane applicationRoot, Neuron neuron, int currentMemberCount,
+                                            StructureNeuronCreationSettingsSaveAction onSave) {
         showWithStructureSettingsIn(applicationRoot, neuron, currentMemberCount, onSave, true);
     }
 
-    /** Відкриває накладку зі вказаним контрактом збереження та доступністю нового параметра.
-     * Старі callback-и не можуть зберегти режим створення, тому не показують редаговане без збереження поле.
-     *
-     * @param applicationRoot кореневий контейнер накладок.
-     * @param neuron нейрон, налаштування якого редагують.
-     * @param currentMemberCount кількість безпосередніх учасників.
-     * @param onSave callback перевірених налаштувань.
-     * @param creationModeEditable чи підтримує callback збереження нового режиму.
-     */
-    private void showWithStructureSettingsIn(
-            StackPane applicationRoot,
-            Neuron neuron,
-            int currentMemberCount,
-            StructureNeuronCreationSettingsSaveAction onSave,
-            boolean creationModeEditable
-    ) {
+    /** Відкриває накладку та встановлює її callback збереження. */
+    private void showWithStructureSettingsIn(StackPane applicationRoot, Neuron neuron, int currentMemberCount,
+                                             StructureNeuronCreationSettingsSaveAction onSave,
+                                             boolean creationModeEditable) {
         ensureNotDisposed();
         Objects.requireNonNull(applicationRoot, "applicationRoot");
         Objects.requireNonNull(neuron, "neuron");
@@ -299,14 +210,10 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         if (host != null) {
             throw new IllegalStateException("Neuron settings view is already showing");
         }
-
         structureSettingsTitle = neuron.type() == NeuronType.STRUCTURE;
-        structureMemberCountRow.setManaged(structureSettingsTitle);
-        structureMemberCountRow.setVisible(structureSettingsTitle);
-        strongestNeuronOnlyRow.setManaged(structureSettingsTitle);
-        strongestNeuronOnlyRow.setVisible(structureSettingsTitle);
-        neuronCreationModeRow.setManaged(structureSettingsTitle && creationModeEditable);
-        neuronCreationModeRow.setVisible(structureSettingsTitle && creationModeEditable);
+        setRowVisibility(structureMemberCountRow, structureSettingsTitle);
+        setRowVisibility(strongestNeuronOnlyRow, structureSettingsTitle);
+        setRowVisibility(neuronCreationModeRow, structureSettingsTitle && creationModeEditable);
         settingsForm.load(neuron, currentMemberCount);
         saveAction = onSave;
         host = applicationRoot;
@@ -320,12 +227,12 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         requestFocus();
     }
 
-    /** Закриває накладку, якщо вона відображається, без збереження введених значень. */
+    /** Закриває накладку без збереження введених значень. */
     public void hide() {
         close();
     }
 
-    /** Остаточно звільняє тимчасові ресурси; повторний виклик безпечний, повторний показ заборонено. */
+    /** Остаточно звільняє ресурси подання; повторний виклик безпечний. */
     public void dispose() {
         if (disposed) {
             return;
@@ -335,25 +242,20 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         disposed = true;
     }
 
-    /** Перевіряє, що подання не було остаточно звільнене. */
+    /** Перевіряє, чи подання ще можна відкривати. */
     private void ensureNotDisposed() {
         if (disposed) {
             throw new IllegalStateException("Neuron settings view is disposed");
         }
     }
 
-    /** Повідомляє маршрутизатору клавіатури, що відкрите подання ізолює глобальні команди редактора. */
+    /** Повідомляє маршрутизатору клавіатури, що накладка блокує глобальні команди редактора. */
     @Override
     public boolean blocksEditorShortcuts() {
         return host != null && isVisible();
     }
 
-    /**
-     * Показує, чи закривається форма саме внаслідок збереження, а не скасування користувачем.
-     * Координатор використовує цю ознаку, щоб не відновлювати контекстне меню поверх оновленої шухлядки.
-     *
-     * @return {@code true} лише на час синхронного закриття форми після натискання «Зберегти».
-     */
+    /** Показує, чи відбулося закриття саме внаслідок збереження параметрів. */
     public boolean isSaving() {
         return saving;
     }
@@ -370,7 +272,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         });
     }
 
-    /** Встановлює геометрію картки та заголовка незалежно від стилів інших вікон. */
+    /** Налаштовує геометрію картки та заголовка. */
     private void configurePanel() {
         panel.getStyleClass().add("neuron-settings-panel");
         panel.setAlignment(Pos.TOP_CENTER);
@@ -384,32 +286,28 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         title.setAlignment(Pos.CENTER);
     }
 
-    /** Створює локалізовані рядки параметрів у заданому порядку та налаштовує вертикальне прокручування. */
+    /** Створює рядки параметрів у потрібному порядку та налаштовує прокручування. */
     private void configureSettingsRows() {
         settingsRows.setMinSize(0.0, 0.0);
         settingsRows.setFillWidth(true);
         addSetting(createSettingRow(SETTINGS_BUNDLE_KEY_PREFIX + "name", nameField));
         structureMemberCountRow = createSettingRow(
                 SETTINGS_BUNDLE_KEY_PREFIX + "structure_neuron_count", structureMemberCountField);
-        structureMemberCountRow.setManaged(false);
-        structureMemberCountRow.setVisible(false);
+        setRowVisibility(structureMemberCountRow, false);
         addSetting(structureMemberCountRow);
         strongestNeuronOnlyRow = createSettingRow(
                 SETTINGS_BUNDLE_KEY_PREFIX + "strongest_neuron", settingsForm.strongestNeuronOnlyToggle());
-        strongestNeuronOnlyRow.setManaged(false);
-        strongestNeuronOnlyRow.setVisible(false);
+        setRowVisibility(strongestNeuronOnlyRow, false);
         addSetting(strongestNeuronOnlyRow);
         neuronCreationModeRow = createSettingRow(
                 SETTINGS_BUNDLE_KEY_PREFIX + "neuron_creation_mode", neuronCreationModeSelector);
-        neuronCreationModeRow.setManaged(false);
-        neuronCreationModeRow.setVisible(false);
+        setRowVisibility(neuronCreationModeRow, false);
         addSetting(neuronCreationModeRow);
+        signalTypeRow = createSettingRow(SETTINGS_BUNDLE_KEY_PREFIX + "signal_type", signalTypeSelector);
+        addSetting(signalTypeRow);
         addSetting(createSettingRow("neuron.settings.signal_strength", signalField));
-        addSetting(createSettingRow(
-                SETTINGS_BUNDLE_KEY_PREFIX + "activation_by",
-                localization.textFrom(LOCALIZATION_BUNDLE, "activation_by"),
-                activationModeSelector
-        ));
+        addSetting(createSettingRow(SETTINGS_BUNDLE_KEY_PREFIX + "activation_by",
+                localization.textFrom(LOCALIZATION_BUNDLE, "activation_by"), activationModeSelector));
         addSetting(createSettingRow("neuron.settings.activation_threshold", thresholdField));
         addSetting(createSettingRow(SETTINGS_BUNDLE_KEY_PREFIX + "active_ticks", activeTicksField));
         addSetting(createSettingRow(SETTINGS_BUNDLE_KEY_PREFIX + "delay", delayTicksField));
@@ -422,12 +320,18 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         VBox.setVgrow(settingsScroll, Priority.ALWAYS);
     }
 
-    /** Створює рядок із гнучким підписом та полем введення або списком для вибору параметра. */
+    /** Вмикає або вимикає керування рядком, узгоджуючи обидві JavaFX-ознаки видимості. */
+    private static void setRowVisibility(HBox row, boolean visible) {
+        row.setManaged(visible);
+        row.setVisible(visible);
+    }
+
+    /** Створює рядок з локалізованим підписом та переданим полем або списком. */
     private HBox createSettingRow(String labelKey, Node control) {
         return createSettingRow(labelKey, labelText(labelKey), control);
     }
 
-    /** Створює рядок із локалізованим підписом; числові поля компактніші, а перемикач не займає зайву ширину. */
+    /** Створює рядок із гнучким підписом та елементом керування сталої ширини. */
     private HBox createSettingRow(String labelKey, String initialLabelText, Node control) {
         Label label = new Label(initialLabelText);
         settingLabels.put(labelKey, label);
@@ -436,16 +340,13 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         label.setMinWidth(0.0);
         label.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(label, Priority.ALWAYS);
-
         if (control instanceof TextField textField) {
             textField.getStyleClass().add("neuron-settings-field");
             textField.setPrefColumnCount(10);
         }
-        if (control instanceof Region region
-                && control != settingsForm.strongestNeuronOnlyToggle()) {
+        if (control instanceof Region region && control != settingsForm.strongestNeuronOnlyToggle()) {
             double controlWidth = control instanceof TextField textField && textField != nameField
-                    ? NUMERIC_INPUT_COLUMN_WIDTH
-                    : INPUT_COLUMN_WIDTH;
+                    ? NUMERIC_INPUT_COLUMN_WIDTH : INPUT_COLUMN_WIDTH;
             region.setMinWidth(controlWidth);
             region.setPrefWidth(controlWidth);
             region.setMaxWidth(controlWidth);
@@ -459,18 +360,16 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         return row;
     }
 
-    /** Отримує текст підпису з виділеного набору рядків налаштувань або зі спільного набору інтерфейсу. */
+    /** Отримує локалізований підпис із тематичного або спільного набору перекладів. */
     private String labelText(String labelKey) {
         if (labelKey.startsWith(SETTINGS_BUNDLE_KEY_PREFIX)) {
-            return localization.textFrom(
-                    LOCALIZATION_BUNDLE,
-                    labelKey.substring(SETTINGS_BUNDLE_KEY_PREFIX.length())
-            );
+            return localization.textFrom(LOCALIZATION_BUNDLE,
+                    labelKey.substring(SETTINGS_BUNDLE_KEY_PREFIX.length()));
         }
         return localization.text(labelKey);
     }
 
-    /** Налаштовує кнопки підтвердження та скасування з незалежним стилем подання. */
+    /** Налаштовує кнопки підтвердження та скасування. */
     private void configureFooter() {
         saveButton.getStyleClass().add("neuron-settings-button");
         cancelButton.getStyleClass().add("neuron-settings-button");
@@ -505,34 +404,25 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         applicationRoot.layout();
     }
 
-    /**
-     * Фіксує висоту селектора за його початковим CSS-розміром, щоб зміна вибраного режиму
-     * або стану фокуса не змінювала висоту рядка параметра.
-     */
+    /** Фіксує висоту випадаючих списків, щоб зміна вибраного режиму не змінювала геометрію рядка. */
     private void stabilizeActivationSelectorHeight() {
-        activationModeSelector.applyCss();
-        double preferredHeight = activationModeSelector.prefHeight(-1.0);
+        stabilizeSelectorHeight(activationModeSelector);
+        stabilizeSelectorHeight(signalTypeSelector);
+        stabilizeSelectorHeight(neuronCreationModeSelector);
+    }
+
+    /** Фіксує обчислену CSS-висоту одного селектора. */
+    private void stabilizeSelectorHeight(ComboBox<?> selector) {
+        selector.applyCss();
+        double preferredHeight = selector.prefHeight(-1.0);
         if (Double.isFinite(preferredHeight) && preferredHeight > 0.0) {
-            activationModeSelector.setMinHeight(preferredHeight);
-            activationModeSelector.setPrefHeight(preferredHeight);
-            activationModeSelector.setMaxHeight(preferredHeight);
-        }
-        neuronCreationModeSelector.applyCss();
-        double creationPreferredHeight = neuronCreationModeSelector.prefHeight(-1.0);
-        if (Double.isFinite(creationPreferredHeight) && creationPreferredHeight > 0.0) {
-            neuronCreationModeSelector.setMinHeight(creationPreferredHeight);
-            neuronCreationModeSelector.setPrefHeight(creationPreferredHeight);
-            neuronCreationModeSelector.setMaxHeight(creationPreferredHeight);
+            selector.setMinHeight(preferredHeight);
+            selector.setPrefHeight(preferredHeight);
+            selector.setMaxHeight(preferredHeight);
         }
     }
 
-    /**
-     * Оновлює локалізовані тексти та явно скидає вимірювання природних розмірів картки.
-     *
-     * <p>Зміна локалі може змінити ширину підписів і кнопок. Усі ці зміни відбуваються в одному
-     * контрольованому місці, тому компонувальник не мусить сканувати дерево JavaFX або залежати
-     * від CSS-класів, щоб виявляти нові розміри.</p>
-     */
+    /** Оновлює локалізовані тексти й розміри картки після зміни мови. */
     private void refreshTexts() {
         title.setText(structureSettingsTitle
                 ? localization.textFrom(LOCALIZATION_BUNDLE, "structure_title")
@@ -543,23 +433,18 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         settingsForm.refreshTexts();
         settingsForm.setPromptText(
                 localization.text("neuron.settings.positive_integer"),
-                localization.textFrom(LOCALIZATION_BUNDLE, "percentage")
-        );
-        if (getScene() != null) {
-            ContentSizedButtonPair.sizeToLargestContent(saveButton, cancelButton);
-        }
+                localization.textFrom(LOCALIZATION_BUNDLE, "percentage"));
+        if (getScene() != null) ContentSizedButtonPair.sizeToLargestContent(saveButton, cancelButton);
         settingsRows.requestLayout();
         settingsLayout.invalidatePreferredSize();
         settingsLayout.updateViewportHeight();
         if (getScene() != null) {
             requestLayout();
-            if (host != null) {
-                host.requestLayout();
-            }
+            if (host != null) host.requestLayout();
         }
     }
 
-    /** Підлаштовує картку за природним розміром і обмежує її доступною площею. */
+    /** Підлаштовує картку за природним розміром та доступною площею вікна. */
     @Override
     protected void layoutChildren() {
         super.layoutChildren();
@@ -568,30 +453,24 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
 
     /** Реєструє слухача локалізації лише на час показу накладки. */
     private void startListeningToLocalization() {
-        if (localizationListenerRegistered) {
-            return;
-        }
+        if (localizationListenerRegistered) return;
         localization.addListener(localizationListener);
         localizationListenerRegistered = true;
     }
 
-    /** Знімає слухача локалізації під час закриття, не утримуючи приховане подання. */
+    /** Знімає слухача локалізації після закриття накладки. */
     private void stopListeningToLocalization() {
-        if (!localizationListenerRegistered) {
-            return;
-        }
+        if (!localizationListenerRegistered) return;
         localization.removeListener(localizationListener);
         localizationListenerRegistered = false;
     }
 
-    /** Зберігає лише перевірені значення й передає окремі параметри структури. */
+    /** Зберігає перевірені параметри й передає їх власнику операції. */
     private void save() {
         Optional<NeuronParameters> parameters = settingsForm.parameters();
         OptionalInt memberCount = structureSettingsTitle
                 ? settingsForm.structureMemberCount() : OptionalInt.of(-1);
-        if (parameters.isEmpty() || memberCount.isEmpty() || saveAction == null) {
-            return;
-        }
+        if (parameters.isEmpty() || memberCount.isEmpty() || saveAction == null) return;
         StructureNeuronCreationSettingsSaveAction action = saveAction;
         NeuronParameters savedParameters = parameters.orElseThrow();
         String savedName = settingsForm.name();
@@ -608,7 +487,7 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
                 savedStrongestNeuronOnly, savedNeuronCreationMode);
     }
 
-    /** Закриває накладку, очищує callback та звільняє тимчасові ресурси. */
+    /** Закриває накладку, очищує callback та знімає всі тимчасові підписки. */
     private void close() {
         StackPane previousHost = host;
         host = null;
@@ -617,32 +496,24 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         stopListeningToLocalization();
         setVisible(false);
         setManaged(false);
-        if (previousHost != null) {
-            previousHost.getChildren().remove(this);
-        }
+        if (previousHost != null) previousHost.getChildren().remove(this);
     }
 
-    /** Блокує клавіатурну взаємодію поза накладкою; Escape скасовує редагування. */
+    /** Блокує клавіатурні команди поза формою та закриває її клавішею Escape. */
     private void filterOutsideModalKeyboardEvents(KeyEvent event) {
-        if (!blocksEditorShortcuts()) {
-            return;
-        }
+        if (!blocksEditorShortcuts()) return;
         if (event.getEventType() == KeyEvent.KEY_PRESSED && event.getCode() == KeyCode.ESCAPE) {
             event.consume();
             close();
             return;
         }
-        if (EditorKeyboardShortcutBoundary.blocksShortcutsFor(event.getTarget())) {
-            return;
-        }
+        if (EditorKeyboardShortcutBoundary.blocksShortcutsFor(event.getTarget())) return;
         event.consume();
     }
 
-    /** Реєструє фільтр сцени лише на час показу модальної накладки. */
+    /** Реєструє фільтр клавіатурних подій сцени на час відкриття модальної накладки. */
     private void startFilteringSceneKeyboard(Scene scene) {
-        if (keyboardFilterScene == scene) {
-            return;
-        }
+        if (keyboardFilterScene == scene) return;
         stopFilteringSceneKeyboard();
         if (scene != null) {
             SceneKeyboardModality.register(scene, this);
@@ -651,85 +522,87 @@ public final class NeuronSettingsView extends StackPane implements EditorKeyboar
         }
     }
 
-    /** Знімає фільтр сцени, щоб після закриття накладки клавіатура працювала звичайно. */
+    /** Знімає фільтр клавіатурних подій, щоб після закриття накладки клавіатура працювала звичайно. */
     private void stopFilteringSceneKeyboard() {
-        if (keyboardFilterScene == null) {
-            return;
-        }
+        if (keyboardFilterScene == null) return;
         Scene previousScene = keyboardFilterScene;
         keyboardFilterScene = null;
         previousScene.removeEventFilter(KeyEvent.ANY, sceneKeyboardFilter);
         SceneKeyboardModality.unregister(previousScene, this);
     }
 
-    /** Повертає поле назви для регресійних перевірок обмеження довжини й завантаження значення. */
+    /** Повертає поле назви для перевірок введення та завантаження значення. */
     TextField nameFieldForTest() { return nameField; }
 
-    /** Повертає поле сили сигналу для регресійних тестів. */
+    /** Повертає поле сили сигналу для перевірок введення. */
     TextField signalFieldForTest() { return signalField; }
 
-    /** Повертає поле порога активації для регресійних тестів. */
+    /** Повертає поле порога активації для перевірок введення. */
     TextField thresholdFieldForTest() { return thresholdField; }
 
-    /** Повертає список способів активації для перевірки вибору й локалізації. */
+    /** Повертає список способів перевірки порога для перевірок режимів. */
     ComboBox<NeuronActivationMode> activationModeSelectorForTest() { return activationModeSelector; }
 
-    /** Повертає поле кількості активних тактів для регресійних тестів. */
+    /** Повертає список типів сигналу для перевірок нового режиму. */
+    ComboBox<SignalType> signalTypeSelectorForTest() { return signalTypeSelector; }
+
+    /** Повертає поле кількості активних тактів для перевірок введення. */
     TextField activeTicksFieldForTest() { return activeTicksField; }
 
-    /** Повертає поле затримки для перевірки завантаження й валідації параметра. */
+    /** Повертає поле затримки для перевірок введення. */
     TextField delayTicksFieldForTest() { return delayTicksField; }
 
-    /** Повертає поле кількості нейронів структури для перевірок валідації та повторного відкриття. */
+    /** Повертає поле кількості учасників структури для перевірок валідації. */
     TextField structureMemberCountFieldForTest() { return structureMemberCountField; }
 
-    /** Повертає рядок кількості нейронів для перевірки його видимості лише в налаштуваннях структури. */
+    /** Повертає рядок кількості учасників структури. */
     HBox structureMemberCountRowForTest() { return structureMemberCountRow; }
 
-    /** Повертає рядок режиму найсильнішого нейрона для регресійних перевірок видимості та порядку. */
+    /** Повертає рядок вибору типу сигналу для перевірки його порядку та видимості. */
+    HBox signalTypeRowForTest() { return signalTypeRow; }
+
+    /** Повертає рядок перемикача найсильнішого нейрона. */
     HBox strongestNeuronOnlyRowForTest() { return strongestNeuronOnlyRow; }
 
-    /** Повертає рядок вибору способу створення нейрона для перевірки порядку та видимості. */
+    /** Повертає рядок вибору умови створення нейрона. */
     HBox neuronCreationModeRowForTest() { return neuronCreationModeRow; }
 
-    /** Повертає список умов створення спільного нейрона для перевірки типового значення й збереження. */
-    ComboBox<StructureNeuronCreationMode> neuronCreationModeSelectorForTest() {
-        return neuronCreationModeSelector;
-    }
+    /** Повертає список способів створення спільного нейрона. */
+    ComboBox<StructureNeuronCreationMode> neuronCreationModeSelectorForTest() { return neuronCreationModeSelector; }
 
-    /** Повертає перемикач режиму найсильнішого нейрона для перевірки збереження вибору. */
+    /** Повертає перемикач конкуренції учасників структури. */
     javafx.scene.control.ToggleButton strongestNeuronOnlyToggleForTest() {
         return settingsForm.strongestNeuronOnlyToggle();
     }
 
-    /** Повертає кнопку збереження для перевірок введення та геометрії. */
+    /** Повертає кнопку збереження. */
     Button saveButtonForTest() { return saveButton; }
 
-    /** Повертає кнопку скасування для перевірок геометрії та закриття. */
+    /** Повертає кнопку скасування. */
     Button cancelButtonForTest() { return cancelButton; }
 
-    /** Повертає прокручувану область для тестів адаптивного компонування. */
+    /** Повертає прокручувану область форми. */
     ScrollPane settingsScrollForTest() { return settingsScroll; }
 
-    /** Повертає картку налаштувань для тестів адаптивного компонування. */
+    /** Повертає картку форми для перевірок адаптивного компонування. */
     VBox panelForTest() { return panel; }
 
-    /** Повертає заголовок для перевірки його вирівнювання та вибору за типом нейрона. */
+    /** Повертає заголовок форми. */
     Label titleForTest() { return title; }
 
-    /** Повертає затемнений фон для перевірки скасування натисканням поза карткою. */
+    /** Повертає затемнений фон форми. */
     Node backdropForTest() { return backdrop; }
 
-    /** Повертає локалізований підпис параметра без повторного відкриття накладки. */
+    /** Повертає локалізований підпис заданого параметра. */
     String settingLabelTextForTest(String key) {
         Label label = settingLabels.get(key);
         return label == null ? null : label.getText();
     }
 
-    /** Повертає максимальну ширину панелі. */
+    /** Повертає максимальну ширину картки. */
     double panelMaxWidthForTest() { return panel.getMaxWidth(); }
 
-    /** Повертає максимальну висоту панелі. */
+    /** Повертає максимальну висоту картки. */
     double panelMaxHeightForTest() { return panel.getMaxHeight(); }
 
     /** Повертає підказку поля сили сигналу. */

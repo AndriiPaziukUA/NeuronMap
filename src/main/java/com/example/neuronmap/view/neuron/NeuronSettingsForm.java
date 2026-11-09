@@ -5,6 +5,7 @@ import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronActivationMode;
 import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronType;
+import com.example.neuronmap.model.SignalType;
 import com.example.neuronmap.model.StructureNeuronCreationMode;
 import com.example.neuronmap.view.support.SwitchToggleButton;
 import javafx.scene.Parent;
@@ -24,9 +25,8 @@ import java.util.OptionalInt;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
-/** Володіє введенням параметрів нейрона, вибором режимів активації й створення структури та перевіркою значень. */
+/** Володіє введенням параметрів нейрона, вибором режимів і перевіркою значень форми. */
 final class NeuronSettingsForm {
-
     private static final String POPUP_STYLESHEET_RESOURCE = "/neuron-settings-popup.css";
     private static final String POPUP_CELL_NORMAL_STYLE = "-fx-background: #282d35; "
             + "-fx-background-color: #282d35; -fx-background-insets: 0; -fx-text-fill: #edf0f3;";
@@ -46,6 +46,7 @@ final class NeuronSettingsForm {
     private final SwitchToggleButton strongestNeuronOnlyToggle = new SwitchToggleButton(
             "neuron-settings-strongest-graphic", "neuron-settings-strongest-track", "neuron-settings-strongest-thumb");
     private final ComboBox<NeuronActivationMode> activationModeSelector = new ComboBox<>();
+    private final ComboBox<SignalType> signalTypeSelector = new ComboBox<>();
     private final ComboBox<StructureNeuronCreationMode> neuronCreationModeSelector = new ComboBox<>();
     private boolean updatingSelection;
     private boolean structureSettings;
@@ -54,11 +55,10 @@ final class NeuronSettingsForm {
     private String percentagePrompt = "";
 
     /**
-     * Створює форму, налаштовує локалізований список режимів і валідацію числових полів.
+     * Створює форму, налаштовує списки режимів і перевірку введених значень.
      *
      * @param saveButton кнопка збереження, доступністю якої керує форма.
-     * @param localization спільна служба локалізації застосунку.
-     * @throws NullPointerException якщо кнопку або службу локалізації не задано.
+     * @param localization спільна служба локалізації.
      */
     NeuronSettingsForm(Button saveButton, LocalizationService localization) {
         this.saveButton = Objects.requireNonNull(saveButton, "saveButton");
@@ -70,16 +70,12 @@ final class NeuronSettingsForm {
         structureMemberCountField.textProperty().addListener((_, _, _) -> validateInput());
         strongestNeuronOnlyToggle.getStyleClass().add("neuron-settings-strongest-toggle");
         configureActivationModeSelector();
+        configureSignalTypeSelector();
         configureNeuronCreationModeSelector();
         validateInput();
     }
 
-    /**
-     * Завантажує значення форми та задає мінімальну допустиму кількість учасників структури.
-     *
-     * @param neuron нейрон, параметри якого редагують.
-     * @param currentMemberCount поточна кількість безпосередніх учасників; використовується лише для структури.
-     */
+    /** Завантажує параметри нейрона та задає нижню межу кількості учасників структури. */
     void load(Neuron neuron, int currentMemberCount) {
         Objects.requireNonNull(neuron, "neuron");
         structureSettings = neuron.type() == NeuronType.STRUCTURE;
@@ -93,6 +89,7 @@ final class NeuronSettingsForm {
         updatingSelection = true;
         try {
             activationModeSelector.setValue(neuron.activationMode());
+            signalTypeSelector.setValue(neuron.signalType());
             neuronCreationModeSelector.setValue(neuron.neuronCreationMode());
             strongestNeuronOnlyToggle.setSelected(structureSettings && neuron.strongestNeuronOnly());
         } finally {
@@ -110,7 +107,7 @@ final class NeuronSettingsForm {
         validateInput();
     }
 
-    /** Установлює підказки числових полів відповідно до локалі та вибраного режиму активації. */
+    /** Установлює текстові підказки числових полів відповідно до активної локалі. */
     void setPromptText(String positiveIntegerPrompt, String percentagePrompt) {
         this.positiveIntegerPrompt = Objects.requireNonNull(positiveIntegerPrompt, "positiveIntegerPrompt");
         this.percentagePrompt = Objects.requireNonNull(percentagePrompt, "percentagePrompt");
@@ -123,22 +120,23 @@ final class NeuronSettingsForm {
         updateThresholdPrompt();
     }
 
-    /** Оновлює назви режимів у кнопці й випадаючому списку після зміни локалі. */
+    /** Оновлює підписи режимів після перемикання локалі, зберігаючи поточні вибрані значення. */
     void refreshTexts() {
         strongestNeuronOnlyToggle.setAccessibleText(
                 localization.textFrom("i18n.neuronSettings", "strongest_neuron"));
-        NeuronActivationMode selectedMode = activationModeSelector.getValue();
+        NeuronActivationMode selectedActivationMode = activationModeSelector.getValue();
+        SignalType selectedSignalType = signalTypeSelector.getValue();
         StructureNeuronCreationMode selectedCreationMode = neuronCreationModeSelector.getValue();
         updatingSelection = true;
         try {
             activationModeSelector.getItems().setAll(NeuronActivationMode.values());
-            activationModeSelector.setValue(selectedMode == null
-                    ? NeuronActivationMode.SIGNAL_STRENGTH
-                    : selectedMode);
+            activationModeSelector.setValue(selectedActivationMode == null
+                    ? NeuronActivationMode.SIGNAL_STRENGTH : selectedActivationMode);
+            signalTypeSelector.getItems().setAll(SignalType.values());
+            signalTypeSelector.setValue(selectedSignalType == null ? SignalType.STATIC : selectedSignalType);
             neuronCreationModeSelector.getItems().setAll(StructureNeuronCreationMode.values());
             neuronCreationModeSelector.setValue(selectedCreationMode == null
-                    ? StructureNeuronCreationMode.NEURON_COUNT
-                    : selectedCreationMode);
+                    ? StructureNeuronCreationMode.NEURON_COUNT : selectedCreationMode);
         } finally {
             updatingSelection = false;
         }
@@ -146,7 +144,7 @@ final class NeuronSettingsForm {
         validateInput();
     }
 
-    /** Повертає поле назви, яке дозволяє довільні символи в межах установленого ліміту. */
+    /** Повертає поле назви нейрона. */
     TextField nameField() { return nameField; }
 
     /** Повертає введену назву або {@code null}, якщо поле порожнє. */
@@ -155,76 +153,67 @@ final class NeuronSettingsForm {
         return value == null || value.isEmpty() ? null : value;
     }
 
-    /** Повертає поле введення сили сигналу. */
+    /** Повертає поле сили сигналу. */
     TextField signalField() { return signalField; }
 
-    /** Повертає поле введення порога активації або відсотка. */
+    /** Повертає поле порога активації. */
     TextField thresholdField() { return thresholdField; }
 
-    /** Повертає поле введення кількості активних тактів. */
+    /** Повертає поле тривалості активності. */
     TextField activeTicksField() { return activeTicksField; }
 
-    /** Повертає поле введення затримки перед першим вихідним сигналом. */
+    /** Повертає поле затримки перед першим сигналом. */
     TextField delayTicksField() { return delayTicksField; }
 
-    /** Повертає поле вводу кількості учасників структури. */
+    /** Повертає поле кількості безпосередніх учасників структури. */
     TextField structureMemberCountField() { return structureMemberCountField; }
 
-    /** Повертає графічний перемикач режиму найсильнішого нейрона. */
+    /** Повертає перемикач конкуренції учасників структури. */
     SwitchToggleButton strongestNeuronOnlyToggle() { return strongestNeuronOnlyToggle; }
 
-    /** Повертає вибране значення режиму конкуренції для структури. */
+    /** Повертає вибране значення перемикача конкуренції. */
     boolean strongestNeuronOnly() {
         return structureSettings && strongestNeuronOnlyToggle.isSelected();
     }
 
-    /** Повертає вибрану умову створення спільного нейрона або типовий режим для звичайного нейрона. */
+    /** Повертає вибрану умову створення спільного нейрона. */
     StructureNeuronCreationMode neuronCreationMode() {
         return structureSettings ? neuronCreationModeSelector.getValue() : StructureNeuronCreationMode.NEURON_COUNT;
     }
 
-    /** Звільняє графічний перемикач, коли накладка налаштувань більше не використовуватиметься. */
+    /** Звільняє графічний перемикач після завершення життєвого циклу форми. */
     void dispose() {
         strongestNeuronOnlyToggle.dispose();
     }
 
-    /** Повертає список вибору способу активації нейрона. */
+    /** Повертає список способів перевірки порога активації. */
     ComboBox<NeuronActivationMode> activationModeSelector() { return activationModeSelector; }
 
-    /** Повертає список режимів створення спільного нейрона у налаштуваннях структури. */
+    /** Повертає список типів вихідного сигналу. */
+    ComboBox<SignalType> signalTypeSelector() { return signalTypeSelector; }
+
+    /** Повертає список способів створення спільного нейрона в структурі. */
     ComboBox<StructureNeuronCreationMode> neuronCreationModeSelector() { return neuronCreationModeSelector; }
 
-    /**
-     * Повертає перевірений набір параметрів лише тоді, коли кожне поле відповідає обраному режиму.
-     *
-     * @return параметри для збереження або порожнє значення, якщо введення некоректне.
-     */
+    /** Повертає параметри лише тоді, коли всі поля форми мають допустимі значення. */
     Optional<NeuronParameters> parameters() {
         OptionalInt signalStrength = parsePositive(signalField.getText());
-        OptionalInt activationThreshold = parseThreshold(
-                thresholdField.getText(), activationModeSelector.getValue());
+        OptionalInt activationThreshold = parseThreshold(thresholdField.getText(), activationModeSelector.getValue());
         OptionalInt activeTicks = parsePositive(activeTicksField.getText());
         OptionalInt delayTicks = parsePositive(delayTicksField.getText());
         NeuronActivationMode activationMode = activationModeSelector.getValue();
+        SignalType signalType = signalTypeSelector.getValue();
         if (signalStrength.isEmpty() || activationThreshold.isEmpty()
-                || activeTicks.isEmpty() || delayTicks.isEmpty() || activationMode == null
+                || activeTicks.isEmpty() || delayTicks.isEmpty()
+                || activationMode == null || signalType == null
                 || structureSettings && neuronCreationModeSelector.getValue() == null) {
             return Optional.empty();
         }
-        return Optional.of(new NeuronParameters(
-                signalStrength.getAsInt(),
-                activationThreshold.getAsInt(),
-                activeTicks.getAsInt(),
-                delayTicks.getAsInt(),
-                activationMode
-        ));
+        return Optional.of(new NeuronParameters(signalStrength.getAsInt(), activationThreshold.getAsInt(),
+                activeTicks.getAsInt(), delayTicks.getAsInt(), activationMode, signalType));
     }
 
-    /**
-     * Повертає цільову кількість учасників, якщо форма структури містить допустиме значення.
-     *
-     * @return цільова кількість, не менша за початкову, або порожній результат для некоректного вводу.
-     */
+    /** Повертає цільову кількість учасників структури, якщо вона не менша за поточну. */
     OptionalInt structureMemberCount() {
         if (!structureSettings) {
             return OptionalInt.empty();
@@ -236,40 +225,35 @@ final class NeuronSettingsForm {
         return requestedCount;
     }
 
-    /** Налаштовує селектор режиму без примусового компонування всієї сцени під час відкриття popup. */
+    /** Налаштовує список способів перевірки порога. */
     private void configureActivationModeSelector() {
         configureModeSelector(activationModeSelector, List.of(NeuronActivationMode.values()),
                 NeuronActivationMode.SIGNAL_STRENGTH, this::activationModeText, this::updateThresholdPrompt);
     }
 
-    /** Налаштовує список умови створення центру тим самим оформленням і життєвим циклом popup. */
+    /** Налаштовує список типів сигналу з типовим статичним режимом. */
+    private void configureSignalTypeSelector() {
+        configureModeSelector(signalTypeSelector, List.of(SignalType.values()),
+                SignalType.STATIC, this::signalTypeText, () -> { });
+    }
+
+    /** Налаштовує список умови створення спільного нейрона. */
     private void configureNeuronCreationModeSelector() {
         configureModeSelector(neuronCreationModeSelector, List.of(StructureNeuronCreationMode.values()),
                 StructureNeuronCreationMode.NEURON_COUNT, this::neuronCreationModeText, () -> { });
     }
 
-    /** Спільно налаштовує вигляд, локалізацію й закриття випадаючого списку для будь-якого режиму. */
-    private <T> void configureModeSelector(
-            ComboBox<T> selector,
-            List<T> modes,
-            T defaultMode,
-            Function<T, String> textProvider,
-            Runnable selectionChanged
-    ) {
+    /** Спільно налаштовує локалізацію, відображення й життєвий цикл випадаючого списку. */
+    private <T> void configureModeSelector(ComboBox<T> selector, List<T> modes, T defaultMode,
+                                           Function<T, String> textProvider, Runnable selectionChanged) {
         selector.getItems().setAll(modes);
         selector.setValue(defaultMode);
         selector.getStyleClass().add("neuron-settings-activation-selector");
         selector.setMaxWidth(Double.MAX_VALUE);
         selector.setCellFactory(_ -> modeCell(selector, true, textProvider));
         selector.setButtonCell(modeCell(selector, false, textProvider));
-        /*
-         * Закриваємо popup до від'єднання власника від Scene, щоб ComboBox не зберігав
-         * застарілий ланцюжок styleable-parent після закриття накладки налаштувань.
-         */
         selector.sceneProperty().addListener((_, _, currentScene) -> {
-            if (currentScene == null) {
-                selector.hide();
-            }
+            if (currentScene == null) selector.hide();
         });
         selector.setConverter(new StringConverter<>() {
             /** Повертає локалізовану назву вибраного режиму. */
@@ -278,7 +262,7 @@ final class NeuronSettingsForm {
                 return mode == null ? "" : textProvider.apply(mode);
             }
 
-            /** Текстове введення не перетворюється на значення переліку режимів. */
+            /** Текстове введення не перетворюється на значення переліку. */
             @Override
             public T fromString(String value) {
                 return null;
@@ -293,43 +277,24 @@ final class NeuronSettingsForm {
         });
     }
 
-    /** Створює локалізовану комірку та підключає popup-стилі лише до дерева відповідного списку.
-     *
-     * @param selector список, для якого створюється комірка.
-     * @param popupOption {@code true}, якщо комірка відображається у випадаючому списку;
-     *                    {@code false} для комірки вибраного значення в самому ComboBox.
-     * @param textProvider функція, яка повертає локалізовану назву значення.
-     * @return комірка з локалізованим текстом і відповідним CSS-класом.
-     */
-    private <T> ListCell<T> modeCell(
-            ComboBox<T> selector,
-            boolean popupOption,
-            Function<T, String> textProvider
-    ) {
+    /** Створює комірку списку з темним оформленням і локалізованим значенням. */
+    private <T> ListCell<T> modeCell(ComboBox<T> selector, boolean popupOption, Function<T, String> textProvider) {
         ListCell<T> cell = new ListCell<>() {
-            /** Оновлює текст комірки для поточного елемента списку. */
+            /** Оновлює напис комірки після зміни елемента. */
             @Override
             protected void updateItem(T item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : textProvider.apply(item));
-                if (popupOption) {
-                    refreshActivationPopupCellStyle(this);
-                }
+                if (popupOption) refreshActivationPopupCellStyle(this);
             }
         };
         cell.getStyleClass().add(popupOption
-                ? "neuron-settings-activation-option"
-                : "neuron-settings-activation-value");
-        if (!popupOption) {
-            // The skin's display cell does not consistently resolve the view-scoped CSS text-fill
-            // before the first CSS pulse in headless tests, so keep its value appearance explicit.
-            cell.setStyle(ACTIVATION_VALUE_STYLE);
-        }
+                ? "neuron-settings-activation-option" : "neuron-settings-activation-value");
+        if (!popupOption) cell.setStyle(ACTIVATION_VALUE_STYLE);
         if (popupOption) {
             cell.hoverProperty().addListener((_, _, _) -> refreshActivationPopupCellStyle(cell));
             cell.sceneProperty().addListener((_, previousScene, currentScene) -> {
-                if (currentScene != null && currentScene != previousScene
-                        && currentScene != selector.getScene()) {
+                if (currentScene != null && currentScene != previousScene && currentScene != selector.getScene()) {
                     attachPopupStylesheetToListView(cell);
                 }
             });
@@ -337,7 +302,7 @@ final class NeuronSettingsForm {
         return cell;
     }
 
-    /** Застосовує inline-колір до popup-комірки, щоб стандартний синій selected Modena не перекривав тему. */
+    /** Застосовує кольори теми до комірки випадаючого списку. */
     private void refreshActivationPopupCellStyle(ListCell<?> cell) {
         if (cell.isEmpty()) {
             cell.setStyle("");
@@ -346,43 +311,40 @@ final class NeuronSettingsForm {
         cell.setStyle(cell.isHover() ? POPUP_CELL_HOVER_STYLE : POPUP_CELL_NORMAL_STYLE);
     }
 
-    /**
-     * Прикріплює таблицю стилів безпосередньо до ListView усередині popup.
-     * Список стилів Scene/кореня PopupControl може замінюватися під час показу popup;
-     * stylesheet самого ListView залишається в його дереві й стилізує його комірки.
-     */
+    /** Прикріплює таблицю стилів до ListView усередині popup, не змінюючи глобальну сцену. */
     static void attachPopupStylesheetToListView(ListCell<?> popupCell) {
         Objects.requireNonNull(popupCell, "popupCell");
         Parent ancestor = popupCell.getParent();
-        while (ancestor != null && !(ancestor instanceof ListView<?>)) {
-            ancestor = ancestor.getParent();
-        }
-        if (!(ancestor instanceof ListView<?> popupList)) {
-            return;
-        }
+        while (ancestor != null && !(ancestor instanceof ListView<?>)) ancestor = ancestor.getParent();
+        if (!(ancestor instanceof ListView<?> popupList)) return;
 
         URL resource = NeuronSettingsForm.class.getResource(POPUP_STYLESHEET_RESOURCE);
         if (resource == null) {
             throw new IllegalStateException("Не знайдено таблицю стилів popup: " + POPUP_STYLESHEET_RESOURCE);
         }
-        // A component-owner class keeps popup rules isolated from unrelated ListViews.
         if (!popupList.getStyleClass().contains("neuron-settings-activation-popup")) {
             popupList.getStyleClass().add("neuron-settings-activation-popup");
         }
         String stylesheet = resource.toExternalForm();
-        if (!popupList.getStylesheets().contains(stylesheet)) {
-            popupList.getStylesheets().add(stylesheet);
-        }
+        if (!popupList.getStylesheets().contains(stylesheet)) popupList.getStylesheets().add(stylesheet);
     }
 
-    /** Повертає локалізовану назву конкретного способу активації. */
+    /** Повертає локалізовану назву способу перевірки порога. */
     private String activationModeText(NeuronActivationMode mode) {
-        return localization.textFrom("i18n.neuronSettings", mode == NeuronActivationMode.SIGNAL_STRENGTH
-                ? "activation_mode_strength"
-                : "activation_mode_count");
+        return localization.textFrom("i18n.neuronSettings",
+                mode == NeuronActivationMode.SIGNAL_STRENGTH ? "activation_mode_strength" : "activation_mode_count");
     }
 
-    /** Повертає локалізовану назву умови створення спільного нейрона. */
+    /** Повертає локалізовану назву типу вихідного сигналу. */
+    private String signalTypeText(SignalType type) {
+        return localization.textFrom("i18n.neuronSettings", switch (type) {
+            case STATIC -> "signal_type_static";
+            case STRONGEST -> "signal_type_strongest";
+            case RECEIVED -> "signal_type_received";
+        });
+    }
+
+    /** Повертає локалізовану назву способу створення спільного нейрона. */
     private String neuronCreationModeText(StructureNeuronCreationMode mode) {
         return localization.textFrom("i18n.neuronSettings", switch (mode) {
             case NEURON_COUNT -> "neuron_creation_mode_neurons";
@@ -390,15 +352,13 @@ final class NeuronSettingsForm {
         });
     }
 
-    /** Оновлює підказку порога відповідно до вибраного режиму активації. */
+    /** Оновлює підказку порога відповідно до вибраного способу активації. */
     private void updateThresholdPrompt() {
-        NeuronActivationMode mode = activationModeSelector.getValue();
-        thresholdField.setPromptText(mode == NeuronActivationMode.SIGNAL_COUNT
-                ? percentagePrompt
-                : positiveIntegerPrompt);
+        thresholdField.setPromptText(activationModeSelector.getValue() == NeuronActivationMode.SIGNAL_COUNT
+                ? percentagePrompt : positiveIntegerPrompt);
     }
 
-    /** Оновлює доступність збереження відповідно до валідності режиму й усіх числових полів. */
+    /** Вимикає збереження, якщо будь-яке поле або список режимів містить некоректне значення. */
     private void validateInput() {
         NeuronActivationMode mode = activationModeSelector.getValue();
         boolean invalidNumericInput = fields().stream().anyMatch(field ->
@@ -406,15 +366,16 @@ final class NeuronSettingsForm {
                         ? parseThreshold(field.getText(), mode).isEmpty()
                         : parsePositive(field.getText()).isEmpty());
         boolean invalidStructureCount = structureSettings && structureMemberCount().isEmpty();
-        saveButton.setDisable(mode == null || invalidNumericInput || invalidStructureCount);
+        saveButton.setDisable(mode == null || signalTypeSelector.getValue() == null
+                || invalidNumericInput || invalidStructureCount);
     }
 
-    /** Повертає числові поля у стабільному порядку для спільної валідації та налаштування. */
+    /** Повертає числові поля в однаковому порядку для валідації та налаштування підказок. */
     private List<TextField> fields() {
         return List.of(signalField, thresholdField, activeTicksField, delayTicksField);
     }
 
-    /** Створює поле назви, яке не обмежує набір символів, але забороняє перевищувати дозволену довжину. */
+    /** Створює поле назви з обмеженням кількості Unicode-кодових точок. */
     private static TextField createNameField() {
         TextField field = new TextField();
         UnaryOperator<TextFormatter.Change> lengthLimit = change ->
@@ -425,7 +386,7 @@ final class NeuronSettingsForm {
         return field;
     }
 
-    /** Створює числове поле, яке відхиляє символи, що не є десятковими цифрами. */
+    /** Створює числове поле, яке приймає лише десяткові цифри. */
     private static TextField createNumericField() {
         TextField field = new TextField();
         UnaryOperator<TextFormatter.Change> digitsOnly = change ->
@@ -436,9 +397,7 @@ final class NeuronSettingsForm {
 
     /** Перетворює текст на додатне ціле число в межах {@code int}. */
     private static OptionalInt parsePositive(String text) {
-        if (text == null || text.isBlank()) {
-            return OptionalInt.empty();
-        }
+        if (text == null || text.isBlank()) return OptionalInt.empty();
         try {
             int value = Integer.parseInt(text);
             return value > 0 ? OptionalInt.of(value) : OptionalInt.empty();
@@ -449,9 +408,7 @@ final class NeuronSettingsForm {
 
     /** Перетворює текст на невід'ємне ціле число в межах {@code int}. */
     private static OptionalInt parseNonNegative(String text) {
-        if (text == null || text.isBlank()) {
-            return OptionalInt.empty();
-        }
+        if (text == null || text.isBlank()) return OptionalInt.empty();
         try {
             int value = Integer.parseInt(text);
             return value >= 0 ? OptionalInt.of(value) : OptionalInt.empty();
@@ -460,17 +417,15 @@ final class NeuronSettingsForm {
         }
     }
 
-    /** Перевіряє поріг як додатне число сили або цілий відсоток у межах 0–100. */
+    /** Перевіряє числовий або відсотковий поріг відповідно до вибраного способу активації. */
     private static OptionalInt parseThreshold(String text, NeuronActivationMode mode) {
-        if (mode == null || mode == NeuronActivationMode.SIGNAL_STRENGTH) {
-            return parsePositive(text);
-        }
-        if (text == null || text.isBlank()) {
-            return OptionalInt.empty();
-        }
+        if (mode == null || text == null || text.isBlank()) return OptionalInt.empty();
         try {
             int value = Integer.parseInt(text);
-            return value >= 0 && value <= 100 ? OptionalInt.of(value) : OptionalInt.empty();
+            if (mode == NeuronActivationMode.SIGNAL_COUNT) {
+                return value >= 0 && value <= 100 ? OptionalInt.of(value) : OptionalInt.empty();
+            }
+            return value > 0 ? OptionalInt.of(value) : OptionalInt.empty();
         } catch (NumberFormatException exception) {
             return OptionalInt.empty();
         }

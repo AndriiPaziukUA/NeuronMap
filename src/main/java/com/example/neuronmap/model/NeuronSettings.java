@@ -1,8 +1,8 @@
 package com.example.neuronmap.model;
 
 /**
- * Містить назву, параметри сигналу та спільні режими поведінки дерева нейронів структури.
- * Об'єкт змінюється централізовано, тому всі нейрони, які посилаються на нього, бачать актуальні значення.
+ * Містить назву, спільні параметри сигналу та режими поведінки дерева нейронів структури.
+ * Персональна адаптивна сила кожного учасника зберігається в самому {@link Neuron}, а тип сигналу лишається спільним.
  */
 public final class NeuronSettings {
 
@@ -11,113 +11,68 @@ public final class NeuronSettings {
 
     private String name;
     private NeuronParameters parameters;
-    /** Спільний тип звичайних нейронів дерева; null означає, що тип ще не визначено членством. */
     private NeuronType memberType;
-    /** Спільний напрямок нейрона, який представляє структуру, та всіх її учасників. */
     private boolean directionReversed;
-    /** Ознака конкуренції учасників дерева за найбільшим вхідним сигналом. */
     private boolean strongestNeuronOnly;
-    /** Спосіб створення спільного нейрона для групи активованих структурних джерел. */
     private StructureNeuronCreationMode neuronCreationMode = StructureNeuronCreationMode.NEURON_COUNT;
+    /** Змінюється лише під час переходу зі статичного режиму до будь-якого адаптивного. */
+    private long adaptiveSignalRevision;
 
     /** Створює налаштування з типовими параметрами й без заданої назви. */
     public NeuronSettings() {
         this(null, NeuronParameters.DEFAULT);
     }
 
-    /**
-     * Створює налаштування зі вказаною назвою та набором параметрів сигналу.
-     *
-     * @param name назва або {@code null}, якщо назву не задано.
-     * @param parameters перевірені параметри сигналу.
-     * @throws IllegalArgumentException якщо назва задовга або параметри не задано.
-     */
+    /** Створює налаштування зі вказаною назвою та набором параметрів сигналу. */
     public NeuronSettings(String name, NeuronParameters parameters) {
         setName(name);
         setParameters(parameters);
     }
 
-    /**
-     * Повертає назву, спільну для всіх нейронів, що посилаються на ці налаштування.
-     *
-     * @return назва або {@code null}, якщо її не задано.
-     */
-    public String name() {
-        return name;
-    }
+    /** Повертає спільну назву всіх нейронів, що посилаються на ці налаштування. */
+    public String name() { return name; }
 
-    /**
-     * Змінює спільну назву та нормалізує порожній рядок до {@code null}.
-     *
-     * @param name назва довжиною не більш як {@link #MAX_NAME_LENGTH} кодових точок або {@code null}.
-     * @throws IllegalArgumentException якщо назва перевищує дозволену довжину.
-     */
+    /** Змінює спільну назву та нормалізує порожній рядок до {@code null}. */
     public void setName(String name) {
         if (name != null && name.codePointCount(0, name.length()) > MAX_NAME_LENGTH) {
-            throw new IllegalArgumentException(
-                    "Neuron name must not exceed " + MAX_NAME_LENGTH + " characters.");
+            throw new IllegalArgumentException("Neuron name must not exceed " + MAX_NAME_LENGTH + " characters.");
         }
         this.name = name == null || name.isEmpty() ? null : name;
     }
 
-    /**
-     * Повертає незмінний набір параметрів, спільний для власника й усіх його учасників.
-     *
-     * @return поточні параметри сигналу.
-     */
-    public NeuronParameters parameters() {
-        return parameters;
-    }
+    /** Повертає базовий набір параметрів, спільний для власника й усіх його учасників. */
+    public NeuronParameters parameters() { return parameters; }
 
     /**
-     * Замінює всі параметри сигналу однією перевіреною операцією.
-     *
-     * @param parameters повний набір параметрів.
-     * @throws IllegalArgumentException якщо параметри не задано.
+     * Замінює спільні параметри. Перехід зі статичного типу до адаптивного збільшує ревізію,
+     * щоб кожен учасник ініціалізував персональну силу актуальним спільним значенням.
      */
     public void setParameters(NeuronParameters parameters) {
         if (parameters == null) {
             throw new IllegalArgumentException("Neuron parameters must not be null.");
         }
+        if (this.parameters != null
+                && this.parameters.signalType() == SignalType.STATIC
+                && parameters.signalType() != SignalType.STATIC) {
+            adaptiveSignalRevision++;
+        }
         this.parameters = parameters;
     }
 
-    /**
-     * Повертає спільний тип звичайних нейронів дерева структури; за відсутності заданого типу використовує збуджувальний.
-     *
-     * @return тип учасників, який спільно визначає власник налаштувань.
-     */
-    public NeuronType memberType() {
-        return memberType == null ? NeuronType.EXCITATORY : memberType;
-    }
+    /** Повертає спільний тип звичайних учасників дерева; за відсутності заданого типу використовує збуджувальний. */
+    public NeuronType memberType() { return memberType == null ? NeuronType.EXCITATORY : memberType; }
 
-    /**
-     * Повертає явно заданий спільний тип без підстановки типового значення.
-     *
-     * @return заданий тип учасників або {@code null}, якщо членство ще не визначило його.
-     */
-    NeuronType memberTypeOrNull() {
-        return memberType;
-    }
+    /** Повертає явно заданий спільний тип без підстановки типового значення. */
+    NeuronType memberTypeOrNull() { return memberType; }
 
-    /**
-     * Ініціалізує спільний тип лише один раз, коли вперше під'єднується наявний учасник.
-     * Це зберігає тип під час відновлення структури зі збереженої карти.
-     *
-     * @param type тип першого звичайного учасника.
-     */
+    /** Ініціалізує спільний тип лише один раз, коли вперше під'єднується наявний учасник. */
     void initializeMemberType(NeuronType type) {
         if (memberType == null && type != null && type != NeuronType.STRUCTURE) {
             memberType = type;
         }
     }
 
-    /**
-     * Змінює єдиний тип усіх звичайних нейронів у спільному дереві структури.
-     *
-     * @param type новий тип учасників; тип контейнера {@link NeuronType#STRUCTURE} не дозволений.
-     * @throws IllegalArgumentException якщо тип не задано або він позначає структуру.
-     */
+    /** Змінює єдиний тип усіх звичайних нейронів у спільному дереві структури. */
     public void setMemberType(NeuronType type) {
         if (type == null || type == NeuronType.STRUCTURE) {
             throw new IllegalArgumentException("Structure member type must be excitatory or inhibitory.");
@@ -125,58 +80,22 @@ public final class NeuronSettings {
         memberType = type;
     }
 
-    /**
-     * Повертає спільний напрямок дерева структурних нейронів.
-     *
-     * @return {@code true}, якщо напрямок розвернуто.
-     */
-    public boolean directionReversed() {
-        return directionReversed;
-    }
+    /** Повертає спільний напрямок дерева структурних нейронів. */
+    public boolean directionReversed() { return directionReversed; }
 
-    /**
-     * Установлює єдиний напрямок структури та її учасників.
-     *
-     * @param directionReversed {@code true}, якщо напрямок потрібно розвернути.
-     */
-    public void setDirectionReversed(boolean directionReversed) {
-        this.directionReversed = directionReversed;
-    }
+    /** Установлює єдиний напрямок структури та її учасників. */
+    public void setDirectionReversed(boolean directionReversed) { this.directionReversed = directionReversed; }
 
-    /**
-     * Показує, чи мають звичайні нейрони структурного дерева конкурувати за найбільшим вхідним сигналом.
-     *
-     * @return {@code true}, якщо автоматично активується лише найсильніший кандидат у дереві.
-     */
-    public boolean strongestNeuronOnly() {
-        return strongestNeuronOnly;
-    }
+    /** Показує, чи мають звичайні нейрони структурного дерева конкурувати за найбільшим вхідним сигналом. */
+    public boolean strongestNeuronOnly() { return strongestNeuronOnly; }
 
-    /**
-     * Умикає або вимикає конкуренцію учасників за найбільшим вхідним сигналом.
-     * Значення спільне для кореневої структури та всіх вкладених учасників.
-     *
-     * @param strongestNeuronOnly {@code true}, щоб автоматично активувати лише найсильнішого кандидата.
-     */
-    public void setStrongestNeuronOnly(boolean strongestNeuronOnly) {
-        this.strongestNeuronOnly = strongestNeuronOnly;
-    }
+    /** Умикає або вимикає конкуренцію учасників за найбільшим вхідним сигналом. */
+    public void setStrongestNeuronOnly(boolean strongestNeuronOnly) { this.strongestNeuronOnly = strongestNeuronOnly; }
 
-    /**
-     * Повертає умову, за якою структура створює новий спільний нейрон для активованої групи.
-     *
-     * @return режим за кількістю активованих нейронів або за активністю кожної під'єднаної структури.
-     */
-    public StructureNeuronCreationMode neuronCreationMode() {
-        return neuronCreationMode;
-    }
+    /** Повертає умову, за якою структура створює новий спільний нейрон для активованої групи. */
+    public StructureNeuronCreationMode neuronCreationMode() { return neuronCreationMode; }
 
-    /**
-     * Змінює умову створення спільного нейрона для всього дерева структури.
-     *
-     * @param neuronCreationMode режим перевірки активованих структурних джерел.
-     * @throws IllegalArgumentException якщо режим не задано.
-     */
+    /** Змінює умову створення спільного нейрона для всього дерева структури. */
     public void setNeuronCreationMode(StructureNeuronCreationMode neuronCreationMode) {
         if (neuronCreationMode == null) {
             throw new IllegalArgumentException("Neuron creation mode must not be null.");
@@ -184,26 +103,20 @@ public final class NeuronSettings {
         this.neuronCreationMode = neuronCreationMode;
     }
 
-    /**
-     * Створює незалежну копію поточних налаштувань для моменту виходу нейрона зі структури.
-     * Копіюються спільний тип учасників, напрямок, режими відбору та створення спільних нейронів.
-     *
-     * @return новий об'єкт налаштувань з такими самими поточними значеннями.
-     */
+    /** Повертає ревізію, за якою учасники визначають потребу ініціалізувати персональну силу сигналу. */
+    long adaptiveSignalRevision() { return adaptiveSignalRevision; }
+
+    /** Створює незалежну копію спільних налаштувань разом із поточною ревізією адаптивної сили. */
     public NeuronSettings copy() {
         NeuronParameters current = parameters;
-        NeuronParameters copiedParameters = new NeuronParameters(
-                current.signalStrength(),
-                current.activationThreshold(),
-                current.activeTicks(),
-                current.delayTicks(),
-                current.activationMode()
-        );
-        NeuronSettings copy = new NeuronSettings(name, copiedParameters);
+        NeuronSettings copy = new NeuronSettings(name, new NeuronParameters(
+                current.signalStrength(), current.activationThreshold(), current.activeTicks(),
+                current.delayTicks(), current.activationMode(), current.signalType()));
         copy.memberType = memberType;
         copy.directionReversed = directionReversed;
         copy.strongestNeuronOnly = strongestNeuronOnly;
         copy.neuronCreationMode = neuronCreationMode;
+        copy.adaptiveSignalRevision = adaptiveSignalRevision;
         return copy;
     }
 }

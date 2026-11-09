@@ -1,8 +1,8 @@
 package com.example.neuronmap.model;
 
 /**
- * Зберігає семантичний стан нейрона: тип, назву, поточну активацію та налаштування сигналу.
- * Нейрон у структурі делегує назву й параметри її контейнеру, а тип учасників бере зі спільних налаштувань дерева.
+ * Зберігає семантичний стан нейрона та делегує спільні параметри власнику структури.
+ * В адаптивних режимах звичайний нейрон додатково зберігає власну силу сигналу.
  */
 public final class Neuron {
 
@@ -13,14 +13,15 @@ public final class Neuron {
     private NeuronType type;
     private int activation;
     private NeuronSettings settings;
+    private int adaptiveSignalStrength;
+    private long adaptiveSignalRevision;
 
     /**
-     * Створює нейрон із типовими параметрами сигналу, одним активним тактом і затримкою в один такт.
-     * Типовий спосіб активації — за силою сигналів.
+     * Створює нейрон із типовими параметрами та статичним типом сигналу.
      *
      * @param id унікальний ідентифікатор нейрона.
      * @param type тип нейрона.
-     * @param activation початкове значення активації.
+     * @param activation початковий стан активації.
      * @throws IllegalArgumentException якщо ідентифікатор порожній або тип не задано.
      */
     public Neuron(String id, NeuronType type, int activation) {
@@ -28,30 +29,27 @@ public final class Neuron {
     }
 
     /**
-     * Створює нейрон зі вказаною силою сигналу та порогом активації, зберігаючи сумісність зі старими викликами.
+     * Створює нейрон із силою сигналу та порогом активації.
      *
      * @param id унікальний ідентифікатор нейрона.
      * @param type тип нейрона.
-     * @param activation початкове значення активації.
-     * @param signalStrength сила сигналу, який генерує нейрон.
-     * @param activationThreshold поріг суми вхідних сигналів для активації нейрона.
-     * @throws IllegalArgumentException якщо ідентифікатор порожній, тип не задано або параметри некоректні.
+     * @param activation початковий стан активації.
+     * @param signalStrength додатна сила вихідного сигналу.
+     * @param activationThreshold поріг активації.
      */
     public Neuron(String id, NeuronType type, int activation, int signalStrength, int activationThreshold) {
         this(id, type, activation, new NeuronParameters(signalStrength, activationThreshold));
     }
 
     /**
-     * Створює нейрон із параметрами сили сигналу, порога активації та тривалості активності.
-     * Затримка для сумісності зі старими викликами дорівнює одному такту.
+     * Створює нейрон із силою сигналу, порогом і тривалістю активності.
      *
      * @param id унікальний ідентифікатор нейрона.
      * @param type тип нейрона.
-     * @param activation початкове значення активації.
-     * @param signalStrength сила сигналу, який генерує нейрон.
-     * @param activationThreshold поріг суми вхідних сигналів для активації нейрона.
-     * @param activeTicks кількість тактів, протягом яких нейрон передає сигнал.
-     * @throws IllegalArgumentException якщо ідентифікатор порожній, тип не задано або параметри некоректні.
+     * @param activation початковий стан активації.
+     * @param signalStrength додатна сила вихідного сигналу.
+     * @param activationThreshold поріг активації.
+     * @param activeTicks кількість активних тактів.
      */
     public Neuron(String id, NeuronType type, int activation, int signalStrength,
                   int activationThreshold, int activeTicks) {
@@ -59,16 +57,15 @@ public final class Neuron {
     }
 
     /**
-     * Створює нейрон з усіма параметрами сигналу, включно із затримкою перед першим вихідним сигналом.
+     * Створює нейрон із повним набором параметрів сигналу.
      *
      * @param id унікальний ідентифікатор нейрона.
      * @param type тип нейрона.
-     * @param activation початкове значення активації.
-     * @param signalStrength сила сигналу, який генерує нейрон.
-     * @param activationThreshold поріг суми вхідних сигналів для активації нейрона.
-     * @param activeTicks кількість тактів, протягом яких нейрон передає сигнал.
-     * @param delayTicks кількість тактів затримки перед першим вихідним сигналом.
-     * @throws IllegalArgumentException якщо ідентифікатор порожній, тип не задано або параметри некоректні.
+     * @param activation початковий стан активації.
+     * @param signalStrength додатна сила вихідного сигналу.
+     * @param activationThreshold поріг активації.
+     * @param activeTicks кількість активних тактів.
+     * @param delayTicks затримка перед першим вихідним сигналом.
      */
     public Neuron(String id, NeuronType type, int activation, int signalStrength,
                   int activationThreshold, int activeTicks, int delayTicks) {
@@ -77,13 +74,13 @@ public final class Neuron {
     }
 
     /**
-     * Створює нейрон із заданим незмінним набором параметрів сигналу.
+     * Створює нейрон із заданим набором параметрів та ініціалізує його персональний стан.
      *
      * @param id унікальний ідентифікатор нейрона.
      * @param type тип нейрона.
-     * @param activation початкове значення активації.
-     * @param parameters перевірені параметри сигналу нейрона.
-     * @throws IllegalArgumentException якщо ідентифікатор порожній або тип чи параметри не задано.
+     * @param activation початковий стан активації.
+     * @param parameters перевірений набір параметрів сигналу.
+     * @throws IllegalArgumentException якщо ідентифікатор порожній або обов'язкові значення не задано.
      */
     public Neuron(String id, NeuronType type, int activation, NeuronParameters parameters) {
         if (id == null || id.isBlank()) {
@@ -95,36 +92,28 @@ public final class Neuron {
         if (parameters == null) {
             throw new IllegalArgumentException("Neuron parameters must not be null.");
         }
-
         this.id = id;
         this.type = type;
         this.activation = activation;
-        this.settings = new NeuronSettings(null, parameters);
+        settings = new NeuronSettings(null, parameters);
+        adaptiveSignalStrength = parameters.signalStrength();
+        adaptiveSignalRevision = settings.adaptiveSignalRevision();
     }
 
-    /** Повертає унікальний ідентифікатор нейрона.
-     * @return ідентифікатор нейрона.
-     */
+    /** Повертає унікальний ідентифікатор нейрона. @return ідентифікатор нейрона. */
     public String id() { return id; }
 
-    /** Повертає назву нейрона або спільну назву його структури-власника.
-     * @return назва або {@code null}, якщо її не задано.
-     */
+    /** Повертає спільну назву нейрона або його структури-власника. @return назва або {@code null}. */
     public String name() { return settings.name(); }
 
     /**
-     * Установлює назву нейрона або структури, яка володіє його налаштуваннями; порожній рядок нормалізується до {@code null}.
+     * Установлює назву нейрона або структури-власника.
      *
-     * @param name назва довжиною не більш як 30 символів або {@code null} для очищення.
-     * @throws IllegalArgumentException якщо назва перевищує допустиму довжину.
+     * @param name нова назва або {@code null} для очищення.
      */
-    public void setName(String name) {
-        settings.setName(name);
-    }
+    public void setName(String name) { settings.setName(name); }
 
-    /** Повертає фактичний тип нейрона з урахуванням спільного типу дерева структури.
-     * @return тип контейнера або тип, визначений спільними налаштуваннями учасників.
-     */
+    /** Повертає фактичний тип з урахуванням спільного типу дерева структури. @return тип нейрона. */
     public NeuronType type() {
         if (type == NeuronType.STRUCTURE || settings.memberTypeOrNull() == null) {
             return type;
@@ -133,9 +122,9 @@ public final class Neuron {
     }
 
     /**
-     * Установлює тип нейрона. Для учасника структури змінюється спільний тип усіх звичайних учасників дерева.
+     * Змінює тип нейрона або спільний тип звичайних учасників структури.
      *
-     * @param type новий тип, який не може бути {@code null}.
+     * @param type новий тип нейрона.
      * @throws IllegalArgumentException якщо тип не задано.
      */
     public void setType(NeuronType type) {
@@ -150,27 +139,29 @@ public final class Neuron {
         this.type = type;
     }
 
-    /** Повертає поточне значення активації нейрона.
-     * @return значення активації.
-     */
+    /** Повертає стан активації. @return поточна активація. */
     public int activation() { return activation; }
 
-    /** Установлює поточне значення активації.
-     * @param activation нове значення активації.
-     */
+    /** Установлює стан активації. @param activation нове значення активації. */
     public void setActivation(int activation) { this.activation = activation; }
 
     /**
-     * Повертає спільний незмінний набір параметрів, якщо нейрон є внутрішнім елементом структури.
+     * Повертає параметри, у яких сила адаптивного режиму є персональною для звичайного нейрона.
      *
-     * @return усі параметри сигналу та режим активації.
+     * @return параметри сигналу з ефективною силою.
      */
-    public NeuronParameters parameters() { return settings.parameters(); }
+    public NeuronParameters parameters() {
+        NeuronParameters shared = settings.parameters();
+        if (type != NeuronType.STRUCTURE && shared.signalType() != SignalType.STATIC) {
+            return shared.withSignalStrength(signalStrength());
+        }
+        return shared;
+    }
 
     /**
-     * Замінює набір параметрів активного власника налаштувань однією перевіреною операцією.
+     * Замінює параметри власника налаштувань; у режимі адаптації задана сила стає персональним значенням.
      *
-     * @param parameters повний набір нових параметрів.
+     * @param parameters новий набір параметрів.
      * @throws IllegalArgumentException якщо параметри не задано.
      */
     public void setParameters(NeuronParameters parameters) {
@@ -178,152 +169,198 @@ public final class Neuron {
             throw new IllegalArgumentException("Neuron parameters must not be null.");
         }
         settings.setParameters(parameters);
+        if (type != NeuronType.STRUCTURE && parameters.signalType() != SignalType.STATIC) {
+            adaptiveSignalStrength = parameters.signalStrength();
+            adaptiveSignalRevision = settings.adaptiveSignalRevision();
+        }
     }
 
-    /** Повертає режим перевірки порога активації.
-     * @return спосіб інтерпретації порога.
-     */
-    public NeuronActivationMode activationMode() { return parameters().activationMode(); }
+    /** Повертає режим перевірки порога активації. @return режим активації. */
+    public NeuronActivationMode activationMode() { return settings.parameters().activationMode(); }
+
+    /** Повертає спільний тип сигналу. @return тип сигналу. */
+    public SignalType signalType() { return settings.parameters().signalType(); }
 
     /**
-     * Повертає ознаку роботи нейрона в режимі конкуренції найсильніших учасників структури.
-     * Значення спільне для всього дерева, оскільки учасники посилаються на налаштування власника.
+     * Змінює спільний тип сигналу структури або тип окремого нейрона.
      *
-     * @return {@code true}, якщо структура активує лише найсильнішого кандидата; інакше {@code false}.
+     * @param signalType новий тип сигналу.
+     * @throws IllegalArgumentException якщо тип сигналу не задано.
      */
-    public boolean strongestNeuronOnly() {
-        return settings.strongestNeuronOnly();
+    public void setSignalType(SignalType signalType) {
+        if (signalType == null) {
+            throw new IllegalArgumentException("Signal type must not be null.");
+        }
+        settings.setParameters(settings.parameters().withSignalType(signalType));
     }
 
-    /**
-     * Повертає спільний режим створення нейронів для структури, якій належить цей нейрон.
-     * Значення успадковується всіма вкладеними структурами та звичайними учасниками дерева.
-     *
-     * @return режим створення нового спільного нейрона.
-     */
-    public StructureNeuronCreationMode neuronCreationMode() {
-        return settings.neuronCreationMode();
-    }
+    /** Повертає режим конкуренції учасників структури. @return {@code true}, якщо конкуренцію ввімкнено. */
+    public boolean strongestNeuronOnly() { return settings.strongestNeuronOnly(); }
+
+    /** Повертає спільну умову створення нейрона. @return режим створення. */
+    public StructureNeuronCreationMode neuronCreationMode() { return settings.neuronCreationMode(); }
 
     /**
-     * Змінює спосіб активації, зберігаючи інші параметри й перевіряючи поріг для нового режиму.
+     * Змінює режим активації, не скидаючи персональну адаптивну силу.
      *
-     * @param activationMode новий спосіб активації.
-     * @throws IllegalArgumentException якщо режим не задано або поточне значення порога не підходить йому.
+     * @param activationMode новий режим активації.
      */
     public void setActivationMode(NeuronActivationMode activationMode) {
-        NeuronParameters current = parameters();
-        setParameters(new NeuronParameters(current.signalStrength(), current.activationThreshold(),
-                current.activeTicks(), current.delayTicks(), activationMode));
+        NeuronParameters current = settings.parameters();
+        settings.setParameters(new NeuronParameters(current.signalStrength(), current.activationThreshold(),
+                current.activeTicks(), current.delayTicks(), activationMode, current.signalType()));
     }
 
-    /** Повертає налаштовану силу вихідного сигналу нейрона.
-     * @return додатна сила сигналу.
-     */
-    public int signalStrength() { return parameters().signalStrength(); }
+    /** Повертає ефективну силу, яку нейрон використає для наступного вихідного сигналу. @return сила сигналу. */
+    public int signalStrength() {
+        NeuronParameters current = settings.parameters();
+        if (type == NeuronType.STRUCTURE || current.signalType() == SignalType.STATIC) {
+            return current.signalStrength();
+        }
+        initializeAdaptiveSignalStrengthIfRequired();
+        return adaptiveSignalStrength;
+    }
 
     /**
-     * Установлює силу сигналу, зберігаючи решту параметрів, зокрема режим активації.
+     * Установлює силу сигналу; в адаптивному режимі змінює лише персональне значення нейрона.
      *
      * @param signalStrength нова додатна сила сигналу.
      * @throws IllegalArgumentException якщо значення не є додатним.
      */
     public void setSignalStrength(int signalStrength) {
-        NeuronParameters current = parameters();
-        setParameters(new NeuronParameters(signalStrength, current.activationThreshold(),
-                current.activeTicks(), current.delayTicks(), current.activationMode()));
+        if (signalStrength <= 0) {
+            throw new IllegalArgumentException("Signal strength must be greater than zero.");
+        }
+        if (type != NeuronType.STRUCTURE && signalType() != SignalType.STATIC) {
+            initializeAdaptiveSignalStrengthIfRequired();
+            adaptiveSignalStrength = signalStrength;
+            return;
+        }
+        settings.setParameters(settings.parameters().withSignalStrength(signalStrength));
     }
 
-    /** Повертає поріг сили або відсоток вхідних сигналів.
-     * @return налаштований поріг активації.
+    /**
+     * Оновлює персональну силу лише після того, як симуляція підтвердила проходження порога активації.
+     *
+     * @param receivedSignalStrength фактична сума сигналу, отримана в поточному такті.
      */
-    public int activationThreshold() { return parameters().activationThreshold(); }
+    public void learnSignalStrength(int receivedSignalStrength) {
+        if (receivedSignalStrength <= 0) {
+            return;
+        }
+        switch (signalType()) {
+            case STATIC -> { }
+            case STRONGEST -> {
+                if (receivedSignalStrength > signalStrength()) {
+                    setSignalStrength(receivedSignalStrength);
+                }
+            }
+            case RECEIVED -> setSignalStrength(receivedSignalStrength);
+        }
+    }
+
+    /** Повертає поріг активації. @return сила або відсоток порога. */
+    public int activationThreshold() { return settings.parameters().activationThreshold(); }
 
     /**
-     * Установлює поріг активації, зберігаючи решту параметрів та поточний режим.
+     * Установлює поріг активації, не змінюючи персональної сили сигналу.
      *
-     * @param activationThreshold новий поріг сили або відсоток у межах 0–100 для режиму кількості.
-     * @throws IllegalArgumentException якщо поріг не відповідає правилам поточного режиму.
+     * @param activationThreshold новий поріг активації.
      */
     public void setActivationThreshold(int activationThreshold) {
-        NeuronParameters current = parameters();
-        setParameters(new NeuronParameters(current.signalStrength(), activationThreshold,
-                current.activeTicks(), current.delayTicks(), current.activationMode()));
+        NeuronParameters current = settings.parameters();
+        settings.setParameters(new NeuronParameters(current.signalStrength(), activationThreshold,
+                current.activeTicks(), current.delayTicks(), current.activationMode(), current.signalType()));
     }
 
-    /** Повертає кількість активних тактів передавання сигналу.
-     * @return кількість активних тактів.
-     */
-    public int activeTicks() { return parameters().activeTicks(); }
+    /** Повертає кількість активних тактів. @return тривалість активності. */
+    public int activeTicks() { return settings.parameters().activeTicks(); }
 
     /**
-     * Установлює тривалість передавання сигналу, зберігаючи решту параметрів.
+     * Установлює тривалість активності без скидання персональної адаптивної сили.
      *
-     * @param activeTicks додатна кількість активних тактів.
-     * @throws IllegalArgumentException якщо значення не є додатним.
+     * @param activeTicks кількість активних тактів.
      */
     public void setActiveTicks(int activeTicks) {
-        NeuronParameters current = parameters();
-        setParameters(new NeuronParameters(current.signalStrength(), current.activationThreshold(),
-                activeTicks, current.delayTicks(), current.activationMode()));
+        NeuronParameters current = settings.parameters();
+        settings.setParameters(new NeuronParameters(current.signalStrength(), current.activationThreshold(),
+                activeTicks, current.delayTicks(), current.activationMode(), current.signalType()));
     }
 
-    /** Повертає налаштовану затримку перед першим вихідним сигналом.
-     * @return кількість тактів затримки.
-     */
-    public int delayTicks() { return parameters().delayTicks(); }
+    /** Повертає затримку перед першим вихідним сигналом. @return кількість тактів затримки. */
+    public int delayTicks() { return settings.parameters().delayTicks(); }
 
     /**
-     * Установлює затримку перед першим вихідним сигналом, зберігаючи решту параметрів.
+     * Установлює затримку, не скидаючи персональної адаптивної сили.
      *
-     * @param delayTicks додатна кількість тактів затримки.
-     * @throws IllegalArgumentException якщо затримка менша за один такт.
+     * @param delayTicks кількість тактів затримки.
      */
     public void setDelayTicks(int delayTicks) {
-        NeuronParameters current = parameters();
-        setParameters(new NeuronParameters(current.signalStrength(), current.activationThreshold(),
-                current.activeTicks(), delayTicks, current.activationMode()));
+        NeuronParameters current = settings.parameters();
+        settings.setParameters(new NeuronParameters(current.signalStrength(), current.activationThreshold(),
+                current.activeTicks(), delayTicks, current.activationMode(), current.signalType()));
     }
 
-    /**
-     * Повертає вагу сигналу з урахуванням того, чи є тип нейрона активуючим, та налаштованої сили.
-     *
-     * @return додатна вага для активуючих типів або від'ємна для гальмівного типу.
-     */
+    /** Повертає знакову вагу сигналу. @return додатна вага для збуджувального або від'ємна для гальмівного нейрона. */
     public int signalWeight() {
         return type().isActivating() ? signalStrength() : -signalStrength();
     }
 
     /**
-     * Прив'язує нейрон до спільного об'єкта налаштувань, не створюючи локальної копії значень.
-     * Якщо тип спільного дерева ще не встановлено, він ініціалізується поточним типом першого учасника.
+     * Прив'язує нейрон до спільних налаштувань структури, зберігаючи адаптивну силу при переході між деревами.
      *
-     * @param sharedSettings об'єкт налаштувань контейнера, на який посилатиметься нейрон.
-     * @throws IllegalArgumentException якщо об'єкт налаштувань не задано.
+     * @param sharedSettings спільні налаштування структури-власника.
+     * @throws IllegalArgumentException якщо налаштування не задано.
      */
     void shareSettingsWith(NeuronSettings sharedSettings) {
         if (sharedSettings == null) {
             throw new IllegalArgumentException("Shared settings must not be null.");
         }
+        if (settings == sharedSettings) {
+            return;
+        }
         if (type != NeuronType.STRUCTURE) {
             sharedSettings.initializeMemberType(type());
         }
+        boolean preserveAdaptiveStrength = type != NeuronType.STRUCTURE
+                && settings.parameters().signalType() != SignalType.STATIC
+                && sharedSettings.parameters().signalType() != SignalType.STATIC;
+        int previousStrength = preserveAdaptiveStrength ? signalStrength() : 0;
         settings = sharedSettings;
+        if (preserveAdaptiveStrength) {
+            adaptiveSignalStrength = previousStrength;
+            adaptiveSignalRevision = sharedSettings.adaptiveSignalRevision();
+        } else {
+            adaptiveSignalRevision = Long.MIN_VALUE;
+        }
     }
 
-    /** Повертає об'єкт налаштувань для синхронізації моделі в межах пакета.
-     * @return поточний об'єкт налаштувань нейрона.
-     */
-    NeuronSettings settings() {
-        return settings;
-    }
+    /** Повертає об'єкт спільних налаштувань для операцій моделі. @return поточні налаштування. */
+    NeuronSettings settings() { return settings; }
 
-    /** Від'єднує нейрон від спільних налаштувань, зберігаючи їхній поточний стан як власний. */
+    /** Від'єднує нейрон від спільних налаштувань, зберігаючи його фактичну персональну силу. */
     void detachSettings() {
         NeuronType currentType = type();
+        int currentStrength = type == NeuronType.STRUCTURE ? 0 : signalStrength();
         settings = settings.copy();
         if (type != NeuronType.STRUCTURE) {
             type = currentType;
+            if (settings.parameters().signalType() != SignalType.STATIC) {
+                adaptiveSignalStrength = currentStrength;
+                adaptiveSignalRevision = settings.adaptiveSignalRevision();
+            }
+        }
+    }
+
+    /**
+     * Ініціалізує персональну силу після переходу спільних налаштувань до нового адаптивного режиму.
+     * Ревізія дає змогу виконати ініціалізацію один раз без обходу всього дерева структури.
+     */
+    private void initializeAdaptiveSignalStrengthIfRequired() {
+        long currentRevision = settings.adaptiveSignalRevision();
+        if (adaptiveSignalRevision != currentRevision) {
+            adaptiveSignalStrength = settings.parameters().signalStrength();
+            adaptiveSignalRevision = currentRevision;
         }
     }
 }

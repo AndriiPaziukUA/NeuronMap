@@ -5,6 +5,7 @@ import com.example.neuronmap.model.Neuron;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.model.NeuronParameters;
 import com.example.neuronmap.model.NeuronType;
+import com.example.neuronmap.model.SignalType;
 import com.example.neuronmap.testsupport.JavaFxTestSupport;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
@@ -17,12 +18,13 @@ import org.junit.jupiter.api.Test;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Перевіряє окремі поля структури, їхню валідацію, компонування та відсутність у звичайного нейрона. */
+/** Перевіряє поля структури, їхню валідацію, компонування та приховування для звичайного нейрона. */
 final class NeuronSettingsStructureCountTest {
 
     /** Перевіряє завантаження поточної кількості, мінімум і передавання збільшеної цілі. */
@@ -154,13 +156,10 @@ final class NeuronSettingsStructureCountTest {
             HBox strongestRow = view.strongestNeuronOnlyRowForTest();
             Label strongestLabel = (Label) strongestRow.getChildren().getFirst();
             var toggle = view.strongestNeuronOnlyToggleForTest();
-            assertTrue(strongestLabel.getWidth() >= strongestLabel.prefWidth(-1) - 0.5,
-                    "Підпис має використовувати вільний простір замість непотрібного перенесення тексту");
+            assertTrue(strongestLabel.getWidth() >= strongestLabel.prefWidth(-1) - 0.5);
             assertEquals(strongestRow.getWidth() - strongestRow.getInsets().getRight(),
-                    toggle.getLayoutX() + toggle.getWidth(), 1.0,
-                    "Перемикач має прилягати до правого краю рядка");
-            assertTrue(toggle.getWidth() < 100.0,
-                    "Перемикач не повинен займати ширину текстового поля");
+                    toggle.getLayoutX() + toggle.getWidth(), 1.0);
+            assertTrue(toggle.getWidth() < 100.0);
 
             double expectedNumericWidth = 160.0 * 2.0 / 3.0;
             assertEquals(expectedNumericWidth, view.signalFieldForTest().getPrefWidth(), 0.1);
@@ -168,10 +167,8 @@ final class NeuronSettingsStructureCountTest {
             assertEquals(expectedNumericWidth, view.activeTicksFieldForTest().getPrefWidth(), 0.1);
             assertEquals(expectedNumericWidth, view.delayTicksFieldForTest().getPrefWidth(), 0.1);
             assertEquals(expectedNumericWidth, view.structureMemberCountFieldForTest().getPrefWidth(), 0.1);
-            assertEquals(160.0, view.nameFieldForTest().getPrefWidth(), 0.1,
-                    "Ширина текстового поля назви не повинна змінюватися");
-            assertEquals(160.0, view.activationModeSelectorForTest().getPrefWidth(), 0.1,
-                    "Ширина списку режимів активації не повинна змінюватися");
+            assertEquals(160.0, view.nameFieldForTest().getPrefWidth(), 0.1);
+            assertEquals(160.0, view.activationModeSelectorForTest().getPrefWidth(), 0.1);
 
             Rectangle track = (Rectangle) toggle.lookup(".neuron-settings-strongest-track");
             assertEquals(Color.web("#245bd7"), track.getFill());
@@ -180,7 +177,36 @@ final class NeuronSettingsStructureCountTest {
         });
     }
 
-    /** Створює нейрон з параметрами, які не перешкоджають перевірці форми налаштувань. */
+    /** Перевіряє тип signal за замовчуванням, порядок рядка, локалізацію та передачу вибраного значення. */
+    @Test
+    void signalTypeSelectorDefaultsToStaticPrecedesStrengthAndSavesSelection() throws Exception {
+        JavaFxTestSupport.runAndWait(() -> {
+            NeuronMapModel model = new NeuronMapModel();
+            Neuron structure = model.createNeuron(NeuronType.STRUCTURE, 0.0, 0.0);
+            NeuronSettingsView view = new NeuronSettingsView(new LocalizationService(Locale.forLanguageTag("uk")));
+            StackPane root = new StackPane();
+            new Scene(root, 1000.0, 800.0);
+            AtomicReference<NeuronParameters> saved = new AtomicReference<>();
+
+            view.showWithStructureSettingsIn(root, structure, 1,
+                    (parameters, _, _, _, _) -> saved.set(parameters));
+
+            assertEquals(SignalType.STATIC, view.signalTypeSelectorForTest().getValue());
+            assertEquals("Тип сигналу:", view.settingLabelTextForTest("i18n.neuronSettings.signal_type"));
+            var rows = ((javafx.scene.layout.VBox) view.signalTypeRowForTest().getParent()).getChildren();
+            HBox strengthRow = rows.stream().filter(HBox.class::isInstance).map(HBox.class::cast)
+                    .filter(row -> row.getChildren().contains(view.signalFieldForTest())).findFirst().orElseThrow();
+            assertTrue(rows.indexOf(view.signalTypeRowForTest()) < rows.indexOf(strengthRow));
+
+            view.signalTypeSelectorForTest().setValue(SignalType.RECEIVED);
+            view.saveButtonForTest().fire();
+
+            assertEquals(SignalType.RECEIVED, saved.get().signalType());
+            view.dispose();
+        });
+    }
+
+    /** Створює нейрон із параметрами, які не перешкоджають перевірці форми налаштувань. */
     private static Neuron neuron(String id, NeuronType type) {
         return new Neuron(id, type, 0, new NeuronParameters(7, 3, 5));
     }
