@@ -53,6 +53,57 @@ class NeuronTest {
         assertEquals(9, neuron.signalWeight());
     }
 
+    /** Перевіряє, що зміна параметрів адаптивного учасника не змінює базову силу всієї структури. */
+    @Test
+    void adaptiveMemberParameterChangesKeepSharedBaselineForNewMembers() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron structure = model.createNeuron(NeuronType.STRUCTURE, 0, 0);
+        structure.setParameters(new NeuronParameters(
+                4, 1, 1, 1, NeuronActivationMode.SIGNAL_STRENGTH, SignalType.STRONGEST));
+
+        Neuron firstMember = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        assertTrue(model.addStructureMember(structure.id(), firstMember.id()));
+        assertEquals(4, firstMember.signalStrength());
+
+        firstMember.setSignalStrength(12);
+        firstMember.setParameters(new NeuronParameters(
+                12, 2, 1, 1, NeuronActivationMode.SIGNAL_STRENGTH, SignalType.RECEIVED));
+
+        assertEquals(4, structure.parameters().signalStrength());
+        assertEquals(12, firstMember.signalStrength());
+
+        Neuron secondMember = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        assertTrue(model.addStructureMember(structure.id(), secondMember.id()));
+
+        assertEquals(SignalType.RECEIVED, secondMember.signalType());
+        assertEquals(2, secondMember.activationThreshold());
+        assertEquals(4, secondMember.signalStrength());
+        assertEquals(12, firstMember.signalStrength());
+    }
+
+    /** Перевіряє, що перехід адаптивного учасника до статичного режиму робить його силу спільною. */
+    @Test
+    void switchingAdaptiveMemberToStaticUsesItsPersonalStrengthAsSharedValue() {
+        NeuronMapModel model = new NeuronMapModel();
+        Neuron structure = model.createNeuron(NeuronType.STRUCTURE, 0, 0);
+        structure.setParameters(new NeuronParameters(
+                4, 1, 1, 1, NeuronActivationMode.SIGNAL_STRENGTH, SignalType.STRONGEST));
+
+        Neuron firstMember = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        Neuron secondMember = model.createNeuron(NeuronType.EXCITATORY, 0, 0);
+        assertTrue(model.addStructureMember(structure.id(), firstMember.id()));
+        assertTrue(model.addStructureMember(structure.id(), secondMember.id()));
+        firstMember.setSignalStrength(12);
+        secondMember.setSignalStrength(7);
+
+        firstMember.setSignalType(SignalType.STATIC);
+
+        assertEquals(SignalType.STATIC, structure.signalType());
+        assertEquals(12, structure.signalStrength());
+        assertEquals(12, firstMember.signalStrength());
+        assertEquals(12, secondMember.signalStrength());
+    }
+
     /** Перевіряє відхилення некоректних параметрів конструктора та сеттерів нейрона. */
     @Test
     void rejectsInvalidConstructionAndParameters() {

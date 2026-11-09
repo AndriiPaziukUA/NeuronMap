@@ -159,7 +159,9 @@ public final class Neuron {
     }
 
     /**
-     * Замінює параметри власника налаштувань; у режимі адаптації задана сила стає персональним значенням.
+     * Замінює параметри налаштувань. Для учасника структури в уже активному адаптивному режимі
+     * базова сила лишається спільною, а передана сила оновлює лише персональне значення цього учасника.
+     * Перехід до статичного режиму, навпаки, переносить вибрану силу до спільних налаштувань.
      *
      * @param parameters новий набір параметрів.
      * @throws IllegalArgumentException якщо параметри не задано.
@@ -168,7 +170,15 @@ public final class Neuron {
         if (parameters == null) {
             throw new IllegalArgumentException("Neuron parameters must not be null.");
         }
-        settings.setParameters(parameters);
+        NeuronParameters current = settings.parameters();
+        boolean preserveSharedAdaptiveStrength = type != NeuronType.STRUCTURE
+                && settings.memberTypeOrNull() != null
+                && current.signalType() != SignalType.STATIC
+                && parameters.signalType() != SignalType.STATIC;
+        NeuronParameters sharedParameters = preserveSharedAdaptiveStrength
+                ? parameters.withSignalStrength(current.signalStrength())
+                : parameters;
+        settings.setParameters(sharedParameters);
         if (type != NeuronType.STRUCTURE && parameters.signalType() != SignalType.STATIC) {
             adaptiveSignalStrength = parameters.signalStrength();
             adaptiveSignalRevision = settings.adaptiveSignalRevision();
@@ -183,6 +193,7 @@ public final class Neuron {
 
     /**
      * Змінює спільний тип сигналу структури або тип окремого нейрона.
+     * Під час переходу адаптивного учасника до статичного режиму його ефективна сила стає спільною.
      *
      * @param signalType новий тип сигналу.
      * @throws IllegalArgumentException якщо тип сигналу не задано.
@@ -191,7 +202,14 @@ public final class Neuron {
         if (signalType == null) {
             throw new IllegalArgumentException("Signal type must not be null.");
         }
-        settings.setParameters(settings.parameters().withSignalType(signalType));
+        NeuronParameters current = settings.parameters();
+        int sharedStrength = current.signalStrength();
+        if (type != NeuronType.STRUCTURE
+                && current.signalType() != SignalType.STATIC
+                && signalType == SignalType.STATIC) {
+            sharedStrength = signalStrength();
+        }
+        settings.setParameters(current.withSignalStrength(sharedStrength).withSignalType(signalType));
     }
 
     /** Повертає режим конкуренції учасників структури. @return {@code true}, якщо конкуренцію ввімкнено. */

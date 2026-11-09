@@ -229,7 +229,9 @@ public final class ActionTraceContext {
             }
             return metrics;
         } catch (SecurityException | UnsupportedOperationException exception) {
-            LOGGER.debug("Лічильники CPU або алокацій потоку недоступні: {}", exception.toString());
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("Лічильники CPU або алокацій потоку недоступні: {}", exception.toString());
+            }
             return metrics;
         }
     }
@@ -523,36 +525,38 @@ public final class ActionTraceContext {
             if (!shouldLog) {
                 return;
             }
-            long finalHeapBytes = MEMORY_METRICS.getHeapMemoryUsage().getUsed();
-            long heapDelta = finalHeapBytes - initialHeapBytes;
-            logStart();
-            for (MethodNode method : rootMethods.values()) {
-                logMethod(method, 0);
-            }
-            double cpuPercent = activeNanos == 0L || cpuNanos < 0L
-                    ? 0.0
-                    : cpuNanos * 100.0 / activeNanos;
-            StringBuilder summary = new StringBuilder()
-                    .append("час=").append(formatDuration(wallNanos))
-                    .append(", активний час=").append(formatDuration(activeNanos))
-                    .append(", CPU потоку=").append(formatDuration(cpuNanos));
-            if (cpuNanos >= 0L && activeNanos > 0L) {
-                summary.append(String.format(Locale.ROOT, " (%.1f%% активного часу)", cpuPercent));
-            }
-            summary.append(", алокації потоку=").append(formatBytes(allocatedBytes))
-                    .append(", heap процесу=").append(formatBytes(initialHeapBytes))
-                    .append(" → ").append(formatBytes(finalHeapBytes))
-                    .append(" (Δ ").append(formatSignedBytes(heapDelta)).append(')');
-            if (eventCount > 0L) {
-                summary.append(", подій=").append(eventCount);
-                if (!Objects.equals(initialDetails, lastEventDetails)) {
-                    summary.append(", остання подія=").append(lastEventDetails);
+            if (LOGGER.isInfoEnabled()) {
+                long finalHeapBytes = MEMORY_METRICS.getHeapMemoryUsage().getUsed();
+                long heapDelta = finalHeapBytes - initialHeapBytes;
+                logStart();
+                for (MethodNode method : rootMethods.values()) {
+                    logMethod(method, 0);
                 }
+                double cpuPercent = activeNanos == 0L || cpuNanos < 0L
+                        ? 0.0
+                        : cpuNanos * 100.0 / activeNanos;
+                StringBuilder summary = new StringBuilder()
+                        .append("час=").append(formatDuration(wallNanos))
+                        .append(", активний час=").append(formatDuration(activeNanos))
+                        .append(", CPU потоку=").append(formatDuration(cpuNanos));
+                if (cpuNanos >= 0L && activeNanos > 0L) {
+                    summary.append(String.format(Locale.ROOT, " (%.1f%% активного часу)", cpuPercent));
+                }
+                summary.append(", алокації потоку=").append(formatBytes(allocatedBytes))
+                        .append(", heap процесу=").append(formatBytes(initialHeapBytes))
+                        .append(" → ").append(formatBytes(finalHeapBytes))
+                        .append(" (Δ ").append(formatSignedBytes(heapDelta)).append(')');
+                if (eventCount > 0L) {
+                    summary.append(", подій=").append(eventCount);
+                    if (!Objects.equals(initialDetails, lastEventDetails)) {
+                        summary.append(", остання подія=").append(lastEventDetails);
+                    }
+                }
+                if (lastFailure != null) {
+                    summary.append(", помилка=").append(lastFailure);
+                }
+                LOGGER.info("КІНЕЦЬ: {} - {} | {}", name, identifier, summary);
             }
-            if (lastFailure != null) {
-                summary.append(", помилка=").append(lastFailure);
-            }
-            LOGGER.info("КІНЕЦЬ: {} - {} | {}", name, identifier, summary);
         }
 
         /**
@@ -597,33 +601,37 @@ public final class ActionTraceContext {
 
         /** Виводить стартовий рядок лише один раз, незалежно від способу завершення дії. */
         private void logStart() {
-            if (startLogged) {
-                return;
+            if (LOGGER.isInfoEnabled()) {
+                if (startLogged) {
+                    return;
+                }
+                startLogged = true;
+                LOGGER.info("СТАРТ: {} - {} | початок={} | потік={} | {}", name, identifier, startedAt,
+                        Thread.currentThread().getName(), initialDetails);
             }
-            startLogged = true;
-            LOGGER.info("СТАРТ: {} - {} | початок={} | потік={} | {}", name, identifier, startedAt,
-                    Thread.currentThread().getName(), initialDetails);
         }
 
         /** Виводить вузол дерева та всі його нащадки зі збереженням вкладеності викликів. */
         private void logMethod(MethodNode node, int depth) {
-            String indentation = "  ".repeat(depth + 1);
-            StringBuilder description = new StringBuilder(indentation)
-                    .append('[').append(identifier).append("] ")
-                    .append(node.methodName)
-                    .append(" | викликів=").append(node.calls)
-                    .append(" | час сумарно=").append(formatDuration(node.totalNanos))
-                    .append(" | максимум=").append(formatDuration(node.maximumNanos))
-                    .append(" | аргументи=").append(node.firstArguments);
-            if (!Objects.equals(node.firstArguments, node.lastArguments)) {
-                description.append(" → ").append(node.lastArguments);
-            }
-            if (node.failures > 0L) {
-                description.append(" | помилок=").append(node.failures);
-            }
-            LOGGER.info(description.toString());
-            for (MethodNode child : node.children.values()) {
-                logMethod(child, depth + 1);
+            if (LOGGER.isInfoEnabled()) {
+                String indentation = "  ".repeat(depth + 1);
+                StringBuilder description = new StringBuilder(indentation)
+                        .append('[').append(identifier).append("] ")
+                        .append(node.methodName)
+                        .append(" | викликів=").append(node.calls)
+                        .append(" | час сумарно=").append(formatDuration(node.totalNanos))
+                        .append(" | максимум=").append(formatDuration(node.maximumNanos))
+                        .append(" | аргументи=").append(node.firstArguments);
+                if (!Objects.equals(node.firstArguments, node.lastArguments)) {
+                    description.append(" → ").append(node.lastArguments);
+                }
+                if (node.failures > 0L) {
+                    description.append(" | помилок=").append(node.failures);
+                }
+                LOGGER.info(description.toString());
+                for (MethodNode child : node.children.values()) {
+                    logMethod(child, depth + 1);
+                }
             }
         }
 
