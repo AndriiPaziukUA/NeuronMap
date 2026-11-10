@@ -1,6 +1,9 @@
 package com.example.neuronmap.view.editor;
 
 import com.example.neuronmap.i18n.LocalizationService;
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.event.Event;
 import javafx.event.EventType;
@@ -14,10 +17,12 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.shape.SVGPath;
+import javafx.util.Duration;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.Locale;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -54,7 +59,7 @@ final class ToolbarViewSingleStepButtonTest {
                 assertFalse(button.isManaged());
                 assertTrue(button.getStyleClass().contains("simulation-step-button"));
                 StackPane shelf = (StackPane) button.getParent();
-                Region underline = regionByClass(toolbar.node(), "simulation-step-group-underline");
+                Region underline = underlineRegion(toolbar.node());
                 Button continueButton = buttonByClass(toolbar.node(), "simulation-icon-button");
                 assertEquals(toolbar.node(), continueButton.getParent(),
                         "Кнопка продовження має залишатися прямим дочірнім вузлом панелі");
@@ -77,8 +82,10 @@ final class ToolbarViewSingleStepButtonTest {
                 assertEquals("1", number.getText());
 
                 Scene scene = new Scene(toolbar.node(), 900.0, 100.0);
-                scene.getStylesheets().add(ToolbarViewSingleStepButtonTest.class
-                        .getResource("/app.css").toExternalForm());
+                scene.getStylesheets().add(Objects.requireNonNull(
+                        ToolbarViewSingleStepButtonTest.class.getResource("/app.css"),
+                        "Обов'язковий тестовий ресурс /app.css відсутній у classpath"
+                ).toExternalForm());
                 scene.getRoot().applyCss();
                 scene.getRoot().layout();
                 assertEquals("Пропустити такт", button.getTooltip().getText());
@@ -110,8 +117,10 @@ final class ToolbarViewSingleStepButtonTest {
                 ToolbarView toolbar = toolbar();
                 toolbarRef.set(toolbar);
                 Scene scene = new Scene(toolbar.node(), 900.0, 100.0);
-                scene.getStylesheets().add(ToolbarViewSingleStepButtonTest.class
-                        .getResource("/app.css").toExternalForm());
+                scene.getStylesheets().add(Objects.requireNonNull(
+                        ToolbarViewSingleStepButtonTest.class.getResource("/app.css"),
+                        "Обов'язковий тестовий ресурс /app.css відсутній у classpath"
+                ).toExternalForm());
                 scene.getRoot().applyCss();
                 toolbar.setSimulationControlsVisible(true);
                 toolbar.setSimulationPaused(false);
@@ -119,7 +128,7 @@ final class ToolbarViewSingleStepButtonTest {
                 Button continueButton = buttonByClass(toolbar.node(), "simulation-icon-button");
                 Button stopButton = buttonByClass(toolbar.node(), "simulation-icon-button-danger");
                 StackPane shelf = (StackPane) toolbar.stepOnceButton().getParent();
-                Region underline = regionByClass(toolbar.node(), "simulation-step-group-underline");
+                Region underline = underlineRegion(toolbar.node());
                 continueRef.set(continueButton);
                 shelfRef.set(shelf);
                 underlineRef.set(underline);
@@ -177,14 +186,16 @@ final class ToolbarViewSingleStepButtonTest {
                 ToolbarView toolbar = toolbar();
                 toolbarRef.set(toolbar);
                 Scene scene = new Scene(toolbar.node(), 900.0, 100.0);
-                scene.getStylesheets().add(ToolbarViewSingleStepButtonTest.class
-                        .getResource("/app.css").toExternalForm());
+                scene.getStylesheets().add(Objects.requireNonNull(
+                        ToolbarViewSingleStepButtonTest.class.getResource("/app.css"),
+                        "Обов'язковий тестовий ресурс /app.css відсутній у classpath"
+                ).toExternalForm());
                 scene.getRoot().applyCss();
                 toolbar.setSimulationControlsVisible(true);
                 toolbar.setSimulationPaused(true);
                 StackPane shelf = (StackPane) toolbar.stepOnceButton().getParent();
                 shelfRef.set(shelf);
-                underlineRef.set(regionByClass(toolbar.node(), "simulation-step-group-underline"));
+                underlineRef.set(underlineRegion(toolbar.node()));
                 toolbar.setStepSimulationOnceAction(() -> { });
                 toolbar.stepOnceButton().fire();
                 fireMouseEvent(shelf, MouseEvent.MOUSE_EXITED);
@@ -243,20 +254,27 @@ final class ToolbarViewSingleStepButtonTest {
         return null;
     }
 
-    /** Знаходить регіон за CSS-класом серед нащадків вузла панелі. */
-    private static Region regionByClass(Node node, String styleClass) {
-        Region found = findRegion(node, styleClass);
-        if (found == null) throw new AssertionError("Регіон із CSS-класом не знайдено: " + styleClass);
+    /** Знаходить лінію-накладку шухлядки серед нащадків панелі інструментів. */
+    private static Region underlineRegion(Node node) {
+        Region found = findUnderlineRegion(node);
+        if (found == null) {
+            throw new AssertionError("Лінію-накладку групи однотактного режиму не знайдено");
+        }
         return found;
     }
 
-    /** Рекурсивно знаходить перший регіон із потрібним CSS-класом. */
-    private static Region findRegion(Node node, String styleClass) {
-        if (node instanceof Region region && region.getStyleClass().contains(styleClass)) return region;
+    /** Рекурсивно знаходить перший регіон із CSS-класом лінії однотактної шухлядки. */
+    private static Region findUnderlineRegion(Node node) {
+        if (node instanceof Region region
+                && region.getStyleClass().contains("simulation-step-group-underline")) {
+            return region;
+        }
         if (node instanceof Parent parent) {
             for (Node child : parent.getChildrenUnmodifiable()) {
-                Region found = findRegion(child, styleClass);
-                if (found != null) return found;
+                Region found = findUnderlineRegion(child);
+                if (found != null) {
+                    return found;
+                }
             }
         }
         return null;
@@ -269,16 +287,38 @@ final class ToolbarViewSingleStepButtonTest {
         Event.fireEvent(node, event);
     }
 
-    /** Очікує зміни стану анімації без блокування потоку JavaFX. */
+    /** Очікує зміну стану анімації таймером JavaFX, не блокуючи потік інтерфейсу й не використовуючи активне очікування. */
     private static void awaitCondition(BooleanSupplier condition, String failureMessage) throws Exception {
+        CountDownLatch completion = new CountDownLatch(1);
+        AtomicReference<Throwable> failure = new AtomicReference<>();
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(3);
-        while (System.nanoTime() < deadline) {
-            boolean[] matches = new boolean[1];
-            runOnFxThread(() -> matches[0] = condition.getAsBoolean());
-            if (matches[0]) return;
-            Thread.sleep(20);
+        Timeline poll = new Timeline();
+        poll.getKeyFrames().add(new KeyFrame(Duration.millis(20.0), _ -> {
+            try {
+                if (condition.getAsBoolean()) {
+                    poll.stop();
+                    completion.countDown();
+                } else if (System.nanoTime() >= deadline) {
+                    failure.set(new AssertionError(failureMessage));
+                    poll.stop();
+                    completion.countDown();
+                }
+            } catch (RuntimeException | Error exception) {
+                failure.set(exception);
+                poll.stop();
+                completion.countDown();
+            }
+        }));
+        poll.setCycleCount(Animation.INDEFINITE);
+
+        runOnFxThread(poll::playFromStart);
+        if (!completion.await(4, TimeUnit.SECONDS)) {
+            runOnFxThread(poll::stop);
+            throw new AssertionError("Перевірка не завершилася у відведений час: " + failureMessage);
         }
-        throw new AssertionError(failureMessage);
+        if (failure.get() != null) {
+            throw new AssertionError("Не вдалося дочекатися зміни стану анімації", failure.get());
+        }
     }
 
     /** Створює панель інструментів із тестовими callback-ами та українською локалізацією. */

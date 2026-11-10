@@ -390,7 +390,7 @@ public final class AppConfigLoader {
      */
     private static String required(Element element, String name) {
         String value = element.getAttribute(name);
-        if (value == null || value.isBlank()) {
+        if (value.isBlank()) {
             throw new IllegalArgumentException(
                     "Missing attribute '" + name + "' in <" + element.getTagName() + ">"
             );

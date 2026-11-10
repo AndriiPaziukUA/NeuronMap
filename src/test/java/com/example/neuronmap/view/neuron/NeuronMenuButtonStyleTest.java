@@ -18,6 +18,7 @@ import javafx.scene.shape.Shape;
 import org.junit.jupiter.api.Test;
 
 import java.util.Locale;
+import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -44,8 +45,10 @@ final class NeuronMenuButtonStyleTest {
             );
             StackPane root = new StackPane(contextMenuView.createMenu(true, actions()));
             Scene scene = new Scene(root, 420.0, 80.0);
-            scene.getStylesheets().add(NeuronMenuButtonStyleTest.class
-                    .getResource("/app.css").toExternalForm());
+            scene.getStylesheets().add(Objects.requireNonNull(
+                    NeuronMenuButtonStyleTest.class.getResource("/app.css"),
+                    "Обов'язковий тестовий ресурс /app.css відсутній у classpath"
+            ).toExternalForm());
             root.applyCss();
             root.layout();
 

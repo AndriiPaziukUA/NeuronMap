@@ -149,7 +149,7 @@ public final class LocalizationService {
     }
 
     /**
-     * Забирає ключ і аргументи останнього локалізованого рядка, якщо передано саме той екземпляр рядка.
+     * Забирає ключ і аргументи останнього локалізованого рядка, якщо передано рядок із таким самим текстовим значенням.
      * Використовується синхронними рядковими callback-ами, щоб зберегти їхній чинний контракт.
      * Виклик одноразовий: метадані видаляються незалежно від результату перевірки.
      *
@@ -159,7 +159,7 @@ public final class LocalizationService {
     public LocalizedMessage consumeLocalizedMessage(String renderedText) {
         LocalizedMessageContext context = pendingLocalizedMessage.get();
         pendingLocalizedMessage.remove();
-        if (context == null || context.renderedText() != renderedText) {
+        if (context == null || !context.renderedText().equals(renderedText)) {
             return null;
         }
         return context.message();
@@ -361,7 +361,7 @@ public final class LocalizationService {
         }
     }
 
-    /** Поєднує точний екземпляр рядка з його ключем і аргументами для одноразового передавання callback-ом. */
+    /** Поєднує відображуваний текст із його ключем і аргументами для одноразового передавання callback-ом. */
     private record LocalizedMessageContext(String renderedText, LocalizedMessage message) {
     }
 }

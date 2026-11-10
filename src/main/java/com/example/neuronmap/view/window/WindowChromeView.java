@@ -47,7 +47,6 @@ public final class WindowChromeView extends BorderPane {
     private final WindowChromePlatformStyle platformStyle;
     private final HBox titleBar = new HBox();
     private final Label titleLabel = new Label();
-    private final Region spacer = new Region();
     private final HBox controlGroup = new HBox();
     private final Button minimizeButton = createButton(
             "window-control-minimize",
@@ -63,9 +62,9 @@ public final class WindowChromeView extends BorderPane {
     );
     private final Consumer<Locale> localeChangeListener = ignored -> refreshControlLabels();
     private final ChangeListener<Boolean> maximizedListener =
-            (observable, wasMaximized, isMaximized) -> refreshWindowState();
+            (_, _, _) -> refreshWindowState();
     private final ChangeListener<Boolean> fullScreenListener =
-            (observable, wasFullScreen, isFullScreen) -> refreshWindowState();
+            (_, _, _) -> refreshWindowState();
     private final List<String> addedStylesheets = new ArrayList<>();
 
     private Scene installedScene;
@@ -114,9 +113,6 @@ public final class WindowChromeView extends BorderPane {
         titleLabel.setMinWidth(0.0);
         titleLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
         titleLabel.textProperty().bind(stage.titleProperty());
-        spacer.getStyleClass().add("window-title-spacer");
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
         controlGroup.getStyleClass().add("window-control-group");
         if (platformStyle.controlsOnLeadingEdge()) {
             controlGroup.getChildren().addAll(closeButton, minimizeButton, maximizeButton);
@@ -140,6 +136,9 @@ public final class WindowChromeView extends BorderPane {
             HBox.setHgrow(centeredHeader, Priority.ALWAYS);
             titleBar.getChildren().add(centeredHeader);
         } else {
+            Region spacer = new Region();
+            spacer.getStyleClass().add("window-title-spacer");
+            HBox.setHgrow(spacer, Priority.ALWAYS);
             titleBar.getChildren().addAll(titleLabel, spacer, minimizeButton, maximizeButton, closeButton);
         }
         setTop(titleBar);
@@ -254,8 +253,7 @@ public final class WindowChromeView extends BorderPane {
             return;
         }
 
-        Throwable cleanupFailure = null;
-        cleanupFailure = attemptCleanup(cleanupFailure, () -> localization.removeListener(localeChangeListener));
+        Throwable cleanupFailure = attemptCleanup(null, () -> localization.removeListener(localeChangeListener));
         cleanupFailure = attemptCleanup(cleanupFailure, () -> stage.maximizedProperty().removeListener(maximizedListener));
         cleanupFailure = attemptCleanup(cleanupFailure, () -> stage.fullScreenProperty().removeListener(fullScreenListener));
         cleanupFailure = attemptCleanup(cleanupFailure, () -> titleLabel.textProperty().unbind());

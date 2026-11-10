@@ -37,7 +37,8 @@ public final class SceneKeyboardModality {
         if (!(boundary instanceof EditorKeyboardShortcutBoundary)) {
             throw new IllegalArgumentException("Модальна межа має реалізовувати EditorKeyboardShortcutBoundary");
         }
-        Registry registry = registryFor(scene, true);
+        Registry registry = Objects.requireNonNull(
+                registryFor(scene, true), "Реєстр сцени має бути створений для операції реєстрації");
         registry.boundaries.add(boundary);
     }
 

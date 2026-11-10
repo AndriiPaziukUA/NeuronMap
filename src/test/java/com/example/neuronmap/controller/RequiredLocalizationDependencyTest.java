@@ -1,7 +1,6 @@
 package com.example.neuronmap.controller;
 
 import com.example.neuronmap.application.EditorState;
-import com.example.neuronmap.i18n.LocalizationService;
 import com.example.neuronmap.model.NeuronMapModel;
 import com.example.neuronmap.service.ConnectionService;
 import com.example.neuronmap.service.GroupService;

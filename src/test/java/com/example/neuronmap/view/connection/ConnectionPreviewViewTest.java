@@ -14,6 +14,7 @@ import javafx.scene.shape.Line;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -133,8 +134,10 @@ final class ConnectionPreviewViewTest {
         NeuronView source = new NeuronView(new NeuronPresentation(sourceModel, 100.0, 80.0, 0.0));
         workspace.nodeLayer().getChildren().add(source);
         Scene scene = new Scene(workspace.node(), 800.0, 600.0);
-        scene.getStylesheets().add(
-                ConnectionPreviewViewTest.class.getResource("/app.css").toExternalForm());
+        scene.getStylesheets().add(Objects.requireNonNull(
+                ConnectionPreviewViewTest.class.getResource("/app.css"),
+                "Обов'язковий тестовий ресурс /app.css відсутній у classpath"
+        ).toExternalForm());
         scene.getRoot().applyCss();
         scene.getRoot().layout();
         return new PreviewFixture(workspace, source, scene);

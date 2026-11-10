@@ -74,15 +74,15 @@ public final class MainMenuView extends StackPane {
          * @param back дія повернення на попередню сторінку.
          */
         public Actions {
-            newProject = Objects.requireNonNull(newProject, "newProject");
-            load = Objects.requireNonNull(load, "load");
-            settings = Objects.requireNonNull(settings, "settings");
-            exit = Objects.requireNonNull(exit, "exit");
-            close = Objects.requireNonNull(close, "close");
-            openProject = Objects.requireNonNull(openProject, "openProject");
-            renameProject = Objects.requireNonNull(renameProject, "renameProject");
-            deleteProject = Objects.requireNonNull(deleteProject, "deleteProject");
-            back = Objects.requireNonNull(back, "back");
+            Objects.requireNonNull(newProject, "newProject");
+            Objects.requireNonNull(load, "load");
+            Objects.requireNonNull(settings, "settings");
+            Objects.requireNonNull(exit, "exit");
+            Objects.requireNonNull(close, "close");
+            Objects.requireNonNull(openProject, "openProject");
+            Objects.requireNonNull(renameProject, "renameProject");
+            Objects.requireNonNull(deleteProject, "deleteProject");
+            Objects.requireNonNull(back, "back");
         }
     }
 
@@ -114,7 +114,7 @@ public final class MainMenuView extends StackPane {
     private Consumer<Boolean> visibilityChanged = ignored -> { };
     private Consumer<SupportedLanguage> previewLanguageAction = ignored -> { };
     private Runnable commitSettingsAction = () -> { };
-    private BooleanSupplier hasUnsavedSettings = () -> false;
+    private BooleanSupplier hasUnsavedSettings;
     private Runnable projectRenameCommittedAction = () -> { };
 
     /**

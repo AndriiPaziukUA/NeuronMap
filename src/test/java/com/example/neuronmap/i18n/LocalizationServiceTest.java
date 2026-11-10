@@ -14,6 +14,9 @@ import java.util.ResourceBundle;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -70,7 +73,7 @@ final class LocalizationServiceTest {
                 .flatMap(constructor -> Arrays.stream(constructor.getParameterTypes()))
                 .anyMatch(type -> type == GlobalSettingsStore.class);
         boolean hasConcreteMethodSignature = Arrays.stream(LocalizationService.class.getDeclaredMethods())
-                .anyMatch(method -> methodHasConcreteSettingsType(method));
+                .anyMatch(LocalizationServiceTest::methodHasConcreteSettingsType);
 
         assertFalse(hasConcreteField || hasConcreteConstructor || hasConcreteMethodSignature);
     }
@@ -140,6 +143,35 @@ final class LocalizationServiceTest {
 
         localization.previewLanguage(SupportedLanguage.UKRAINIAN);
         assertEquals(SupportedLanguage.UKRAINIAN, localization.language());
+    }
+
+    /**
+     * Перевіряє, що походження локалізованого повідомлення доступне для іншого екземпляра рівнозначного рядка.
+     */
+    @Test
+    void consumesLocalizedMessageWhenTextValuesAreEqual() {
+        LocalizationService localization = new LocalizationService(Locale.ENGLISH);
+        String renderedText = localization.text("menu.new_project");
+
+        String equivalentText = new String(renderedText.toCharArray());
+        assertNotSame(renderedText, equivalentText,
+                "Перевірка має використовувати окремий екземпляр із тим самим текстом");
+        LocalizationService.LocalizedMessage message = localization.consumeLocalizedMessage(equivalentText);
+
+        assertNotNull(message);
+        assertEquals("menu.new_project", message.key());
+    }
+
+    /**
+     * Перевіряє, що невідповідний текст не отримує метадані й одноразово очищує очікуване повідомлення.
+     */
+    @Test
+    void consumingDifferentTextClearsPendingLocalizedMessage() {
+        LocalizationService localization = new LocalizationService(Locale.ENGLISH);
+        localization.text("menu.new_project");
+
+        assertNull(localization.consumeLocalizedMessage("different text"));
+        assertNull(localization.consumeLocalizedMessage("New Project"));
     }
 
     /**

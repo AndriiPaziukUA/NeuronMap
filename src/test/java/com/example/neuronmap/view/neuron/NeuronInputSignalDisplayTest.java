@@ -12,6 +12,7 @@ import javafx.scene.shape.Circle;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -93,8 +94,10 @@ final class NeuronInputSignalDisplayTest {
                     new NeuronPresentation(neuron, 100.0, 80.0, 0.0));
             HBox root = new HBox(view);
             Scene scene = new Scene(root, 400.0, 200.0);
-            scene.getStylesheets().add(
-                    NeuronInputSignalDisplayTest.class.getResource("/app.css").toExternalForm());
+            scene.getStylesheets().add(Objects.requireNonNull(
+                    NeuronInputSignalDisplayTest.class.getResource("/app.css"),
+                    "Обов'язковий тестовий ресурс /app.css відсутній у classpath"
+            ).toExternalForm());
             root.applyCss();
 
             Circle inputPort = (Circle) view.getChildren().get(3);

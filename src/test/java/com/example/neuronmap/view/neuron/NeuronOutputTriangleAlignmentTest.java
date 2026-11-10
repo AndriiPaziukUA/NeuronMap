@@ -18,12 +18,12 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigInteger;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Перевіряє геометрію вихідного трикутника та кольори під час передавання сигналів. */
 final class NeuronOutputTriangleAlignmentTest {
@@ -103,8 +103,10 @@ final class NeuronOutputTriangleAlignmentTest {
             ));
             HBox root = new HBox(excitatoryView, inhibitoryView, workspace.node());
             Scene scene = new Scene(root, 900.0, 300.0);
-            scene.getStylesheets().add(
-                    NeuronOutputTriangleAlignmentTest.class.getResource("/app.css").toExternalForm());
+            scene.getStylesheets().add(Objects.requireNonNull(
+                    NeuronOutputTriangleAlignmentTest.class.getResource("/app.css"),
+                    "Обов'язковий тестовий ресурс /app.css відсутній у classpath"
+            ).toExternalForm());
             root.applyCss();
 
             PulseAnimationController pulseAnimations = new PulseAnimationController(workspace);

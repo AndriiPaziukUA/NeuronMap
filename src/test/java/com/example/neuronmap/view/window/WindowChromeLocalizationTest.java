@@ -21,6 +21,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.Locale;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -113,7 +114,6 @@ final class WindowChromeLocalizationTest {
         assertEquals("/window-chrome-linux.css", WindowChromePlatformStyle.LINUX.stylesheetResource().orElseThrow());
     }
 
-
     /** Перевіряє доступні назви системної кнопки з урахуванням різної поведінки macOS та інших ОС. */
     @Test
     void selectsAccessibleMaximizeLabelsByPlatformState() {
@@ -155,7 +155,10 @@ final class WindowChromeLocalizationTest {
                 StackPane editorRoot = new StackPane();
                 Scene scene = new Scene(editorRoot, 800.0, 600.0);
                 stage.setScene(scene);
-                String baseStylesheet = getClass().getResource("/window-chrome.css").toExternalForm();
+                String baseStylesheet = Objects.requireNonNull(
+                        getClass().getResource("/window-chrome.css"),
+                        "Обов'язковий тестовий ресурс /window-chrome.css відсутній у classpath"
+                ).toExternalForm();
                 scene.getStylesheets().add(baseStylesheet);
                 WindowChromeView view = new WindowChromeView(
                         stage, new LocalizationService(Locale.ENGLISH), style);
@@ -180,13 +183,13 @@ final class WindowChromeLocalizationTest {
                             maximize.getAccessibleText());
 
                     if (style == WindowChromePlatformStyle.MACOS) {
-                        StackPane centeredHeader = assertInstanceOf(StackPane.class, titleBar.getChildren().get(0));
+                        StackPane centeredHeader = assertInstanceOf(StackPane.class, titleBar.getChildren().getFirst());
                         Label title = assertInstanceOf(Label.class, findByStyleClass(centeredHeader, "window-title"));
                         HBox controls = assertInstanceOf(HBox.class,
                                 findByStyleClass(centeredHeader, "window-control-group"));
                         assertEquals(Pos.CENTER, StackPane.getAlignment(title));
                         assertEquals(Pos.CENTER_LEFT, StackPane.getAlignment(controls));
-                        assertEquals(close, controls.getChildren().get(0));
+                        assertEquals(close, controls.getChildren().getFirst());
                         assertEquals(minimize, controls.getChildren().get(1));
                         assertEquals(maximize, controls.getChildren().get(2));
 
@@ -219,13 +222,13 @@ final class WindowChromeLocalizationTest {
                                 "macOS має показувати значок повноекранного режиму, а не значок відновлення");
                         Pane enterIcon = assertInstanceOf(Pane.class, WindowChromeView.createMacOsFullScreenIcon(false));
                         Pane exitIcon = assertInstanceOf(Pane.class, WindowChromeView.createMacOsFullScreenIcon(true));
-                        assertEquals(2.0, assertInstanceOf(Line.class, enterIcon.getChildren().get(0)).getStartX());
-                        assertEquals(5.0, assertInstanceOf(Line.class, exitIcon.getChildren().get(0)).getStartX());
+                        assertEquals(2.0, assertInstanceOf(Line.class, enterIcon.getChildren().getFirst()).getStartX());
+                        assertEquals(5.0, assertInstanceOf(Line.class, exitIcon.getChildren().getFirst()).getStartX());
                     } else {
                         assertEquals(titleBar.getChildren().get(2), minimize);
                         assertEquals(titleBar.getChildren().get(3), maximize);
                         assertEquals(titleBar.getChildren().get(4), close);
-                        assertSame(findByStyleClass(titleBar, "window-title"), titleBar.getChildren().get(0));
+                        assertSame(findByStyleClass(titleBar, "window-title"), titleBar.getChildren().getFirst());
                     }
 
                     view.dispose();

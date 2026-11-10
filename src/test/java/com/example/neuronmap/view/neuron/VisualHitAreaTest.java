@@ -12,6 +12,8 @@ import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
 import org.junit.jupiter.api.Test;
 
+import java.util.Objects;
+
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -69,8 +71,10 @@ final class VisualHitAreaTest {
             NeuronView view = createNeuronView();
             StackPane root = new StackPane(view);
             Scene scene = new Scene(root, NeuronView.WIDTH + 40.0, NeuronView.HEIGHT + 40.0);
-            scene.getStylesheets().add(
-                    VisualHitAreaTest.class.getResource("/app.css").toExternalForm());
+            scene.getStylesheets().add(Objects.requireNonNull(
+                    VisualHitAreaTest.class.getResource("/app.css"),
+                    "Обов'язковий тестовий ресурс /app.css відсутній у classpath"
+            ).toExternalForm());
             view.refreshVisuals(true);
             root.applyCss();
 

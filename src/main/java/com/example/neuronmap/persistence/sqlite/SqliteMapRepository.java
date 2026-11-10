@@ -143,7 +143,7 @@ public final class SqliteMapRepository implements MapRepository {
         }
 
         if (operationFailure != null && transactionMayBeActive) {
-            operationFailure = rollbackAfterFailure(operationFailure);
+            rollbackAfterFailure(operationFailure);
             if (closed) {
                 throw operationFailure;
             }
@@ -196,16 +196,14 @@ public final class SqliteMapRepository implements MapRepository {
     }
 
     /** Виконує відкат після невдалої операції та закриває репозиторій, якщо стан транзакції став ненадійним. */
-    private RuntimeException rollbackAfterFailure(RuntimeException operationFailure) {
+    private void rollbackAfterFailure(RuntimeException operationFailure) {
         try {
             connection.rollback();
-            return operationFailure;
         } catch (SQLException rollbackException) {
             operationFailure.addSuppressed(
                     failure("Не вдалося виконати відкат транзакції SQLite.", rollbackException)
             );
             closeAfterTransactionStateFailure(operationFailure);
-            return operationFailure;
         }
     }
 
